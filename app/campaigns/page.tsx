@@ -4,100 +4,100 @@ import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Clock, CheckCircle, Loader2, FileCheck } from "lucide-react";
+import { Plus, Loader2, ArrowUpRight, Filter } from "lucide-react";
 import Link from "next/link";
 
 const campaigns = [
   {
     id: "1",
-    icpPreview: "Oil & Gas Vendors - Nigeria, 12th MICT Forum Qatar...",
+    name: "Oil & Gas Vendors - Nigeria",
+    icpPreview: "Targeting procurement managers in Lagos, Port Harcourt...",
     status: "scraping",
     progress: 67,
     leads: 45,
-    approved: 0,
-    createdAt: "2 hours ago",
+    toApprove: 0, // Still scraping, none ready yet
+    createdAt: "2h ago",
   },
   {
     id: "2",
-    icpPreview: "Tech Startups - UAE, Dubai Tech Summit, SaaS companies...",
+    name: "Tech Startups - UAE",
+    icpPreview: "SaaS founders attending Dubai Tech Summit...",
     status: "pending_approval",
     progress: 100,
     leads: 78,
-    approved: 32,
-    createdAt: "5 hours ago",
+    toApprove: 32, // Action item
+    createdAt: "5h ago",
   },
   {
     id: "3",
-    icpPreview: "Manufacturing - GCC, Industrial equipment suppliers...",
+    name: "Manufacturing - GCC",
+    icpPreview: "Industrial equipment suppliers in Saudi & Qatar...",
     status: "outreach",
     progress: 100,
     leads: 156,
-    approved: 156,
-    contacted: 89,
-    createdAt: "1 day ago",
+    toApprove: 0, // All approved
+    createdAt: "1d ago",
   },
   {
     id: "4",
-    icpPreview: "Healthcare Summit - MENA, Medical equipment vendors...",
+    name: "Healthcare Summit - MENA",
+    icpPreview: "Medical equipment vendors and hospital admins...",
     status: "completed",
     progress: 100,
     leads: 234,
-    approved: 234,
-    contacted: 234,
-    replied: 45,
-    createdAt: "3 days ago",
+    toApprove: 0, // Completed
+    createdAt: "3d ago",
   },
 ];
 
-const statusConfig: Record<string, { label: string; color: string; icon: any; iconClass?: string }> = {
+const statusConfig: Record<string, { label: string; style: string; icon?: any; spin?: boolean }> = {
   queued: {
     label: "Queued",
-    color: "bg-slate-100 text-slate-700",
-    icon: Clock,
+    style: "bg-zinc-100 text-zinc-500",
   },
   scraping: {
-    label: "Scraping",
-    color: "bg-blue-100 text-blue-700",
+    label: "Processing",
+    style: "bg-zinc-900 text-sidebar-primary", 
     icon: Loader2,
-    iconClass: "animate-spin",
+    spin: true,
   },
   pending_approval: {
-    label: "Pending Approval",
-    color: "bg-amber-100 text-amber-700",
-    icon: FileCheck,
+    label: "Needs Review",
+    style: "bg-zinc-100 text-zinc-900",
   },
   outreach: {
-    label: "Outreach",
-    color: "bg-violet-100 text-violet-700",
-    icon: Users,
+    label: "Active Outreach",
+    style: "bg-zinc-50 text-zinc-900",
   },
   completed: {
     label: "Completed",
-    color: "bg-emerald-100 text-emerald-700",
-    icon: CheckCircle,
+    style: "text-zinc-400 bg-transparent px-0",
   },
 };
 
 export default function CampaignsPage() {
   return (
-    <div>
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between mb-6"
-      >
+    <div className="font-sans min-h-screen bg-transparent p-1">
+      {/* Header */}
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between border-b border-zinc-100 pb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Campaigns</h1>
-          <p className="text-slate-500">Manage your lead generation campaigns</p>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Campaigns</h1>
+          <p className="text-sm text-zinc-500 mt-1">Manage and track your lead generation workflows</p>
         </div>
-        <Link href="/campaigns/new">
-          <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-            <Plus className="mr-2 h-4 w-4" />
-            New Campaign
+        <div className="flex gap-3">
+           <Button variant="outline" className="h-10 border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900">
+            <Filter className="mr-2 h-4 w-4" /> Filter
           </Button>
-        </Link>
-      </motion.div>
+          <Link href="/campaigns/new">
+            <Button className="h-10 bg-zinc-900 text-white shadow-lg shadow-zinc-900/10 hover:bg-zinc-800">
+              <Plus className="mr-2 h-4 w-4" />
+              New Campaign
+            </Button>
+          </Link>
+        </div>
+      </div>
 
+      {/* Campaign List */}
       <div className="space-y-4">
         {campaigns.map((campaign, index) => {
           const status = statusConfig[campaign.status as keyof typeof statusConfig];
@@ -106,71 +106,82 @@ export default function CampaignsPage() {
           return (
             <motion.div
               key={campaign.id}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
+              transition={{ delay: index * 0.05 }}
             >
               <Link href={`/campaigns/${campaign.id}`}>
-                <Card className="p-5 hover:shadow-md transition-all cursor-pointer">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <Badge className={status.color}>
-                          <StatusIcon className={`mr-1 h-3 w-3 ${status.iconClass || ""}`} />
-                          {status.label}
-                        </Badge>
-                        <span className="text-sm text-slate-400">{campaign.createdAt}</span>
-                      </div>
-                      <p className="text-slate-900 font-medium line-clamp-1">
+                <Card className="group relative flex flex-col gap-6 rounded-xl border border-transparent bg-white p-6 shadow-sm transition-all hover:shadow-md hover:border-zinc-200 sm:flex-row sm:items-center sm:justify-between">
+                  
+                  {/* Left: Info */}
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <Badge className={`rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-wide shadow-none border-0 ${status.style}`}>
+                        {StatusIcon && <StatusIcon className={`mr-1.5 h-3 w-3 ${status.spin ? "animate-spin" : ""}`} />}
+                        {status.label}
+                      </Badge>
+                      <span className="text-xs text-zinc-400 font-medium">{campaign.createdAt}</span>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-lg font-semibold text-zinc-900 group-hover:text-zinc-700 transition-colors">
+                        {campaign.name}
+                      </h3>
+                      <p className="mt-1 line-clamp-1 max-w-md text-sm text-zinc-500">
                         {campaign.icpPreview}
                       </p>
                     </div>
+
+                    {/* Progress Bar (Scraping) */}
+                    {campaign.status === "scraping" && (
+                      <div className="mt-5 max-w-xs">
+                        <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-zinc-500 mb-2">
+                          <span>Scraping profiles...</span>
+                          <span className="text-zinc-900 font-bold">{campaign.progress}%</span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-zinc-100 overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${campaign.progress}%` }}
+                            className="h-full rounded-full bg-sidebar-primary"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Progress bar for scraping */}
-                  {campaign.status === "scraping" && (
-                    <div className="mt-4">
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-slate-500">Scraping progress</span>
-                        <span className="font-medium">{campaign.progress}%</span>
-                      </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${campaign.progress}%` }}
-                          className="h-full bg-blue-600 rounded-full"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Stats */}
-                  <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-6 text-sm">
-                    <div className="flex items-center gap-1 text-slate-500">
-                      <Users className="h-4 w-4" />
-                      <span className="font-medium text-slate-700">{campaign.leads}</span> leads
-                    </div>
+                  {/* Right: Metrics - Standardized */}
+                  <div className="flex items-center gap-16 border-t border-zinc-50 pt-6 sm:border-0 sm:pt-0 sm:pl-10">
                     
-                    {campaign.status !== "scraping" && campaign.status !== "queued" && (
-                      <div className="flex items-center gap-1 text-slate-500">
-                        <FileCheck className="h-4 w-4" />
-                        <span className="font-medium text-slate-700">{campaign.approved}</span> approved
-                      </div>
-                    )}
+                    {/* Metric 1: Total Leads */}
+                    <div className="flex flex-col items-start sm:items-end">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1">
+                        Total Leads
+                      </span>
+                      <span className="text-2xl font-bold text-zinc-900 tracking-tight">
+                        {campaign.leads}
+                      </span>
+                    </div>
 
-                    {(campaign.status === "outreach" || campaign.status === "completed") && (
-                      <div className="flex items-center gap-1 text-slate-500">
-                        <CheckCircle className="h-4 w-4" />
-                        <span className="font-medium text-slate-700">{campaign.contacted}</span> contacted
-                      </div>
-                    )}
+                    {/* Metric 2: To Approve */}
+                    <div className="flex flex-col items-start sm:items-end min-w-[80px]">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1">
+                        To Approve
+                      </span>
+                      <span className={`text-2xl font-bold tracking-tight ${
+                          // Highlight count if there are items waiting
+                          campaign.toApprove > 0 ? "text-zinc-900" : "text-zinc-300"
+                        }`}>
+                        {campaign.toApprove}
+                      </span>
+                    </div>
 
-                    {campaign.status === "completed" && campaign.replied && (
-                      <div className="flex items-center gap-1 text-emerald-600">
-                        <span className="font-medium">{campaign.replied}</span> replied
-                      </div>
-                    )}
+                    {/* Arrow Action */}
+                    <div className="hidden sm:block p-2 rounded-full text-zinc-300 transition-colors group-hover:text-zinc-900 group-hover:bg-zinc-50">
+                        <ArrowUpRight className="h-5 w-5" />
+                    </div>
                   </div>
+
                 </Card>
               </Link>
             </motion.div>
