@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Rocket, Plus, Clock, CheckCircle, Settings } from "lucide-react";
+import { LayoutDashboard, Webhook, Plus, Clock, CheckCircle, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
 
 const navItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Campaigns", href: "/campaigns", icon: Rocket },
+  { name: "Campaigns", href: "/campaigns", icon: Webhook },
   { name: "New Campaign", href: "/campaigns/new", icon: Plus },
   { name: "Queue", href: "/queue", icon: Clock },
   { name: "Completed", href: "/completed", icon: CheckCircle },
@@ -16,33 +17,58 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [rotation, setRotation] = useState(0);
+
+  // Logic for random rotation intervals
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    const rotateIcon = () => {
+      // Add 360 degrees to current rotation to spin it
+      setRotation((prev) => prev + 360);
+
+      // Calculate a random delay between 3000ms (3s) and 10000ms (10s)
+      const randomDelay = Math.floor(Math.random() * 7000) + 3000;
+      
+      // Schedule next rotation
+      timeoutId = setTimeout(rotateIcon, randomDelay);
+    };
+
+    // Start the first rotation after 2 seconds
+    timeoutId = setTimeout(rotateIcon, 2000);
+
+    return () => clearTimeout(timeoutId);
+  }, []);
 
   return (
     <motion.aside
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.3 }}
-      // Changed: Using sidebar-specific vars for the Deep Black background
       className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-sidebar-border bg-sidebar p-5 text-sidebar-foreground font-sans"
     >
       {/* Logo */}
       <div className="mb-10 flex items-center gap-3 px-2">
         <motion.div
           initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.2, type: "spring" }}
-          // Changed: Green logo icon background
+          // Animate both scale (on load) and rotation (periodically)
+          animate={{ scale: 1, rotate: rotation }}
+          // Custom transition: bouncy spring for scale, smooth easing for rotation
+          transition={{ 
+            scale: { type: "spring", stiffness: 260, damping: 20 },
+            rotate: { duration: 2, ease: "easeInOut" } // Smooth techy spin
+          }}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground"
         >
-          <Rocket className="h-5 w-5" />
+          <Webhook className="h-5 w-5" />
         </motion.div>
         <motion.span
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3 }}
-          className="text-xl font-semibold tracking-wide text-sidebar-foreground"
+          className="text-2xl font-regular tracking-wide text-sidebar-foreground"
         >
-          SuperNizo
+          supernizo
         </motion.span>
       </div>
 
@@ -59,10 +85,6 @@ export function Sidebar() {
               <Link href={item.href}>
                 <Button
                   variant="ghost"
-                  // Changed: 
-                  // 1. Active: Neon Green BG (sidebar-primary) with Black Text (sidebar-primary-foreground)
-                  // 2. Inactive: Grey text, light hover
-                  // 3. Rounded-full for the pill shape seen in the inspiration
                   className={`w-full justify-start gap-3 rounded-full px-4 py-6 text-[15px] font-medium transition-all duration-200 ${
                     isActive
                       ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md hover:bg-sidebar-primary/90"
