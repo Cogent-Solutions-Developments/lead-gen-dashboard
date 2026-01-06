@@ -13,7 +13,7 @@ export default function DashboardPage() {
         animate={{ opacity: 1, y: 0 }}
       >
         <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-        <p className="mb-6 text-slate-500">Welcome to SuperNizor</p>
+        <p className="mb-6 text-slate-500">Welcome to supernizo</p>
       </motion.div>
 
       <motion.div
