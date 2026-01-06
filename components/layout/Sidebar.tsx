@@ -22,30 +22,31 @@ export function Sidebar() {
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="fixed left-0 top-0 h-screen w-64 border-r border-slate-200 bg-white p-4"
+      // Changed: Using sidebar-specific vars for the Deep Black background
+      className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-sidebar-border bg-sidebar p-5 text-sidebar-foreground font-sans"
     >
       {/* Logo */}
-      <div className="mb-8 flex items-center gap-2 px-2">
+      <div className="mb-10 flex items-center gap-3 px-2">
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ delay: 0.2, type: "spring" }}
-          className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600"
+          // Changed: Green logo icon background
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground"
         >
-          <Rocket className="h-4 w-4 text-white" />
+          <Rocket className="h-5 w-5" />
         </motion.div>
         <motion.span
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3 }}
-          className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
+          className="text-xl font-semibold tracking-wide text-sidebar-foreground"
         >
-          SuperNizor
+          SuperNizo
         </motion.span>
       </div>
 
-      {/* Navigation */}
-      <nav className="space-y-1">
+      <nav className="space-y-1.5">
         {navItems.map((item, index) => {
           const isActive = pathname === item.href;
           return (
@@ -57,12 +58,18 @@ export function Sidebar() {
             >
               <Link href={item.href}>
                 <Button
-                  variant={isActive ? "secondary" : "ghost"}
-                  className={`w-full justify-start gap-2 ${
-                    isActive ? "bg-blue-50 text-blue-600 hover:bg-blue-100" : ""
+                  variant="ghost"
+                  // Changed: 
+                  // 1. Active: Neon Green BG (sidebar-primary) with Black Text (sidebar-primary-foreground)
+                  // 2. Inactive: Grey text, light hover
+                  // 3. Rounded-full for the pill shape seen in the inspiration
+                  className={`w-full justify-start gap-3 rounded-full px-4 py-6 text-[15px] font-medium transition-all duration-200 ${
+                    isActive
+                      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md hover:bg-sidebar-primary/90"
+                      : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   }`}
                 >
-                  <item.icon className="h-4 w-4" />
+                  <item.icon className="h-5 w-5" />
                   {item.name}
                 </Button>
               </Link>
@@ -72,15 +79,18 @@ export function Sidebar() {
       </nav>
 
       {/* Bottom section */}
-      <div className="absolute bottom-4 left-4 right-4">
+      <div className="absolute bottom-6 left-5 right-5">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
           <Link href="/settings">
-            <Button variant="ghost" className="w-full justify-start gap-2">
-              <Settings className="h-4 w-4" />
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start gap-3 rounded-full px-4 py-6 text-[15px] text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              <Settings className="h-5 w-5" />
               Settings
             </Button>
           </Link>
