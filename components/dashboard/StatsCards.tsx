@@ -2,28 +2,33 @@
 
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
-import { Rocket, Clock, FileCheck, Users } from "lucide-react";
+import { Users, FileCheck, Rocket, Send } from "lucide-react";
 
 const stats = [
+  {
+    name: "Active Campaigns",
+    value: "4",
+    icon: Rocket,
+    description: "Engines running",
+  },
   {
     name: "Total Leads",
     value: "1,429",
     icon: Users,
+    description: "Scraped candidates",
   },
   {
-    name: "Active Campaigns",
-    value: "12",
-    icon: Rocket,
-  },
-  {
-    name: "Pending Approval",
+    name: "Pending Review",
     value: "28",
     icon: FileCheck,
+    description: "Requires approval",
+    action: true, // Highlights this card as a "To-Do"
   },
   {
-    name: "Queue Depth",
-    value: "5",
-    icon: Clock,
+    name: "Leads Contacted",
+    value: "842",
+    icon: Send,
+    description: "Outreach sent",
   },
 ];
 
@@ -37,17 +42,30 @@ export function StatsCards() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.1, duration: 0.4 }}
         >
-          <Card className="flex flex-col justify-between rounded-xl border border-zinc-200 bg-white p-6 shadow-none transition-all hover:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700">
+          <Card className={`flex flex-col justify-between rounded-xl border bg-white p-6 shadow-sm transition-all hover:border-zinc-300 ${
+            stat.action 
+              ? "border-zinc-300 ring-1 ring-zinc-100" // Subtle highlight for Action Item
+              : "border-zinc-200"
+          }`}>
+            
+            {/* Header: Label + Icon */}
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
                 {stat.name}
               </span>
-              <stat.icon className="h-4 w-4 text-zinc-400" />
+              <stat.icon className={`h-4 w-4 ${
+                  stat.action ? "text-zinc-900" : "text-zinc-400"
+              }`} />
             </div>
+
+            {/* Value + Description */}
             <div className="mt-4">
-              <span className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+              <span className="text-3xl font-bold tracking-tight text-zinc-900">
                 {stat.value}
               </span>
+              <p className="mt-1 text-xs font-medium text-zinc-400">
+                {stat.description}
+              </p>
             </div>
           </Card>
         </motion.div>

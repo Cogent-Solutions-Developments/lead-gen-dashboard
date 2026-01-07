@@ -244,8 +244,8 @@ export default function CampaignDetailPage() {
         <Card className="flex flex-col justify-between p-6 rounded-xl border border-zinc-200 shadow-sm bg-white">
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Approved</span>
             <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-emerald-600">{approvedCount}</span>
-                <CheckCircle className="h-4 w-4 text-emerald-200" />
+                <span className="text-3xl font-bold text-sidebar-primary">{approvedCount}</span>
+                <CheckCircle className="h-4 w-4 text-sidebar-primary/80" />
             </div>
         </Card>
 

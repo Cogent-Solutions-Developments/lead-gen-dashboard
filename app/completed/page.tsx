@@ -57,7 +57,7 @@ export default function CompletedPage() {
               <div className="p-6">
                 <div className="flex items-start gap-5">
                   {/* Icon Box */}
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-zinc-100 bg-zinc-50 text-emerald-600 shadow-sm">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-zinc-100 bg-zinc-50 text-sidebar shadow-sm">
                     <CheckCircle className="h-6 w-6" />
                   </div>
                   
