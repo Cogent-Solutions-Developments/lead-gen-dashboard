@@ -45,7 +45,7 @@ export function Sidebar() {
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-sidebar-border bg-sidebar p-5 text-sidebar-foreground font-sans"
+      className="fixed left-0 top-0 z-40 h-screen w-64  bg-sidebar p-5 text-sidebar-foreground font-sans"
     >
       {/* Logo */}
       <div className="mb-10 flex items-center gap-3 px-2">
@@ -58,7 +58,7 @@ export function Sidebar() {
             scale: { type: "spring", stiffness: 260, damping: 20 },
             rotate: { duration: 2, ease: "easeInOut" } // Smooth techy spin
           }}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-sidebar-secondary text-sidebar-primary-foreground"
         >
           <Webhook className="h-5 w-5" />
         </motion.div>
@@ -66,7 +66,7 @@ export function Sidebar() {
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3 }}
-          className="text-2xl font-regular tracking-wide text-sidebar-foreground"
+          className="text-2xl font-medium tracking-wide text-sidebar-foreground"
         >
           supernizo
         </motion.span>
@@ -87,8 +87,8 @@ export function Sidebar() {
                   variant="ghost"
                   className={`w-full justify-start gap-3 rounded-full px-4 py-6 text-[15px] font-medium transition-all duration-200 ${
                     isActive
-                      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md hover:bg-sidebar-primary/90"
-                      : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      ? "bg-sidebar-secondary text-sidebar-primary-foreground shadow-md hover:bg-sidebar-secondary/60"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   }`}
                 >
                   <item.icon className="h-5 w-5" />
