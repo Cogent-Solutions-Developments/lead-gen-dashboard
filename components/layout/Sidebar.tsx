@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Webhook, Plus, Clock, CheckCircle, Settings } from "lucide-react";
+import { LayoutDashboard,Rocket, Webhook, Plus, Clock, CheckCircle, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 
 const navItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Campaigns", href: "/campaigns", icon: Webhook },
+  { name: "Campaigns", href: "/campaigns", icon: Rocket },
   { name: "New Campaign", href: "/campaigns/new", icon: Plus },
   { name: "Queue", href: "/queue", icon: Clock },
   { name: "Completed", href: "/completed", icon: CheckCircle },

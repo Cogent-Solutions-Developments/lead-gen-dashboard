@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Rocket, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Rocket, Loader2, Target, Terminal } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -35,40 +35,62 @@ export default function NewCampaignPage() {
   };
 
   return (
-    <div>
-      <Link href="/campaigns" className="inline-flex items-center text-sm text-slate-500 hover:text-slate-700 mb-4">
-        <ArrowLeft className="mr-1 h-4 w-4" />
+    <div className="font-sans min-h-screen bg-transparent p-1">
+      {/* Back Link */}
+      <Link 
+        href="/campaigns" 
+        className="mb-6 inline-flex items-center text-sm font-medium text-zinc-400 hover:text-zinc-900 transition-colors"
+      >
+        <ArrowLeft className="mr-2 h-4 w-4" />
         Back to Campaigns
       </Link>
 
+      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
+        className="mb-8"
       >
-        <h1 className="text-2xl font-bold text-slate-900">New Campaign</h1>
-        <p className="mb-6 text-slate-500">Enter your Ideal Customer Profile to start scraping</p>
+        <h1 className="text-2xl font-bold tracking-tight text-zinc-900">New Campaign</h1>
+        <p className="mt-2 text-sm text-zinc-500">
+          Define your Ideal Customer Profile (ICP) to initialize the scraping engine.
+        </p>
       </motion.div>
 
+      {/* Main Form Area */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="max-w-3xl"
+        className="max-w-4xl"
       >
         <form onSubmit={handleSubmit}>
-          <Card className="p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500">
-                <Sparkles className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h2 className="font-semibold text-slate-900">Ideal Customer Profile</h2>
-                <p className="text-sm text-slate-500">Describe your target audience in detail</p>
+          <Card className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition-all hover:shadow-md">
+            
+            {/* Card Header */}
+            <div className="border-b border-zinc-100 bg-zinc-50/30 px-6 py-5">
+              <div className="flex items-center gap-4">
+                {/* Icon Container - Target Icon for "Precision" */}
+                {/* <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-200 bg-white shadow-sm">
+                  <Target className="h-5 w-5 text-sidebar-primary" />
+                </div> */}
+                <div>
+                  <h2 className="text-base font-semibold text-zinc-900">Campaign Targeting</h2>
+                  <p className="text-xs text-zinc-500">The AI will use this criteria to identify valid leads.</p>
+                </div>
               </div>
             </div>
 
-            <Textarea
-              placeholder={`Enter your ICP here...
+            {/* Input Area */}
+            <div className="p-6">
+              <div className="relative">
+                {/* Decorative label */}
+                <div className="absolute right-4 top-4 rounded-md border border-zinc-100 bg-zinc-50 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-zinc-400">
+                    ICP Input
+                </div>
+
+                <Textarea
+                  placeholder={`Enter your ICP here...
 
 Example:
 Event: 12th MICT Forum Qatar
@@ -87,39 +109,43 @@ Target Roles:
 - Sales Manager / Senior Sales Manager
 - Business Development Manager/Director
 - Key Account Manager
-- Country Manager / General Manager
-- Marketing Manager / VP Marketing
 
 Exclusions:
-- Oil & gas operators (NOCs/IOCs) - they're buyers, not sponsors
-- Generic office suppliers, staffing firms
-- Academic institutions and government bodies`}
-              value={icp}
-              onChange={(e) => setIcp(e.target.value)}
-              className="min-h-[400px] font-mono text-sm"
-            />
+- Oil & gas operators (NOCs/IOCs)
+- Academic institutions`}
+                  value={icp}
+                  onChange={(e) => setIcp(e.target.value)}
+                  className="min-h-[450px] w-full resize-none rounded-lg border border-zinc-200 bg-white p-6 font-mono text-sm leading-relaxed text-zinc-800 placeholder:text-zinc-300 focus:border-zinc-900 focus:ring-0 focus:ring-offset-0"
+                />
+              </div>
 
-            <div className="mt-6 flex items-center justify-between">
-              <p className="text-sm text-slate-500">
-                {icp.length > 0 ? `${icp.length} characters` : "Start typing your ICP..."}
-              </p>
-              <Button 
-                type="submit" 
-                disabled={isSubmitting || !icp.trim()}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Adding to Queue...
-                  </>
-                ) : (
-                  <>
-                    <Rocket className="mr-2 h-4 w-4" />
-                    Start Campaign
-                  </>
-                )}
-              </Button>
+              {/* Footer Actions */}
+              <div className="mt-6 flex items-center justify-between border-t border-zinc-100 pt-6">
+                <div className="flex items-center gap-2">
+                    <Terminal className="h-4 w-4 text-zinc-400" />
+                    <p className="text-xs font-medium text-zinc-400">
+                    {icp.length > 0 ? `${icp.length} chars` : "Waiting for input..."}
+                    </p>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  disabled={isSubmitting || !icp.trim()}
+                  className="h-11 min-w-[160px] bg-zinc-900 text-white shadow-lg shadow-zinc-900/10 hover:bg-zinc-800 disabled:opacity-50"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin text-zinc-400" />
+                      Initializing...
+                    </>
+                  ) : (
+                    <>
+                      <Rocket className="mr-2 h-4 w-4" />
+                      Launch Campaign
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </Card>
         </form>
