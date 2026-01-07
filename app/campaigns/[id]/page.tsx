@@ -35,6 +35,7 @@ const LinkedInIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+// --- 1. Updated Interface to track individual channel status ---
 interface Lead {
   id: string;
   name: string;
@@ -49,6 +50,12 @@ interface Lead {
   contentLinkedin: string;
   contentWhatsapp: string;
   approvalStatus: "pending" | "approved" | "rejected";
+  // New field for the indicators
+  outreachStatus?: {
+    email: "pending" | "sending" | "sent";
+    linkedin: "pending" | "sending" | "sent";
+    whatsapp: "pending" | "sending" | "sent";
+  };
 }
 
 const initialLeads: Lead[] = [
@@ -81,6 +88,8 @@ const initialLeads: Lead[] = [
     contentLinkedin: "Hi Sarah, your brand campaigns caught my eye. Let's discuss the upcoming forum.",
     contentWhatsapp: "Hi Sarah, quick one about MICT Forum.",
     approvalStatus: "approved",
+    // Pre-fill approved lead with 'sent' status
+    outreachStatus: { email: "sent", linkedin: "sent", whatsapp: "sent" }
   },
   {
     id: "3",
@@ -120,6 +129,32 @@ const approvalStyles = {
   rejected: { bg: "bg-white text-zinc-400 border-zinc-200 line-through", icon: XCircle },
 };
 
+// --- 2. New Component: Mac OS Style Status Dots ---
+const MacOutreachDots = ({ status }: { status: Lead['outreachStatus'] }) => {
+  if (!status) return null;
+
+  // Helper to determine style based on status
+  // Uses Mac Green (#28c840) and Mac Yellow (#ffbd2e)
+  const getDotStyle = (s: string) => {
+    if (s === 'sent') return "bg-[#28c840] border-[#28c840] shadow-[0_0_8px_rgba(40,200,64,0.4)]";
+    if (s === 'sending') return "bg-[#ffbd2e] border-[#ffbd2e] animate-pulse";
+    return "bg-zinc-200 border-zinc-300"; // Pending Gray
+  };
+
+  return (
+    <div className="flex items-center gap-2 px-1">
+      {/* Email Indicator */}
+      <div className={`h-3 w-3 rounded-full border transition-all duration-500 ${getDotStyle(status.email)}`} title="Email" />
+      
+      {/* LinkedIn Indicator */}
+      <div className={`h-3 w-3 rounded-full border transition-all duration-500 delay-75 ${getDotStyle(status.linkedin)}`} title="LinkedIn" />
+      
+      {/* WhatsApp Indicator */}
+      <div className={`h-3 w-3 rounded-full border transition-all duration-500 delay-150 ${getDotStyle(status.whatsapp)}`} title="WhatsApp" />
+    </div>
+  );
+};
+
 export default function CampaignDetailPage() {
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -139,15 +174,43 @@ export default function CampaignDetailPage() {
     setEditForm(prev => ({ ...prev, [field]: value }));
   };
 
+  // --- 3. Updated Approve Logic to trigger the animation ---
   const handleApprove = (id: string, updatedContent?: Partial<Lead>) => {
+    // 1. Set to approved and initialize simulation
     setLeads((prev) =>
       prev.map((item) =>
         item.id === id 
-        ? { ...item, ...updatedContent, approvalStatus: "approved" as const }
+        ? { 
+            ...item, 
+            ...updatedContent, 
+            approvalStatus: "approved" as const,
+            outreachStatus: { email: 'sending', linkedin: 'pending', whatsapp: 'pending' } 
+          }
         : item
       )
     );
     toast.success("Lead approved & content saved");
+
+    // 2. Simulate "Email Sent" after 1.5s
+    setTimeout(() => {
+      setLeads(prev => prev.map(l => l.id === id ? {
+        ...l, outreachStatus: { ...l.outreachStatus!, email: 'sent', linkedin: 'sending' }
+      } : l));
+    }, 1500);
+
+    // 3. Simulate "LinkedIn Sent" after 3s
+    setTimeout(() => {
+      setLeads(prev => prev.map(l => l.id === id ? {
+        ...l, outreachStatus: { ...l.outreachStatus!, linkedin: 'sent', whatsapp: 'sending' }
+      } : l));
+    }, 3000);
+
+    // 4. Simulate "WhatsApp Sent" after 4.5s
+    setTimeout(() => {
+      setLeads(prev => prev.map(l => l.id === id ? {
+        ...l, outreachStatus: { ...l.outreachStatus!, whatsapp: 'sent' }
+      } : l));
+    }, 4500);
   };
 
   const handleReject = (id: string) => {
@@ -163,7 +226,11 @@ export default function CampaignDetailPage() {
     setLeads((prev) =>
       prev.map((item) =>
         item.approvalStatus === "pending"
-          ? { ...item, approvalStatus: "approved" as const }
+          ? { 
+              ...item, 
+              approvalStatus: "approved" as const, 
+              outreachStatus: { email: 'sent', linkedin: 'sent', whatsapp: 'sent' } 
+            }
           : item
       )
     );
@@ -295,7 +362,6 @@ export default function CampaignDetailPage() {
                           <span className="text-xs text-zinc-600 font-mono">{item.email}</span>
                           <span className="text-xs text-zinc-400">{item.phone}</span>
                           <div className="flex gap-3 mt-1">
-                             {/* Uses the new Custom LinkedIn Icon */}
                              <a href={item.linkedinUrl} target="_blank" className="text-zinc-400 hover:text-zinc-900 transition-colors"><LinkedInIcon className="h-3.5 w-3.5" /></a>
                              <a href={item.companyUrl} target="_blank" className="text-zinc-400 hover:text-zinc-900 transition-colors"><ExternalLink className="h-3.5 w-3.5" /></a>
                           </div>
@@ -309,7 +375,6 @@ export default function CampaignDetailPage() {
                         onClick={() => setSelectedLead(item)}
                       >
                         <Eye className="mr-2 h-3.5 w-3.5 text-zinc-400" />
-                        {/* Reverted Text */}
                         Review Content
                       </Button>
                     </td>
@@ -320,8 +385,9 @@ export default function CampaignDetailPage() {
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        {item.approvalStatus === "pending" && (
+                      {/* --- 4. Logic for Empty Row vs Dots --- */}
+                      <div className="flex justify-end gap-2 min-w-[80px]">
+                        {item.approvalStatus === "pending" ? (
                           <>
                             <Button
                               variant="ghost"
@@ -340,6 +406,11 @@ export default function CampaignDetailPage() {
                               <Check className="h-4 w-4" />
                             </Button>
                           </>
+                        ) : item.approvalStatus === "approved" ? (
+                            // Render the Mac Dots here if approved
+                            <MacOutreachDots status={item.outreachStatus} />
+                        ) : (
+                            <span className="text-xs text-zinc-300">Rejected</span>
                         )}
                       </div>
                     </td>
