@@ -11,7 +11,6 @@ const navItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Campaigns", href: "/campaigns", icon: Rocket },
   { name: "New Campaign", href: "/campaigns/new", icon: Plus },
-  { name: "Queue", href: "/queue", icon: Clock },
   { name: "Completed", href: "/completed", icon: CheckCircle },
 ];
 

@@ -10,10 +10,10 @@ const campaigns = [
   { id: "1", name: "12th MICT Forum Qatar", status: "active", leads: 156 },
   { id: "2", name: "AIM Nigeria - Oil & Gas", status: "completed", leads: 234 },
   { id: "3", name: "Global Stadiums Congress", status: "active", leads: 89 },
-  { id: "4", name: "Saudi Health Expo", status: "draft", leads: 0 },
+  { id: "4", name: "Saudi Health Expo", status: "paused", leads: 0 },
   { id: "5", name: "Dubai Fintech Summit", status: "completed", leads: 412 },
-  { id: "6", name: "Hidden Campaign", status: "draft", leads: 0 },
-  { id: "7", name: "Another Campaign", status: "draft", leads: 0 },
+  { id: "6", name: "Hidden Campaign", status: "paused", leads: 0 },
+  { id: "7", name: "Another Campaign", status: "paused", leads: 0 },
 ];
 
 const statusStyles = {
@@ -25,7 +25,7 @@ const statusStyles = {
 export function RecentCampaigns() {
   return (
     // Fixed Height to match neighbor
-    <Card className="flex flex-col h-[450px] rounded-xl border border-zinc-200 bg-white shadow-none">
+    <Card className="flex flex-col h-112.5 rounded-xl border border-zinc-200 bg-white shadow-none">
       
       {/* Header (Fixed at Top) */}
       <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 p-6 py-5">
