@@ -395,7 +395,7 @@ export default function CampaignDetailPage() {
                              <div>
                                 <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1 block">Email Body</label>
                                 <textarea 
-                                  className="min-h-[150px] w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 resize-y"
+                                  className="min-h-37.5 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 resize-y"
                                   value={editForm.contentEmail || ""}
                                   onChange={(e) => handleContentChange("contentEmail", e.target.value)}
                                 />
@@ -410,7 +410,7 @@ export default function CampaignDetailPage() {
                                 <span className="text-sm font-semibold text-zinc-900">LinkedIn Message</span>
                             </div>
                             <textarea 
-                              className="h-full min-h-[120px] w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 resize-none"
+                              className="h-full min-h-30 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 resize-none"
                               value={editForm.contentLinkedin || ""}
                               onChange={(e) => handleContentChange("contentLinkedin", e.target.value)}
                             />
@@ -422,7 +422,7 @@ export default function CampaignDetailPage() {
                                 <span className="text-sm font-semibold text-zinc-900">WhatsApp</span>
                             </div>
                             <textarea 
-                              className="h-full min-h-[120px] w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 resize-none"
+                              className="h-full min-h-30ll rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 resize-none"
                               value={editForm.contentWhatsapp || ""}
                               onChange={(e) => handleContentChange("contentWhatsapp", e.target.value)}
                             />
@@ -455,7 +455,7 @@ export default function CampaignDetailPage() {
                             </Button>
                         </>
                     ) : (
-                        <Button variant="outline" onClick={closeModal} className="min-w-[100px]">
+                        <Button variant="outline" onClick={closeModal} className="min-w-25">
                             Close
                         </Button>
                     )}

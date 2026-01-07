@@ -115,7 +115,7 @@ Exclusions:
 - Academic institutions`}
                   value={icp}
                   onChange={(e) => setIcp(e.target.value)}
-                  className="min-h-[450px] w-full resize-none rounded-lg border border-zinc-200 bg-white p-6 font-mono text-sm leading-relaxed text-zinc-800 placeholder:text-zinc-300 focus:border-zinc-900 focus:ring-0 focus:ring-offset-0"
+                  className="min-h-112.5 w-full resize-none rounded-lg border border-zinc-200 bg-white p-6 font-mono text-sm leading-relaxed text-zinc-800 placeholder:text-zinc-300 focus:border-zinc-900 focus:ring-0 focus:ring-offset-0"
                 />
               </div>
 
@@ -131,7 +131,7 @@ Exclusions:
                 <Button 
                   type="submit" 
                   disabled={isSubmitting || !icp.trim()}
-                  className="h-11 min-w-[160px] bg-zinc-900 text-white shadow-lg shadow-zinc-900/10 hover:bg-zinc-800 disabled:opacity-50"
+                  className="h-11 min-w-40 bg-zinc-900 text-white shadow-lg shadow-zinc-900/10 hover:bg-zinc-800 disabled:opacity-50"
                 >
                   {isSubmitting ? (
                     <>

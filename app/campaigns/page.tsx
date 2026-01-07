@@ -164,7 +164,7 @@ export default function CampaignsPage() {
                     </div>
 
                     {/* Metric 2: To Approve */}
-                    <div className="flex flex-col items-start sm:items-end min-w-[80px]">
+                    <div className="flex flex-col items-start sm:items-end min-w-20">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1">
                         To Approve
                       </span>
