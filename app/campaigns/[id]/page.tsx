@@ -18,12 +18,13 @@ import {
   X,
   ExternalLink,
   Save,
-  Linkedin
+  Linkedin,
+  Loader2
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
-// Custom LinkedIn Icon (Professional "In" Shape)
+// Custom LinkedIn Icon
 const LinkedInIcon = ({ className }: { className?: string }) => (
   <svg 
     xmlns="http://www.w3.org/2000/svg" 
@@ -67,9 +68,9 @@ const initialLeads: Lead[] = [
     linkedinUrl: "https://linkedin.com/in/ahmedalrashid",
     companyUrl: "https://petrosolutions.com",
     contentEmailSubject: "12th MICT Forum Qatar - Partnership",
-    contentEmail: "Dear Ahmed,\n\nGiven your role at Petro Solutions, I believe the MICT Forum is a perfect fit...",
-    contentLinkedin: "Hi Ahmed, saw your work in oil and gas sales. Would love to connect regarding the MICT Forum.",
-    contentWhatsapp: "Hi Ahmed, quick question about MICT Forum sponsorship opportunities.",
+    contentEmail: "Dear Ahmed...",
+    contentLinkedin: "Hi Ahmed...",
+    contentWhatsapp: "Hi Ahmed...",
     approvalStatus: "pending",
   },
   {
@@ -81,10 +82,10 @@ const initialLeads: Lead[] = [
     phone: "+971 55 987 6543",
     linkedinUrl: "https://linkedin.com/in/sarahjohnson",
     companyUrl: "https://gulfenergy.com",
-    contentEmailSubject: "12th MICT Forum Qatar - Brand Visibility",
-    contentEmail: "Dear Sarah,\n\nWith your marketing expertise, the exposure at MICT Forum would be invaluable...",
-    contentLinkedin: "Hi Sarah, your brand campaigns caught my eye. Let's discuss the upcoming forum.",
-    contentWhatsapp: "Hi Sarah, quick one about MICT Forum.",
+    contentEmailSubject: "Brand Visibility...",
+    contentEmail: "Dear Sarah...",
+    contentLinkedin: "Hi Sarah...",
+    contentWhatsapp: "Hi Sarah...",
     approvalStatus: "approved",
     outreachStatus: { email: "sent", linkedin: "sent", whatsapp: "sent" }
   },
@@ -97,10 +98,10 @@ const initialLeads: Lead[] = [
     phone: "+966 54 321 0987",
     linkedinUrl: "https://linkedin.com/in/mohammedhassan",
     companyUrl: "https://oilfieldservices.com",
-    contentEmailSubject: "12th MICT Forum Qatar - Lead Generation",
-    contentEmail: "Dear Mohammed,\n\nYour BD experience makes you ideal for our VIP networking sessions...",
-    contentLinkedin: "Hi Mohammed, impressive BD track record. Check this out.",
-    contentWhatsapp: "Hi Mohammed, about MICT Forum sponsorship.",
+    contentEmailSubject: "Lead Gen...",
+    contentEmail: "Dear Mohammed...",
+    contentLinkedin: "Hi Mohammed...",
+    contentWhatsapp: "Hi Mohammed...",
     approvalStatus: "pending",
   },
   {
@@ -112,10 +113,10 @@ const initialLeads: Lead[] = [
     phone: "+974 33 456 7890",
     linkedinUrl: "https://linkedin.com/in/jameswilson",
     companyUrl: "https://energypartners.com",
-    contentEmailSubject: "12th MICT Forum Qatar - Regional Expansion",
-    contentEmail: "Dear James,\n\nAs Regional Director, you would benefit from our regional delegation...",
-    contentLinkedin: "Hi James, your regional expertise is impressive.",
-    contentWhatsapp: "Hi James, quick question about MICT Forum.",
+    contentEmailSubject: "Regional Expansion...",
+    contentEmail: "Dear James...",
+    contentLinkedin: "Hi James...",
+    contentWhatsapp: "Hi James...",
     approvalStatus: "rejected",
   },
 ];
@@ -126,21 +127,33 @@ const approvalStyles = {
   rejected: { bg: "bg-white text-zinc-400 border-zinc-200 line-through", icon: XCircle },
 };
 
-// --- Mac OS Style Status Dots ---
-const MacOutreachDots = ({ status }: { status: Lead['outreachStatus'] }) => {
+// --- NEW COMPONENT: Icon-Based Status Indicators ---
+const OutreachStatusIcons = ({ status }: { status: Lead['outreachStatus'] }) => {
   if (!status) return null;
 
-  const getDotStyle = (s: string) => {
-    if (s === 'sent') return "bg-[#28c840] border-[#28c840] shadow-[0_0_8px_rgba(40,200,64,0.4)]";
-    if (s === 'sending') return "bg-[#ffbd2e] border-[#ffbd2e] animate-pulse";
-    return "bg-zinc-200 border-zinc-300";
+  // Helper: Returns specific styles for each state
+  const getStyle = (s: string) => {
+    if (s === 'sent') return "bg-emerald-50 text-emerald-600 border-emerald-200 shadow-sm"; // Success
+    if (s === 'sending') return "bg-amber-50 text-amber-500 border-amber-200 animate-pulse"; // Processing
+    return "bg-zinc-50 text-zinc-300 border-zinc-100"; // Pending
   };
 
   return (
-    <div className="flex items-center gap-2 px-1">
-      <div className={`h-3 w-3 rounded-full border transition-all duration-500 ${getDotStyle(status.email)}`} title="Email" />
-      <div className={`h-3 w-3 rounded-full border transition-all duration-500 delay-75 ${getDotStyle(status.linkedin)}`} title="LinkedIn" />
-      <div className={`h-3 w-3 rounded-full border transition-all duration-500 delay-150 ${getDotStyle(status.whatsapp)}`} title="WhatsApp" />
+    <div className="flex items-center justify-end gap-1.5">
+      {/* 1. Email Icon */}
+      <div className={`flex h-6 w-6 items-center justify-center rounded-full border transition-all duration-500 ${getStyle(status.email)}`} title="Email">
+        <Mail className="h-3 w-3" />
+      </div>
+      
+      {/* 2. LinkedIn Icon */}
+      <div className={`flex h-6 w-6 items-center justify-center rounded-full border transition-all duration-500 delay-75 ${getStyle(status.linkedin)}`} title="LinkedIn">
+        <LinkedInIcon className="h-3 w-3" />
+      </div>
+      
+      {/* 3. WhatsApp Icon */}
+      <div className={`flex h-6 w-6 items-center justify-center rounded-full border transition-all duration-500 delay-150 ${getStyle(status.whatsapp)}`} title="WhatsApp">
+        <MessageCircle className="h-3 w-3" />
+      </div>
     </div>
   );
 };
@@ -165,6 +178,7 @@ export default function CampaignDetailPage() {
   };
 
   const handleApprove = (id: string, updatedContent?: Partial<Lead>) => {
+    // 1. Initial State: Approved + Sending
     setLeads((prev) =>
       prev.map((item) =>
         item.id === id 
@@ -177,8 +191,9 @@ export default function CampaignDetailPage() {
         : item
       )
     );
-    toast.success("Lead approved & content saved");
+    toast.success("Lead approved. Outreach sequence started.");
 
+    // 2. Simulation Sequence
     setTimeout(() => {
       setLeads(prev => prev.map(l => l.id === id ? {
         ...l, outreachStatus: { ...l.outreachStatus!, email: 'sent', linkedin: 'sending' }
@@ -352,7 +367,8 @@ export default function CampaignDetailPage() {
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2 min-w-[80px]">
+                      {/* --- 4. CONDITIONAL RENDER: Actions vs Icon Indicators --- */}
+                      <div className="flex justify-end gap-2 min-w-[120px]">
                         {item.approvalStatus === "pending" ? (
                           <>
                             <Button
@@ -373,9 +389,10 @@ export default function CampaignDetailPage() {
                             </Button>
                           </>
                         ) : item.approvalStatus === "approved" ? (
-                            <MacOutreachDots status={item.outreachStatus} />
+                            // Render the new Icon-Based Indicators
+                            <OutreachStatusIcons status={item.outreachStatus} />
                         ) : (
-                            <span className="text-xs text-zinc-300">Rejected</span>
+                            <span className="text-xs text-zinc-300 italic">Rejected</span>
                         )}
                       </div>
                     </td>
@@ -387,6 +404,7 @@ export default function CampaignDetailPage() {
         </div>
       </Card>
 
+      {/* Modal code remains the same... */}
       <AnimatePresence>
         {selectedLead && (
             <motion.div 
@@ -442,7 +460,7 @@ export default function CampaignDetailPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-3">
                             <div className="flex items-center gap-2">
-                                <div className="p-1.5 bg-zinc-100 rounded-md"><Linkedin className="h-4 w-4 text-zinc-900" /></div>
+                                <div className="p-1.5 bg-zinc-100 rounded-md"><LinkedInIcon className="h-4 w-4 text-zinc-900" /></div>
                                 <span className="text-sm font-semibold text-zinc-900">LinkedIn Message</span>
                             </div>
                             <textarea 
