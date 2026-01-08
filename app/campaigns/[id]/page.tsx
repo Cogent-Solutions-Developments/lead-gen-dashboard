@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
-  Play,
   Users,
   Mail,
   MessageCircle,
@@ -18,7 +17,8 @@ import {
   Check,
   X,
   ExternalLink,
-  Save
+  Save,
+  Linkedin
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -35,7 +35,6 @@ const LinkedInIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-// --- 1. Updated Interface to track individual channel status ---
 interface Lead {
   id: string;
   name: string;
@@ -50,7 +49,6 @@ interface Lead {
   contentLinkedin: string;
   contentWhatsapp: string;
   approvalStatus: "pending" | "approved" | "rejected";
-  // New field for the indicators
   outreachStatus?: {
     email: "pending" | "sending" | "sent";
     linkedin: "pending" | "sending" | "sent";
@@ -88,7 +86,6 @@ const initialLeads: Lead[] = [
     contentLinkedin: "Hi Sarah, your brand campaigns caught my eye. Let's discuss the upcoming forum.",
     contentWhatsapp: "Hi Sarah, quick one about MICT Forum.",
     approvalStatus: "approved",
-    // Pre-fill approved lead with 'sent' status
     outreachStatus: { email: "sent", linkedin: "sent", whatsapp: "sent" }
   },
   {
@@ -129,27 +126,20 @@ const approvalStyles = {
   rejected: { bg: "bg-white text-zinc-400 border-zinc-200 line-through", icon: XCircle },
 };
 
-// --- 2. New Component: Mac OS Style Status Dots ---
+// --- Mac OS Style Status Dots ---
 const MacOutreachDots = ({ status }: { status: Lead['outreachStatus'] }) => {
   if (!status) return null;
 
-  // Helper to determine style based on status
-  // Uses Mac Green (#28c840) and Mac Yellow (#ffbd2e)
   const getDotStyle = (s: string) => {
     if (s === 'sent') return "bg-[#28c840] border-[#28c840] shadow-[0_0_8px_rgba(40,200,64,0.4)]";
     if (s === 'sending') return "bg-[#ffbd2e] border-[#ffbd2e] animate-pulse";
-    return "bg-zinc-200 border-zinc-300"; // Pending Gray
+    return "bg-zinc-200 border-zinc-300";
   };
 
   return (
     <div className="flex items-center gap-2 px-1">
-      {/* Email Indicator */}
       <div className={`h-3 w-3 rounded-full border transition-all duration-500 ${getDotStyle(status.email)}`} title="Email" />
-      
-      {/* LinkedIn Indicator */}
       <div className={`h-3 w-3 rounded-full border transition-all duration-500 delay-75 ${getDotStyle(status.linkedin)}`} title="LinkedIn" />
-      
-      {/* WhatsApp Indicator */}
       <div className={`h-3 w-3 rounded-full border transition-all duration-500 delay-150 ${getDotStyle(status.whatsapp)}`} title="WhatsApp" />
     </div>
   );
@@ -174,9 +164,7 @@ export default function CampaignDetailPage() {
     setEditForm(prev => ({ ...prev, [field]: value }));
   };
 
-  // --- 3. Updated Approve Logic to trigger the animation ---
   const handleApprove = (id: string, updatedContent?: Partial<Lead>) => {
-    // 1. Set to approved and initialize simulation
     setLeads((prev) =>
       prev.map((item) =>
         item.id === id 
@@ -191,21 +179,18 @@ export default function CampaignDetailPage() {
     );
     toast.success("Lead approved & content saved");
 
-    // 2. Simulate "Email Sent" after 1.5s
     setTimeout(() => {
       setLeads(prev => prev.map(l => l.id === id ? {
         ...l, outreachStatus: { ...l.outreachStatus!, email: 'sent', linkedin: 'sending' }
       } : l));
     }, 1500);
 
-    // 3. Simulate "LinkedIn Sent" after 3s
     setTimeout(() => {
       setLeads(prev => prev.map(l => l.id === id ? {
         ...l, outreachStatus: { ...l.outreachStatus!, linkedin: 'sent', whatsapp: 'sending' }
       } : l));
     }, 3000);
 
-    // 4. Simulate "WhatsApp Sent" after 4.5s
     setTimeout(() => {
       setLeads(prev => prev.map(l => l.id === id ? {
         ...l, outreachStatus: { ...l.outreachStatus!, whatsapp: 'sent' }
@@ -235,12 +220,6 @@ export default function CampaignDetailPage() {
       )
     );
     toast.success("All pending leads approved");
-  };
-
-  const handleStartOutreach = () => {
-    toast.success("Outreach started!", {
-      description: "Sending to " + approvedCount + " approved leads.",
-    });
   };
 
   const closeModal = () => {
@@ -279,15 +258,6 @@ export default function CampaignDetailPage() {
               Approve All ({pendingCount})
             </Button>
           )}
-          {approvedCount > 0 && (
-            <Button
-              onClick={handleStartOutreach}
-              className="h-10 bg-zinc-900 text-white shadow-lg shadow-zinc-900/10 hover:bg-zinc-800"
-            >
-              <Play className="mr-2 h-4 w-4" />
-              Start Outreach ({approvedCount})
-            </Button>
-          )}
         </div>
       </div>
 
@@ -299,7 +269,6 @@ export default function CampaignDetailPage() {
                 <Users className="h-4 w-4 text-zinc-300" />
             </div>
         </Card>
-        
         <Card className="flex flex-col justify-between p-6 rounded-xl border border-zinc-200 shadow-sm bg-white">
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Pending</span>
             <div className="mt-2 flex items-baseline gap-2">
@@ -307,7 +276,6 @@ export default function CampaignDetailPage() {
                 <Clock className="h-4 w-4 text-zinc-300" />
             </div>
         </Card>
-
         <Card className="flex flex-col justify-between p-6 rounded-xl border border-zinc-200 shadow-sm bg-white">
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Approved</span>
             <div className="mt-2 flex items-baseline gap-2">
@@ -315,7 +283,6 @@ export default function CampaignDetailPage() {
                 <CheckCircle className="h-4 w-4 text-sidebar-primary/80" />
             </div>
         </Card>
-
         <Card className="flex flex-col justify-between p-6 rounded-xl border border-zinc-200 shadow-sm bg-white">
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Rejected</span>
             <div className="mt-2 flex items-baseline gap-2">
@@ -385,7 +352,6 @@ export default function CampaignDetailPage() {
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      {/* --- 4. Logic for Empty Row vs Dots --- */}
                       <div className="flex justify-end gap-2 min-w-[80px]">
                         {item.approvalStatus === "pending" ? (
                           <>
@@ -407,7 +373,6 @@ export default function CampaignDetailPage() {
                             </Button>
                           </>
                         ) : item.approvalStatus === "approved" ? (
-                            // Render the Mac Dots here if approved
                             <MacOutreachDots status={item.outreachStatus} />
                         ) : (
                             <span className="text-xs text-zinc-300">Rejected</span>
@@ -477,11 +442,11 @@ export default function CampaignDetailPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-3">
                             <div className="flex items-center gap-2">
-                                <div className="p-1.5 bg-zinc-100 rounded-md"><LinkedInIcon className="h-4 w-4 text-zinc-900" /></div>
+                                <div className="p-1.5 bg-zinc-100 rounded-md"><Linkedin className="h-4 w-4 text-zinc-900" /></div>
                                 <span className="text-sm font-semibold text-zinc-900">LinkedIn Message</span>
                             </div>
                             <textarea 
-                              className="h-full min-h-30 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 resize-none"
+                              className="h-full min-h-[150px] w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 resize-none"
                               value={editForm.contentLinkedin || ""}
                               onChange={(e) => handleContentChange("contentLinkedin", e.target.value)}
                             />
@@ -493,7 +458,7 @@ export default function CampaignDetailPage() {
                                 <span className="text-sm font-semibold text-zinc-900">WhatsApp</span>
                             </div>
                             <textarea 
-                              className="h-full min-h-30ll rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 resize-none"
+                              className="h-full min-h-[150px] w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 resize-none"
                               value={editForm.contentWhatsapp || ""}
                               onChange={(e) => handleContentChange("contentWhatsapp", e.target.value)}
                             />
