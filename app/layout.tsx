@@ -18,7 +18,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-slate-50`}>
+      <body className={`${inter.className} bg-slate-0`}>
         <Sidebar />
         <main className="ml-64 min-h-screen p-6">
           {children}

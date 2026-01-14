@@ -65,7 +65,7 @@
   --foreground: oklch(0.15 0.00 0);
 
   /* Sidebar: Deep Black Background */
-  --sidebar: oklch(54.536% 0.05749 234.546); 
+  --sidebar: oklch(49.892% 0.18937 260.409); 
   --sidebar-foreground: oklch(0.98 0.00 0);
   
   /* Sidebar PRIMARY: Neon Green (For Buttons, Progress Bars, Accents) */

@@ -11,7 +11,7 @@ const navItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Campaigns", href: "/campaigns", icon: Rocket },
   { name: "New Campaign", href: "/campaigns/new", icon: Plus },
-  { name: "Completed", href: "/completed", icon: CheckCircle },
+  // { name: "Completed", href: "/completed", icon: CheckCircle },
 ];
 
 export function Sidebar() {
@@ -71,7 +71,7 @@ export function Sidebar() {
         </motion.span>
       </div>
 
-      <nav className="space-y-1.5">
+      <nav className="space-y-2">
         {navItems.map((item, index) => {
           const isActive = pathname === item.href;
           return (
@@ -87,7 +87,7 @@ export function Sidebar() {
                   className={`w-full justify-start gap-3 rounded-full px-4 py-6 text-[15px] font-medium transition-all duration-200 ${
                     isActive
                       ? "bg-sidebar-secondary text-sidebar-primary-foreground shadow-md hover:bg-sidebar-secondary/60"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground hover:bg-sidebar-primary/50 hover:text-sidebar-accent-foreground"
                   }`}
                 >
                   <item.icon className="h-5 w-5" />
@@ -109,7 +109,7 @@ export function Sidebar() {
           <Link href="/settings">
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 rounded-full px-4 py-6 text-[15px] text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              className="w-full justify-start gap-3 rounded-full px-4 py-6 text-[15px] text-sidebar-foreground/60 hover:bg-sidebar-primary/50 hover:text-sidebar-accent-foreground"
             >
               <Settings className="h-5 w-5" />
               Settings

@@ -27,7 +27,7 @@ export default function DashboardPage() {
         </div>
         
         <Link href="/campaigns/new">
-          <Button className="h-10 bg-zinc-900 text-white shadow-sm hover:bg-zinc-800">
+          <Button className="h-10 bg-sidebar text-white shadow-sm hover:bg-sidebar/80">
             <Plus className="mr-2 h-4 w-4" />
             New Campaign
           </Button>
