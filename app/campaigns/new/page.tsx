@@ -9,36 +9,36 @@ import { ArrowLeft, Rocket, Loader2, Target, Terminal } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
+import { createCampaign } from "@/lib/api";
+import { useRouter } from "next/navigation";
+
 export default function NewCampaignPage() {
+  const router = useRouter();
+
   const [icp, setIcp] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!icp.trim()) {
-      toast.error("Please enter an ICP");
-      return;
-    }
+    if (!icp.trim()) return toast.error("Please enter an ICP");
 
     setIsSubmitting(true);
-    
-    // TODO: Submit to backend/Make.com webhook
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
-    toast.success("Campaign added to queue!", {
-      description: "Scraping will begin shortly.",
-    });
-    
-    setIcp("");
-    setIsSubmitting(false);
+    try {
+      const res = await createCampaign(icp);
+      toast.success("Campaign added to queue!", { description: "Scraping will begin shortly." });
+      router.push(`/campaigns/${res.id}`);
+    } catch (err: any) {
+      toast.error("Failed", { description: err.message });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="font-sans min-h-screen bg-transparent p-1">
       {/* Back Link */}
-      <Link 
-        href="/campaigns" 
+      <Link
+        href="/campaigns"
         className="mb-6 inline-flex items-center text-sm font-medium text-zinc-400 hover:text-zinc-900 transition-colors"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
@@ -66,7 +66,7 @@ export default function NewCampaignPage() {
       >
         <form onSubmit={handleSubmit}>
           <Card className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition-all hover:shadow-md">
-            
+
             {/* Card Header */}
             <div className="border-b border-zinc-100 bg-zinc-50/30 px-6 py-5">
               <div className="flex items-center gap-4">
@@ -86,7 +86,7 @@ export default function NewCampaignPage() {
               <div className="relative">
                 {/* Decorative label */}
                 <div className="absolute right-4 top-4 rounded-md border border-zinc-100 bg-zinc-50 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-zinc-400">
-                    ICP Input
+                  ICP Input
                 </div>
 
                 <Textarea
@@ -122,14 +122,14 @@ Exclusions:
               {/* Footer Actions */}
               <div className="mt-6 flex items-center justify-between border-t border-zinc-100 pt-6">
                 <div className="flex items-center gap-2">
-                    <Terminal className="h-4 w-4 text-zinc-400" />
-                    <p className="text-xs font-medium text-zinc-400">
+                  <Terminal className="h-4 w-4 text-zinc-400" />
+                  <p className="text-xs font-medium text-zinc-400">
                     {icp.length > 0 ? `${icp.length} chars` : "Waiting for input..."}
-                    </p>
+                  </p>
                 </div>
 
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={isSubmitting || !icp.trim()}
                   className="h-11 min-w-40 bg-zinc-900 text-white shadow-lg shadow-zinc-900/10 hover:bg-zinc-800 disabled:opacity-50"
                 >
