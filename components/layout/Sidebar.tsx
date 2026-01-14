@@ -10,8 +10,8 @@ import {
   Plus, 
   CheckCircle, 
   Settings, 
-  BarChart3, // Imported for Analytics
-  Sparkles   // Imported for the "Premium" feel icon
+  BarChart3, 
+  Sparkles 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
@@ -103,9 +103,7 @@ export function Sidebar() {
       {/* 3. Bottom Section: Analytics Card + Settings */}
       <div className="mt-auto pt-6 space-y-4">
         
-     {/* --- Nizo Analytics Card --- */}
-     {/* --- Nizo Analytics Card (The "Black Thing") --- */}
-    {/* --- Nizo Analytics Card --- */}
+        {/* --- Nizo Analytics Card --- */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -113,10 +111,6 @@ export function Sidebar() {
           className="relative overflow-hidden rounded-2xl bg-[#5984C8] p-5 text-white shadow-lg"
         >
           {/* 1. THE WATERMARK IMAGE */}
-          {/* FIX: 
-              1. Used arbitrary values h-[500px] w-[500px] to force massive size.
-              2. Pushed it further down/right (-bottom-50 -right-35) so it doesn't cover text.
-          */}
           <div className="absolute -bottom-45 h-[500px] w-[500px] -right-45 z-0 opacity-40 pointer-events-none">
              <img 
                src="analytics.png" 
@@ -131,24 +125,24 @@ export function Sidebar() {
           {/* 3. The Content */}
           <div className="relative z-10 flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              {/* <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 backdrop-blur-sm">
-                <BarChart3 className="h-4 w-4 text-white" />
-              </div> */}
               <span className="font-medium text-lg tracking-tight">Nizo Analyzer</span>
             </div>
-
+            
             <p className="text-xs font-regular text-white-700 leading-relaxed">
               Unlock deep insights into your campaign performance and ROI.
             </p>
 
-            <Button 
-              size="sm"
-              className="mt-1 w-full bg-white text-zinc-900 hover:bg-zinc-200 font-semibold shadow-sm"
-            >
-              View Analytics
-            </Button>
+            <Link href="/analytics">
+              <Button 
+                size="sm"
+                className="mt-1 w-full bg-white text-zinc-900 hover:bg-zinc-200 font-semibold shadow-sm"
+              >
+                View Analytics
+              </Button>
+            </Link>
           </div>
         </motion.div>
+
         {/* --- Settings Link --- */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
