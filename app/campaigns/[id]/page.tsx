@@ -37,6 +37,9 @@ type OutreachState = "pending" | "sending" | "sent";
 
 interface Lead {
   id: string;
+  draftId?: string | null;
+  draftStatus?: string | null; // ✅ NEW
+
   batchId?: string;
   employeeName: string;
   title: string;
@@ -53,13 +56,13 @@ interface Lead {
 
   approvalStatus: ApprovalStatus;
 
-  // optional future support
   outreachStatus?: {
     email: OutreachState;
     linkedin: OutreachState;
     whatsapp: OutreachState;
   };
 }
+
 
 interface CampaignDetail {
   id: string;
@@ -81,9 +84,35 @@ const approvalStyles = {
   rejected: { bg: "bg-white text-zinc-400 border-zinc-200 line-through", icon: XCircle },
 };
 
+const normalizeApprovalStatus = (s: any): ApprovalStatus => {
+  if (s === "content_generated" || s === "needs_review") return "pending";
+  return s === "approved" || s === "rejected" || s === "pending" ? s : "pending";
+};
+
+
+
 // --- Outreach icon component (kept) ---
-const OutreachStatusIcons = ({ status }: { status: Lead["outreachStatus"] }) => {
-  if (!status) return null;
+const buildOutreachStatus = (lead: Lead): Required<NonNullable<Lead["outreachStatus"]>> => {
+  // Use backend if present
+  if (lead.outreachStatus) {
+    return {
+      email: lead.outreachStatus.email ?? "pending",
+      linkedin: lead.outreachStatus.linkedin ?? "pending",
+      whatsapp: lead.outreachStatus.whatsapp ?? "pending",
+    };
+  }
+
+  // Fallback from delivery status
+  const s = String(lead.draftStatus || "").toLowerCase();
+  if (s === "sent") return { email: "sent", linkedin: "sent", whatsapp: "sent" };
+  if (s === "sending") return { email: "sending", linkedin: "pending", whatsapp: "pending" };
+
+  return { email: "pending", linkedin: "pending", whatsapp: "pending" };
+};
+
+
+const OutreachStatusIcons = ({ status }: { status: Required<NonNullable<Lead["outreachStatus"]>> }) => {
+  // if (!status) return null;
 
   const getStyle = (s: string) => {
     if (s === "sent") return "bg-emerald-50 text-emerald-600 border-emerald-200 shadow-sm";
@@ -96,9 +125,9 @@ const OutreachStatusIcons = ({ status }: { status: Lead["outreachStatus"] }) => 
       <div className={`flex h-6 w-6 items-center justify-center rounded-full border transition-all duration-500 ${getStyle(status.email)}`} title="Email">
         <Mail className="h-3 w-3" />
       </div>
-      <div className={`flex h-6 w-6 items-center justify-center rounded-full border transition-all duration-500 delay-75 ${getStyle(status.linkedin)}`} title="LinkedIn">
+      {/* <div className={`flex h-6 w-6 items-center justify-center rounded-full border transition-all duration-500 delay-75 ${getStyle(status.linkedin)}`} title="LinkedIn">
         <LinkedInIcon className="h-3 w-3" />
-      </div>
+      </div> */}
       <div className={`flex h-6 w-6 items-center justify-center rounded-full border transition-all duration-500 delay-150 ${getStyle(status.whatsapp)}`} title="WhatsApp">
         <MessageCircle className="h-3 w-3" />
       </div>
@@ -121,6 +150,39 @@ export default function CampaignDetailPage() {
   const pendingCount = useMemo(() => leads.filter((l) => l.approvalStatus === "pending").length, [leads]);
   const approvedCount = useMemo(() => leads.filter((l) => l.approvalStatus === "approved").length, [leads]);
   const rejectedCount = useMemo(() => leads.filter((l) => l.approvalStatus === "rejected").length, [leads]);
+
+  // trigger content generation only
+  const triggerStep5 = async () => {
+    try {
+      toast.info("Starting content generation...");
+      const res = await api.post(`/api/v1/icp/${campaignId}/content/generate-step5`, null, {
+        params: { batch_size: 50 },
+      });
+
+      toast.success("Step 5 started", { description: `Job: ${res.data.job_id}` });
+
+      // simple: refresh leads every 5s until drafts appear
+      let tries = 0;
+      const maxTries = 30;
+
+      const t = setInterval(async () => {
+        tries++;
+        await fetchAll(); // you already have this
+        const res2 = await api.get(`/api/campaigns/${campaignId}/leads`, { params: { status: "all" } });
+        const hasAnyDraft = (res2.data.leads || []).some((l: any) => l.draftId);
+
+        if (hasAnyDraft || tries >= maxTries) {
+          clearInterval(t);
+          if (hasAnyDraft) toast.success("Drafts created");
+          else toast.info("Still generating, refresh later");
+        }
+      }, 5000);
+
+    } catch (e: any) {
+      toast.error("Step 5 trigger failed", { description: e?.response?.data?.detail || e?.message });
+    }
+  };
+
 
   const fetchAll = async () => {
     setLoading(true);
@@ -150,10 +212,11 @@ export default function CampaignDetailPage() {
         contentLinkedin: x.contentLinkedin || "",
         contentWhatsapp: x.contentWhatsapp || "",
 
-        approvalStatus: x.approvalStatus || "pending",
+        approvalStatus: normalizeApprovalStatus(x.approvalStatus),
 
-        // optional: you can compute from DB later
-        outreachStatus: undefined,
+        draftId: x.draftId ?? null,
+        draftStatus: x.draftStatus ?? null,      // ✅ NEW
+        outreachStatus: x.outreachStatus ?? undefined,
       }));
 
       setLeads(mapped);
@@ -163,6 +226,56 @@ export default function CampaignDetailPage() {
       setLoading(false);
     }
   };
+
+  const sendDraft = async (draftId: string) => {
+    // calls backend -> which calls Make.com
+    // NOTE: your backend send route is /api/v1/drafts/:draft_id/send
+    return api.post(`/api/v1/drafts/${draftId}/send`);
+  };
+
+  const startPollingLead = (leadId: string) => {
+    // Poll every 3 seconds for up to 2 minutes
+    let tries = 0;
+    const maxTries = 40;
+
+    const t = setInterval(async () => {
+      tries++;
+      try {
+        const res = await api.get(`/api/campaigns/${campaignId}/leads`, { params: { status: "all" } });
+        const latest = (res.data.leads || []).find((x: any) => x.id === leadId);
+        if (!latest) return;
+
+        // Update this one lead in state
+        setLeads((prev) =>
+          prev.map((l) =>
+            l.id === leadId
+              ? {
+                ...l,
+                approvalStatus: normalizeApprovalStatus(latest.approvalStatus ?? l.approvalStatus),
+                draftStatus: latest.draftStatus ?? l.draftStatus,
+                outreachStatus: latest.outreachStatus ?? l.outreachStatus,
+              }
+              : l
+          )
+        );
+
+        // stop when fully sent
+        const s = latest.outreachStatus;
+        if (s && s.email === "sent" && s.linkedin === "sent" && s.whatsapp === "sent") {
+          clearInterval(t);
+          toast.success("Outreach sent successfully");
+        }
+
+        if (tries >= maxTries) {
+          clearInterval(t);
+          toast.info("Still sending, check again later");
+        }
+      } catch {
+        if (tries >= maxTries) clearInterval(t);
+      }
+    }, 3000);
+  };
+
 
   useEffect(() => {
     if (!campaignId) return;
@@ -180,16 +293,46 @@ export default function CampaignDetailPage() {
 
   const handleApprove = async (leadId: string) => {
     try {
+      // 1) approve in backend
       await api.put(`/api/leads/${leadId}/approve`);
-      toast.success("Lead approved");
 
+      // 2) Optimistic UI: show yellow icons immediately
       setLeads((prev) =>
-        prev.map((l) => (l.id === leadId ? { ...l, approvalStatus: "approved" } : l))
+        prev.map((item) =>
+          item.id === leadId
+            ? {
+              ...item,
+              approvalStatus: "approved",
+              outreachStatus: {
+                email: "sending",
+                linkedin: "pending",
+                whatsapp: "pending",
+              },
+            }
+            : item
+        )
       );
+
+      toast.success("Lead approved, sending outreach...");
+
+      // 3) Send via backend -> Make.com
+      const lead = leads.find((l) => l.id === leadId);
+      const draftId = lead?.draftId;
+
+      if (!draftId) {
+        toast.error("Cannot send: draftId missing. Ensure backend returns draftId.");
+        return;
+      }
+
+      await sendDraft(draftId);
+
+      // 4) Poll to reflect sent status
+      startPollingLead(leadId);
     } catch (e: any) {
-      toast.error("Approve failed", { description: e?.response?.data?.detail || e?.message });
+      toast.error("Approve/send failed", { description: e?.response?.data?.detail || e?.message });
     }
   };
+
 
   const handleReject = async (leadId: string) => {
     try {
@@ -231,32 +374,54 @@ export default function CampaignDetailPage() {
 
       const res = await api.put(`/api/leads/${selectedLead.id}/content`, payload);
 
-      toast.success("Saved & Approved");
+      toast.success("Saved & Approved, sending outreach...");
 
-      // update local lead row
+      // update local row
       setLeads((prev) =>
         prev.map((l) =>
           l.id === selectedLead.id
             ? {
-                ...l,
-                contentEmailSubject: res.data.contentEmailSubject ?? l.contentEmailSubject,
-                contentEmail: res.data.contentEmail ?? l.contentEmail,
-                contentLinkedin: res.data.contentLinkedin ?? l.contentLinkedin,
-                contentWhatsapp: res.data.contentWhatsapp ?? l.contentWhatsapp,
-                approvalStatus: "approved",
-              }
+              ...l,
+              contentEmailSubject: res.data.contentEmailSubject ?? l.contentEmailSubject,
+              contentEmail: res.data.contentEmail ?? l.contentEmail,
+              contentLinkedin: res.data.contentLinkedin ?? l.contentLinkedin,
+              contentWhatsapp: res.data.contentWhatsapp ?? l.contentWhatsapp,
+              approvalStatus: "approved",
+              outreachStatus: {
+                email: "sending",
+                linkedin: "pending",
+                whatsapp: "pending",
+              },
+            }
             : l
         )
       );
 
+      // close modal
+      const leadId = selectedLead.id;
       setSelectedLead(null);
       setEditForm({});
+
+      // send
+      const lead = leads.find((l) => l.id === leadId);
+      const draftId = lead?.draftId;
+
+      if (!draftId) {
+        toast.error("Cannot send: draftId missing. Ensure backend returns draftId.");
+        return;
+      }
+
+      await sendDraft(draftId);
+
+      // poll until sent
+      startPollingLead(leadId);
     } catch (e: any) {
-      toast.error("Save failed", { description: e?.response?.data?.detail || e?.message });
+      toast.error("Save/send failed", { description: e?.response?.data?.detail || e?.message });
     } finally {
       setSaving(false);
     }
   };
+
 
   const closeModal = () => {
     setSelectedLead(null);
@@ -305,7 +470,17 @@ export default function CampaignDetailPage() {
               <Check className="mr-2 h-4 w-4" />
               Approve All ({pendingCount})
             </Button>
+
+
           )}
+          <Button
+            variant="outline"
+            onClick={triggerStep5}
+            className="h-10 border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+          >
+            Generate Content (Step 5)
+          </Button>
+
         </div>
       </div>
 
@@ -363,7 +538,7 @@ export default function CampaignDetailPage() {
 
             <tbody className="divide-y divide-zinc-50">
               {leads.map((item) => {
-                const status = approvalStyles[item.approvalStatus];
+                const status = approvalStyles[item.approvalStatus] ?? approvalStyles.pending;
                 const StatusIcon = status.icon;
 
                 return (
@@ -433,10 +608,10 @@ export default function CampaignDetailPage() {
                               <Check className="h-4 w-4" />
                             </Button>
                           </>
-                        ) : item.approvalStatus === "approved" ? (
-                          <OutreachStatusIcons status={item.outreachStatus} />
-                        ) : (
+                        ) : item.approvalStatus === "rejected" ? (
                           <span className="text-xs text-zinc-300 italic">Rejected</span>
+                        ) : (
+                          <OutreachStatusIcons status={buildOutreachStatus(item)} />
                         )}
                       </div>
                     </td>
