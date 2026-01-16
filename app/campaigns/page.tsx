@@ -134,7 +134,7 @@ export default function CampaignsPage() {
           </Button>
 
           <Link href="/campaigns/new">
-            <Button className="h-10 bg-zinc-900 text-white shadow-lg shadow-zinc-900/10 hover:bg-zinc-800">
+            <Button className="h-10 bg-sidebar text-white shadow-lg shadow-zinc-900/10 hover:bg-sidebar/80">
               <Plus className="mr-2 h-4 w-4" />
               New Campaign
             </Button>
