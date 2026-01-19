@@ -460,7 +460,7 @@ export default function CampaignDetailPage() {
             {campaign?.icpPreview || ""} • {campaign?.createdAt || ""}
           </p>
         </div>
-        <div className="flex gap-3">
+        {/* <div className="flex gap-3">
           {pendingCount > 0 && (
             <Button
               variant="outline"
@@ -481,7 +481,7 @@ export default function CampaignDetailPage() {
             Generate Content (Step 5)
           </Button>
 
-        </div>
+        </div> */}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-4 mb-8">
