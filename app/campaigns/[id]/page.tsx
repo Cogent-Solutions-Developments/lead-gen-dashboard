@@ -452,7 +452,7 @@ export default function CampaignDetailPage() {
             <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
               {campaign?.name || "Campaign"}
             </h1>
-            <Badge className="bg-zinc-900 text-sidebar-primary border-zinc-900 rounded-full px-3 py-1 text-[11px] uppercase tracking-wider">
+            <Badge className="bg-sidebar text-sidebar-foreground border-sidebar/50 rounded-full px-3 py-1 text-[11px] uppercase tracking-wider">
               {campaign?.status || "needs_review"}
             </Badge>
           </div>
@@ -602,7 +602,7 @@ export default function CampaignDetailPage() {
 
                             <Button
                               size="icon"
-                              className="h-8 w-8 bg-sidebar-primary text-zinc-900 hover:bg-sidebar-primary/80 shadow-sm"
+                              className="h-8 w-8 bg-sidebar-primary text-sidebar-foreground hover:bg-sidebar-primary/80 shadow-sm"
                               onClick={() => handleApprove(item.id)}
                             >
                               <Check className="h-4 w-4" />

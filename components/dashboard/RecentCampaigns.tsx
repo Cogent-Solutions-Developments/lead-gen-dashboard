@@ -12,7 +12,7 @@ import { toast } from "sonner";
 const statusStyles: Record<string, string> = {
   active: "bg-sidebar-primary/15 text-emerald-900 border-sidebar-primary/20",
   completed: "bg-zinc-100 text-zinc-700 border-zinc-200",
-  processing: "bg-zinc-900 text-sidebar-primary border-zinc-900",
+  processing: "bg-sidebar text-sidebar-foreground border-sidebar/50",
   needs_review: "bg-zinc-100 text-zinc-900 border-zinc-200",
   active_outreach: "bg-zinc-50 text-zinc-900 border-zinc-200",
   paused: "bg-amber-100 text-amber-700 border-amber-200",

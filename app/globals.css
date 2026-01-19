@@ -69,7 +69,7 @@
   --sidebar-foreground: oklch(0.98 0.00 0);
   
   /* Sidebar PRIMARY: Neon Green (For Buttons, Progress Bars, Accents) */
-  --sidebar-primary: oklch(80.836% 0.09933 246.157); 
+  --sidebar-primary: oklch(46.669% 0.2902 266.327); 
   --sidebar-primary-foreground: oklch(0.10 0.00 0);
 
   /* Sidebar SECONDARY: Pure White (For Active Chips, Logo) */

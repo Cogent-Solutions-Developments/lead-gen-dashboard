@@ -17,7 +17,7 @@ const statusConfig: Record<
 > = {
   processing: {
     label: "Processing",
-    style: "bg-zinc-900 text-sidebar-primary border-zinc-900",
+    style: "bg-sidebar text-sidebar-foreground border-sidebar/50",
     icon: Loader2,
     spin: true,
   },
@@ -255,7 +255,7 @@ export default function CampaignsPage() {
                           variant="ghost"
                           size="sm"
                           onClick={(e) => handleStop(e, campaign.id)}
-                          className="h-8 text-zinc-400 hover:text-red-600 hover:bg-red-50 text-xs font-medium px-2"
+                          className="h-8 text-red-600 hover:text-red-600 hover:bg-red-50 text-xs font-medium px-2"
                         >
                           <Square className="h-3 w-3 mr-1.5 fill-current" />
                           Stop
