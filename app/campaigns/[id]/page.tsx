@@ -649,7 +649,7 @@ export default function CampaignDetailPage() {
                 </Button>
               </div>
 
-              <div className="p-6 overflow-y-auto space-y-8 bg-white flex-1">
+              <div className="p-6 overflow-y-auto space-y-8 bg-white flex-1 grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <div className="p-1.5 bg-zinc-100 rounded-md">
@@ -671,7 +671,7 @@ export default function CampaignDetailPage() {
                     <div>
                       <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1 block">Email Body</label>
                       <textarea
-                        className="min-h-36 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 resize-y"
+                        className="min-h-75 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 resize-y"
                         value={editForm.contentEmail || ""}
                         onChange={(e) => handleContentChange("contentEmail", e.target.value)}
                       />
@@ -679,8 +679,8 @@ export default function CampaignDetailPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-3">
+                <div className="">
+                  {/* <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <div className="p-1.5 bg-zinc-100 rounded-md">
                         <LinkedInIcon className="h-4 w-4 text-zinc-900" />
@@ -692,7 +692,7 @@ export default function CampaignDetailPage() {
                       value={editForm.contentLinkedin || ""}
                       onChange={(e) => handleContentChange("contentLinkedin", e.target.value)}
                     />
-                  </div>
+                  </div> */}
 
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
