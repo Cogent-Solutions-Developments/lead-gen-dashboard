@@ -88,7 +88,7 @@ export function Sidebar() {
                   className={`w-full justify-start gap-3 rounded-full px-4 py-6 text-[15px] font-medium transition-all duration-200 ${
                     isActive
                       ? "bg-sidebar-secondary text-sidebar-primary-foreground shadow-md hover:bg-sidebar-secondary/60"
-                      : "text-sidebar-foreground hover:bg-sidebar-primary/50 hover:text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground hover:bg-sidebar-primary/90 hover:text-sidebar-accent-foreground"
                   }`}
                 >
                   <item.icon className="h-5 w-5" />

@@ -131,7 +131,7 @@ Exclusions:
                 <Button
                   type="submit"
                   disabled={isSubmitting || !icp.trim()}
-                  className="h-11 min-w-40 bg-zinc-900 text-white shadow-lg shadow-zinc-900/10 hover:bg-zinc-800 disabled:opacity-50"
+                  className="h-11 min-w-40 bg-sidebar text-white shadow-lg shadow-zinc-900/10 hover:bg-zinc-800 disabled:opacity-50"
                 >
                   {isSubmitting ? (
                     <>
