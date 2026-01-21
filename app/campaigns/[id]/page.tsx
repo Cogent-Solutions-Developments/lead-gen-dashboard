@@ -548,7 +548,7 @@ export default function CampaignDetailPage() {
                         <span className="font-semibold text-zinc-900">{item.employeeName}</span>
                         <span className="text-xs text-zinc-500">{item.title}</span>
                         <a href={item.companyUrl} target="_blank" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline mt-0.5 w-fit">
-                          {item.company}
+                          {item.companyUrl}
                         </a>
                       </div>
                     </td>
