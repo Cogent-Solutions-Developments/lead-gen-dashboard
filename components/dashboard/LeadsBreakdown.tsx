@@ -23,7 +23,7 @@ type Dist = { total: number; contacted: number; pending: number; other: number }
 const chartConfig = {
   visitors: { label: "Leads" },
   contacted: { label: "Contacted", color: "var(--sidebar-primary)" },
-  pending: { label: "Pending Review", color: "#18181b" },
+  pending: { label: "Pending Review", color: "#00d2ff" },
   other: { label: "Other", color: "#e4e4e7" },
 } satisfies ChartConfig;
 
@@ -54,7 +54,7 @@ export function LeadsBreakdown() {
     const d = dist || { total: 0, contacted: 0, pending: 0, other: 0 };
     return [
       { status: "contacted", visitors: d.contacted, fill: "var(--sidebar-primary)" },
-      { status: "pending", visitors: d.pending, fill: "#18181b" },
+      { status: "pending", visitors: d.pending, fill: "#00d2ff" },
       { status: "other", visitors: d.other, fill: "#e4e4e7" },
     ];
   }, [dist]);
@@ -102,7 +102,7 @@ export function LeadsBreakdown() {
           <span className="text-xs text-zinc-600 font-medium">Contacted</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-zinc-900" />
+          <div className="h-2 w-2 rounded-full bg-[#00d2ff]" />
           <span className="text-xs text-zinc-600 font-medium">Pending</span>
         </div>
         <div className="flex items-center gap-2">
