@@ -21,6 +21,7 @@ const navItems = [
   { name: "Campaigns", href: "/campaigns", icon: Rocket },
   { name: "New Campaign", href: "/campaigns/new", icon: Plus },
   // { name: "Completed", href: "/completed", icon: CheckCircle },
+  { name: "Leads", href: "/leads", icon: CheckCircle },
 ];
 
 export function Sidebar() {
