@@ -373,7 +373,9 @@ export default function CampaignDetailPage() {
     }
   };
 
-  const sendDraft = async (draftId: string) => api.post(`/api/v1/drafts/${draftId}/send`);
+  // const sendDraft = async (draftId: string) => api.post(`/api/v1/drafts/${draftId}/send`);
+  const sendLead = async (leadId: string) => api.post(`/api/leads/${leadId}/send`);
+
 
   const startPollingLead = (leadId: string) => {
     let tries = 0;
@@ -400,7 +402,7 @@ export default function CampaignDetailPage() {
         );
 
         const s = latest.outreachStatus;
-        if (s && s.email === "sent" && s.linkedin === "sent" && s.whatsapp === "sent") {
+        if (s && s.email === "sent" && s.whatsapp === "sent") {
           clearInterval(t);
           toast.success("Outreach sent successfully");
         }
@@ -461,19 +463,15 @@ export default function CampaignDetailPage() {
 
       toast.success("Lead approved, sending outreach...");
 
-      const lead = leads.find((l) => l.id === leadId);
-      const draftId = lead?.draftId;
-      if (!draftId) {
-        toast.error("Cannot send: draftId missing. Ensure backend returns draftId.");
-        return;
-      }
+      // ✅ NEW: send by leadId (backend locates latest draft)
+      await sendLead(leadId);
 
-      await sendDraft(draftId);
       startPollingLead(leadId);
     } catch (e: any) {
       toast.error("Approve/send failed", { description: e?.response?.data?.detail || e?.message });
     }
   };
+
 
   // -----------------------------
   // File picking (separate)
@@ -651,15 +649,20 @@ export default function CampaignDetailPage() {
       setPendingWhatsappUploads([]);
 
       // 6) send
-      const lead = leads.find((l) => l.id === leadId);
-      const draftId = lead?.draftId;
-      if (!draftId) {
-        toast.error("Cannot send: draftId missing. Ensure backend returns draftId.");
-        return;
-      }
+      // const lead = leads.find((l) => l.id === leadId);
+      // const draftId = lead?.draftId;
+      // if (!draftId) {
+      //   toast.error("Cannot send: draftId missing. Ensure backend returns draftId.");
+      //   return;
+      // }
 
-      await sendDraft(draftId);
+      // await sendDraft(draftId);
+      // startPollingLead(leadId);
+
+      // NEW: send by leadId
+      await sendLead(leadId);
       startPollingLead(leadId);
+
     } catch (e: any) {
       toast.error("Save/send failed", { description: e?.response?.data?.detail || e?.message });
     } finally {
