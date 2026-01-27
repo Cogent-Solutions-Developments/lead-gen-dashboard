@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,13 +19,18 @@ import {
   ExternalLink,
   Save,
   Loader2,
+  Trash2,
+  Paperclip,
+  UploadCloud,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 
+// -----------------------------
 // Custom LinkedIn Icon
+// -----------------------------
 const LinkedInIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
     <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.22-.44-2.12-1.54-2.12a1.6 1.6 0 00-1.58 1.14 2.17 2.17 0 00-.1 1.08V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.95 0 3.52 1.27 3.52 4z" />
@@ -34,11 +39,31 @@ const LinkedInIcon = ({ className }: { className?: string }) => (
 
 type ApprovalStatus = "pending" | "approved" | "rejected";
 type OutreachState = "pending" | "sending" | "sent";
+type AttachmentChannel = "email" | "whatsapp";
+
+type Attachment = {
+  id: string;
+  name: string;
+  url?: string;
+  mime?: string;
+  sizeBytes?: number;
+  channel?: AttachmentChannel; // optional but helpful
+};
+
+type PendingUpload = {
+  tempId: string;
+  file: File;
+  name: string;
+  mime: string;
+  sizeBytes: number;
+  uploading?: boolean;
+  error?: string;
+};
 
 interface Lead {
   id: string;
   draftId?: string | null;
-  draftStatus?: string | null; // ✅ NEW
+  draftStatus?: string | null;
 
   batchId?: string;
   employeeName: string;
@@ -61,8 +86,11 @@ interface Lead {
     linkedin: OutreachState;
     whatsapp: OutreachState;
   };
-}
 
+  // ✅ Separate attachments
+  emailAttachments?: Attachment[];
+  whatsappAttachments?: Attachment[];
+}
 
 interface CampaignDetail {
   id: string;
@@ -89,11 +117,10 @@ const normalizeApprovalStatus = (s: any): ApprovalStatus => {
   return s === "approved" || s === "rejected" || s === "pending" ? s : "pending";
 };
 
-
-
-// --- Outreach icon component (kept) ---
+// -----------------------------
+// Outreach icons
+// -----------------------------
 const buildOutreachStatus = (lead: Lead): Required<NonNullable<Lead["outreachStatus"]>> => {
-  // Use backend if present
   if (lead.outreachStatus) {
     return {
       email: lead.outreachStatus.email ?? "pending",
@@ -102,7 +129,6 @@ const buildOutreachStatus = (lead: Lead): Required<NonNullable<Lead["outreachSta
     };
   }
 
-  // Fallback from delivery status
   const s = String(lead.draftStatus || "").toLowerCase();
   if (s === "sent") return { email: "sent", linkedin: "sent", whatsapp: "sent" };
   if (s === "sending") return { email: "sending", linkedin: "pending", whatsapp: "pending" };
@@ -110,10 +136,7 @@ const buildOutreachStatus = (lead: Lead): Required<NonNullable<Lead["outreachSta
   return { email: "pending", linkedin: "pending", whatsapp: "pending" };
 };
 
-
 const OutreachStatusIcons = ({ status }: { status: Required<NonNullable<Lead["outreachStatus"]>> }) => {
-  // if (!status) return null;
-
   const getStyle = (s: string) => {
     if (s === "sent") return "bg-emerald-50 text-emerald-600 border-emerald-200 shadow-sm";
     if (s === "sending") return "bg-amber-50 text-amber-500 border-amber-200 animate-pulse";
@@ -125,15 +148,161 @@ const OutreachStatusIcons = ({ status }: { status: Required<NonNullable<Lead["ou
       <div className={`flex h-6 w-6 items-center justify-center rounded-full border transition-all duration-500 ${getStyle(status.email)}`} title="Email">
         <Mail className="h-3 w-3" />
       </div>
-      {/* <div className={`flex h-6 w-6 items-center justify-center rounded-full border transition-all duration-500 delay-75 ${getStyle(status.linkedin)}`} title="LinkedIn">
-        <LinkedInIcon className="h-3 w-3" />
-      </div> */}
       <div className={`flex h-6 w-6 items-center justify-center rounded-full border transition-all duration-500 delay-150 ${getStyle(status.whatsapp)}`} title="WhatsApp">
         <MessageCircle className="h-3 w-3" />
       </div>
     </div>
   );
 };
+
+// -----------------------------
+// Attachments helpers
+// -----------------------------
+const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024; // ✅ 4MB
+
+const formatBytes = (bytes?: number) => {
+  if (bytes == null) return "";
+  const units = ["B", "KB", "MB", "GB"];
+  let i = 0;
+  let v = bytes;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  return `${v.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+};
+
+const AttachmentSection = ({
+  title,
+  subtitle,
+  attachments,
+  pendingUploads,
+  onPickFiles,
+  onRemoveAttachment,
+  onRemovePending,
+}: {
+  title: string;
+  subtitle: string;
+  attachments: Attachment[];
+  pendingUploads: PendingUpload[];
+  onPickFiles: () => void;
+  onRemoveAttachment: (id: string) => void;
+  onRemovePending: (tempId: string) => void;
+}) => {
+  const hasAny = attachments.length > 0 || pendingUploads.length > 0;
+
+  return (
+    <Card className="rounded-xl border border-zinc-200 bg-white shadow-sm">
+      <div className="px-5 py-4 border-b border-zinc-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-md bg-zinc-100 flex items-center justify-center">
+            <Paperclip className="h-4 w-4 text-zinc-900" />
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-zinc-900">{title}</div>
+            <div className="text-xs text-zinc-500">{subtitle} • Max 4MB/file</div>
+          </div>
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9 border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+          onClick={onPickFiles}
+        >
+          <UploadCloud className="mr-2 h-4 w-4" />
+          Add
+        </Button>
+      </div>
+
+      <div className="p-5">
+        {!hasAny ? (
+          <div className="text-sm text-zinc-500">
+            No attachments added.
+            <div className="text-xs text-zinc-400 mt-1">PDF/DOC/PPT/Images supported.</div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {pendingUploads.map((p) => (
+              <div key={p.tempId} className="flex items-center justify-between rounded-lg border border-zinc-100 bg-zinc-50/40 px-3 py-2">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-zinc-900 truncate">
+                    {p.name}{" "}
+                    {p.uploading ? <span className="text-xs text-amber-600 font-semibold">• uploading...</span> : null}
+                    {p.error ? <span className="text-xs text-red-600 font-semibold">• {p.error}</span> : null}
+                  </div>
+                  <div className="text-xs text-zinc-500">
+                    {p.mime} • {formatBytes(p.sizeBytes)}
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-8 px-2 text-zinc-500 hover:text-red-600 hover:bg-red-50"
+                  onClick={() => onRemovePending(p.tempId)}
+                  disabled={!!p.uploading}
+                  title="Remove"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+
+            {attachments.map((a) => (
+              <div key={a.id} className="flex items-center justify-between rounded-lg border border-zinc-100 bg-white px-3 py-2">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-zinc-900 truncate">{a.name}</div>
+                  <div className="text-xs text-zinc-500">
+                    {a.mime ? a.mime : "File"}
+                    {a.sizeBytes != null ? ` • ${formatBytes(a.sizeBytes)}` : ""}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {a.url ? (
+                    <a href={a.url} target="_blank" rel="noreferrer" className="text-xs text-zinc-500 hover:text-zinc-900 hover:underline">
+                      View
+                    </a>
+                  ) : null}
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-8 px-2 text-zinc-500 hover:text-red-600 hover:bg-red-50"
+                    onClick={() => onRemoveAttachment(a.id)}
+                    title="Remove"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+};
+
+// -----------------------------
+// Attachment API (channel aware)
+// -----------------------------
+async function uploadLeadAttachment(leadId: string, channel: AttachmentChannel, file: File): Promise<Attachment> {
+  const form = new FormData();
+  form.append("file", file);
+
+  const res = await api.post(`/api/leads/${leadId}/attachments`, form, {
+    params: { channel }, // ✅ channel=email|whatsapp
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
+  return res.data as Attachment;
+}
+
+async function deleteLeadAttachment(leadId: string, attachmentId: string): Promise<void> {
+  await api.delete(`/api/leads/${leadId}/attachments/${attachmentId}`);
+}
 
 export default function CampaignDetailPage() {
   const params = useParams<{ id: string }>();
@@ -147,42 +316,17 @@ export default function CampaignDetailPage() {
   const [editForm, setEditForm] = useState<Partial<Lead>>({});
   const [saving, setSaving] = useState(false);
 
+  // ✅ Separate pending queues
+  const [pendingEmailUploads, setPendingEmailUploads] = useState<PendingUpload[]>([]);
+  const [pendingWhatsappUploads, setPendingWhatsappUploads] = useState<PendingUpload[]>([]);
+
+  // ✅ Separate file pickers
+  const emailFileRef = useRef<HTMLInputElement | null>(null);
+  const whatsappFileRef = useRef<HTMLInputElement | null>(null);
+
   const pendingCount = useMemo(() => leads.filter((l) => l.approvalStatus === "pending").length, [leads]);
   const approvedCount = useMemo(() => leads.filter((l) => l.approvalStatus === "approved").length, [leads]);
   const rejectedCount = useMemo(() => leads.filter((l) => l.approvalStatus === "rejected").length, [leads]);
-
-  // trigger content generation only
-  const triggerStep5 = async () => {
-    try {
-      toast.info("Starting content generation...");
-      const res = await api.post(`/api/v1/icp/${campaignId}/content/generate-step5`, null, {
-        params: { batch_size: 50 },
-      });
-
-      toast.success("Step 5 started", { description: `Job: ${res.data.job_id}` });
-
-      // simple: refresh leads every 5s until drafts appear
-      let tries = 0;
-      const maxTries = 30;
-
-      const t = setInterval(async () => {
-        tries++;
-        await fetchAll(); // you already have this
-        const res2 = await api.get(`/api/campaigns/${campaignId}/leads`, { params: { status: "all" } });
-        const hasAnyDraft = (res2.data.leads || []).some((l: any) => l.draftId);
-
-        if (hasAnyDraft || tries >= maxTries) {
-          clearInterval(t);
-          if (hasAnyDraft) toast.success("Drafts created");
-          else toast.info("Still generating, refresh later");
-        }
-      }, 5000);
-
-    } catch (e: any) {
-      toast.error("Step 5 trigger failed", { description: e?.response?.data?.detail || e?.message });
-    }
-  };
-
 
   const fetchAll = async () => {
     setLoading(true);
@@ -194,8 +338,6 @@ export default function CampaignDetailPage() {
 
       setCampaign(cRes.data);
 
-      // Backend returns { leads: [...], total: n }
-      // We map to your UI Lead shape.
       const mapped: Lead[] = (lRes.data.leads || []).map((x: any) => ({
         id: x.id,
         batchId: x.batchId,
@@ -215,8 +357,12 @@ export default function CampaignDetailPage() {
         approvalStatus: normalizeApprovalStatus(x.approvalStatus),
 
         draftId: x.draftId ?? null,
-        draftStatus: x.draftStatus ?? null,      // ✅ NEW
+        draftStatus: x.draftStatus ?? null,
         outreachStatus: x.outreachStatus ?? undefined,
+
+        // ✅ expect backend arrays; fallback to empty
+        emailAttachments: Array.isArray(x.emailAttachments) ? x.emailAttachments : [],
+        whatsappAttachments: Array.isArray(x.whatsappAttachments) ? x.whatsappAttachments : [],
       }));
 
       setLeads(mapped);
@@ -227,14 +373,9 @@ export default function CampaignDetailPage() {
     }
   };
 
-  const sendDraft = async (draftId: string) => {
-    // calls backend -> which calls Make.com
-    // NOTE: your backend send route is /api/v1/drafts/:draft_id/send
-    return api.post(`/api/v1/drafts/${draftId}/send`);
-  };
+  const sendDraft = async (draftId: string) => api.post(`/api/v1/drafts/${draftId}/send`);
 
   const startPollingLead = (leadId: string) => {
-    // Poll every 3 seconds for up to 2 minutes
     let tries = 0;
     const maxTries = 40;
 
@@ -245,7 +386,6 @@ export default function CampaignDetailPage() {
         const latest = (res.data.leads || []).find((x: any) => x.id === leadId);
         if (!latest) return;
 
-        // Update this one lead in state
         setLeads((prev) =>
           prev.map((l) =>
             l.id === leadId
@@ -259,7 +399,6 @@ export default function CampaignDetailPage() {
           )
         );
 
-        // stop when fully sent
         const s = latest.outreachStatus;
         if (s && s.email === "sent" && s.linkedin === "sent" && s.whatsapp === "sent") {
           clearInterval(t);
@@ -276,7 +415,6 @@ export default function CampaignDetailPage() {
     }, 3000);
   };
 
-
   useEffect(() => {
     if (!campaignId) return;
     fetchAll();
@@ -284,30 +422,38 @@ export default function CampaignDetailPage() {
   }, [campaignId]);
 
   useEffect(() => {
-    if (selectedLead) setEditForm(selectedLead);
+    if (selectedLead) {
+      setEditForm(selectedLead);
+      setPendingEmailUploads([]);
+      setPendingWhatsappUploads([]);
+    }
   }, [selectedLead]);
 
   const handleContentChange = (field: keyof Lead, value: string) => {
     setEditForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleReject = async (leadId: string) => {
+    try {
+      await api.put(`/api/leads/${leadId}/reject`);
+      toast.success("Lead rejected");
+      setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, approvalStatus: "rejected" } : l)));
+    } catch (e: any) {
+      toast.error("Reject failed", { description: e?.response?.data?.detail || e?.message });
+    }
+  };
+
   const handleApprove = async (leadId: string) => {
     try {
-      // 1) approve in backend
       await api.put(`/api/leads/${leadId}/approve`);
 
-      // 2) Optimistic UI: show yellow icons immediately
       setLeads((prev) =>
         prev.map((item) =>
           item.id === leadId
             ? {
               ...item,
               approvalStatus: "approved",
-              outreachStatus: {
-                email: "sending",
-                linkedin: "pending",
-                whatsapp: "pending",
-              },
+              outreachStatus: { email: "sending", linkedin: "pending", whatsapp: "pending" },
             }
             : item
         )
@@ -315,71 +461,170 @@ export default function CampaignDetailPage() {
 
       toast.success("Lead approved, sending outreach...");
 
-      // 3) Send via backend -> Make.com
       const lead = leads.find((l) => l.id === leadId);
       const draftId = lead?.draftId;
-
       if (!draftId) {
         toast.error("Cannot send: draftId missing. Ensure backend returns draftId.");
         return;
       }
 
       await sendDraft(draftId);
-
-      // 4) Poll to reflect sent status
       startPollingLead(leadId);
     } catch (e: any) {
       toast.error("Approve/send failed", { description: e?.response?.data?.detail || e?.message });
     }
   };
 
+  // -----------------------------
+  // File picking (separate)
+  // -----------------------------
+  const openEmailPicker = () => emailFileRef.current?.click();
+  const openWhatsappPicker = () => whatsappFileRef.current?.click();
 
-  const handleReject = async (leadId: string) => {
+  const pushPickedFiles = (files: FileList | null, setPending: React.Dispatch<React.SetStateAction<PendingUpload[]>>) => {
+    if (!files || files.length === 0) return;
+
+    const picked: PendingUpload[] = [];
+    for (const f of Array.from(files)) {
+      if (f.size > MAX_ATTACHMENT_BYTES) {
+        toast.error("Attachment too large", { description: `${f.name} exceeds 4MB.` });
+        continue;
+      }
+      picked.push({
+        tempId: crypto.randomUUID(),
+        file: f,
+        name: f.name,
+        mime: f.type || "application/octet-stream",
+        sizeBytes: f.size,
+      });
+    }
+
+    if (picked.length === 0) return;
+
+    setPending((prev) => {
+      const existing = new Set(prev.map((p) => `${p.name}::${p.sizeBytes}`));
+      const filtered = picked.filter((p) => !existing.has(`${p.name}::${p.sizeBytes}`));
+      if (filtered.length !== picked.length) toast.info("Some files were skipped (duplicates).");
+      return [...prev, ...filtered];
+    });
+  };
+
+  const removePending = (tempId: string, channel: AttachmentChannel) => {
+    if (channel === "email") setPendingEmailUploads((prev) => prev.filter((p) => p.tempId !== tempId));
+    else setPendingWhatsappUploads((prev) => prev.filter((p) => p.tempId !== tempId));
+  };
+
+  const removeUploadedAttachment = async (attachmentId: string, channel: AttachmentChannel) => {
+    if (!selectedLead) return;
     try {
-      await api.put(`/api/leads/${leadId}/reject`);
-      toast.success("Lead rejected");
+      await deleteLeadAttachment(selectedLead.id, attachmentId);
 
-      setLeads((prev) =>
-        prev.map((l) => (l.id === leadId ? { ...l, approvalStatus: "rejected" } : l))
-      );
+      if (channel === "email") {
+        setEditForm((prev) => ({
+          ...prev,
+          emailAttachments: ((prev.emailAttachments as Attachment[]) || []).filter((a) => a.id !== attachmentId),
+        }));
+        setLeads((prev) =>
+          prev.map((l) =>
+            l.id === selectedLead.id ? { ...l, emailAttachments: (l.emailAttachments || []).filter((a) => a.id !== attachmentId) } : l
+          )
+        );
+      } else {
+        setEditForm((prev) => ({
+          ...prev,
+          whatsappAttachments: ((prev.whatsappAttachments as Attachment[]) || []).filter((a) => a.id !== attachmentId),
+        }));
+        setLeads((prev) =>
+          prev.map((l) =>
+            l.id === selectedLead.id
+              ? { ...l, whatsappAttachments: (l.whatsappAttachments || []).filter((a) => a.id !== attachmentId) }
+              : l
+          )
+        );
+      }
+
+      toast.success("Attachment removed");
     } catch (e: any) {
-      toast.error("Reject failed", { description: e?.response?.data?.detail || e?.message });
+      toast.error("Failed to remove attachment", { description: e?.response?.data?.detail || e?.message });
     }
   };
 
-  const handleApproveAll = async () => {
-    try {
-      const res = await api.put(`/api/campaigns/${campaignId}/approve-all`);
-      toast.success(`Approved ${res.data.approved} leads`);
-
-      setLeads((prev) =>
-        prev.map((l) => (l.approvalStatus === "pending" ? { ...l, approvalStatus: "approved" } : l))
-      );
-    } catch (e: any) {
-      toast.error("Approve all failed", { description: e?.response?.data?.detail || e?.message });
-    }
+  const closeModal = () => {
+    setSelectedLead(null);
+    setEditForm({});
+    setPendingEmailUploads([]);
+    setPendingWhatsappUploads([]);
   };
 
+  // -----------------------------
+  // Save & Approve (uploads both channels first)
+  // -----------------------------
   const handleSaveAndApprove = async () => {
     if (!selectedLead) return;
 
     setSaving(true);
+    const leadId = selectedLead.id;
+
     try {
+      const uploadQueue = async (
+        channel: AttachmentChannel,
+        pending: PendingUpload[],
+        setPending: React.Dispatch<React.SetStateAction<PendingUpload[]>>,
+        mergeInto: "emailAttachments" | "whatsappAttachments"
+      ) => {
+        if (pending.length === 0) return;
+
+        // mark uploading
+        setPending((prev) => prev.map((p) => ({ ...p, uploading: true, error: undefined })));
+
+        const uploaded: Attachment[] = [];
+
+        for (const p of pending) {
+          try {
+            const att = await uploadLeadAttachment(leadId, channel, p.file);
+            uploaded.push(att);
+            setPending((prev) => prev.filter((x) => x.tempId !== p.tempId));
+          } catch (e: any) {
+            const msg = e?.response?.data?.detail || e?.message || "Upload failed";
+            setPending((prev) =>
+              prev.map((x) => (x.tempId === p.tempId ? { ...x, uploading: false, error: msg } : x))
+            );
+            toast.error("Attachment upload failed", { description: `${p.name}: ${msg}` });
+          }
+        }
+
+        if (uploaded.length > 0) {
+          setEditForm((prev) => ({
+            ...prev,
+            [mergeInto]: [...(((prev as any)[mergeInto] as Attachment[]) || []), ...uploaded],
+          }));
+        }
+      };
+
+      // 1) Upload Email attachments
+      await uploadQueue("email", pendingEmailUploads, setPendingEmailUploads, "emailAttachments");
+
+      // 2) Upload WhatsApp attachments
+      await uploadQueue("whatsapp", pendingWhatsappUploads, setPendingWhatsappUploads, "whatsappAttachments");
+
+      // 3) Save content + attachments lists
       const payload = {
         contentEmailSubject: editForm.contentEmailSubject,
         contentEmail: editForm.contentEmail,
         contentLinkedin: editForm.contentLinkedin,
         contentWhatsapp: editForm.contentWhatsapp,
+        emailAttachments: (editForm.emailAttachments as Attachment[]) || [],
+        whatsappAttachments: (editForm.whatsappAttachments as Attachment[]) || [],
       };
 
-      const res = await api.put(`/api/leads/${selectedLead.id}/content`, payload);
+      const res = await api.put(`/api/leads/${leadId}/content`, payload);
 
       toast.success("Saved & Approved, sending outreach...");
 
-      // update local row
+      // 4) Update local row
       setLeads((prev) =>
         prev.map((l) =>
-          l.id === selectedLead.id
+          l.id === leadId
             ? {
               ...l,
               contentEmailSubject: res.data.contentEmailSubject ?? l.contentEmailSubject,
@@ -387,45 +632,39 @@ export default function CampaignDetailPage() {
               contentLinkedin: res.data.contentLinkedin ?? l.contentLinkedin,
               contentWhatsapp: res.data.contentWhatsapp ?? l.contentWhatsapp,
               approvalStatus: "approved",
-              outreachStatus: {
-                email: "sending",
-                linkedin: "pending",
-                whatsapp: "pending",
-              },
+              emailAttachments: Array.isArray(res.data.emailAttachments)
+                ? res.data.emailAttachments
+                : ((editForm.emailAttachments as Attachment[]) || l.emailAttachments || []),
+              whatsappAttachments: Array.isArray(res.data.whatsappAttachments)
+                ? res.data.whatsappAttachments
+                : ((editForm.whatsappAttachments as Attachment[]) || l.whatsappAttachments || []),
+              outreachStatus: { email: "sending", linkedin: "pending", whatsapp: "pending" },
             }
             : l
         )
       );
 
-      // close modal
-      const leadId = selectedLead.id;
+      // 5) close modal
       setSelectedLead(null);
       setEditForm({});
+      setPendingEmailUploads([]);
+      setPendingWhatsappUploads([]);
 
-      // send
+      // 6) send
       const lead = leads.find((l) => l.id === leadId);
       const draftId = lead?.draftId;
-
       if (!draftId) {
         toast.error("Cannot send: draftId missing. Ensure backend returns draftId.");
         return;
       }
 
       await sendDraft(draftId);
-
-      // poll until sent
       startPollingLead(leadId);
     } catch (e: any) {
       toast.error("Save/send failed", { description: e?.response?.data?.detail || e?.message });
     } finally {
       setSaving(false);
     }
-  };
-
-
-  const closeModal = () => {
-    setSelectedLead(null);
-    setEditForm({});
   };
 
   if (loading) {
@@ -438,10 +677,7 @@ export default function CampaignDetailPage() {
 
   return (
     <div className="font-sans min-h-screen bg-transparent p-1">
-      <Link
-        href="/campaigns"
-        className="mb-6 inline-flex items-center text-sm font-medium text-zinc-400 hover:text-zinc-900 transition-colors"
-      >
+      <Link href="/campaigns" className="mb-6 inline-flex items-center text-sm font-medium text-zinc-400 hover:text-zinc-900 transition-colors">
         <ArrowLeft className="mr-2 h-4 w-4" />
         Back to Campaigns
       </Link>
@@ -449,9 +685,7 @@ export default function CampaignDetailPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-8 pb-6 border-b border-zinc-100">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
-              {campaign?.name || "Campaign"}
-            </h1>
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900">{campaign?.name || "Campaign"}</h1>
             <Badge className="bg-sidebar text-sidebar-foreground border-sidebar/50 rounded-full px-3 py-1 text-[11px] uppercase tracking-wider">
               {campaign?.status || "needs_review"}
             </Badge>
@@ -460,28 +694,6 @@ export default function CampaignDetailPage() {
             {campaign?.icpPreview || ""} • {campaign?.createdAt || ""}
           </p>
         </div>
-        {/* <div className="flex gap-3">
-          {pendingCount > 0 && (
-            <Button
-              variant="outline"
-              onClick={handleApproveAll}
-              className="h-10 border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
-            >
-              <Check className="mr-2 h-4 w-4" />
-              Approve All ({pendingCount})
-            </Button>
-
-
-          )}
-          <Button
-            variant="outline"
-            onClick={triggerStep5}
-            className="h-10 border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
-          >
-            Generate Content (Step 5)
-          </Button>
-
-        </div> */}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-4 mb-8">
@@ -547,7 +759,7 @@ export default function CampaignDetailPage() {
                       <div className="flex flex-col">
                         <span className="font-semibold text-zinc-900">{item.employeeName}</span>
                         <span className="text-xs text-zinc-500">{item.title}</span>
-                        <a href={item.companyUrl} target="_blank" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline mt-0.5 w-fit">
+                        <a href={item.companyUrl} target="_blank" rel="noreferrer" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline mt-0.5 w-fit">
                           {item.companyUrl}
                         </a>
                       </div>
@@ -558,10 +770,10 @@ export default function CampaignDetailPage() {
                         <span className="text-xs text-zinc-600 font-mono">{item.email}</span>
                         <span className="text-xs text-zinc-400">{item.phone}</span>
                         <div className="flex gap-3 mt-1">
-                          <a href={item.linkedinUrl} target="_blank" className="text-zinc-400 hover:text-zinc-900 transition-colors">
+                          <a href={item.linkedinUrl} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-zinc-900 transition-colors">
                             <LinkedInIcon className="h-3.5 w-3.5" />
                           </a>
-                          <a href={item.companyUrl} target="_blank" className="text-zinc-400 hover:text-zinc-900 transition-colors">
+                          <a href={item.companyUrl} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-zinc-900 transition-colors">
                             <ExternalLink className="h-3.5 w-3.5" />
                           </a>
                         </div>
@@ -591,20 +803,10 @@ export default function CampaignDetailPage() {
                       <div className="flex justify-end gap-2 min-w-[120px]">
                         {item.approvalStatus === "pending" ? (
                           <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-zinc-400 hover:bg-zinc-100 hover:text-red-600"
-                              onClick={() => handleReject(item.id)}
-                            >
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:bg-zinc-100 hover:text-red-600" onClick={() => handleReject(item.id)}>
                               <X className="h-4 w-4" />
                             </Button>
-
-                            <Button
-                              size="icon"
-                              className="h-8 w-8 bg-sidebar-primary text-sidebar-foreground hover:bg-sidebar-primary/80 shadow-sm"
-                              onClick={() => handleApprove(item.id)}
-                            >
+                            <Button size="icon" className="h-8 w-8 bg-sidebar-primary text-sidebar-foreground hover:bg-sidebar-primary/80 shadow-sm" onClick={() => handleApprove(item.id)}>
                               <Check className="h-4 w-4" />
                             </Button>
                           </>
@@ -623,14 +825,33 @@ export default function CampaignDetailPage() {
         </div>
       </Card>
 
+      {/* Hidden file inputs (separate) */}
+      <input
+        ref={emailFileRef}
+        type="file"
+        multiple
+        className="hidden"
+        accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg"
+        onChange={(e) => {
+          pushPickedFiles(e.target.files, setPendingEmailUploads);
+          if (emailFileRef.current) emailFileRef.current.value = "";
+        }}
+      />
+      <input
+        ref={whatsappFileRef}
+        type="file"
+        multiple
+        className="hidden"
+        accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg"
+        onChange={(e) => {
+          pushPickedFiles(e.target.files, setPendingWhatsappUploads);
+          if (whatsappFileRef.current) whatsappFileRef.current.value = "";
+        }}
+      />
+
       <AnimatePresence>
         {selectedLead && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/60 backdrop-blur-sm p-4"
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/60 backdrop-blur-sm p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -649,51 +870,40 @@ export default function CampaignDetailPage() {
                 </Button>
               </div>
 
-              <div className="p-6 overflow-y-auto space-y-8 bg-white flex-1 grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-zinc-100 rounded-md">
-                      <Mail className="h-4 w-4 text-zinc-900" />
-                    </div>
-                    <span className="text-sm font-semibold text-zinc-900">Cold Email</span>
-                  </div>
-
-                  <div className="space-y-3 pl-2">
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1 block">Subject Line</label>
-                      <input
-                        className="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900"
-                        value={editForm.contentEmailSubject || ""}
-                        onChange={(e) => handleContentChange("contentEmailSubject", e.target.value)}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1 block">Email Body</label>
-                      <textarea
-                        className="min-h-75 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 resize-y"
-                        value={editForm.contentEmail || ""}
-                        onChange={(e) => handleContentChange("contentEmail", e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="">
-                  {/* <div className="space-y-3">
+              {/* Keeps your 2-col UI intact */}
+              <div className="p-6 overflow-y-auto bg-white flex-1 space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Email */}
+                  <div className="space-y-4">
                     <div className="flex items-center gap-2">
                       <div className="p-1.5 bg-zinc-100 rounded-md">
-                        <LinkedInIcon className="h-4 w-4 text-zinc-900" />
+                        <Mail className="h-4 w-4 text-zinc-900" />
                       </div>
-                      <span className="text-sm font-semibold text-zinc-900">LinkedIn Message</span>
+                      <span className="text-sm font-semibold text-zinc-900">Cold Email</span>
                     </div>
-                    <textarea
-                      className="h-full min-h-[150px] w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 resize-none"
-                      value={editForm.contentLinkedin || ""}
-                      onChange={(e) => handleContentChange("contentLinkedin", e.target.value)}
-                    />
-                  </div> */}
 
+                    <div className="space-y-3 pl-2">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1 block">Subject Line</label>
+                        <input
+                          className="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                          value={(editForm.contentEmailSubject as string) || ""}
+                          onChange={(e) => handleContentChange("contentEmailSubject", e.target.value)}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1 block">Email Body</label>
+                        <textarea
+                          className="min-h-75 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 resize-y"
+                          value={(editForm.contentEmail as string) || ""}
+                          onChange={(e) => handleContentChange("contentEmail", e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* WhatsApp */}
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <div className="p-1.5 bg-zinc-100 rounded-md">
@@ -701,12 +911,36 @@ export default function CampaignDetailPage() {
                       </div>
                       <span className="text-sm font-semibold text-zinc-900">WhatsApp</span>
                     </div>
+
                     <textarea
-                      className="h-full min-h-98 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 resize-none"
-                      value={editForm.contentWhatsapp || ""}
+                      className="min-h-98 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 resize-none"
+                      value={(editForm.contentWhatsapp as string) || ""}
                       onChange={(e) => handleContentChange("contentWhatsapp", e.target.value)}
                     />
                   </div>
+                </div>
+
+                {/* ✅ NEW: two attachment areas */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <AttachmentSection
+                    title="Email Attachments"
+                    subtitle="Sent with cold email"
+                    attachments={((editForm.emailAttachments as Attachment[]) || []).filter(Boolean)}
+                    pendingUploads={pendingEmailUploads}
+                    onPickFiles={openEmailPicker}
+                    onRemovePending={(tempId) => removePending(tempId, "email")}
+                    onRemoveAttachment={(id) => removeUploadedAttachment(id, "email")}
+                  />
+
+                  <AttachmentSection
+                    title="WhatsApp Attachments"
+                    subtitle="Sent with WhatsApp"
+                    attachments={((editForm.whatsappAttachments as Attachment[]) || []).filter(Boolean)}
+                    pendingUploads={pendingWhatsappUploads}
+                    onPickFiles={openWhatsappPicker}
+                    onRemovePending={(tempId) => removePending(tempId, "whatsapp")}
+                    onRemoveAttachment={(id) => removeUploadedAttachment(id, "whatsapp")}
+                  />
                 </div>
               </div>
 
@@ -724,11 +958,7 @@ export default function CampaignDetailPage() {
                       Reject
                     </Button>
 
-                    <Button
-                      className="bg-sidebar text-white hover:bg-zinc-800"
-                      disabled={saving}
-                      onClick={handleSaveAndApprove}
-                    >
+                    <Button className="bg-sidebar text-white hover:bg-zinc-800" disabled={saving} onClick={handleSaveAndApprove}>
                       {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                       Save & Approve
                     </Button>
