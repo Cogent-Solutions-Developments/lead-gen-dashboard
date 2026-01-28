@@ -158,7 +158,7 @@ const OutreachStatusIcons = ({ status }: { status: Required<NonNullable<Lead["ou
 // -----------------------------
 // Attachments helpers
 // -----------------------------
-const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024; // ✅ 4MB
+const MAX_ATTACHMENT_BYTES = 3 * 1024 * 1024; // ✅ 3MB
 
 const formatBytes = (bytes?: number) => {
   if (bytes == null) return "";
@@ -200,7 +200,7 @@ const AttachmentSection = ({
           </div>
           <div>
             <div className="text-sm font-semibold text-zinc-900">{title}</div>
-            <div className="text-xs text-zinc-500">{subtitle} • Max 4MB/file</div>
+            <div className="text-xs text-zinc-500">{subtitle} • Max 3MB/file</div>
           </div>
         </div>
 
@@ -485,7 +485,7 @@ export default function CampaignDetailPage() {
     const picked: PendingUpload[] = [];
     for (const f of Array.from(files)) {
       if (f.size > MAX_ATTACHMENT_BYTES) {
-        toast.error("Attachment too large", { description: `${f.name} exceeds 4MB.` });
+        toast.error("Attachment too large", { description: `${f.name} exceeds 3MB.` });
         continue;
       }
       picked.push({
