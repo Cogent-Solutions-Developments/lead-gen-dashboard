@@ -140,6 +140,8 @@ const OutreachStatusIcons = ({ status }: { status: Required<NonNullable<Lead["ou
   const getStyle = (s: string) => {
     if (s === "sent") return "bg-emerald-50 text-emerald-600 border-emerald-200 shadow-sm";
     if (s === "sending") return "bg-amber-50 text-amber-500 border-amber-200 animate-pulse";
+    if (s === "queued") return "bg-blue-50 text-blue-500 border-blue-200 animate-pulse";
+
     return "bg-zinc-50 text-zinc-300 border-zinc-100";
   };
 
