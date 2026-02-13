@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { LayoutTemplate, ChevronRight, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { getRecentCampaigns, type RecentCampaign } from "@/lib/api";
+import { getRecentCampaigns, type RecentCampaign } from "@/lib/apiRouter";
 import { toast } from "sonner";
+import { usePersona } from "@/hooks/usePersona";
 
 const statusStyles: Record<string, string> = {
   active: "bg-sidebar-primary/15 text-emerald-900 border-sidebar-primary/20",
@@ -26,6 +27,7 @@ function safeStyle(status: string) {
 export function RecentCampaigns() {
   const [campaigns, setCampaigns] = useState<RecentCampaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const { persona } = usePersona();
 
   useEffect(() => {
     let alive = true;
@@ -48,7 +50,7 @@ export function RecentCampaigns() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [persona]);
 
   return (
     <Card className="flex flex-col h-112.5 rounded-xl border border-zinc-200 bg-white shadow-none">

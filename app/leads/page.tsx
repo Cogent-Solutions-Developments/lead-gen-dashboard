@@ -13,7 +13,8 @@ import {
   UploadCloud,
 } from "lucide-react";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { getApiKeyClient } from "@/lib/apiRouter";
+import { usePersona } from "@/hooks/usePersona";
 
 // --------------------
 // ✅ Configure endpoints
@@ -109,6 +110,8 @@ function scoreLead(lead: Lead, query: string): number {
 }
 
 export default function TotalLeads() {
+  const { persona } = usePersona();
+  const api = useMemo(() => getApiKeyClient(persona), [persona]);
   const [loading, setLoading] = useState(true);
   const [leads, setLeads] = useState<Lead[]>([]);
 
@@ -167,7 +170,7 @@ export default function TotalLeads() {
   useEffect(() => {
     fetchAllLeads();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [persona]);
 
   const eventOptions = useMemo(() => {
     const set = new Set<string>();
@@ -269,7 +272,7 @@ export default function TotalLeads() {
     } finally {
       setUploading(false);
     }
-  }, [selectedFiles]);
+  }, [selectedFiles, api]);
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();

@@ -9,7 +9,8 @@ import { Plus, Loader2, Filter, Square, ChevronRight, Clock } from "lucide-react
 import Link from "next/link";
 import { toast } from "sonner";
 
-import { listCampaigns, stopCampaign, type CampaignListItem } from "@/lib/api";
+import { listCampaigns, stopCampaign, type CampaignListItem } from "@/lib/apiRouter";
+import { usePersona } from "@/hooks/usePersona";
 
 const statusConfig: Record<
   string,
@@ -60,6 +61,7 @@ function formatCreatedAt(iso: string) {
 export default function CampaignsPage() {
   const [items, setItems] = useState<CampaignListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const { persona } = usePersona();
 
   const fetchData = async () => {
     try {
@@ -89,7 +91,7 @@ export default function CampaignsPage() {
       alive = false;
       clearInterval(t);
     };
-  }, []);
+  }, [persona]);
 
   const handleStop = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();

@@ -10,14 +10,14 @@ import {
   Plus, 
   CheckCircle, 
   Settings, 
-  BarChart3, 
-  Sparkles 
+  Sparkles,
+  UserRound 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 
 const navItems = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Campaigns", href: "/campaigns", icon: Rocket },
   { name: "New Campaign", href: "/campaigns/new", icon: Plus },
   // { name: "Completed", href: "/completed", icon: CheckCircle },
@@ -102,7 +102,7 @@ export function Sidebar() {
       </nav>
 
       {/* 3. Bottom Section: Analytics Card + Settings */}
-      <div className="mt-auto pt-6 space-y-4">
+      <div className="mt-auto pt-6 flex flex-col gap-2">
         
         {/* --- Nizo Analytics Card --- */}
         <motion.div
@@ -157,6 +157,22 @@ export function Sidebar() {
             >
               <Settings className="h-5 w-5" />
               Settings
+            </Button>
+          </Link>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+        >
+          <Link href="/">
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start gap-3 rounded-full px-4 py-6 text-[15px] text-sidebar-foreground/60 hover:bg-sidebar-primary/50 hover:text-sidebar-accent-foreground"
+            >
+              <UserRound className="h-5 w-5" />
+              User Role
             </Button>
           </Link>
         </motion.div>
