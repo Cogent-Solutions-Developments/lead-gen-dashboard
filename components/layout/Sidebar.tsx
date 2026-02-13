@@ -14,7 +14,8 @@ import {
   UserRound 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePersona } from "@/hooks/usePersona";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -27,6 +28,11 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const [rotation, setRotation] = useState(0);
+  const { persona } = usePersona();
+  const personaLabel = useMemo(
+    () => (persona === "delegates" ? "Delegates" : "Sales"),
+    [persona]
+  );
 
   // Logic for random rotation intervals
   useEffect(() => {
@@ -109,7 +115,7 @@ export function Sidebar() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="relative overflow-hidden rounded-2xl bg-[#5984C8] p-5 text-white shadow-lg"
+          className="relative overflow-hidden mb-4 rounded-2xl bg-[#5984C8] p-5 text-white shadow-lg"
         >
           {/* 1. THE WATERMARK IMAGE */}
           <div className="absolute -bottom-45 h-[500px] w-[500px] -right-45 z-0 opacity-40 pointer-events-none">
@@ -153,7 +159,7 @@ export function Sidebar() {
           <Link href="/settings">
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 rounded-full px-4 py-6 text-[15px] text-sidebar-foreground/60 hover:bg-sidebar-primary/50 hover:text-sidebar-accent-foreground"
+              className="w-full justify-start gap-3 rounded-full px-4 py-2 text-[15px] text-sidebar-foreground/60 hover:bg-sidebar-primary/0 hover:text-sidebar-accent-foreground"
             >
               <Settings className="h-5 w-5" />
               Settings
@@ -169,10 +175,14 @@ export function Sidebar() {
           <Link href="/">
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 rounded-full px-4 py-6 text-[15px] text-sidebar-foreground/60 hover:bg-sidebar-primary/50 hover:text-sidebar-accent-foreground"
+              className="w-full justify-start gap-3 rounded-full px-4 py-2 text-[15px] text-sidebar-foreground/60 hover:bg-sidebar-primary/0 hover:text-sidebar-accent-foreground"
             >
               <UserRound className="h-5 w-5" />
-              User Role
+              <span className="flex items-center gap-2">
+                <span>User Role</span>
+                <span className="text-sidebar-foreground/30">-</span>
+                <span className="text-sidebar-foreground/80">{personaLabel}</span>
+              </span>
             </Button>
           </Link>
         </motion.div>
