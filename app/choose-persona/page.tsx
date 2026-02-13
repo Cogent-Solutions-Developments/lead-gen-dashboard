@@ -63,7 +63,7 @@ export default function ChoosePersonaPage() {
             </span>
           </div>
 
-          <div>
+          <div className="mb-2">
             {/* <p className="text-[14px] font-semibold text-zinc-700">
               Lead Generation And Outreach
             </p> */}
@@ -139,7 +139,7 @@ export default function ChoosePersonaPage() {
         </div>
 
         {stored && (
-          <div className="pt-6 text-xs  text-zinc-400">
+          <div className="pt-10 text-xs  text-zinc-400">
             Current selection: <span className="font-semibold text-zinc-600">{persona}</span>
           </div>
         )}
