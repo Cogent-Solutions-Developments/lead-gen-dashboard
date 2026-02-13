@@ -7,7 +7,7 @@ import { AppShell } from "@/components/layout/AppShell";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "supernizor",
+  title: "supernizo",
   description: "B2B Lead Generation Platform",
 };
 
