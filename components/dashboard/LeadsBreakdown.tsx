@@ -15,8 +15,9 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { getDashboardDistribution } from "@/lib/api";
+import { getDashboardDistribution } from "@/lib/apiRouter";
 import { toast } from "sonner";
+import { usePersona } from "@/hooks/usePersona";
 
 type Dist = { total: number; contacted: number; pending: number; other: number };
 
@@ -29,6 +30,7 @@ const chartConfig = {
 
 export function LeadsBreakdown() {
   const [dist, setDist] = React.useState<Dist | null>(null);
+  const { persona } = usePersona();
 
   React.useEffect(() => {
     let alive = true;
@@ -48,7 +50,7 @@ export function LeadsBreakdown() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [persona]);
 
   const data = React.useMemo(() => {
     const d = dist || { total: 0, contacted: 0, pending: 0, other: 0 };

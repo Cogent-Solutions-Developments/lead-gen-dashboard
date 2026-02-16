@@ -9,7 +9,7 @@ import { ArrowLeft, Rocket, Loader2, Target, Terminal } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
-import { createCampaign } from "@/lib/api";
+import { createCampaign } from "@/lib/apiRouter";
 import { useRouter } from "next/navigation";
 
 export default function NewCampaignPage() {

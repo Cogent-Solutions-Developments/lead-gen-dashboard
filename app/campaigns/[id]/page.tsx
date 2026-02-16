@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import type { AxiosInstance } from "axios";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,8 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 import { useParams } from "next/navigation";
-import { api } from "@/lib/api";
+import { getApiKeyClient } from "@/lib/apiRouter";
+import { usePersona } from "@/hooks/usePersona";
 
 // -----------------------------
 // Custom LinkedIn Icon
@@ -290,7 +292,12 @@ const AttachmentSection = ({
 // -----------------------------
 // Attachment API (channel aware)
 // -----------------------------
-async function uploadLeadAttachment(leadId: string, channel: AttachmentChannel, file: File): Promise<Attachment> {
+async function uploadLeadAttachment(
+  api: AxiosInstance,
+  leadId: string,
+  channel: AttachmentChannel,
+  file: File
+): Promise<Attachment> {
   const form = new FormData();
   form.append("file", file);
 
@@ -302,13 +309,19 @@ async function uploadLeadAttachment(leadId: string, channel: AttachmentChannel, 
   return res.data as Attachment;
 }
 
-async function deleteLeadAttachment(leadId: string, attachmentId: string): Promise<void> {
+async function deleteLeadAttachment(
+  api: AxiosInstance,
+  leadId: string,
+  attachmentId: string
+): Promise<void> {
   await api.delete(`/api/leads/${leadId}/attachments/${attachmentId}`);
 }
 
 export default function CampaignDetailPage() {
   const params = useParams<{ id: string }>();
   const campaignId = params.id;
+  const { persona } = usePersona();
+  const api = useMemo(() => getApiKeyClient(persona), [persona]);
 
   const [campaign, setCampaign] = useState<CampaignDetail | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -423,7 +436,7 @@ export default function CampaignDetailPage() {
     if (!campaignId) return;
     fetchAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [campaignId]);
+  }, [campaignId, persona]);
 
   useEffect(() => {
     if (selectedLead) {
@@ -517,7 +530,7 @@ export default function CampaignDetailPage() {
   const removeUploadedAttachment = async (attachmentId: string, channel: AttachmentChannel) => {
     if (!selectedLead) return;
     try {
-      await deleteLeadAttachment(selectedLead.id, attachmentId);
+      await deleteLeadAttachment(api, selectedLead.id, attachmentId);
 
       if (channel === "email") {
         setEditForm((prev) => ({
@@ -581,7 +594,7 @@ export default function CampaignDetailPage() {
 
         for (const p of pending) {
           try {
-            const att = await uploadLeadAttachment(leadId, channel, p.file);
+            const att = await uploadLeadAttachment(api, leadId, channel, p.file);
             uploaded.push(att);
             setPending((prev) => prev.filter((x) => x.tempId !== p.tempId));
           } catch (e: any) {

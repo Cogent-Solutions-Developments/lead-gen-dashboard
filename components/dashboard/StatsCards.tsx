@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Users, FileCheck, Rocket, Send } from "lucide-react";
-import { getDashboardStats, type DashboardStats } from "@/lib/api";
+import { getDashboardStats, type DashboardStats } from "@/lib/apiRouter";
 import { toast } from "sonner";
+import { usePersona } from "@/hooks/usePersona";
 
 type StatItem = {
   name: string;
@@ -17,6 +18,7 @@ type StatItem = {
 export function StatsCards() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const { persona } = usePersona();
 
   useEffect(() => {
     let alive = true;
@@ -39,7 +41,7 @@ export function StatsCards() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [persona]);
 
   const cards: StatItem[] = [
     {
