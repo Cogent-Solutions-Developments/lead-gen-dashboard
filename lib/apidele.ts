@@ -2,6 +2,7 @@
 import type {
   CampaignDetail,
   CampaignListItem,
+  CreateCampaignRequest,
   DashboardStats,
   LeadItem,
   RecentCampaign,
@@ -10,6 +11,7 @@ import type {
 export type {
   CampaignDetail,
   CampaignListItem,
+  CreateCampaignRequest,
   DashboardStats,
   LeadItem,
   RecentCampaign,
@@ -70,7 +72,9 @@ export async function listCampaigns(params: { status?: string; limit?: number; o
   return data;
 }
 
-export async function createCampaign(icp: string) {
+export async function createCampaign(payload: string | CreateCampaignRequest) {
+  const requestBody = typeof payload === "string" ? { icp: payload } : payload;
+
   const { data } = await apiClientDelegate.post<{
     id: string;
     name: string;
@@ -78,7 +82,7 @@ export async function createCampaign(icp: string) {
     status: string;
     progress: number;
     createdAt: string;
-  }>("/api/delegates/campaigns", { icp });
+  }>("/api/delegates/campaigns", requestBody);
   return data;
 }
 

@@ -1,155 +1,170 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Card } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Rocket, Loader2, Target, Terminal } from "lucide-react";
 import Link from "next/link";
-import { toast } from "sonner";
-
-import { createCampaign } from "@/lib/apiRouter";
 import { useRouter } from "next/navigation";
+import { ArrowLeft, Loader2, Rocket } from "lucide-react";
+import { toast } from "sonner";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { createCampaign } from "@/lib/apiRouter";
 
 export default function NewCampaignPage() {
   const router = useRouter();
 
+  const [name, setName] = useState("");
+  const [location, setLocation] = useState("");
+  const [date, setDate] = useState("");
+  const [category, setCategory] = useState("");
   const [icp, setIcp] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const validateForm = () => {
+    if (!name.trim()) return "Campaign name is required.";
+    if (!location.trim()) return "Location is required.";
+    if (!date) return "Date is required.";
+    if (!category.trim()) return "Category is required.";
+    if (!icp.trim()) return "ICP is required.";
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!icp.trim()) return toast.error("Please enter an ICP");
+
+    const error = validateForm();
+    if (error) {
+      toast.error(error);
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      const res = await createCampaign(icp);
-      toast.success("Campaign added to queue!", { description: "Scraping will begin shortly." });
-      router.push(`/campaigns/${res.id}`);
-    } catch (err: any) {
-      toast.error("Failed", { description: err.message });
+      const response = await createCampaign({
+        name: name.trim(),
+        location: location.trim(),
+        date,
+        category: category.trim(),
+        icp: icp.trim(),
+      });
+
+      toast.success("Campaign created", {
+        description: "Scraping will begin shortly.",
+      });
+      router.push(`/campaigns/${response.id}`);
+    } catch (err: unknown) {
+      const description =
+        err instanceof Error ? err.message : "An unexpected error occurred.";
+      toast.error("Failed to create campaign", { description });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="font-sans min-h-screen bg-transparent p-1">
-      {/* Back Link */}
+    <div className="min-h-screen p-1">
       <Link
         href="/campaigns"
-        className="mb-6 inline-flex items-center text-sm font-medium text-zinc-400 hover:text-zinc-900 transition-colors"
+        className="mb-6 inline-flex items-center text-sm font-medium text-zinc-500 transition-colors hover:text-zinc-900"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
         Back to Campaigns
       </Link>
 
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
-      >
+      <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900">New Campaign</h1>
-        <p className="mt-2 text-sm text-zinc-500">
-          Define your Ideal Customer Profile (ICP) to initialize the scraping engine.
+        <p className="mt-1 text-sm text-zinc-500">
+          Fill in campaign details and ICP. All fields are sent to the backend.
         </p>
-      </motion.div>
+      </div>
 
-      {/* Main Form Area */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="max-w-4xl"
-      >
-        <form onSubmit={handleSubmit}>
-          <Card className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition-all hover:shadow-md">
-
-            {/* Card Header */}
-            <div className="border-b border-zinc-100 bg-zinc-50/30 px-6 py-5">
-              <div className="flex items-center gap-4">
-                {/* Icon Container - Target Icon for "Precision" */}
-                {/* <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-200 bg-white shadow-sm">
-                  <Target className="h-5 w-5 text-sidebar-primary" />
-                </div> */}
-                <div>
-                  <h2 className="text-base font-semibold text-zinc-900">Campaign Targeting</h2>
-                  <p className="text-xs text-zinc-500">The AI will use this criteria to identify valid leads.</p>
-                </div>
-              </div>
+      <form onSubmit={handleSubmit} className="max-w-4xl">
+        <Card className="rounded-xl border border-zinc-200 bg-white p-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Name
+              </label>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Qatar Tech Buyers Wave 1"
+                className="h-10 border-zinc-200 bg-white"
+              />
             </div>
 
-            {/* Input Area */}
-            <div className="p-6">
-              <div className="relative">
-                {/* Decorative label */}
-                <div className="absolute right-4 top-4 rounded-md border border-zinc-100 bg-zinc-50 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-zinc-400">
-                  ICP Input
-                </div>
-
-                <Textarea
-                  placeholder={`Enter your ICP here...
-
-Example:
-Event: 12th MICT Forum Qatar
-
-Target Companies:
-- Oil & Gas equipment suppliers and service providers
-- Vendors serving upstream, midstream, downstream, HSE
-- Equipment & OEMs: pumps, valves, actuators, compressors, pipelines
-
-Company Attributes:
-- Employee count: 25-5,000+
-- Annual revenue: USD 5M-2B+
-- Presence: Nigeria HQ or GCC region operations
-
-Target Roles:
-- Sales Manager / Senior Sales Manager
-- Business Development Manager/Director
-- Key Account Manager
-
-Exclusions:
-- Oil & gas operators (NOCs/IOCs)
-- Academic institutions`}
-                  value={icp}
-                  onChange={(e) => setIcp(e.target.value)}
-                  className="min-h-112.5 w-full resize-none rounded-lg border border-zinc-200 bg-white p-6 font-mono text-sm leading-relaxed text-zinc-800 placeholder:text-zinc-300 focus:border-zinc-900 focus:ring-0 focus:ring-offset-0"
-                />
-              </div>
-
-              {/* Footer Actions */}
-              <div className="mt-6 flex items-center justify-between border-t border-zinc-100 pt-6">
-                <div className="flex items-center gap-2">
-                  <Terminal className="h-4 w-4 text-zinc-400" />
-                  <p className="text-xs font-medium text-zinc-400">
-                    {icp.length > 0 ? `${icp.length} chars` : "Waiting for input..."}
-                  </p>
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={isSubmitting || !icp.trim()}
-                  className="h-11 min-w-40 bg-sidebar text-white shadow-lg shadow-zinc-900/10 hover:bg-zinc-800 disabled:opacity-50"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin text-zinc-400" />
-                      Initializing...
-                    </>
-                  ) : (
-                    <>
-                      <Rocket className="mr-2 h-4 w-4" />
-                      Launch Campaign
-                    </>
-                  )}
-                </Button>
-              </div>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Location
+              </label>
+              <Input
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="Doha, Qatar"
+                className="h-10 border-zinc-200 bg-white"
+              />
             </div>
-          </Card>
-        </form>
-      </motion.div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Date
+              </label>
+              <Input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="h-10 border-zinc-200 bg-white"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Category
+              </label>
+              <Input
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder="Conference"
+                className="h-10 border-zinc-200 bg-white"
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              ICP
+            </label>
+            <Textarea
+              value={icp}
+              onChange={(e) => setIcp(e.target.value)}
+              placeholder={`Example:\nEvent: 12th MICT Forum Qatar\nTarget companies: B2B technology vendors in GCC\nTarget roles: Sales Director, Business Development Manager\nExclusions: Non-commercial institutions`}
+              className="min-h-80 resize-y border-zinc-200 bg-white font-mono text-sm"
+            />
+            <p className="text-xs text-zinc-400">{icp.length} characters</p>
+          </div>
+
+          <div className="mt-6 flex items-center justify-end border-t border-zinc-100 pt-6">
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="h-10 min-w-40 bg-sidebar text-white hover:bg-zinc-800 disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Rocket className="mr-2 h-4 w-4" />
+                  Launch Campaign
+                </>
+              )}
+            </Button>
+          </div>
+        </Card>
+      </form>
     </div>
   );
 }
