@@ -41,6 +41,14 @@ export type CampaignDetail = {
   };
 };
 
+export type CreateCampaignRequest = {
+  icp: string;
+  name?: string;
+  location?: string;
+  date?: string;
+  category?: string;
+};
+
 export type LeadItem = {
   id: string;
   batchId: string;
@@ -84,7 +92,9 @@ export async function listCampaigns(params: { status?: string; limit?: number; o
   return data;
 }
 
-export async function createCampaign(icp: string) {
+export async function createCampaign(payload: string | CreateCampaignRequest) {
+  const requestBody = typeof payload === "string" ? { icp: payload } : payload;
+
   const { data } = await apiClient.post<{
     id: string;
     name: string;
@@ -92,7 +102,7 @@ export async function createCampaign(icp: string) {
     status: string;
     progress: number;
     createdAt: string;
-  }>("/api/campaigns", { icp });
+  }>("/api/campaigns", requestBody);
   return data;
 }
 
