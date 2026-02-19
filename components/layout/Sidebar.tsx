@@ -73,14 +73,14 @@ export function Sidebar() {
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3 }}
-          className="text-2xl font-medium tracking-wide text-sidebar-foreground drop-shadow-sm"
+          className="text-2xl font-medium tracking-wide text-sidebar-foreground drop-shadow-sm "
         >
           supernizo
         </motion.span>
       </div>
 
       {/* 2. Navigation Items (Scrollable if needed) */}
-      <nav className="flex-1 space-y-2 overflow-y-auto pr-1">
+      <nav className="flex-1  space-y-2 overflow-y-auto pr-1">
         {navItems.map((item, index) => {
           const isActive = pathname === item.href;
           return (
@@ -93,9 +93,9 @@ export function Sidebar() {
               <Link href={item.href}>
                 <Button
                   variant="ghost"
-                  className={`w-full justify-start gap-3 rounded-full border px-4 py-6 text-[15px] font-medium transition-all duration-200 ${
+                  className={`w-full justify-start gap-3 rounded-lg border px-4 py-6 text-[15px] font-medium transition-all duration-200 ${
                     isActive
-                      ? "border-white/35 bg-sidebar-secondary/95 text-sidebar-primary-foreground shadow-[0_8px_16px_-14px_rgba(0,0,0,0.6)] backdrop-blur-sm hover:bg-sidebar-secondary"
+                      ? "sidebar-chip-active"
                       : "border-transparent bg-transparent text-sidebar-foreground/90 shadow-none hover:border-white/25 hover:bg-white/12 hover:text-sidebar-accent-foreground hover:shadow-[0_8px_18px_-16px_rgba(0,0,0,0.55)]"
                   }`}
                 >
@@ -143,7 +143,8 @@ export function Sidebar() {
             <Link href="/analytics">
               <Button 
                 size="sm"
-                className="mt-1 w-full border border-white/70 bg-white/90 font-semibold text-zinc-900 shadow-sm backdrop-blur hover:bg-white"
+                variant="ghost"
+                className="analytics-frost-btn mt-1 w-full font-medium"
               >
                 View Analytics
               </Button>
