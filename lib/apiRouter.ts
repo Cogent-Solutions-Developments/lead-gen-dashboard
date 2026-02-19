@@ -10,6 +10,7 @@ export type {
   MessageStatus,
   RecentCampaign,
   ReplyNotification,
+  WhatsAppInbound,
 } from "@/lib/api";
 
 const pickModule = (persona?: Persona) =>
@@ -65,6 +66,13 @@ export const listMessageStatuses: typeof sales.listMessageStatuses = (...args) =
 
 export const markReplyAsRead: typeof sales.markReplyAsRead = (...args) =>
   pickModule().markReplyAsRead(...args);
+
+// WhatsApp inbound is shared for all personas (single backend stream)
+export const fetchInbound: typeof sales.fetchInbound = (...args) =>
+  sales.fetchInbound(...args);
+
+export const subscribeWhatsAppEvents: typeof sales.subscribeWhatsAppEvents = (...args) =>
+  sales.subscribeWhatsAppEvents(...args);
 
 export function getApiKeyClient(persona?: Persona) {
   return pickModule(persona).api;
