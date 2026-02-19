@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -6,7 +7,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-outfit), sans-serif;
+  --font-sans: 'Outfit', sans-serif;
   --font-mono: var(--font-geist-mono);
   
   /* Sidebar Palette */
@@ -200,21 +201,21 @@
   .sidebar-modern {
     isolation: isolate;
     overflow: hidden;
-    border-right: 1px solid rgb(255 255 255 / 0.18);
+    border-right: 1px solid rgb(20 90 204 / 0.45);
     backdrop-filter: blur(18px) saturate(140%);
     -webkit-backdrop-filter: blur(18px) saturate(140%);
     box-shadow: 14px 0 40px -28px rgb(0 0 0 / 0.5);
+    background-color: #145acc;
     background:
-      radial-gradient(120% 90% at 15% -10%, rgb(255 255 255 / 0.28) 0%, transparent 58%),
-      radial-gradient(100% 120% at 100% 100%, rgb(255 255 255 / 0.12) 0%, transparent 60%),
+      radial-gradient(130% 95% at 15% -10%, rgb(74 144 255 / 0.42) 0%, transparent 56%),
+      radial-gradient(120% 140% at 100% 100%, rgb(12 54 143 / 0.4) 0%, transparent 62%),
       linear-gradient(
         155deg,
-        color-mix(in oklch, var(--sidebar) 74%, white 26%) 0%,
-        var(--sidebar) 46%,
-        color-mix(in oklch, var(--sidebar) 78%, black 22%) 100%
+        #1d66db 0%,
+        #145acc 46%,
+        #0f438f 100%
       );
     background-size: 170% 170%;
-    animation: sidebar-gradient-pan 17s ease-in-out infinite;
   }
 
   .sidebar-modern::before {
@@ -224,11 +225,10 @@
     pointer-events: none;
     z-index: 0;
     background:
-      radial-gradient(circle at 20% 30%, rgb(255 255 255 / 0.36) 0%, transparent 44%),
-      radial-gradient(circle at 75% 65%, rgb(255 255 255 / 0.2) 0%, transparent 50%);
-    filter: blur(12px);
-    mix-blend-mode: screen;
-    animation: sidebar-glass-drift 18s ease-in-out infinite;
+      radial-gradient(circle at 20% 30%, rgb(105 169 255 / 0.32) 0%, transparent 44%),
+      radial-gradient(circle at 75% 65%, rgb(17 74 186 / 0.28) 0%, transparent 50%);
+    filter: blur(14px);
+    mix-blend-mode: soft-light;
   }
 
   .sidebar-modern::after {
@@ -237,12 +237,11 @@
     inset: 0;
     pointer-events: none;
     z-index: 1;
-    opacity: 0.3;
+    opacity: 0.26;
     mix-blend-mode: soft-light;
-    background-image: url("data:image/svg+xml,%3Csvg%20viewBox%3D%270%200%20120%20120%27%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%3E%3Cfilter%20id%3D%27n%27%3E%3CfeTurbulence%20type%3D%27fractalNoise%27%20baseFrequency%3D%270.92%27%20numOctaves%3D%273%27%20stitchTiles%3D%27stitch%27/%3E%3C/filter%3E%3Crect%20width%3D%27120%27%20height%3D%27120%27%20filter%3D%27url%28%23n%29%27%20opacity%3D%270.9%27/%3E%3C/svg%3E");
-    background-size: 130px 130px;
-    filter: contrast(1.35) brightness(0.96);
-    animation: sidebar-noise-shift 0.65s steps(3) infinite;
+    background-image: url("data:image/svg+xml,%3Csvg%20viewBox%3D%270%200%20120%20120%27%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%3E%3Cfilter%20id%3D%27n%27%3E%3CfeTurbulence%20type%3D%27fractalNoise%27%20baseFrequency%3D%271.28%27%20numOctaves%3D%274%27%20seed%3D%272%27%20stitchTiles%3D%27stitch%27/%3E%3CfeColorMatrix%20type%3D%27saturate%27%20values%3D%270%27/%3E%3C/filter%3E%3Crect%20width%3D%27120%27%20height%3D%27120%27%20filter%3D%27url%28%23n%29%27%20opacity%3D%271%27/%3E%3C/svg%3E");
+    background-size: 132px 132px;
+    filter: contrast(1.35) brightness(1);
   }
 
   .sidebar-modern > * {
