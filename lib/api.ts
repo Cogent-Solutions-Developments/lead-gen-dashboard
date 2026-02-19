@@ -283,7 +283,7 @@ export function subscribeWhatsAppEvents(
 ) {
   if (typeof window === "undefined") return () => {};
 
-  const es = new EventSource("/api/whatsapp/events", {
+  const es = new EventSource("/api/whatsapp/events?token=" + process.env.NEXT_PUBLIC_API_KEY, {
     withCredentials: false,
   });
 
