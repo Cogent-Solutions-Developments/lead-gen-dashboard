@@ -110,6 +110,29 @@ export type MessageStatus = {
   failedReason: string | null;
 };
 
+export type WhatsAppInbound = {
+  id: string;
+  providerMessageId: string | null;
+  fromPhone: string | null;
+  contactName: string | null;
+  messageType: string | null;
+  text: string | null;
+  contextMessageId: string | null;
+  sendQueueId: string | null;
+  personId: string | null;
+  receivedAt: string;
+};
+
+export type WhatsAppInboundEvent = {
+  type: string;
+  inbound?: WhatsAppInbound;
+};
+
+type SubscribeWhatsAppEventsOptions = {
+  onOpen?: () => void;
+  onError?: () => void;
+};
+
 export async function getDashboardStats() {
   const { data } = await apiClient.get<DashboardStats>("/api/dashboard/stats");
   return data;
@@ -236,6 +259,55 @@ export async function markReplyAsRead(id: string) {
     isRead: boolean;
   }>(`/api/messages/replies/${id}/read`);
   return data;
+}
+
+// Backend contract:
+// GET /api/whatsapp/inbound?person_id=...&limit=...
+export async function fetchInbound(personId: string, limit = 50) {
+  const url = `/api/whatsapp/inbound?person_id=${encodeURIComponent(personId)}&limit=${limit}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Failed to fetch inbound messages (${res.status})`);
+  }
+
+  const data = await res.json();
+  return (data?.messages || []) as WhatsAppInbound[];
+}
+
+// Backend contract:
+// SSE /api/whatsapp/events with payload type=whatsapp_inbound
+export function subscribeWhatsAppEvents(
+  onMessage: (inbound: WhatsAppInbound) => void,
+  options?: SubscribeWhatsAppEventsOptions
+) {
+  if (typeof window === "undefined") return () => {};
+
+  const es = new EventSource("/api/whatsapp/events", {
+    withCredentials: false,
+  });
+
+  es.onopen = () => {
+    options?.onOpen?.();
+  };
+
+  es.onmessage = (evt) => {
+    try {
+      const payload = JSON.parse(evt.data) as WhatsAppInboundEvent;
+      if (payload.type === "whatsapp_inbound" && payload.inbound) {
+        onMessage(payload.inbound);
+      }
+    } catch (error) {
+      console.error("Bad SSE JSON", error, evt.data);
+    }
+  };
+
+  es.onerror = () => {
+    options?.onError?.();
+    console.warn("SSE disconnected", { readyState: es.readyState, url: es.url });
+  };
+
+  return () => es.close();
 }
 
 
