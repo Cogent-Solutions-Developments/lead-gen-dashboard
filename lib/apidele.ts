@@ -5,7 +5,9 @@ import type {
   CreateCampaignRequest,
   DashboardStats,
   LeadItem,
+  MessageStatus,
   RecentCampaign,
+  ReplyNotification,
 } from "./api";
 
 export type {
@@ -14,7 +16,9 @@ export type {
   CreateCampaignRequest,
   DashboardStats,
   LeadItem,
+  MessageStatus,
   RecentCampaign,
+  ReplyNotification,
 };
 
 const apiClientDelegate = axios.create({
@@ -147,6 +151,42 @@ export async function stopCampaign(id: string) {
     `/api/delegates/campaigns/${id}/stop`
   );
   return data as { campaignId: string; status: string; message: string };
+}
+
+export async function listReplyNotifications(params?: {
+  campaignId?: string;
+  unreadOnly?: boolean;
+  limit?: number;
+}) {
+  const { data } = await apiClientDelegate.get<{
+    replies: ReplyNotification[];
+    total: number;
+    unread: number;
+  }>("/api/delegates/messages/replies", {
+    params,
+  });
+  return data;
+}
+
+export async function listMessageStatuses(params?: {
+  campaignId?: string;
+  leadId?: string;
+  limit?: number;
+}) {
+  const { data } = await apiClientDelegate.get<{
+    statuses: MessageStatus[];
+  }>("/api/delegates/messages/status", {
+    params,
+  });
+  return data;
+}
+
+export async function markReplyAsRead(id: string) {
+  const { data } = await apiClientDelegate.put<{
+    id: string;
+    isRead: boolean;
+  }>(`/api/delegates/messages/replies/${id}/read`);
+  return data;
 }
 
 export const api = axios.create({

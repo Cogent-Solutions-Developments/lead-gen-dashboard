@@ -7,7 +7,9 @@ export type {
   CampaignListItem,
   DashboardStats,
   LeadItem,
+  MessageStatus,
   RecentCampaign,
+  ReplyNotification,
 } from "@/lib/api";
 
 const pickModule = (persona?: Persona) =>
@@ -54,6 +56,15 @@ export const exportCampaignCsvUrl: typeof sales.exportCampaignCsvUrl = (...args)
 
 export const stopCampaign: typeof sales.stopCampaign = (...args) =>
   pickModule().stopCampaign(...args);
+
+export const listReplyNotifications: typeof sales.listReplyNotifications = (...args) =>
+  pickModule().listReplyNotifications(...args);
+
+export const listMessageStatuses: typeof sales.listMessageStatuses = (...args) =>
+  pickModule().listMessageStatuses(...args);
+
+export const markReplyAsRead: typeof sales.markReplyAsRead = (...args) =>
+  pickModule().markReplyAsRead(...args);
 
 export function getApiKeyClient(persona?: Persona) {
   return pickModule(persona).api;

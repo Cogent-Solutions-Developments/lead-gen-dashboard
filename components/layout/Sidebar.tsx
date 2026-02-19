@@ -9,6 +9,7 @@ import {
   Webhook, 
   Plus, 
   CheckCircle, 
+  MessageSquare,
   Settings, 
   UserRound 
 } from "lucide-react";
@@ -22,6 +23,7 @@ const navItems = [
   { name: "New Campaign", href: "/campaigns/new", icon: Plus },
   // { name: "Completed", href: "/completed", icon: CheckCircle },
   { name: "Leads", href: "/leads", icon: CheckCircle },
+  { name: "Replies", href: "/replies", icon: MessageSquare },
 ];
 
 export function Sidebar() {

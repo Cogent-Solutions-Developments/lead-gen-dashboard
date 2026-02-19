@@ -66,6 +66,50 @@ export type LeadItem = {
   approvalStatus: "pending" | "approved" | "rejected";
 };
 
+export type MessageChannel = "email" | "whatsapp" | "linkedin" | "other";
+
+export type MessageDeliveryStatus =
+  | "pending"
+  | "queued"
+  | "sending"
+  | "sent"
+  | "delivered"
+  | "failed"
+  | "replied";
+
+export type MessageRecipient = {
+  leadId: string | null;
+  leadName: string | null;
+  title: string | null;
+  company: string | null;
+  email: string | null;
+  phone: string | null;
+  linkedinUrl: string | null;
+};
+
+export type ReplyNotification = {
+  id: string;
+  campaignId: string | null;
+  messageId: string | null;
+  channel: MessageChannel | string;
+  text: string;
+  receivedAt: string;
+  isRead: boolean;
+  recipient: MessageRecipient;
+};
+
+export type MessageStatus = {
+  id: string;
+  campaignId: string | null;
+  leadId: string | null;
+  channel: MessageChannel | string;
+  status: MessageDeliveryStatus | string;
+  sentAt: string | null;
+  deliveredAt: string | null;
+  repliedAt: string | null;
+  failedReason: string | null;
+};
+
 export async function getDashboardStats() {
   const { data } = await apiClient.get<DashboardStats>("/api/dashboard/stats");
   return data;
@@ -156,6 +200,42 @@ export function exportCampaignCsvUrl(id: string) {
 export async function stopCampaign(id: string) {
   const { data } = await apiClient.post(`/api/campaigns/${id}/stop`);
   return data as { campaignId: string; status: string; message: string };
+}
+
+export async function listReplyNotifications(params?: {
+  campaignId?: string;
+  unreadOnly?: boolean;
+  limit?: number;
+}) {
+  const { data } = await apiClient.get<{
+    replies: ReplyNotification[];
+    total: number;
+    unread: number;
+  }>("/api/messages/replies", {
+    params,
+  });
+  return data;
+}
+
+export async function listMessageStatuses(params?: {
+  campaignId?: string;
+  leadId?: string;
+  limit?: number;
+}) {
+  const { data } = await apiClient.get<{
+    statuses: MessageStatus[];
+  }>("/api/messages/status", {
+    params,
+  });
+  return data;
+}
+
+export async function markReplyAsRead(id: string) {
+  const { data } = await apiClient.put<{
+    id: string;
+    isRead: boolean;
+  }>(`/api/messages/replies/${id}/read`);
+  return data;
 }
 
 
