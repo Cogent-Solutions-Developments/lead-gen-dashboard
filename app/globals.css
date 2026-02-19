@@ -152,6 +152,106 @@
   --chart-5: oklch(0.645 0.246 16.439);
 }
 
+@keyframes sidebar-gradient-pan {
+  0% {
+    background-position: 0% 20%;
+  }
+  50% {
+    background-position: 100% 80%;
+  }
+  100% {
+    background-position: 0% 20%;
+  }
+}
+
+@keyframes sidebar-glass-drift {
+  0% {
+    transform: translate3d(-18%, -10%, 0) scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translate3d(6%, 12%, 0) scale(1.16);
+    opacity: 0.55;
+  }
+  100% {
+    transform: translate3d(-18%, -10%, 0) scale(1);
+    opacity: 0.35;
+  }
+}
+
+@keyframes sidebar-noise-shift {
+  0% {
+    background-position: 0 0;
+  }
+  25% {
+    background-position: 90px -70px;
+  }
+  50% {
+    background-position: -70px 40px;
+  }
+  75% {
+    background-position: 70px 90px;
+  }
+  100% {
+    background-position: 0 0;
+  }
+}
+
+@layer components {
+  .sidebar-modern {
+    isolation: isolate;
+    overflow: hidden;
+    border-right: 1px solid rgb(255 255 255 / 0.18);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    box-shadow: 14px 0 40px -28px rgb(0 0 0 / 0.5);
+    background:
+      radial-gradient(120% 90% at 15% -10%, rgb(255 255 255 / 0.28) 0%, transparent 58%),
+      radial-gradient(100% 120% at 100% 100%, rgb(255 255 255 / 0.12) 0%, transparent 60%),
+      linear-gradient(
+        155deg,
+        color-mix(in oklch, var(--sidebar) 74%, white 26%) 0%,
+        var(--sidebar) 46%,
+        color-mix(in oklch, var(--sidebar) 78%, black 22%) 100%
+      );
+    background-size: 170% 170%;
+    animation: sidebar-gradient-pan 17s ease-in-out infinite;
+  }
+
+  .sidebar-modern::before {
+    content: "";
+    position: absolute;
+    inset: -35%;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      radial-gradient(circle at 20% 30%, rgb(255 255 255 / 0.36) 0%, transparent 44%),
+      radial-gradient(circle at 75% 65%, rgb(255 255 255 / 0.2) 0%, transparent 50%);
+    filter: blur(12px);
+    mix-blend-mode: screen;
+    animation: sidebar-glass-drift 18s ease-in-out infinite;
+  }
+
+  .sidebar-modern::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.3;
+    mix-blend-mode: soft-light;
+    background-image: url("data:image/svg+xml,%3Csvg%20viewBox%3D%270%200%20120%20120%27%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%3E%3Cfilter%20id%3D%27n%27%3E%3CfeTurbulence%20type%3D%27fractalNoise%27%20baseFrequency%3D%270.92%27%20numOctaves%3D%273%27%20stitchTiles%3D%27stitch%27/%3E%3C/filter%3E%3Crect%20width%3D%27120%27%20height%3D%27120%27%20filter%3D%27url%28%23n%29%27%20opacity%3D%270.9%27/%3E%3C/svg%3E");
+    background-size: 130px 130px;
+    filter: contrast(1.35) brightness(0.96);
+    animation: sidebar-noise-shift 0.65s steps(3) infinite;
+  }
+
+  .sidebar-modern > * {
+    position: relative;
+    z-index: 2;
+  }
+}
+
 @layer base {
   * {
     border-color: var(--border);
