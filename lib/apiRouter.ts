@@ -11,6 +11,8 @@ export type {
   RecentCampaign,
   ReplyNotification,
   WhatsAppInbound,
+  WhatsAppMessagesResponse,
+  WhatsAppNotificationsResponse,
 } from "@/lib/api";
 
 const pickModule = (persona?: Persona) =>
@@ -71,8 +73,20 @@ export const markReplyAsRead: typeof sales.markReplyAsRead = (...args) =>
 export const fetchInbound: typeof sales.fetchInbound = (...args) =>
   sales.fetchInbound(...args);
 
-export const subscribeWhatsAppEvents: typeof sales.subscribeWhatsAppEvents = (...args) =>
-  sales.subscribeWhatsAppEvents(...args);
+export const fetchWhatsAppNotifications: typeof sales.fetchWhatsAppNotifications = (...args) =>
+  sales.fetchWhatsAppNotifications(...args);
+
+export const fetchMessages: typeof sales.fetchMessages = (...args) =>
+  sales.fetchMessages(...args);
+
+export const startWhatsAppPolling: typeof sales.startWhatsAppPolling = (...args) =>
+  sales.startWhatsAppPolling(...args);
+
+export const fetchUnreadCount: typeof sales.fetchUnreadCount = (...args) =>
+  sales.fetchUnreadCount(...args);
+
+export const markRead: typeof sales.markRead = (...args) =>
+  sales.markRead(...args);
 
 export function getApiKeyClient(persona?: Persona) {
   return pickModule(persona).api;

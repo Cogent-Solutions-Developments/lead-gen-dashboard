@@ -1,6 +1,20 @@
 import axios from "axios";
 import { apiClient } from "./apiClient";
 
+const waDebugEnabled =
+  process.env.NODE_ENV !== "production" ||
+  process.env.NEXT_PUBLIC_WA_DEBUG === "1" ||
+  (process.env.NEXT_PUBLIC_WA_DEBUG || "").toLowerCase() === "true";
+
+function waDebugLog(event: string, payload?: unknown) {
+  if (!waDebugEnabled || typeof window === "undefined") return;
+  if (typeof payload === "undefined") {
+    console.log(`[WA] ${event}`);
+    return;
+  }
+  console.log(`[WA] ${event}`, payload);
+}
+
 
 export type DashboardStats = {
   activeCampaigns: number;
@@ -123,15 +137,41 @@ export type WhatsAppInbound = {
   receivedAt: string;
 };
 
-export type WhatsAppInboundEvent = {
-  type: string;
-  inbound?: WhatsAppInbound;
+export type WhatsAppMessagesResponse = {
+  ok?: boolean;
+  personId?: string;
+  messages: WhatsAppInbound[];
+  nextSince: string | null;
 };
 
-type SubscribeWhatsAppEventsOptions = {
-  onOpen?: () => void;
-  onError?: () => void;
+export type WhatsAppNotificationsResponse = {
+  ok?: boolean;
+  notifications: WhatsAppInbound[];
 };
+
+type FetchMessagesParams = {
+  personId: string;
+  since?: string | null;
+  limit?: number;
+};
+
+type StartWhatsAppPollingOptions = {
+  onPollSuccess?: (data: WhatsAppMessagesResponse) => void;
+  onError?: (error: unknown) => void;
+};
+
+function getWhatsAppBaseUrl() {
+  const base = (process.env.NEXT_PUBLIC_API_BASE_URL || "").trim();
+  if (!base) throw new Error("NEXT_PUBLIC_API_BASE_URL is not configured.");
+  return base.replace(/\/+$/, "");
+}
+
+function getWhatsAppHeaders() {
+  const apiKey = (process.env.NEXT_PUBLIC_API_KEY || "").trim();
+  const headers: Record<string, string> = {};
+  if (apiKey) headers["x-api-key"] = apiKey;
+  return headers;
+}
 
 export async function getDashboardStats() {
   const { data } = await apiClient.get<DashboardStats>("/api/dashboard/stats");
@@ -262,52 +302,197 @@ export async function markReplyAsRead(id: string) {
 }
 
 // Backend contract:
-// GET /api/whatsapp/inbound?person_id=...&limit=...
-export async function fetchInbound(personId: string, limit = 50) {
-  const url = `/api/whatsapp/inbound?person_id=${encodeURIComponent(personId)}&limit=${limit}`;
-  const res = await fetch(url);
+// GET /api/whatsapp/messages?person_id=<uuid>&since=<iso>&limit=50
+export async function fetchMessages(params: FetchMessagesParams) {
+  const { personId, since = null, limit = 50 } = params;
+  const base = getWhatsAppBaseUrl();
+  const headers = getWhatsAppHeaders();
+
+  const url = new URL(`${base}/api/whatsapp/messages`);
+  url.searchParams.set("person_id", personId);
+  url.searchParams.set("limit", String(limit));
+  if (since) url.searchParams.set("since", since);
+
+  waDebugLog("fetchMessages.request", {
+    personId,
+    since,
+    limit,
+    url: url.toString(),
+    hasApiKey: Boolean(headers["x-api-key"]),
+  });
+
+  const res = await fetch(url.toString(), { headers });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `Failed to fetch inbound messages (${res.status})`);
+    waDebugLog("fetchMessages.error", { status: res.status });
+    throw new Error(`messages fetch failed ${res.status}`);
   }
 
   const data = await res.json();
-  return (data?.messages || []) as WhatsAppInbound[];
+  const result = {
+    ok: data?.ok,
+    personId: data?.personId,
+    messages: Array.isArray(data?.messages) ? (data.messages as WhatsAppInbound[]) : [],
+    nextSince: typeof data?.nextSince === "string" ? data.nextSince : null,
+  } as WhatsAppMessagesResponse;
+  waDebugLog("fetchMessages.response", {
+    personId: result.personId ?? personId,
+    count: result.messages.length,
+    nextSince: result.nextSince,
+  });
+  return result;
 }
 
-// Backend contract:
-// SSE /api/whatsapp/events with payload type=whatsapp_inbound
-export function subscribeWhatsAppEvents(
-  onMessage: (inbound: WhatsAppInbound) => void,
-  options?: SubscribeWhatsAppEventsOptions
-) {
-  if (typeof window === "undefined") return () => {};
+// Backward compatibility alias.
+export async function fetchInbound(personId: string, limit = 50) {
+  const data = await fetchMessages({ personId, since: null, limit });
+  return data.messages;
+}
 
-  const es = new EventSource("/api/whatsapp/events?token=" + process.env.NEXT_PUBLIC_API_KEY, {
-    withCredentials: false,
+// GET /api/whatsapp/notifications?limit=50&unread_only=true
+export async function fetchWhatsAppNotifications(params?: { limit?: number; unreadOnly?: boolean }) {
+  const base = getWhatsAppBaseUrl();
+  const headers = getWhatsAppHeaders();
+  const url = new URL(`${base}/api/whatsapp/notifications`);
+  url.searchParams.set("limit", String(params?.limit ?? 50));
+  if (params?.unreadOnly) url.searchParams.set("unread_only", "true");
+
+  waDebugLog("fetchWhatsAppNotifications.request", {
+    url: url.toString(),
+    hasApiKey: Boolean(headers["x-api-key"]),
+    unreadOnly: Boolean(params?.unreadOnly),
   });
 
-  es.onopen = () => {
-    options?.onOpen?.();
-  };
+  const res = await fetch(url.toString(), { headers });
+  if (!res.ok) {
+    waDebugLog("fetchWhatsAppNotifications.error", { status: res.status });
+    throw new Error(`notifications fetch failed ${res.status}`);
+  }
 
-  es.onmessage = (evt) => {
+  const data = await res.json();
+  const result = {
+    ok: data?.ok,
+    notifications: Array.isArray(data?.notifications)
+      ? (data.notifications as WhatsAppInbound[])
+      : [],
+  } as WhatsAppNotificationsResponse;
+
+  waDebugLog("fetchWhatsAppNotifications.response", { count: result.notifications.length });
+  return result;
+}
+
+// Poll /messages every 2s and append only new messages.
+export function startWhatsAppPolling(
+  personId: string,
+  onNewMessages: (messages: WhatsAppInbound[]) => void,
+  options?: StartWhatsAppPollingOptions
+) {
+  let nextSince: string | null = null;
+  let stopped = false;
+  let tickCount = 0;
+
+  waDebugLog("poll.start", { personId });
+
+  const tick = async () => {
+    tickCount += 1;
     try {
-      const payload = JSON.parse(evt.data) as WhatsAppInboundEvent;
-      if (payload.type === "whatsapp_inbound" && payload.inbound) {
-        onMessage(payload.inbound);
+      waDebugLog("poll.tick", { personId, tickCount, since: nextSince });
+      const data = await fetchMessages({ personId, since: nextSince });
+      if (stopped) return;
+
+      options?.onPollSuccess?.(data);
+
+      if (data.messages?.length) {
+        waDebugLog("poll.new_messages", {
+          personId,
+          tickCount,
+          count: data.messages.length,
+          nextSince: data.nextSince,
+        });
+        onNewMessages(data.messages);
+        nextSince = data.nextSince;
+      } else if (!nextSince && data.nextSince) {
+        waDebugLog("poll.set_initial_cursor", { personId, nextSince: data.nextSince });
+        nextSince = data.nextSince;
+      } else {
+        waDebugLog("poll.no_new_messages", { personId, tickCount, nextSince });
       }
     } catch (error) {
-      console.error("Bad SSE JSON", error, evt.data);
+      if (stopped) return;
+      options?.onError?.(error);
+      waDebugLog("poll.error", { personId, tickCount, error });
+      console.error("poll error", error);
     }
   };
 
-  es.onerror = () => {
-    options?.onError?.();
-    console.warn("SSE disconnected", { readyState: es.readyState, url: es.url });
-  };
+  void tick();
+  const timer = setInterval(() => {
+    void tick();
+  }, 2000);
 
-  return () => es.close();
+  return () => {
+    stopped = true;
+    clearInterval(timer);
+    waDebugLog("poll.stop", { personId, tickCount });
+  };
+}
+
+// GET /api/whatsapp/unread-count?person_id=<uuid>
+export async function fetchUnreadCount(personId: string) {
+  const base = getWhatsAppBaseUrl();
+  const headers = getWhatsAppHeaders();
+
+  const url = new URL(`${base}/api/whatsapp/unread-count`);
+  url.searchParams.set("person_id", personId);
+
+  waDebugLog("fetchUnreadCount.request", {
+    personId,
+    url: url.toString(),
+    hasApiKey: Boolean(headers["x-api-key"]),
+  });
+
+  const res = await fetch(url.toString(), { headers });
+  if (!res.ok) {
+    waDebugLog("fetchUnreadCount.error", { personId, status: res.status });
+    throw new Error(`unread count failed ${res.status}`);
+  }
+
+  const data = await res.json();
+  const result = {
+    unreadCount: Number(data?.unreadCount || 0),
+  } as { unreadCount: number };
+  waDebugLog("fetchUnreadCount.response", result);
+  return result;
+}
+
+// POST /api/whatsapp/mark-read?person_id=<uuid>&up_to=<iso>
+export async function markRead(personId: string, upToIso?: string | null) {
+  const base = getWhatsAppBaseUrl();
+  const headers = getWhatsAppHeaders();
+
+  const url = new URL(`${base}/api/whatsapp/mark-read`);
+  url.searchParams.set("person_id", personId);
+  if (upToIso) url.searchParams.set("up_to", upToIso);
+
+  waDebugLog("markRead.request", {
+    personId,
+    upToIso: upToIso ?? null,
+    url: url.toString(),
+    hasApiKey: Boolean(headers["x-api-key"]),
+  });
+
+  const res = await fetch(url.toString(), {
+    method: "POST",
+    headers,
+  });
+
+  if (!res.ok) {
+    waDebugLog("markRead.error", { personId, status: res.status });
+    throw new Error(`mark read failed ${res.status}`);
+  }
+
+  const data = await res.json();
+  waDebugLog("markRead.response", data);
+  return data;
 }
 
 

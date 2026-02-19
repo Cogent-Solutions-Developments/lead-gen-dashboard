@@ -17,8 +17,28 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { fetchInbound, subscribeWhatsAppEvents, type WhatsAppInbound } from "@/lib/apiRouter";
+import {
+  fetchWhatsAppNotifications,
+  fetchUnreadCount,
+  markRead,
+  startWhatsAppPolling,
+  type WhatsAppInbound,
+} from "@/lib/apiRouter";
 import { toast } from "sonner";
+
+const waUiDebugEnabled =
+  process.env.NODE_ENV !== "production" ||
+  process.env.NEXT_PUBLIC_WA_DEBUG === "1" ||
+  (process.env.NEXT_PUBLIC_WA_DEBUG || "").toLowerCase() === "true";
+
+function waUiLog(event: string, payload?: unknown) {
+  if (!waUiDebugEnabled) return;
+  if (typeof payload === "undefined") {
+    console.log(`[WA UI] ${event}`);
+    return;
+  }
+  console.log(`[WA UI] ${event}`, payload);
+}
 
 function safeDate(value: string) {
   const parsed = new Date(value);
@@ -66,6 +86,14 @@ function dedupeById(items: WhatsAppInbound[]) {
   return Array.from(map.values());
 }
 
+function sortByReceivedAtAsc(items: WhatsAppInbound[]) {
+  return [...items].sort((a, b) => {
+    const aMs = safeDate(a.receivedAt)?.getTime() ?? 0;
+    const bMs = safeDate(b.receivedAt)?.getTime() ?? 0;
+    return aMs - bMs;
+  });
+}
+
 export default function RepliesPage() {
   const [notifications, setNotifications] = useState<WhatsAppInbound[]>([]);
   const [messages, setMessages] = useState<WhatsAppInbound[]>([]);
@@ -74,92 +102,155 @@ export default function RepliesPage() {
   const [personIdInput, setPersonIdInput] = useState("");
   const [historyLoading, setHistoryLoading] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  const activePersonRef = useRef<string | null>(null);
-  activePersonRef.current = activePersonId;
+  const stopPollingRef = useRef<(() => void) | null>(null);
+  const unreadTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopAllPolling = useCallback(() => {
+    waUiLog("stopAllPolling");
+    stopPollingRef.current?.();
+    stopPollingRef.current = null;
+    if (unreadTimerRef.current) {
+      clearInterval(unreadTimerRef.current);
+      unreadTimerRef.current = null;
+    }
+    setConnected(false);
+  }, []);
+
+  const beginUnreadPolling = useCallback((personId: string) => {
+    waUiLog("beginUnreadPolling", { personId });
+    const poll = async () => {
+      try {
+        const data = await fetchUnreadCount(personId);
+        waUiLog("unreadPolling.tick.success", { personId, unreadCount: data.unreadCount });
+        setUnreadCount(data.unreadCount);
+      } catch (error) {
+        waUiLog("unreadPolling.tick.error", { personId, error });
+        console.warn("unread count poll error", error);
+      }
+    };
+
+    void poll();
+    unreadTimerRef.current = setInterval(() => {
+      void poll();
+    }, 5000);
+  }, []);
 
   const openConversation = useCallback(
-    async (personId: string, seedMessage?: WhatsAppInbound) => {
+    (personId: string, seedMessage?: WhatsAppInbound) => {
+      waUiLog("openConversation.start", { personId, seedMessageId: seedMessage?.id ?? null });
       if (!personId) {
         toast.error("Missing personId for this reply.");
         return;
       }
 
+      stopAllPolling();
       setActivePersonId(personId);
       setHistoryLoading(true);
+      setConnected(false);
 
-      try {
-        // API returns DESC, convert to ASC for chat view.
-        const history = await fetchInbound(personId, 50);
-        const ordered = [...history].reverse();
-
-        const combined = seedMessage ? [...ordered, seedMessage] : ordered;
-        const deduped = dedupeById(combined);
-        const sortedAsc = [...deduped].sort((a, b) => {
-          const aMs = safeDate(a.receivedAt)?.getTime() ?? 0;
-          const bMs = safeDate(b.receivedAt)?.getTime() ?? 0;
-          return aMs - bMs;
-        });
-
-        setMessages(sortedAsc);
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Failed to load conversation";
-        toast.error("Failed to load inbound history", { description: message });
-      } finally {
-        setHistoryLoading(false);
+      if (seedMessage) {
+        setMessages([seedMessage]);
+        setNotifications((prev) => sortByReceivedAtDesc(dedupeById([seedMessage, ...prev])));
+      } else {
+        setMessages([]);
       }
+
+      let initialDone = false;
+      const stop = startWhatsAppPolling(
+        personId,
+        (newMessages) => {
+          waUiLog("poll.onNewMessages", {
+            personId,
+            count: newMessages.length,
+            ids: newMessages.map((message) => message.id),
+          });
+          setNotifications((prev) => sortByReceivedAtDesc(dedupeById([...newMessages, ...prev])));
+
+          let latestIso: string | null = null;
+          setMessages((prev) => {
+            const merged = sortByReceivedAtAsc(dedupeById([...prev, ...newMessages]));
+            latestIso = merged.length ? merged[merged.length - 1].receivedAt : null;
+            return merged;
+          });
+
+          if (latestIso) {
+            void markRead(personId, latestIso).then(() => setUnreadCount(0)).catch((error) => {
+              waUiLog("markRead.error", { personId, latestIso, error });
+              console.warn("mark read failed", error);
+            });
+          }
+
+          if (!initialDone) {
+            initialDone = true;
+            setHistoryLoading(false);
+          }
+          setConnected(true);
+        },
+        {
+          onPollSuccess: (data) => {
+            waUiLog("poll.onPollSuccess", {
+              personId,
+              count: data.messages.length,
+              nextSince: data.nextSince,
+            });
+            if (!initialDone) {
+              initialDone = true;
+              setHistoryLoading(false);
+            }
+            setConnected(true);
+          },
+          onError: (error) => {
+            waUiLog("poll.onError", { personId, error });
+            setConnected(false);
+            if (!initialDone) {
+              initialDone = true;
+              setHistoryLoading(false);
+            }
+            console.warn("poll error", error);
+          },
+        }
+      );
+
+      stopPollingRef.current = stop;
+      beginUnreadPolling(personId);
     },
-    []
+    [beginUnreadPolling, stopAllPolling]
   );
 
-  useEffect(() => {
-    const unsubscribe = subscribeWhatsAppEvents((inbound) => {
-      setNotifications((prev) => {
-        const deduped = dedupeById([inbound, ...prev]);
-        return sortByReceivedAtDesc(deduped);
-      });
-
-      if (inbound.personId && activePersonRef.current === inbound.personId) {
-        setMessages((prev) => {
-          if (prev.some((msg) => msg.id === inbound.id)) return prev;
-          return [...prev, inbound];
-        });
-      }
-    }, {
-      onOpen: () => setConnected(true),
-      onError: () => setConnected(false),
-    });
-
-    return () => {
-      unsubscribe();
-      setConnected(false);
-    };
-  }, []);
+  useEffect(() => () => stopAllPolling(), [stopAllPolling]);
 
   const handleNotificationClick = useCallback(
     async (notification: WhatsAppInbound) => {
+      waUiLog("notification.click", {
+        notificationId: notification.id,
+        personId: notification.personId ?? null,
+      });
       setActiveNotificationId(notification.id);
 
       if (!notification.personId) {
         setMessages([notification]);
         setActivePersonId(null);
+        stopAllPolling();
         toast.error("This message has no personId. Cannot load full history.");
         return;
       }
 
-      await openConversation(notification.personId, notification);
+      openConversation(notification.personId, notification);
     },
-    [openConversation]
+    [openConversation, stopAllPolling]
   );
 
   const handleOpenByPerson = useCallback(async () => {
     const value = personIdInput.trim();
+    waUiLog("openByPerson.submit", { rawInput: personIdInput, personId: value || null });
     if (!value) {
       toast.error("Enter personId first.");
       return;
     }
     setActiveNotificationId(null);
-    await openConversation(value);
+    openConversation(value);
   }, [openConversation, personIdInput]);
 
   const selectedNotification = useMemo(() => {
@@ -177,6 +268,34 @@ export default function RepliesPage() {
   }, [activeNotificationId, activePersonId, notifications, messages]);
 
   const sortedNotifications = useMemo(() => sortByReceivedAtDesc(notifications), [notifications]);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | null = null;
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        waUiLog("notifications.load.request");
+        const data = await fetchWhatsAppNotifications({ limit: 50, unreadOnly: false });
+        if (cancelled) return;
+        waUiLog("notifications.load.response", { count: data.notifications.length });
+        setNotifications((prev) => sortByReceivedAtDesc(dedupeById([...data.notifications, ...prev])));
+      } catch (error) {
+        waUiLog("notifications.load.error", error);
+        console.warn("failed to load whatsapp notifications", error);
+      }
+    };
+
+    void load();
+    timer = setInterval(() => {
+      void load();
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+    };
+  }, []);
 
   return (
     <div className="font-sans min-h-screen bg-transparent p-1">
@@ -203,14 +322,14 @@ export default function RepliesPage() {
                 : "border-zinc-200 bg-zinc-100 text-zinc-600"
             }`}
           >
-            {connected ? "Live" : "Waiting"}
+            {connected ? `Live | Unread ${unreadCount}` : `Idle | Unread ${unreadCount}`}
           </Badge>
           <Button
             variant="outline"
             className="h-9 border-zinc-200 text-zinc-700 hover:bg-zinc-50"
             onClick={() => {
               if (!activePersonId) return;
-              void openConversation(activePersonId);
+              openConversation(activePersonId);
             }}
             disabled={!activePersonId || historyLoading}
           >
@@ -255,7 +374,7 @@ export default function RepliesPage() {
               <div className="flex min-h-44 flex-col items-center justify-center rounded-xl border border-dashed border-zinc-200 bg-zinc-50 text-center">
                 <Inbox className="h-5 w-5 text-zinc-400" />
                 <p className="mt-2 text-sm text-zinc-500">
-                  Waiting for live replies from SSE stream.
+                  Loading notifications...
                 </p>
               </div>
             ) : (
@@ -286,7 +405,7 @@ export default function RepliesPage() {
                               {item.contactName || "Unknown Contact"}
                             </p>
                             <p className="truncate text-[11px] text-zinc-500">
-                              {item.fromPhone || "No phone"} • {item.personId || "No personId"}
+                              {item.fromPhone || "No phone"} | {item.personId || "No personId"}
                             </p>
                           </div>
                         </div>
