@@ -11,7 +11,7 @@ import { LeadsBreakdown } from "@/components/dashboard/LeadsBreakdown";
 
 export default function DashboardPage() {
   return (
-    <div className="font-sans min-h-screen bg-transparent p-1">
+    <div className="font-sans min-h-[calc(100dvh-3rem)] bg-transparent p-1">
       
       {/* 1. Header Section */}
       <motion.div
