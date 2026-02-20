@@ -55,9 +55,9 @@ export function LeadsBreakdown() {
   const data = React.useMemo(() => {
     const d = dist || { total: 0, contacted: 0, pending: 0, other: 0 };
     return [
-      { status: "contacted", visitors: d.contacted, fill: "var(--sidebar-primary)" },
-      { status: "pending", visitors: d.pending, fill: "#00d2ff" },
-      { status: "other", visitors: d.other, fill: "#e4e4e7" },
+      { status: "contacted", visitors: d.contacted, fill: "url(#lead-status-contacted)" },
+      { status: "pending", visitors: d.pending, fill: "url(#lead-status-pending)" },
+      { status: "other", visitors: d.other, fill: "url(#lead-status-other)" },
     ];
   }, [dist]);
 
@@ -78,8 +78,53 @@ export function LeadsBreakdown() {
       <CardContent className="relative z-[2] flex flex-1 flex-col justify-center pb-0">
         <ChartContainer config={chartConfig} className="mx-auto h-[min(15rem,30vh)] w-full">
           <PieChart>
+            <defs>
+              <linearGradient id="lead-status-contacted" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#7bb6ff" />
+                <stop offset="52%" stopColor="#2f79f0" />
+                <stop offset="100%" stopColor="#1356bf" />
+              </linearGradient>
+
+              <linearGradient id="lead-status-pending" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#95f0ff" />
+                <stop offset="54%" stopColor="#39cdf7" />
+                <stop offset="100%" stopColor="#0b8ec6" />
+              </linearGradient>
+
+              <linearGradient id="lead-status-other" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#f4f8ff" />
+                <stop offset="55%" stopColor="#dde6f5" />
+                <stop offset="100%" stopColor="#c8d4ea" />
+              </linearGradient>
+
+              <filter id="lead-status-grain" x="-20%" y="-20%" width="140%" height="140%">
+                <feTurbulence
+                  type="fractalNoise"
+                  baseFrequency="0.95"
+                  numOctaves="2"
+                  seed="8"
+                  stitchTiles="stitch"
+                  result="noise"
+                />
+                <feColorMatrix in="noise" type="saturate" values="0" result="desaturatedNoise" />
+                <feComponentTransfer in="desaturatedNoise" result="grainAlpha">
+                  <feFuncA type="table" tableValues="0 0.11" />
+                </feComponentTransfer>
+                <feComposite in="grainAlpha" in2="SourceAlpha" operator="in" result="grainMasked" />
+                <feBlend in="SourceGraphic" in2="grainMasked" mode="soft-light" />
+              </filter>
+            </defs>
+
             <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-            <Pie data={data} dataKey="visitors" nameKey="status" innerRadius={60} strokeWidth={5}>
+            <Pie
+              data={data}
+              dataKey="visitors"
+              nameKey="status"
+              innerRadius={60}
+              strokeWidth={5}
+              stroke="rgba(255,255,255,0.62)"
+              filter="url(#lead-status-grain)"
+            >
               <Label
                 content={({ viewBox }) => {
                   if (viewBox && "cx" in viewBox && "cy" in viewBox) {
@@ -103,15 +148,15 @@ export function LeadsBreakdown() {
 
       <div className="relative z-[2] flex items-center justify-center gap-5 pb-5 pt-2">
         <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-sidebar-primary" />
+          <div className="h-2 w-2 rounded-full bg-[linear-gradient(135deg,#7bb6ff_0%,#2f79f0_52%,#1356bf_100%)]" />
           <span className="text-xs text-zinc-600 font-medium">Contacted</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-[#00d2ff]" />
+          <div className="h-2 w-2 rounded-full bg-[linear-gradient(135deg,#95f0ff_0%,#39cdf7_54%,#0b8ec6_100%)]" />
           <span className="text-xs text-zinc-600 font-medium">Pending</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-zinc-200" />
+          <div className="h-2 w-2 rounded-full bg-[linear-gradient(135deg,#f4f8ff_0%,#dde6f5_55%,#c8d4ea_100%)]" />
           <span className="text-xs text-zinc-600 font-medium">Other</span>
         </div>
       </div>
