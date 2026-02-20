@@ -111,9 +111,9 @@ export function StatsCards() {
       accentClass: "from-sky-300/28 to-blue-600/8",
       icon: RocketFill,
       watermark: {
-        sizeClass: "h-[11rem] w-[11rem]",
+        sizeClass: "h-[9rem] w-[9rem]",
         rotationClass: "rotate-[40deg]",
-        positionClass: "-right-12 top-20 -translate-y-1/2",
+        positionClass: "-right-10 top-[4.6rem] -translate-y-1/2",
         toneClass: "text-blue-300/20",
       },
     },
@@ -124,9 +124,9 @@ export function StatsCards() {
       accentClass: "from-blue-300/28 to-indigo-600/9",
       icon: UsersFill,
       watermark: {
-        sizeClass: "h-[17rem] w-[17rem]",
+        sizeClass: "h-[13rem] w-[13rem]",
         rotationClass: "rotate-[10deg]",
-        positionClass: "-right-22 top-[65%] -translate-y-1/2",
+        positionClass: "-right-13 top-[70%] -translate-y-1/2",
         toneClass: "text-blue-300/20",
       },
     },
@@ -137,9 +137,9 @@ export function StatsCards() {
       accentClass: "from-cyan-300/26 to-blue-700/9",
       icon: FileCheckFill,
       watermark: {
-        sizeClass: "h-[12rem] w-[12rem]",
+        sizeClass: "h-[8.5rem] w-[8.5rem]",
         rotationClass: "rotate-[18deg]",
-        positionClass: "-right-10 top-1/2 -translate-y-1/2",
+        positionClass: "-right-10 top-[60%] -translate-y-1/2",
         toneClass: "text-blue-300/20",
       },
     },
@@ -150,26 +150,27 @@ export function StatsCards() {
       accentClass: "from-indigo-300/28 to-blue-700/9",
       icon: SendFill,
       watermark: {
-        sizeClass: "h-[12rem] w-[12rem]",
+        sizeClass: "h-[9rem] w-[9rem]",
         rotationClass: "rotate-[10deg]",
-        positionClass: "-right-14 top-1/2 -translate-y-1/2",
+        positionClass: "-right-6 top-[60%] -translate-y-1/2",
         toneClass: "text-blue-300/20",
       },
     },
   ];
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid h-full grid-cols-4 gap-2.5">
       {cards.map((stat, index) => (
         <motion.div
           key={stat.name}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.1, duration: 0.4 }}
+          className="h-full"
         >
-          <Card className="stats-premium-card group relative overflow-hidden rounded-2xl p-5">
+          <Card className="stats-premium-card group relative h-full overflow-hidden rounded-2xl p-2.5">
             <div
-              className={`pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-gradient-to-br blur-2xl ${stat.accentClass}`}
+              className={`pointer-events-none absolute -right-10 -top-14 h-32 w-32 rounded-full bg-gradient-to-br blur-2xl ${stat.accentClass}`}
             />
             <div className={cn("pointer-events-none absolute", stat.watermark.positionClass)}>
               <stat.icon
@@ -181,16 +182,16 @@ export function StatsCards() {
               />
             </div>
 
-            <div className="relative z-10 space-y-4">
-              <span className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500/90">
+            <div className="relative z-10 flex h-full flex-col">
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500/90">
                 {stat.name}
               </span>
 
-              <div className="space-y-2">
+              <div className="mt-auto space-y-0.5">
                 <span className="block text-3xl font-semibold tracking-tight text-zinc-900 xl:text-4xl">
                   {stat.value}
                 </span>
-                <p className="text-sm font-medium text-zinc-500">{stat.label}</p>
+                <p className="text-[11px] font-medium text-zinc-500">{stat.label}</p>
               </div>
             </div>
           </Card>
