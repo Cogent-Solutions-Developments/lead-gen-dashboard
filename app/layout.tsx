@@ -21,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${outfit.className} ${outfit.variable} bg-slate-50`}>
+      <body className={`${outfit.className} ${outfit.variable} bg-slate-20`}>
         <AppShell>{children}</AppShell>
         <Toaster position="top-right" />
       </body>
