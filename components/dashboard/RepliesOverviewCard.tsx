@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { fetchWhatsAppNotifications, listReplyNotifications } from "@/lib/apiRouter";
 import { usePersona } from "@/hooks/usePersona";
@@ -81,7 +80,7 @@ export function RepliesOverviewCard() {
               Total Replies
             </p>
             <div className="space-y-0.5">
-              <span className="block text-4xl font-semibold leading-none tracking-tight text-white xl:text-5xl">
+              <span className="block text-3xl font-semibold leading-none tracking-tight text-white xl:text-4xl">
                 {loading ? "..." : formatCount(totalReplies)}
               </span>
               <span className="block text-xs font-medium text-white/75">
@@ -91,11 +90,21 @@ export function RepliesOverviewCard() {
           </div>
 
           <div className="flex shrink-0 flex-col items-end justify-end">
-            <div className="flex items-center gap-2">
-              <span className="h-px w-8 bg-white/45 transition-all duration-200 group-hover:w-12 group-hover:bg-white/80" />
-              <ArrowUpRight className="h-7 w-7 text-white opacity-70 hover:opacity-100 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-            </div>
-            <span className="mt-1 h-0.5 w-16 origin-left bg-gradient-to-r from-white/75 via-white/35 to-transparent transition-all duration-200 group-hover:w-20" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-12 w-12 text-white/55 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-white"
+            >
+              <path d="M7 7h10v10" />
+              <path d="M7 17 17 7" />
+            </svg>
           </div>
         </div>
       </Card>
