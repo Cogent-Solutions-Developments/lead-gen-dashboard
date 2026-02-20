@@ -66,14 +66,14 @@ export function LeadsBreakdown() {
   }, [data]);
 
   return (
-    <Card className="flex flex-col h-112.5 border-zinc-200 shadow-none bg-white">
-      <CardHeader className="items-center pb-0 pt-6">
+    <Card className="flex h-full min-h-[20rem] flex-col border-zinc-200 bg-white shadow-none lg:min-h-0">
+      <CardHeader className="items-center pb-0 pt-5">
         <CardTitle className="text-zinc-900">Lead Distribution</CardTitle>
         <CardDescription>Current pipeline status</CardDescription>
       </CardHeader>
 
       <CardContent className="flex-1 pb-0 flex flex-col justify-center">
-        <ChartContainer config={chartConfig} className="mx-auto h-62.5 w-full">
+        <ChartContainer config={chartConfig} className="mx-auto h-[min(15rem,30vh)] w-full">
           <PieChart>
             <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
             <Pie data={data} dataKey="visitors" nameKey="status" innerRadius={60} strokeWidth={5}>
@@ -98,7 +98,7 @@ export function LeadsBreakdown() {
         </ChartContainer>
       </CardContent>
 
-      <div className="flex items-center justify-center gap-6 pb-8 pt-4">
+      <div className="flex items-center justify-center gap-5 pb-5 pt-2">
         <div className="flex items-center gap-2">
           <div className="h-2 w-2 rounded-full bg-sidebar-primary" />
           <span className="text-xs text-zinc-600 font-medium">Contacted</span>
