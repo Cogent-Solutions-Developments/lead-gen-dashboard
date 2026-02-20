@@ -6,7 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { LayoutTemplate, ChevronRight, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { getRecentCampaigns, type RecentCampaign } from "@/lib/apiRouter";
+import {
+  listCampaigns,
+  type CampaignListItem,
+  type RecentCampaign,
+} from "@/lib/apiRouter";
 import { toast } from "sonner";
 import { usePersona } from "@/hooks/usePersona";
 
@@ -36,14 +40,47 @@ export function RecentCampaigns() {
   const [loading, setLoading] = useState(true);
   const { persona } = usePersona();
 
+  const asRecentCampaign = (campaign: CampaignListItem): RecentCampaign => ({
+    id: campaign.id,
+    name: campaign.name,
+    leadsCount: campaign.totalLeads,
+    status: campaign.status,
+  });
+
+  const toTime = (value: string) => {
+    const timestamp = new Date(value).getTime();
+    return Number.isNaN(timestamp) ? 0 : timestamp;
+  };
+
   useEffect(() => {
     let alive = true;
 
     (async () => {
       try {
-        const res = await getRecentCampaigns(5);
+        const batchSize = 50;
+        const allCampaigns: CampaignListItem[] = [];
+        let offset = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+          const res = await listCampaigns({ status: "all", limit: batchSize, offset });
+          const rows = res.campaigns || [];
+
+          allCampaigns.push(...rows);
+          hasMore = Boolean(res.hasMore) && rows.length > 0;
+          offset += batchSize;
+
+          // Safety guard in case backend keeps hasMore true unexpectedly.
+          if (offset >= 2000) break;
+        }
+
+        const mapped = allCampaigns
+          .slice()
+          .sort((a, b) => toTime(b.createdAt) - toTime(a.createdAt))
+          .map(asRecentCampaign);
+
         if (!alive) return;
-        setCampaigns(res.campaigns || []);
+        setCampaigns(mapped);
       } catch (err: unknown) {
         if (!alive) return;
         const message = err instanceof Error ? err.message : "Unknown error";
