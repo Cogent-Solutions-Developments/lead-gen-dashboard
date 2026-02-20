@@ -54,7 +54,7 @@ export function Sidebar() {
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="sidebar-modern fixed left-0 top-0 z-40 flex h-screen w-64 flex-col p-5 font-sans text-sidebar-foreground"
+      className="sidebar-modern fixed left-0 top-0 z-40 flex h-screen w-72 flex-col p-5 font-sans text-sidebar-foreground"
     >
       {/* 1. Logo Section */}
       <div className="mb-10 flex items-center gap-3 px-2 flex-shrink-0">
