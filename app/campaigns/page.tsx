@@ -55,6 +55,8 @@ const statusConfig: Record<
   },
 };
 
+const filterOnlyStatuses = ["completed", "failed", "cancelled"] as const;
+
 function statusUI(status: string) {
   return statusConfig[status] || {
     label: status.replaceAll("_", " "),
@@ -126,20 +128,14 @@ export default function CampaignsPage() {
   }, [isFilterOpen]);
 
   const statusFilters = useMemo(() => {
-    const known = Object.entries(statusConfig).map(([value, config]) => ({
-      value,
-      label: config.label,
-    }));
-    const knownSet = new Set(known.map((item) => item.value));
-    const extra = Array.from(new Set(items.map((item) => item.status)))
-      .filter((status) => !knownSet.has(status))
-      .map((status) => ({
-        value: status,
-        label: status.replaceAll("_", " "),
-      }));
-
-    return [{ value: "all", label: "All statuses" }, ...known, ...extra];
-  }, [items]);
+    return [
+      { value: "all", label: "All statuses" },
+      ...filterOnlyStatuses.map((value) => ({
+        value,
+        label: statusConfig[value]?.label || value.replaceAll("_", " "),
+      })),
+    ];
+  }, []);
 
   const filteredItems = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
