@@ -109,7 +109,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function AnalyticsPage() {
   return (
-    <div className="min-h-screen bg-slate-50/50 p-6 font-sans">
+    <div className="min-h-screen bg-transparent p-6 font-sans">
       
       {/* HEADER */}
       <motion.div

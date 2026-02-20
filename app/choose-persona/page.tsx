@@ -34,7 +34,7 @@ export default function ChoosePersonaPage() {
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-[#FFFFFF]">
+    <div className="relative min-h-screen w-full overflow-hidden bg-transparent">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-48 right-[-10%] h-[520px] w-[520px] rounded-full bg-[#5984C8]/5 blur-3xl" />
         <div className="absolute -bottom-48 left-[-10%] h-[520px] w-[520px] rounded-full bg-[#00d2ff]/5 blur-3xl" />

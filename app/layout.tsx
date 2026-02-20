@@ -20,8 +20,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${outfit.className} ${outfit.variable} bg-slate-180`}>
+    <html lang="en" className="bg-transparent">
+      <body className={`${outfit.className} ${outfit.variable} min-h-screen bg-black/3`}>
         <AppShell>{children}</AppShell>
         <Toaster position="top-right" />
       </body>
