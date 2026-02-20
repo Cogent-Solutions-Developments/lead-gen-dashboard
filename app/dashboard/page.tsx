@@ -11,13 +11,13 @@ import { LeadsBreakdown } from "@/components/dashboard/LeadsBreakdown";
 
 export default function DashboardPage() {
   return (
-    <div className="font-sans min-h-[calc(100dvh-3rem)] bg-transparent p-1">
+    <div className="font-sans flex h-[calc(100dvh-3rem)] flex-col overflow-y-auto bg-transparent p-1 lg:overflow-hidden">
       
       {/* 1. Header Section */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
+        className="mb-5 flex shrink-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
       >
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Dashboard</h1>
@@ -39,6 +39,7 @@ export default function DashboardPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
+        className="shrink-0"
       >
         <StatsCards />
       </motion.div>
@@ -49,15 +50,15 @@ export default function DashboardPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="mt-8 grid gap-8 lg:grid-cols-3"
+        className="mt-5 grid min-h-0 flex-1 gap-5 lg:grid-cols-3"
       >
         {/* Left Column */}
-        <div className="lg:col-span-2 h-full">
+        <div className="h-full min-h-0 lg:col-span-2">
            <RecentCampaigns />
         </div>
 
         {/* Right Column */}
-        <div className="lg:col-span-1 h-full">
+        <div className="h-full min-h-0 lg:col-span-1">
            <LeadsBreakdown />
         </div>
       </motion.div>

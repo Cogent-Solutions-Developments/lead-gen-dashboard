@@ -159,7 +159,7 @@ export function StatsCards() {
   ];
 
   return (
-    <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       {cards.map((stat, index) => (
         <motion.div
           key={stat.name}
@@ -167,7 +167,7 @@ export function StatsCards() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.1, duration: 0.4 }}
         >
-          <Card className="stats-premium-card group relative overflow-hidden rounded-2xl p-6">
+          <Card className="stats-premium-card group relative overflow-hidden rounded-2xl p-5">
             <div
               className={`pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-gradient-to-br blur-2xl ${stat.accentClass}`}
             />
@@ -181,13 +181,13 @@ export function StatsCards() {
               />
             </div>
 
-            <div className="relative z-10 space-y-5">
+            <div className="relative z-10 space-y-4">
               <span className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500/90">
                 {stat.name}
               </span>
 
               <div className="space-y-2">
-                <span className="block text-4xl font-semibold tracking-tight text-zinc-900">
+                <span className="block text-3xl font-semibold tracking-tight text-zinc-900 xl:text-4xl">
                   {stat.value}
                 </span>
                 <p className="text-sm font-medium text-zinc-500">{stat.label}</p>
