@@ -59,10 +59,11 @@ export async function getDashboardDistribution() {
   return data as { total: number; contacted: number; pending: number; other: number };
 }
 
-export async function getRecentCampaigns(limit = 5) {
+export async function getRecentCampaigns(limit?: number) {
+  const params = typeof limit === "number" ? { limit } : undefined;
   const { data } = await apiClientDelegate.get<{ campaigns: RecentCampaign[] }>(
     "/api/delegates/campaigns/recent",
-    { params: { limit } }
+    { params }
   );
   return data;
 }
