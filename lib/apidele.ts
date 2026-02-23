@@ -1,5 +1,7 @@
 ﻿import axios from "axios";
 import type {
+  CampaignInfo,
+  CampaignInfoResponse,
   CampaignDetail,
   CampaignListItem,
   CreateCampaignRequest,
@@ -11,6 +13,8 @@ import type {
 } from "./api";
 
 export type {
+  CampaignInfo,
+  CampaignInfoResponse,
   CampaignDetail,
   CampaignListItem,
   CreateCampaignRequest,
@@ -94,6 +98,13 @@ export async function createCampaign(payload: string | CreateCampaignRequest) {
 export async function getCampaign(id: string) {
   const { data } = await apiClientDelegate.get<CampaignDetail>(
     `/api/delegates/campaigns/${id}`
+  );
+  return data;
+}
+
+export async function getCampaignInfo(id: string) {
+  const { data } = await apiClientDelegate.get<CampaignInfoResponse>(
+    `/api/delegates/campaigns/${id}/info`
   );
   return data;
 }

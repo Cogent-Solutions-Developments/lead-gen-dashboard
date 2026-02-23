@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { AxiosInstance } from "axios";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -18,7 +20,10 @@ import {
   Eye,
   Check,
   X,
+  Copy,
+  Download,
   ExternalLink,
+  Search,
   Save,
   Loader2,
   Trash2,
@@ -101,6 +106,9 @@ interface CampaignDetail {
   name: string;
   icpPreview: string;
   status: string;
+  category?: string | null;
+  location?: string | null;
+  date?: string | null;
   createdAt: string;
   stats: {
     total: number;
@@ -110,10 +118,40 @@ interface CampaignDetail {
   };
 }
 
+type LeadExportRow = {
+  campaignTitle: string;
+  name: string;
+  title: string;
+  email: string;
+  phone: string;
+  linkedinUrl: string;
+  companyUrl: string;
+};
+
 const approvalStyles = {
   pending: { bg: "bg-zinc-100 text-zinc-500 border-zinc-200", icon: Clock },
   approved: { bg: "bg-sidebar-primary/10 text-emerald-900 border-sidebar-primary/20", icon: CheckCircle },
   rejected: { bg: "bg-white text-zinc-400 border-zinc-200 line-through", icon: XCircle },
+};
+
+const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
+const EXPORT_HEADERS: Array<keyof LeadExportRow> = [
+  "campaignTitle",
+  "name",
+  "title",
+  "email",
+  "phone",
+  "linkedinUrl",
+  "companyUrl",
+];
+const EXPORT_HEADER_LABELS: Record<keyof LeadExportRow, string> = {
+  campaignTitle: "Campaign Title",
+  name: "Name",
+  title: "Title",
+  email: "Email",
+  phone: "Phone",
+  linkedinUrl: "LinkedIn URL",
+  companyUrl: "Company URL",
 };
 
 const normalizeApprovalStatus = (s: any): ApprovalStatus => {
@@ -192,6 +230,70 @@ function formatDateOnly(value?: string) {
 
   const fallback = String(value).split("T")[0]?.split(" ")[0];
   return fallback || value;
+}
+
+function escapeCsv(value: unknown) {
+  const text = String(value ?? "");
+  if (text.includes(",") || text.includes("\n") || text.includes('"')) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function sanitizeFileNamePart(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function triggerFileDownload(filename: string, mimeType: string, content: string) {
+  const blob = new Blob(["\ufeff", content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function writeToClipboard(text: string) {
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  if (typeof document !== "undefined") {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.style.position = "fixed";
+    area.style.left = "-9999px";
+    document.body.appendChild(area);
+    area.focus();
+    area.select();
+    document.execCommand("copy");
+    document.body.removeChild(area);
+    return;
+  }
+
+  throw new Error("Clipboard unavailable");
+}
+
+function buildLeadClipboardText(lead: Lead) {
+  const rows = [
+    `Name: ${lead.employeeName || "-"}`,
+    `Title: ${lead.title || "-"}`,
+    `Company: ${lead.company || "-"}`,
+    `Email: ${lead.email || "-"}`,
+    `Phone: ${lead.phone || "-"}`,
+    `LinkedIn: ${lead.linkedinUrl || "-"}`,
+    `Company URL: ${lead.companyUrl || "-"}`,
+  ].filter(Boolean);
+
+  return rows.join("\n");
 }
 
 const AttachmentSection = ({
@@ -343,10 +445,13 @@ export default function CampaignDetailPage() {
   const api = useMemo(() => getApiKeyClient(persona), [persona]);
 
   const [campaign, setCampaign] = useState<CampaignDetail | null>(null);
+  const [campaignCategory, setCampaignCategory] = useState<string>("");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [leadFilter, setLeadFilter] = useState<LeadFilterKey>("new");
+  const [tableSearch, setTableSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(15);
 
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [editForm, setEditForm] = useState<Partial<Lead>>({});
@@ -359,17 +464,10 @@ export default function CampaignDetailPage() {
   // ✅ Separate file pickers
   const emailFileRef = useRef<HTMLInputElement | null>(null);
   const whatsappFileRef = useRef<HTMLInputElement | null>(null);
-  const tableScrollRef = useRef<HTMLDivElement | null>(null);
-  const [tableScrollbar, setTableScrollbar] = useState({
-    visible: false,
-    thumbTop: 0,
-    thumbHeight: 0,
-  });
 
   const pendingCount = useMemo(() => leads.filter((l) => l.approvalStatus === "pending").length, [leads]);
   const approvedCount = useMemo(() => leads.filter((l) => l.approvalStatus === "approved").length, [leads]);
   const rejectedCount = useMemo(() => leads.filter((l) => l.approvalStatus === "rejected").length, [leads]);
-  const itemsPerPage = 8;
 
   const leadFilterTabs = useMemo(
     () => [
@@ -381,17 +479,35 @@ export default function CampaignDetailPage() {
   );
 
   const filteredLeads = useMemo(() => {
-    if (leadFilter === "new") return leads.filter((l) => l.approvalStatus === "pending");
-    if (leadFilter === "sent") return leads.filter((l) => l.approvalStatus === "approved");
-    return leads.filter((l) => l.approvalStatus === "rejected");
-  }, [leads, leadFilter]);
+    const statusFiltered =
+      leadFilter === "new"
+        ? leads.filter((l) => l.approvalStatus === "pending")
+        : leadFilter === "sent"
+          ? leads.filter((l) => l.approvalStatus === "approved")
+          : leads.filter((l) => l.approvalStatus === "rejected");
+
+    const query = tableSearch.trim().toLowerCase();
+    if (!query) return statusFiltered;
+
+    const asText = (value: unknown) => String(value ?? "").toLowerCase();
+    return statusFiltered.filter((lead) =>
+      asText(lead.id).includes(query) ||
+      asText(lead.batchId).includes(query) ||
+      asText(lead.employeeName).includes(query) ||
+      asText(lead.title).includes(query) ||
+      asText(lead.company).includes(query) ||
+      asText(lead.email).includes(query) ||
+      asText(lead.phone).includes(query) ||
+      asText(lead.companyUrl).includes(query)
+    );
+  }, [leads, leadFilter, tableSearch]);
 
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / itemsPerPage));
 
   const paginatedLeads = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredLeads.slice(start, start + itemsPerPage);
-  }, [filteredLeads, currentPage]);
+  }, [filteredLeads, currentPage, itemsPerPage]);
 
   const visiblePageNumbers = useMemo(() => {
     const windowSize = 5;
@@ -405,39 +521,37 @@ export default function CampaignDetailPage() {
     () => leadFilterTabs.find((tab) => tab.key === leadFilter)?.label || "New",
     [leadFilterTabs, leadFilter]
   );
-
-  const updateTableScrollbar = useCallback(() => {
-    const el = tableScrollRef.current;
-    if (!el) return;
-
-    const { scrollTop, scrollHeight, clientHeight } = el;
-    const maxScroll = scrollHeight - clientHeight;
-
-    if (maxScroll <= 0 || clientHeight <= 0) {
-      setTableScrollbar((prev) => (prev.visible ? { visible: false, thumbTop: 0, thumbHeight: 0 } : prev));
-      return;
-    }
-
-    const minThumb = 34;
-    const thumbHeight = Math.max(minThumb, Math.round((clientHeight / scrollHeight) * clientHeight));
-    const maxThumbTop = Math.max(0, clientHeight - thumbHeight);
-    const thumbTop = Math.round((scrollTop / maxScroll) * maxThumbTop);
-
-    setTableScrollbar((prev) => {
-      if (prev.visible && prev.thumbTop === thumbTop && prev.thumbHeight === thumbHeight) return prev;
-      return { visible: true, thumbTop, thumbHeight };
-    });
-  }, []);
+  const categoryChipLabel = useMemo(
+    () => (campaignCategory || campaign?.category || "").trim(),
+    [campaignCategory, campaign?.category]
+  );
+  const exportRows = useMemo<LeadExportRow[]>(
+    () =>
+      leads.map((lead) => {
+        return {
+          campaignTitle: campaign?.name || "",
+          name: lead.employeeName || "",
+          title: lead.title || "",
+          email: lead.email || "",
+          phone: lead.phone || "",
+          linkedinUrl: lead.linkedinUrl || "",
+          companyUrl: lead.companyUrl || "",
+        };
+      }),
+    [leads, campaign?.name]
+  );
 
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [cRes, lRes] = await Promise.all([
+      const [cRes, lRes, infoRes] = await Promise.all([
         api.get(`/api/campaigns/${campaignId}`),
         api.get(`/api/campaigns/${campaignId}/leads`, { params: { status: "all" } }),
+        api.get(`/api/campaigns/${campaignId}/info`).catch(() => null),
       ]);
 
       setCampaign(cRes.data);
+      setCampaignCategory(String(infoRes?.data?.info?.category || cRes.data?.category || "").trim());
 
       const mapped: Lead[] = (lRes.data.leads || []).map((x: any) => ({
         id: x.id,
@@ -534,7 +648,7 @@ export default function CampaignDetailPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [leadFilter]);
+  }, [leadFilter, tableSearch]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -542,35 +656,19 @@ export default function CampaignDetailPage() {
     }
   }, [currentPage, totalPages]);
 
-  useEffect(() => {
-    const el = tableScrollRef.current;
-    if (!el) return;
-
-    const onResize = () => updateTableScrollbar();
-    let resizeObserver: ResizeObserver | null = null;
-
-    window.addEventListener("resize", onResize);
-
-    if (typeof ResizeObserver !== "undefined") {
-      resizeObserver = new ResizeObserver(onResize);
-      resizeObserver.observe(el);
-      if (el.firstElementChild instanceof HTMLElement) resizeObserver.observe(el.firstElementChild);
-    }
-
-    updateTableScrollbar();
-
-    return () => {
-      window.removeEventListener("resize", onResize);
-      resizeObserver?.disconnect();
-    };
-  }, [updateTableScrollbar]);
-
-  useEffect(() => {
-    updateTableScrollbar();
-  }, [updateTableScrollbar, filteredLeads.length, currentPage, leadFilter]);
-
   const handleContentChange = (field: keyof Lead, value: string) => {
     setEditForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleItemsPerPageChange = (nextValue: string) => {
+    const nextPageSize = Number(nextValue);
+    if (!Number.isFinite(nextPageSize) || nextPageSize <= 0) return;
+
+    const firstVisibleIndex = (currentPage - 1) * itemsPerPage;
+    const nextPage = Math.floor(firstVisibleIndex / nextPageSize) + 1;
+
+    setItemsPerPage(nextPageSize);
+    setCurrentPage(nextPage);
   };
 
   const handleReject = async (leadId: string) => {
@@ -608,6 +706,35 @@ export default function CampaignDetailPage() {
     } catch (e: any) {
       toast.error("Approve/send failed", { description: e?.response?.data?.detail || e?.message });
     }
+  };
+
+  const handleCopyLeadDetails = async (lead: Lead) => {
+    try {
+      await writeToClipboard(buildLeadClipboardText(lead));
+      toast.success("Lead details copied");
+    } catch (error: any) {
+      toast.error("Copy failed", { description: error?.message || "Could not copy details." });
+    }
+  };
+
+  const buildExportFilenameBase = () => {
+    const campaignPart = sanitizeFileNamePart(campaign?.name || "campaign");
+    const datePart = new Date().toISOString().slice(0, 10);
+    return `${campaignPart || "campaign"}-all-leads-${datePart}`;
+  };
+
+  const handleExportCsv = () => {
+    if (exportRows.length === 0) {
+      toast.error("No leads to export");
+      return;
+    }
+
+    const headerLine = EXPORT_HEADERS.map((key) => escapeCsv(EXPORT_HEADER_LABELS[key])).join(",");
+    const dataLines = exportRows.map((row) => EXPORT_HEADERS.map((key) => escapeCsv(row[key])).join(","));
+    const csv = [headerLine, ...dataLines].join("\n");
+
+    triggerFileDownload(`${buildExportFilenameBase()}.csv`, "text/csv;charset=utf-8", csv);
+    toast.success(`CSV exported (${exportRows.length} leads)`);
   };
 
 
@@ -817,8 +944,8 @@ export default function CampaignDetailPage() {
   }
 
   return (
-    <div className="font-sans flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-y-auto scrollbar-hide bg-transparent p-1">
-      <div className="relative overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.88)_0%,rgba(250,252,255,0.72)_56%,rgba(240,246,253,0.58)_100%)] px-4 py-3 shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74)] backdrop-blur-[14px] [backdrop-filter:saturate(168%)_blur(14px)]">
+    <div className="font-sans min-h-screen bg-transparent p-1">
+      <div className="relative overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.88)_0%,rgba(250,252,255,0.72)_56%,rgba(240,246,253,0.58)_100%)] px-4 pb-4 pt-3 shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74)] backdrop-blur-[14px] [backdrop-filter:saturate(168%)_blur(14px)]">
         <div className="pointer-events-none absolute -right-16 -top-16 h-36 w-36 rounded-full bg-gradient-to-br from-sky-300/34 via-blue-500/16 to-transparent blur-3xl" />
         <div className="pointer-events-none absolute -left-20 -bottom-16 h-44 w-44 rounded-full bg-gradient-to-tr from-blue-300/20 via-sky-200/8 to-transparent blur-3xl" />
 
@@ -829,8 +956,18 @@ export default function CampaignDetailPage() {
               <Badge className="rounded-full border border-zinc-200/80 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-700 shadow-none backdrop-blur-[6px] [backdrop-filter:saturate(130%)_blur(6px)]">
                 {String(campaign?.status || "needs_review").replaceAll("_", " ")}
               </Badge>
+              {categoryChipLabel ? (
+                <>
+                  <span className="h-4 w-px bg-zinc-300/80" aria-hidden="true" />
+                  <Badge className="rounded-full border border-blue-200/80 bg-blue-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-blue-700 shadow-none">
+                    {categoryChipLabel}
+                  </Badge>
+                </>
+              ) : null}
             </div>
-            <p className="mt-1 text-xs text-zinc-500/90">Created {formatDateOnly(campaign?.createdAt)}</p>
+            <div className="mt-1 flex items-center gap-2 text-xs text-zinc-500/90">
+              <span>Created {formatDateOnly(campaign?.createdAt)}</span>
+            </div>
           </div>
 
           <div className="flex flex-nowrap items-center gap-2 self-start">
@@ -843,7 +980,7 @@ export default function CampaignDetailPage() {
           </div>
         </div>
 
-        <div className="relative z-[1] mt-3 grid gap-2 border-t border-zinc-100/80 pt-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="relative z-[1] mt-3 grid gap-3 border-t border-zinc-100/80 pt-3 sm:grid-cols-2 xl:grid-cols-4">
           <Card className="rounded-2xl border border-zinc-200 bg-white p-3">
             <div className="flex h-full flex-col">
               <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500/90">Total Leads</span>
@@ -882,11 +1019,11 @@ export default function CampaignDetailPage() {
         </div>
       </div>
 
-      <Card className="relative isolate mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.84)_0%,rgba(250,252,255,0.66)_56%,rgba(240,246,253,0.56)_100%)] backdrop-blur-[16px] [backdrop-filter:saturate(175%)_blur(16px)] shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74),inset_0_0_22px_rgba(255,255,255,0.2)]">
+      <Card className="relative isolate mt-3 flex flex-col overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.84)_0%,rgba(250,252,255,0.66)_56%,rgba(240,246,253,0.56)_100%)] backdrop-blur-[16px] [backdrop-filter:saturate(175%)_blur(16px)] shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74),inset_0_0_22px_rgba(255,255,255,0.2)]">
         <div className="pointer-events-none absolute -right-20 -top-24 h-60 w-60 rounded-full bg-gradient-to-br from-sky-300/34 via-blue-500/12 to-blue-700/0 blur-3xl" />
         <div className="pointer-events-none absolute -left-24 -bottom-20 h-56 w-56 rounded-full bg-gradient-to-tr from-blue-300/20 via-sky-200/10 to-transparent blur-3xl" />
 
-        <div className="relative z-[2] px-6 pt-0.5">
+        <div className="relative z-[2] flex flex-col gap-2 px-6 pt-0.5 sm:flex-row sm:items-center sm:justify-between">
           <div className="inline-flex items-center rounded-xl border border-zinc-200/90 bg-white/60 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.94),0_8px_14px_-12px_rgba(2,10,27,0.58)] backdrop-blur-[6px]">
             {leadFilterTabs.map((tab) => (
               <button
@@ -906,14 +1043,34 @@ export default function CampaignDetailPage() {
               </button>
             ))}
           </div>
+
+          <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:flex-nowrap">
+            <div className="relative min-w-0 flex-1 sm:w-72 sm:flex-none">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
+              <Input
+                value={tableSearch}
+                onChange={(e) => setTableSearch(e.target.value)}
+                placeholder={`Search ${activeFilterLabel.toLowerCase()} leads`}
+                className="h-8 border-zinc-200/85 bg-white/88 pl-8 text-xs text-zinc-700 placeholder:text-zinc-400"
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <Button
+                type="button"
+                onClick={handleExportCsv}
+                disabled={exportRows.length === 0}
+                className="h-8 rounded-md border border-zinc-200/80 bg-white/82 px-2.5 text-[11px] font-semibold text-zinc-700 shadow-none hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:opacity-50"
+              >
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+                CSV
+              </Button>
+            </div>
+          </div>
         </div>
 
-        <div className="relative z-[2] min-h-0 flex-1">
-          <div
-            ref={tableScrollRef}
-            onScroll={updateTableScrollbar}
-            className="scrollbar-hide h-full overflow-auto px-4 pb-2 pt-3 pr-5"
-          >
+        <div className="relative z-[2] px-4 pb-2 pt-3">
+          <div>
             <table className="min-w-[960px] w-full">
             <thead className="border-b border-zinc-100/85 bg-white/70">
               <tr>
@@ -985,7 +1142,16 @@ export default function CampaignDetailPage() {
                     </td>
 
                     <td className="px-4 py-3.5 text-right">
-                      <div className="flex min-w-[120px] justify-end gap-2">
+                      <div className="flex min-w-[152px] justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-500 hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+                          onClick={() => handleCopyLeadDetails(item)}
+                          title="Copy lead details"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
                         {item.approvalStatus === "pending" ? (
                           <>
                             <Button
@@ -1017,30 +1183,41 @@ export default function CampaignDetailPage() {
             </tbody>
             </table>
           </div>
-
-          {tableScrollbar.visible && (
-            <div className="pointer-events-none absolute inset-y-0 right-1 w-2">
-              <div className="absolute inset-y-0 left-[2px] right-[2px] rounded-full bg-zinc-200/60" />
-              <div
-                className="absolute left-[2px] right-[2px] rounded-full bg-zinc-500/75 transition-[transform,height] duration-150"
-                style={{
-                  height: `${tableScrollbar.thumbHeight}px`,
-                  transform: `translateY(${tableScrollbar.thumbTop}px)`,
-                }}
-              />
-            </div>
-          )}
         </div>
 
         {filteredLeads.length > 0 && (
-          <div className="relative z-[2] flex items-center justify-between border-t border-zinc-100/85 bg-white/38 px-6 py-3">
+          <div className="relative z-[2] flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100/85 bg-white/38 px-6 py-3">
             <span className="text-xs text-zinc-500">
               Showing {(currentPage - 1) * itemsPerPage + 1}-
               {Math.min(currentPage * itemsPerPage, filteredLeads.length)} of {filteredLeads.length}{" "}
               {activeFilterLabel.toLowerCase()} leads
             </span>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <label className="inline-flex items-center gap-2 rounded-md border border-zinc-200/80 bg-white/82 px-2.5 py-1.5 text-[11px] font-medium text-zinc-600">
+                <span>Rows per page</span>
+                <Select value={String(itemsPerPage)} onValueChange={handleItemsPerPageChange}>
+                  <SelectTrigger
+                    size="sm"
+                    className="h-7 min-w-[4.25rem] border-zinc-200/80 bg-white/95 px-2 text-[11px] font-semibold text-zinc-800 shadow-none"
+                    aria-label="Rows per page"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="end" className="border-zinc-200 bg-white/96 backdrop-blur-[10px]">
+                    {PAGE_SIZE_OPTIONS.map((size) => (
+                      <SelectItem key={size} value={String(size)} className="text-xs">
+                        {size}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+
+              <span className="text-[11px] text-zinc-500">
+                Page {currentPage} / {totalPages}
+              </span>
+
               <Button
                 type="button"
                 variant="ghost"

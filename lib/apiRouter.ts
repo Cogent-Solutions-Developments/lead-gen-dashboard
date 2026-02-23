@@ -3,6 +3,8 @@ import * as delegates from "@/lib/apidele";
 import { getPersona, type Persona } from "@/lib/persona";
 
 export type {
+  CampaignInfo,
+  CampaignInfoResponse,
   CampaignDetail,
   CampaignListItem,
   DashboardStats,
@@ -35,6 +37,9 @@ export const createCampaign: typeof sales.createCampaign = (...args) =>
 
 export const getCampaign: typeof sales.getCampaign = (...args) =>
   pickModule().getCampaign(...args);
+
+export const getCampaignInfo: typeof sales.getCampaignInfo = (...args) =>
+  pickModule().getCampaignInfo(...args);
 
 export const getCampaignLeads: typeof sales.getCampaignLeads = (...args) =>
   pickModule().getCampaignLeads(...args);
