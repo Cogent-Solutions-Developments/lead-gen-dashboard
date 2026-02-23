@@ -22,6 +22,7 @@ import {
   X,
   Copy,
   Download,
+  Filter,
   ExternalLink,
   Search,
   Save,
@@ -450,6 +451,10 @@ export default function CampaignDetailPage() {
   const [loading, setLoading] = useState(true);
   const [leadFilter, setLeadFilter] = useState<LeadFilterKey>("new");
   const [tableSearch, setTableSearch] = useState("");
+  const [jobTitleFilter, setJobTitleFilter] = useState("");
+  const [domainFilter, setDomainFilter] = useState("");
+  const [phoneFilter, setPhoneFilter] = useState("");
+  const [isTableFilterOpen, setIsTableFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(15);
 
@@ -464,6 +469,7 @@ export default function CampaignDetailPage() {
   // ✅ Separate file pickers
   const emailFileRef = useRef<HTMLInputElement | null>(null);
   const whatsappFileRef = useRef<HTMLInputElement | null>(null);
+  const tableFilterRef = useRef<HTMLDivElement | null>(null);
 
   const pendingCount = useMemo(() => leads.filter((l) => l.approvalStatus === "pending").length, [leads]);
   const approvedCount = useMemo(() => leads.filter((l) => l.approvalStatus === "approved").length, [leads]);
@@ -486,21 +492,36 @@ export default function CampaignDetailPage() {
           ? leads.filter((l) => l.approvalStatus === "approved")
           : leads.filter((l) => l.approvalStatus === "rejected");
 
-    const query = tableSearch.trim().toLowerCase();
-    if (!query) return statusFiltered;
-
     const asText = (value: unknown) => String(value ?? "").toLowerCase();
-    return statusFiltered.filter((lead) =>
-      asText(lead.id).includes(query) ||
-      asText(lead.batchId).includes(query) ||
-      asText(lead.employeeName).includes(query) ||
-      asText(lead.title).includes(query) ||
-      asText(lead.company).includes(query) ||
-      asText(lead.email).includes(query) ||
-      asText(lead.phone).includes(query) ||
-      asText(lead.companyUrl).includes(query)
-    );
-  }, [leads, leadFilter, tableSearch]);
+    const query = tableSearch.trim().toLowerCase();
+    const jobTitleQuery = jobTitleFilter.trim().toLowerCase();
+    const domainQuery = domainFilter.trim().toLowerCase();
+    const phoneQuery = phoneFilter.trim().toLowerCase().replaceAll(" ", "");
+
+    return statusFiltered.filter((lead) => {
+      const searchMatch =
+        !query ||
+        asText(lead.id).includes(query) ||
+        asText(lead.batchId).includes(query) ||
+        asText(lead.employeeName).includes(query) ||
+        asText(lead.title).includes(query) ||
+        asText(lead.company).includes(query) ||
+        asText(lead.email).includes(query) ||
+        asText(lead.phone).includes(query) ||
+        asText(lead.companyUrl).includes(query);
+
+      const jobTitleMatch = !jobTitleQuery || asText(lead.title).includes(jobTitleQuery);
+
+      // Domain can be partial/suffix like ".ae", ".sa", or full company domain.
+      const domainHaystack = `${asText(lead.email)} ${asText(lead.companyUrl)}`;
+      const domainMatch = !domainQuery || domainHaystack.includes(domainQuery);
+
+      const compactPhone = asText(lead.phone).replaceAll(" ", "");
+      const phoneMatch = !phoneQuery || compactPhone.includes(phoneQuery);
+
+      return searchMatch && jobTitleMatch && domainMatch && phoneMatch;
+    });
+  }, [leads, leadFilter, tableSearch, jobTitleFilter, domainFilter, phoneFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / itemsPerPage));
 
@@ -525,6 +546,8 @@ export default function CampaignDetailPage() {
     () => (campaignCategory || campaign?.category || "").trim(),
     [campaignCategory, campaign?.category]
   );
+  const hasAdvancedTableFilters =
+    jobTitleFilter.trim().length > 0 || domainFilter.trim().length > 0 || phoneFilter.trim().length > 0;
   const exportRows = useMemo<LeadExportRow[]>(
     () =>
       leads.map((lead) => {
@@ -647,8 +670,22 @@ export default function CampaignDetailPage() {
   }, [selectedLead]);
 
   useEffect(() => {
+    if (!isTableFilterOpen) return;
+
+    const onPointerDown = (event: MouseEvent) => {
+      if (!tableFilterRef.current) return;
+      if (!tableFilterRef.current.contains(event.target as Node)) {
+        setIsTableFilterOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [isTableFilterOpen]);
+
+  useEffect(() => {
     setCurrentPage(1);
-  }, [leadFilter, tableSearch]);
+  }, [leadFilter, tableSearch, jobTitleFilter, domainFilter, phoneFilter]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -1023,7 +1060,7 @@ export default function CampaignDetailPage() {
         <div className="pointer-events-none absolute -right-20 -top-24 h-60 w-60 rounded-full bg-gradient-to-br from-sky-300/34 via-blue-500/12 to-blue-700/0 blur-3xl" />
         <div className="pointer-events-none absolute -left-24 -bottom-20 h-56 w-56 rounded-full bg-gradient-to-tr from-blue-300/20 via-sky-200/10 to-transparent blur-3xl" />
 
-        <div className="relative z-[2] flex flex-col gap-2 px-6 pt-0.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative z-[6] flex flex-col gap-2 px-6 pt-0.5 sm:flex-row sm:items-center sm:justify-between">
           <div className="inline-flex items-center rounded-xl border border-zinc-200/90 bg-white/60 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.94),0_8px_14px_-12px_rgba(2,10,27,0.58)] backdrop-blur-[6px]">
             {leadFilterTabs.map((tab) => (
               <button
@@ -1056,6 +1093,77 @@ export default function CampaignDetailPage() {
             </div>
 
             <div className="flex items-center gap-1.5">
+              <div ref={tableFilterRef} className="relative">
+                <Button
+                  type="button"
+                  onClick={() => setIsTableFilterOpen((prev) => !prev)}
+                  className="h-8 rounded-md border border-zinc-200/80 bg-white/82 px-2.5 text-[11px] font-semibold text-zinc-700 shadow-none hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+                >
+                  <Filter className="mr-1.5 h-3.5 w-3.5" />
+                  Filter
+                  {hasAdvancedTableFilters ? (
+                    <span className="ml-1 rounded-full bg-zinc-900/12 px-1.5 py-0.5 text-[10px] text-zinc-700">On</span>
+                  ) : null}
+                </Button>
+
+                {isTableFilterOpen && (
+                  <div className="absolute right-0 top-10 z-40 w-72 rounded-xl border border-zinc-200/85 bg-white/96 p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.85),0_16px_24px_-14px_rgba(2,10,27,0.24),0_6px_12px_-8px_rgba(15,23,42,0.14)] backdrop-blur-[8px]">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Job Title</label>
+                      <Input
+                        value={jobTitleFilter}
+                        onChange={(e) => setJobTitleFilter(e.target.value)}
+                        placeholder="e.g. manager, director"
+                        className="h-8 border-zinc-200/80 bg-white text-xs"
+                      />
+                    </div>
+
+                    <div className="mt-3 space-y-2">
+                      <label className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Domain</label>
+                      <Input
+                        value={domainFilter}
+                        onChange={(e) => setDomainFilter(e.target.value)}
+                        placeholder="e.g. .ae, .sa, company.com"
+                        className="h-8 border-zinc-200/80 bg-white text-xs"
+                      />
+                    </div>
+
+                    <div className="mt-3 space-y-2">
+                      <label className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Phone Number</label>
+                      <Input
+                        value={phoneFilter}
+                        onChange={(e) => setPhoneFilter(e.target.value)}
+                        placeholder="Type any part of phone"
+                        className="h-8 border-zinc-200/80 bg-white text-xs"
+                      />
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between border-t border-zinc-200/70 pt-2.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setJobTitleFilter("");
+                          setDomainFilter("");
+                          setPhoneFilter("");
+                        }}
+                        className="text-[11px] font-medium text-zinc-500 hover:text-zinc-800"
+                      >
+                        Clear
+                      </button>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setIsTableFilterOpen(false)}
+                        className="h-7 rounded-md border border-zinc-200/80 bg-white/90 px-2.5 text-[11px] font-medium text-zinc-700 hover:bg-white"
+                      >
+                        Done
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <Button
                 type="button"
                 onClick={handleExportCsv}
