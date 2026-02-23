@@ -7,16 +7,25 @@ import { ArrowLeft, Loader2, Rocket } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createCampaign } from "@/lib/apiRouter";
 
 export default function NewCampaignPage() {
   const router = useRouter();
 
+  const [name, setName] = useState("");
+  const [location, setLocation] = useState("");
+  const [date, setDate] = useState("");
+  const [category, setCategory] = useState("");
   const [icp, setIcp] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validateForm = () => {
+    if (!name.trim()) return "Campaign name is required.";
+    if (!location.trim()) return "Location is required.";
+    if (!date) return "Date is required.";
+    if (!category.trim()) return "Category is required.";
     if (!icp.trim()) return "ICP is required.";
     return null;
   };
@@ -32,7 +41,13 @@ export default function NewCampaignPage() {
 
     setIsSubmitting(true);
     try {
-      const response = await createCampaign(icp.trim());
+      const response = await createCampaign({
+        name: name.trim(),
+        location: location.trim(),
+        date,
+        category: category.trim(),
+        icp: icp.trim(),
+      });
 
       toast.success("Campaign created", {
         description: "Scraping will begin shortly.",
@@ -60,13 +75,63 @@ export default function NewCampaignPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900">New Campaign</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Provide ICP details to create a campaign.
+          Fill in campaign details and ICP. All fields are sent to the backend.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="max-w-4xl">
         <Card className="rounded-xl border border-zinc-200 bg-white p-6">
-          <div className="space-y-2">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Name
+              </label>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Qatar Tech Buyers Wave 1"
+                className="h-10 border-zinc-200 bg-white"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Location
+              </label>
+              <Input
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="Doha, Qatar"
+                className="h-10 border-zinc-200 bg-white"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Date
+              </label>
+              <Input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="h-10 border-zinc-200 bg-white"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Category
+              </label>
+              <Input
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder="Conference"
+                className="h-10 border-zinc-200 bg-white"
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-2">
             <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               ICP
             </label>

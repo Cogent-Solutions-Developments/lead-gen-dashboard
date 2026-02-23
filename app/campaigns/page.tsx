@@ -20,7 +20,13 @@ import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
-import { listCampaigns, stopCampaign, type CampaignListItem } from "@/lib/apiRouter";
+import {
+  getCampaignInfo,
+  listCampaigns,
+  stopCampaign,
+  type CampaignInfo,
+  type CampaignListItem,
+} from "@/lib/apiRouter";
 import { usePersona } from "@/hooks/usePersona";
 
 const statusConfig: Record<
@@ -134,6 +140,37 @@ function formatCreatedAt(value: string) {
   });
 }
 
+function formatCampaignDate(value?: string | null) {
+  if (!value) return "";
+
+  const raw = String(value).trim();
+  const dateOnly = raw.split("T")[0];
+  const m = dateOnly.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (m) {
+    const [, y, mo, d] = m;
+    const parsed = new Date(Number(y), Number(mo) - 1, Number(d));
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    }
+  }
+
+  const fallback = new Date(raw);
+  if (!Number.isNaN(fallback.getTime())) {
+    return fallback.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  return raw;
+}
+
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong.";
 }
@@ -145,8 +182,12 @@ type StopDialogTarget = {
 
 export default function CampaignsPage() {
   const [items, setItems] = useState<CampaignListItem[]>([]);
+  const [campaignInfoById, setCampaignInfoById] = useState<Record<string, CampaignInfo | null>>(
+    {}
+  );
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -209,6 +250,10 @@ export default function CampaignsPage() {
   }, [persona]);
 
   useEffect(() => {
+    setCampaignInfoById({});
+  }, [persona]);
+
+  useEffect(() => {
     if (!isFilterOpen) return;
 
     const onPointerDown = (event: MouseEvent) => {
@@ -232,21 +277,39 @@ export default function CampaignsPage() {
     ];
   }, []);
 
+  const categoryFilters = useMemo(() => {
+    const byKey = new Map<string, string>();
+
+    for (const campaign of items) {
+      const raw = String(campaign.category || campaignInfoById[campaign.id]?.category || "").trim();
+      if (!raw) continue;
+      const key = raw.toLowerCase();
+      if (!byKey.has(key)) byKey.set(key, raw);
+    }
+
+    const values = Array.from(byKey.values()).sort((a, b) => a.localeCompare(b));
+    return [{ value: "all", label: "All categories" }, ...values.map((value) => ({ value, label: value }))];
+  }, [items, campaignInfoById]);
+
   const filteredItems = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     const asSearchText = (value: unknown) => String(value ?? "").toLowerCase();
+    const selectedCategory = categoryFilter.trim().toLowerCase();
 
     return items.filter((campaign) => {
       const statusMatch = statusFilter === "all" || campaign.status === statusFilter;
+      const categoryValue = asSearchText(campaign.category || campaignInfoById[campaign.id]?.category).trim();
+      const categoryMatch = selectedCategory === "all" || (!!categoryValue && categoryValue === selectedCategory);
       const searchMatch =
         !query ||
         asSearchText(campaign.name).includes(query) ||
         asSearchText(campaign.icpPreview).includes(query) ||
+        asSearchText(campaign.category || campaignInfoById[campaign.id]?.category).includes(query) ||
         asSearchText(campaign.id).includes(query);
 
-      return statusMatch && searchMatch;
+      return statusMatch && categoryMatch && searchMatch;
     });
-  }, [items, statusFilter, searchQuery]);
+  }, [items, statusFilter, categoryFilter, searchQuery, campaignInfoById]);
 
   useEffect(() => {
     if (loading || filteredItems.length === 0) return;
@@ -297,17 +360,57 @@ export default function CampaignsPage() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i);
   }, [currentPage, totalPages]);
 
-  const activeFilters = statusFilter !== "all" || searchQuery.trim().length > 0;
+  const activeFilters =
+    statusFilter !== "all" || categoryFilter !== "all" || searchQuery.trim().length > 0;
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, searchQuery, persona]);
+  }, [statusFilter, categoryFilter, searchQuery, persona]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
       setCurrentPage(totalPages);
     }
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    if (loading || paginatedItems.length === 0) return;
+
+    const missingIds = paginatedItems
+      .map((campaign) => campaign.id)
+      .filter((id) => !(id in campaignInfoById));
+
+    if (missingIds.length === 0) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const pairs = await Promise.all(
+        missingIds.map(async (id) => {
+          try {
+            const res = await getCampaignInfo(id);
+            return [id, res.info] as const;
+          } catch {
+            return [id, null] as const;
+          }
+        })
+      );
+
+      if (cancelled) return;
+
+      setCampaignInfoById((prev) => {
+        const next = { ...prev };
+        for (const [id, info] of pairs) {
+          if (!(id in next)) next[id] = info;
+        }
+        return next;
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, paginatedItems, campaignInfoById]);
 
   useEffect(() => {
     if (!stopTarget || isStopping) return;
@@ -386,6 +489,7 @@ export default function CampaignsPage() {
                       type="button"
                       onClick={() => {
                         setStatusFilter("all");
+                        setCategoryFilter("all");
                         setSearchQuery("");
                       }}
                       className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-800"
@@ -423,6 +527,28 @@ export default function CampaignsPage() {
                         onClick={() => setStatusFilter(option.value)}
                         className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
                           statusFilter === option.value
+                            ? "border-zinc-300 bg-zinc-900 text-white"
+                            : "border-zinc-200 bg-white/82 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Category
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {categoryFilters.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setCategoryFilter(option.value)}
+                        className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                          categoryFilter === option.value
                             ? "border-zinc-300 bg-zinc-900 text-white"
                             : "border-zinc-200 bg-white/82 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
                         }`}
@@ -478,6 +604,10 @@ export default function CampaignsPage() {
               paginatedItems.map((campaign, index) => {
                 const s = statusUI(campaign.status);
                 const StatusIcon = s.icon;
+                const campaignInfo = campaignInfoById[campaign.id];
+                const category = campaign.category || campaignInfo?.category;
+                const location = campaign.location || campaignInfo?.location;
+                const eventDate = campaign.date || campaignInfo?.date;
 
                 return (
                   <motion.div
@@ -490,7 +620,7 @@ export default function CampaignsPage() {
                   >
                     <div className="grid gap-5 px-6 py-4 md:min-h-[9.75rem] md:grid-cols-[minmax(0,2.25fr)_minmax(250px,0.95fr)_minmax(300px,1fr)] md:items-start">
                       <div className="min-w-0">
-                        <div className="mb-2 flex items-center gap-2">
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
                           <Badge
                             className={`rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide shadow-none ${s.style}`}
                           >
@@ -499,6 +629,16 @@ export default function CampaignsPage() {
                             )}
                             {s.label}
                           </Badge>
+
+                          {category ? (
+                            <>
+                              <span className="h-4 w-px bg-zinc-300/80" aria-hidden="true" />
+                              <Badge className="rounded-full border border-blue-200/80 bg-blue-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-blue-700 shadow-none">
+                                {category}
+                              </Badge>
+                            </>
+                          ) : null}
+
                         </div>
 
                         <Link href={`/campaigns/${campaign.id}`} className="block">
@@ -506,7 +646,6 @@ export default function CampaignsPage() {
                             {campaign.name}
                           </h3>
                         </Link>
-                        <p className="mt-1 line-clamp-1 text-sm text-zinc-600">{campaign.icpPreview}</p>
 
                         {campaign.status === "processing" && (
                           <div className="mt-3 max-w-xs">
@@ -574,7 +713,25 @@ export default function CampaignsPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-end px-6 py-2.5">
+                    <div className="flex items-center justify-between gap-3 px-6 py-2.5">
+                      <div className="flex min-w-0 flex-wrap items-center gap-3 text-xs text-zinc-500">
+                        {location ? (
+                          <span className="inline-flex min-w-0 items-center">
+                            <span className="max-w-[13rem] truncate">{location}</span>
+                          </span>
+                        ) : null}
+
+                        {location && eventDate ? (
+                          <span className="h-3.5 w-px bg-zinc-300/80" aria-hidden="true" />
+                        ) : null}
+
+                        {eventDate ? (
+                          <span className="inline-flex items-center">
+                            {formatCampaignDate(eventDate)}
+                          </span>
+                        ) : null}
+                      </div>
+
                       <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500">
                         <Clock className="h-3.5 w-3.5" />
                         Created {formatCreatedAt(campaign.createdAt)}

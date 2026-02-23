@@ -35,6 +35,9 @@ export type CampaignListItem = {
   name: string;
   icpPreview: string;
   status: string;
+  category?: string | null;
+  location?: string | null;
+  date?: string | null;
   progress: number;
   totalLeads: number;
   toApprove: number;
@@ -46,6 +49,9 @@ export type CampaignDetail = {
   name: string;
   icpPreview: string;
   status: string;
+  category?: string | null;
+  location?: string | null;
+  date?: string | null;
   createdAt: string;
   stats: {
     total: number;
@@ -57,6 +63,25 @@ export type CampaignDetail = {
 
 export type CreateCampaignRequest = {
   icp: string;
+  name?: string;
+  location?: string;
+  date?: string;
+  category?: string;
+};
+
+export type CampaignInfo = {
+  campaignId: string;
+  name: string | null;
+  location: string | null;
+  category: string | null;
+  date: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+export type CampaignInfoResponse = {
+  campaignId: string;
+  info: CampaignInfo;
 };
 
 export type LeadItem = {
@@ -197,9 +222,7 @@ export async function listCampaigns(params: { status?: string; limit?: number; o
 }
 
 export async function createCampaign(payload: string | CreateCampaignRequest) {
-  const requestBody = {
-    icp: typeof payload === "string" ? payload : payload.icp,
-  };
+  const requestBody = typeof payload === "string" ? { icp: payload } : payload;
 
   const { data } = await apiClient.post<{
     id: string;
@@ -214,6 +237,11 @@ export async function createCampaign(payload: string | CreateCampaignRequest) {
 
 export async function getCampaign(id: string) {
   const { data } = await apiClient.get<CampaignDetail>(`/api/campaigns/${id}`);
+  return data;
+}
+
+export async function getCampaignInfo(id: string) {
+  const { data } = await apiClient.get<CampaignInfoResponse>(`/api/campaigns/${id}/info`);
   return data;
 }
 
