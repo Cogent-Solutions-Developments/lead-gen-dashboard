@@ -78,7 +78,9 @@ export async function listCampaigns(params: { status?: string; limit?: number; o
 }
 
 export async function createCampaign(payload: string | CreateCampaignRequest) {
-  const requestBody = typeof payload === "string" ? { icp: payload } : payload;
+  const requestBody = {
+    icp: typeof payload === "string" ? payload : payload.icp,
+  };
 
   const { data } = await apiClientDelegate.post<{
     id: string;
