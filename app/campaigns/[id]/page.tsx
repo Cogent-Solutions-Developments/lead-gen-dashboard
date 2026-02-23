@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { AxiosInstance } from "axios";
 import { Card } from "@/components/ui/card";
@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
-  Users,
+  ChevronLeft,
+  ChevronRight,
   Mail,
   MessageCircle,
   CheckCircle,
@@ -42,6 +43,7 @@ const LinkedInIcon = ({ className }: { className?: string }) => (
 type ApprovalStatus = "pending" | "approved" | "rejected";
 type OutreachState = "pending" | "sending" | "sent";
 type AttachmentChannel = "email" | "whatsapp";
+type LeadFilterKey = "new" | "sent" | "rejected";
 
 type Attachment = {
   id: string;
@@ -176,6 +178,22 @@ const formatBytes = (bytes?: number) => {
   return `${v.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 };
 
+function formatDateOnly(value?: string) {
+  if (!value) return "-";
+
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  const fallback = String(value).split("T")[0]?.split(" ")[0];
+  return fallback || value;
+}
+
 const AttachmentSection = ({
   title,
   subtitle,
@@ -184,6 +202,7 @@ const AttachmentSection = ({
   onPickFiles,
   onRemoveAttachment,
   onRemovePending,
+  className,
 }: {
   title: string;
   subtitle: string;
@@ -192,14 +211,15 @@ const AttachmentSection = ({
   onPickFiles: () => void;
   onRemoveAttachment: (id: string) => void;
   onRemovePending: (tempId: string) => void;
+  className?: string;
 }) => {
   const hasAny = attachments.length > 0 || pendingUploads.length > 0;
 
   return (
-    <Card className="rounded-xl border border-zinc-200 bg-white shadow-sm">
-      <div className="px-5 py-4 border-b border-zinc-100 flex items-center justify-between">
+    <Card className={`flex min-h-0 flex-col rounded-xl border border-zinc-200 bg-white shadow-sm ${className || ""}`}>
+      <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
         <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-md bg-zinc-100 flex items-center justify-center">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white">
             <Paperclip className="h-4 w-4 text-zinc-900" />
           </div>
           <div>
@@ -210,8 +230,7 @@ const AttachmentSection = ({
 
         <Button
           type="button"
-          variant="outline"
-          className="h-9 border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+          className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
           onClick={onPickFiles}
         >
           <UploadCloud className="mr-2 h-4 w-4" />
@@ -219,7 +238,7 @@ const AttachmentSection = ({
         </Button>
       </div>
 
-      <div className="p-5">
+      <div className="min-h-0 overflow-y-auto p-5 scrollbar-hide">
         {!hasAny ? (
           <div className="text-sm text-zinc-500">
             No attachments added.
@@ -228,7 +247,7 @@ const AttachmentSection = ({
         ) : (
           <div className="space-y-2">
             {pendingUploads.map((p) => (
-              <div key={p.tempId} className="flex items-center justify-between rounded-lg border border-zinc-100 bg-zinc-50/40 px-3 py-2">
+              <div key={p.tempId} className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2">
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-zinc-900 truncate">
                     {p.name}{" "}
@@ -254,7 +273,7 @@ const AttachmentSection = ({
             ))}
 
             {attachments.map((a) => (
-              <div key={a.id} className="flex items-center justify-between rounded-lg border border-zinc-100 bg-white px-3 py-2">
+              <div key={a.id} className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2">
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-zinc-900 truncate">{a.name}</div>
                   <div className="text-xs text-zinc-500">
@@ -326,6 +345,8 @@ export default function CampaignDetailPage() {
   const [campaign, setCampaign] = useState<CampaignDetail | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [leadFilter, setLeadFilter] = useState<LeadFilterKey>("new");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [editForm, setEditForm] = useState<Partial<Lead>>({});
@@ -338,10 +359,75 @@ export default function CampaignDetailPage() {
   // ✅ Separate file pickers
   const emailFileRef = useRef<HTMLInputElement | null>(null);
   const whatsappFileRef = useRef<HTMLInputElement | null>(null);
+  const tableScrollRef = useRef<HTMLDivElement | null>(null);
+  const [tableScrollbar, setTableScrollbar] = useState({
+    visible: false,
+    thumbTop: 0,
+    thumbHeight: 0,
+  });
 
   const pendingCount = useMemo(() => leads.filter((l) => l.approvalStatus === "pending").length, [leads]);
   const approvedCount = useMemo(() => leads.filter((l) => l.approvalStatus === "approved").length, [leads]);
   const rejectedCount = useMemo(() => leads.filter((l) => l.approvalStatus === "rejected").length, [leads]);
+  const itemsPerPage = 8;
+
+  const leadFilterTabs = useMemo(
+    () => [
+      { key: "new" as const, label: "New", count: pendingCount },
+      { key: "sent" as const, label: "Sent", count: approvedCount },
+      { key: "rejected" as const, label: "Rejected", count: rejectedCount },
+    ],
+    [pendingCount, approvedCount, rejectedCount]
+  );
+
+  const filteredLeads = useMemo(() => {
+    if (leadFilter === "new") return leads.filter((l) => l.approvalStatus === "pending");
+    if (leadFilter === "sent") return leads.filter((l) => l.approvalStatus === "approved");
+    return leads.filter((l) => l.approvalStatus === "rejected");
+  }, [leads, leadFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredLeads.length / itemsPerPage));
+
+  const paginatedLeads = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredLeads.slice(start, start + itemsPerPage);
+  }, [filteredLeads, currentPage]);
+
+  const visiblePageNumbers = useMemo(() => {
+    const windowSize = 5;
+    let start = Math.max(1, currentPage - Math.floor(windowSize / 2));
+    const end = Math.min(totalPages, start + windowSize - 1);
+    start = Math.max(1, end - windowSize + 1);
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  }, [currentPage, totalPages]);
+
+  const activeFilterLabel = useMemo(
+    () => leadFilterTabs.find((tab) => tab.key === leadFilter)?.label || "New",
+    [leadFilterTabs, leadFilter]
+  );
+
+  const updateTableScrollbar = useCallback(() => {
+    const el = tableScrollRef.current;
+    if (!el) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    const maxScroll = scrollHeight - clientHeight;
+
+    if (maxScroll <= 0 || clientHeight <= 0) {
+      setTableScrollbar((prev) => (prev.visible ? { visible: false, thumbTop: 0, thumbHeight: 0 } : prev));
+      return;
+    }
+
+    const minThumb = 34;
+    const thumbHeight = Math.max(minThumb, Math.round((clientHeight / scrollHeight) * clientHeight));
+    const maxThumbTop = Math.max(0, clientHeight - thumbHeight);
+    const thumbTop = Math.round((scrollTop / maxScroll) * maxThumbTop);
+
+    setTableScrollbar((prev) => {
+      if (prev.visible && prev.thumbTop === thumbTop && prev.thumbHeight === thumbHeight) return prev;
+      return { visible: true, thumbTop, thumbHeight };
+    });
+  }, []);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -445,6 +531,43 @@ export default function CampaignDetailPage() {
       setPendingWhatsappUploads([]);
     }
   }, [selectedLead]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [leadFilter]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    const el = tableScrollRef.current;
+    if (!el) return;
+
+    const onResize = () => updateTableScrollbar();
+    let resizeObserver: ResizeObserver | null = null;
+
+    window.addEventListener("resize", onResize);
+
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(onResize);
+      resizeObserver.observe(el);
+      if (el.firstElementChild instanceof HTMLElement) resizeObserver.observe(el.firstElementChild);
+    }
+
+    updateTableScrollbar();
+
+    return () => {
+      window.removeEventListener("resize", onResize);
+      resizeObserver?.disconnect();
+    };
+  }, [updateTableScrollbar]);
+
+  useEffect(() => {
+    updateTableScrollbar();
+  }, [updateTableScrollbar, filteredLeads.length, currentPage, leadFilter]);
 
   const handleContentChange = (field: keyof Lead, value: string) => {
     setEditForm((prev) => ({ ...prev, [field]: value }));
@@ -694,115 +817,159 @@ export default function CampaignDetailPage() {
   }
 
   return (
-    <div className="font-sans min-h-screen bg-transparent p-1">
-      <Link href="/campaigns" className="mb-6 inline-flex items-center text-sm font-medium text-zinc-400 hover:text-zinc-900 transition-colors">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Campaigns
-      </Link>
+    <div className="font-sans flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-y-auto scrollbar-hide bg-transparent p-1">
+      <div className="relative overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.88)_0%,rgba(250,252,255,0.72)_56%,rgba(240,246,253,0.58)_100%)] px-4 py-3 shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74)] backdrop-blur-[14px] [backdrop-filter:saturate(168%)_blur(14px)]">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-36 w-36 rounded-full bg-gradient-to-br from-sky-300/34 via-blue-500/16 to-transparent blur-3xl" />
+        <div className="pointer-events-none absolute -left-20 -bottom-16 h-44 w-44 rounded-full bg-gradient-to-tr from-blue-300/20 via-sky-200/8 to-transparent blur-3xl" />
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-8 pb-6 border-b border-zinc-100">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-900">{campaign?.name || "Campaign"}</h1>
-            <Badge className="bg-sidebar text-sidebar-foreground border-sidebar/50 rounded-full px-3 py-1 text-[11px] uppercase tracking-wider">
-              {campaign?.status || "needs_review"}
-            </Badge>
+        <div className="relative z-[1] flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="truncate text-xl font-semibold tracking-tight text-zinc-900">{campaign?.name || "Campaign"}</h1>
+              <Badge className="rounded-full border border-zinc-200/80 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-700 shadow-none backdrop-blur-[6px] [backdrop-filter:saturate(130%)_blur(6px)]">
+                {String(campaign?.status || "needs_review").replaceAll("_", " ")}
+              </Badge>
+            </div>
+            <p className="mt-1 text-xs text-zinc-500/90">Created {formatDateOnly(campaign?.createdAt)}</p>
           </div>
-          <p className="mt-2 text-sm text-zinc-500">
-            {campaign?.icpPreview || ""} • {campaign?.createdAt || ""}
-          </p>
+
+          <div className="flex flex-nowrap items-center gap-2 self-start">
+            <Link href="/campaigns">
+              <Button className="analytics-frost-btn h-9 px-3.5">
+                <ArrowLeft className="h-4 w-4" />
+                Back to Campaigns
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        <div className="relative z-[1] mt-3 grid gap-2 border-t border-zinc-100/80 pt-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Card className="rounded-2xl border border-zinc-200 bg-white p-3">
+            <div className="flex h-full flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500/90">Total Leads</span>
+              <div className="mt-auto flex items-end">
+                <span className="text-xl font-semibold tracking-tight text-zinc-900">{leads.length}</span>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="rounded-2xl border border-zinc-200 bg-white p-3">
+            <div className="flex h-full flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500/90">Pending</span>
+              <div className="mt-auto flex items-end">
+                <span className="text-xl font-semibold tracking-tight text-zinc-900">{pendingCount}</span>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="rounded-2xl border border-zinc-200 bg-white p-3">
+            <div className="flex h-full flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500/90">Approved</span>
+              <div className="mt-auto flex items-end">
+                <span className="text-xl font-semibold tracking-tight text-sidebar-primary">{approvedCount}</span>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="rounded-2xl border border-zinc-200 bg-white p-3">
+            <div className="flex h-full flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500/90">Rejected</span>
+              <div className="mt-auto flex items-end">
+                <span className="text-xl font-semibold tracking-tight text-zinc-500">{rejectedCount}</span>
+              </div>
+            </div>
+          </Card>
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-4 mb-8">
-        <Card className="flex flex-col justify-between p-6 rounded-xl border border-zinc-200 shadow-sm bg-white">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Total Leads</span>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-zinc-900">{leads.length}</span>
-            <Users className="h-4 w-4 text-zinc-300" />
-          </div>
-        </Card>
+      <Card className="relative isolate mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.84)_0%,rgba(250,252,255,0.66)_56%,rgba(240,246,253,0.56)_100%)] backdrop-blur-[16px] [backdrop-filter:saturate(175%)_blur(16px)] shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74),inset_0_0_22px_rgba(255,255,255,0.2)]">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-60 w-60 rounded-full bg-gradient-to-br from-sky-300/34 via-blue-500/12 to-blue-700/0 blur-3xl" />
+        <div className="pointer-events-none absolute -left-24 -bottom-20 h-56 w-56 rounded-full bg-gradient-to-tr from-blue-300/20 via-sky-200/10 to-transparent blur-3xl" />
 
-        <Card className="flex flex-col justify-between p-6 rounded-xl border border-zinc-200 shadow-sm bg-white">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Pending</span>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-zinc-900">{pendingCount}</span>
-            <Clock className="h-4 w-4 text-zinc-300" />
+        <div className="relative z-[2] px-6 pt-0.5">
+          <div className="inline-flex items-center rounded-xl border border-zinc-200/90 bg-white/60 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.94),0_8px_14px_-12px_rgba(2,10,27,0.58)] backdrop-blur-[6px]">
+            {leadFilterTabs.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setLeadFilter(tab.key)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  leadFilter === tab.key
+                    ? "bg-zinc-900 text-white shadow-[0_10px_16px_-14px_rgba(2,10,27,0.65)]"
+                    : "text-zinc-600 hover:bg-white hover:text-zinc-900"
+                }`}
+              >
+                {tab.label}
+                <span className={`ml-1.5 text-[10px] ${leadFilter === tab.key ? "text-white/80" : "text-zinc-400"}`}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
           </div>
-        </Card>
-
-        <Card className="flex flex-col justify-between p-6 rounded-xl border border-zinc-200 shadow-sm bg-white">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Approved</span>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-sidebar-primary">{approvedCount}</span>
-            <CheckCircle className="h-4 w-4 text-sidebar-primary/80" />
-          </div>
-        </Card>
-
-        <Card className="flex flex-col justify-between p-6 rounded-xl border border-zinc-200 shadow-sm bg-white">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Rejected</span>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-zinc-400">{rejectedCount}</span>
-            <XCircle className="h-4 w-4 text-zinc-200" />
-          </div>
-        </Card>
-      </div>
-
-      <Card className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
-        <div className="px-6 py-5 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/30">
-          <h2 className="font-semibold text-zinc-900">Review Leads</h2>
-          <span className="text-xs text-zinc-400 uppercase tracking-wider font-medium">Batch #{String(campaignId).slice(0, 4)}</span>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-white border-b border-zinc-100">
+        <div className="relative z-[2] min-h-0 flex-1">
+          <div
+            ref={tableScrollRef}
+            onScroll={updateTableScrollbar}
+            className="scrollbar-hide h-full overflow-auto px-4 pb-2 pt-3 pr-5"
+          >
+            <table className="min-w-[960px] w-full">
+            <thead className="border-b border-zinc-100/85 bg-white/70">
               <tr>
-                <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Profile</th>
-                <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Contact Info</th>
-                <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Content</th>
-                <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Status</th>
-                <th className="px-6 py-4 text-right text-[11px] font-bold uppercase tracking-wider text-zinc-400">Quick Actions</th>
+                <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Profile</th>
+                <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Contact Info</th>
+                <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Content</th>
+                <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Status</th>
+                <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-zinc-400">Quick Actions</th>
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-zinc-50">
-              {leads.map((item) => {
+            <tbody className="divide-y divide-zinc-100/70">
+              {paginatedLeads.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-10 text-center text-sm text-zinc-500">
+                    No {activeFilterLabel.toLowerCase()} leads found.
+                  </td>
+                </tr>
+              )}
+
+              {paginatedLeads.map((item) => {
                 const status = approvalStyles[item.approvalStatus] ?? approvalStyles.pending;
                 const StatusIcon = status.icon;
 
                 return (
-                  <tr key={item.id} className="group hover:bg-zinc-50/50 transition-colors">
-                    <td className="px-6 py-4">
+                  <tr key={item.id} className="group transition-colors hover:bg-white/46">
+                    <td className="px-4 py-3.5">
                       <div className="flex flex-col">
                         <span className="font-semibold text-zinc-900">{item.employeeName}</span>
                         <span className="text-xs text-zinc-500">{item.title}</span>
-                        <a href={item.companyUrl} target="_blank" rel="noreferrer" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline mt-0.5 w-fit">
+                        <a href={item.companyUrl} target="_blank" rel="noreferrer" className="mt-0.5 w-fit text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
                           {item.companyUrl}
                         </a>
                       </div>
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3.5">
                       <div className="flex flex-col gap-1">
-                        <span className="text-xs text-zinc-600 font-mono">{item.email}</span>
+                        <span className="font-mono text-xs text-zinc-600">{item.email}</span>
                         <span className="text-xs text-zinc-400">{item.phone}</span>
-                        <div className="flex gap-3 mt-1">
-                          <a href={item.linkedinUrl} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-zinc-900 transition-colors">
+                        <div className="mt-1 flex gap-3">
+                          <a href={item.linkedinUrl} target="_blank" rel="noreferrer" className="text-zinc-400 transition-colors hover:text-zinc-900">
                             <LinkedInIcon className="h-3.5 w-3.5" />
                           </a>
-                          <a href={item.companyUrl} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-zinc-900 transition-colors">
+                          <a href={item.companyUrl} target="_blank" rel="noreferrer" className="text-zinc-400 transition-colors hover:text-zinc-900">
                             <ExternalLink className="h-3.5 w-3.5" />
                           </a>
                         </div>
                       </div>
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3.5">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-8 border-zinc-200 text-xs font-medium text-zinc-600 hover:bg-white hover:text-zinc-900 hover:border-zinc-300"
+                        className="h-8 rounded-md border border-zinc-200/80 bg-white/82 text-xs font-semibold text-zinc-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
                         onClick={() => setSelectedLead(item)}
                       >
                         <Eye className="mr-2 h-3.5 w-3.5 text-zinc-400" />
@@ -810,26 +977,35 @@ export default function CampaignDetailPage() {
                       </Button>
                     </td>
 
-                    <td className="px-6 py-4">
-                      <Badge className={`rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide shadow-none border ${status.bg}`}>
+                    <td className="px-4 py-3.5">
+                      <Badge className={`rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide shadow-none ${status.bg}`}>
                         <StatusIcon className="mr-1.5 h-3 w-3" />
                         {item.approvalStatus}
                       </Badge>
                     </td>
 
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2 min-w-[120px]">
+                    <td className="px-4 py-3.5 text-right">
+                      <div className="flex min-w-[120px] justify-end gap-2">
                         {item.approvalStatus === "pending" ? (
                           <>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:bg-zinc-100 hover:text-red-600" onClick={() => handleReject(item.id)}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-400 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                              onClick={() => handleReject(item.id)}
+                            >
                               <X className="h-4 w-4" />
                             </Button>
-                            <Button size="icon" className="h-8 w-8 bg-sidebar-primary text-sidebar-foreground hover:bg-sidebar-primary/80 shadow-sm" onClick={() => handleApprove(item.id)}>
+                            <Button
+                              size="icon"
+                              className="h-8 w-8 rounded-md border border-sidebar-primary/75 bg-sidebar-primary text-sidebar-foreground shadow-[0_8px_14px_-12px_rgba(17,46,98,0.62)] hover:bg-sidebar-primary/85"
+                              onClick={() => handleApprove(item.id)}
+                            >
                               <Check className="h-4 w-4" />
                             </Button>
                           </>
                         ) : item.approvalStatus === "rejected" ? (
-                          <span className="text-xs text-zinc-300 italic">Rejected</span>
+                          <span className="text-xs italic text-zinc-400">Rejected</span>
                         ) : (
                           <OutreachStatusIcons status={buildOutreachStatus(item)} />
                         )}
@@ -839,8 +1015,69 @@ export default function CampaignDetailPage() {
                 );
               })}
             </tbody>
-          </table>
+            </table>
+          </div>
+
+          {tableScrollbar.visible && (
+            <div className="pointer-events-none absolute inset-y-0 right-1 w-2">
+              <div className="absolute inset-y-0 left-[2px] right-[2px] rounded-full bg-zinc-200/60" />
+              <div
+                className="absolute left-[2px] right-[2px] rounded-full bg-zinc-500/75 transition-[transform,height] duration-150"
+                style={{
+                  height: `${tableScrollbar.thumbHeight}px`,
+                  transform: `translateY(${tableScrollbar.thumbTop}px)`,
+                }}
+              />
+            </div>
+          )}
         </div>
+
+        {filteredLeads.length > 0 && (
+          <div className="relative z-[2] flex items-center justify-between border-t border-zinc-100/85 bg-white/38 px-6 py-3">
+            <span className="text-xs text-zinc-500">
+              Showing {(currentPage - 1) * itemsPerPage + 1}-
+              {Math.min(currentPage * itemsPerPage, filteredLeads.length)} of {filteredLeads.length}{" "}
+              {activeFilterLabel.toLowerCase()} leads
+            </span>
+
+            <div className="flex items-center gap-1.5">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="h-8 rounded-md border border-zinc-200/80 bg-white/82 px-2 text-zinc-600 disabled:opacity-40"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
+
+              {visiblePageNumbers.map((pageNum) => (
+                <button
+                  key={pageNum}
+                  type="button"
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={`h-8 min-w-8 rounded-md border px-2 text-xs font-semibold transition-colors ${
+                    pageNum === currentPage
+                      ? "border-zinc-300 bg-zinc-900 text-white"
+                      : "border-zinc-200/80 bg-white/82 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              ))}
+
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="h-8 rounded-md border border-zinc-200/80 bg-white/82 px-2 text-zinc-600 disabled:opacity-40"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Hidden file inputs (separate) */}
@@ -866,43 +1103,54 @@ export default function CampaignDetailPage() {
           if (whatsappFileRef.current) whatsappFileRef.current.value = "";
         }}
       />
-
       <AnimatePresence>
         {selectedLead && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/60 backdrop-blur-sm p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 p-3 backdrop-blur-[4px] sm:p-6"
+          >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden"
+              initial={{ scale: 0.96, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 10 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="relative flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_22px_36px_-26px_rgba(2,10,27,0.62)]"
             >
-              <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+              <div className="relative z-[2] flex flex-col gap-3 border-b border-zinc-100 bg-white px-6 py-5 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-zinc-900">Edit Generated Content</h3>
-                  <p className="text-xs text-zinc-500">
-                    Target: {selectedLead.employeeName} — {selectedLead.title}
+                  <h3 className="text-xl font-semibold tracking-tight text-zinc-900">Review &amp; Personalize Content</h3>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    {selectedLead.employeeName} - {selectedLead.title}
                   </p>
                 </div>
-                <Button variant="ghost" size="icon" onClick={closeModal} className="h-8 w-8 text-zinc-400 hover:text-zinc-900">
-                  <X className="h-5 w-5" />
-                </Button>
+
+                <div className="flex items-center">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={closeModal}
+                    className="h-8 w-8 rounded-md border border-zinc-200 bg-white text-zinc-400 hover:border-zinc-300 hover:text-zinc-900"
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
               </div>
 
-              {/* Keeps your 2-col UI intact */}
-              <div className="p-6 overflow-y-auto bg-white flex-1 space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {/* Email */}
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-zinc-100 rounded-md">
+              <div className="relative z-[2] flex-1 space-y-5 overflow-y-auto scrollbar-hide bg-white p-6">
+                <div className="grid gap-5 xl:h-[24.5rem] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                  <Card className="h-full rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+                    <div className="mb-4 flex items-center gap-2">
+                      <div className="rounded-md border border-zinc-200 bg-white p-1.5">
                         <Mail className="h-4 w-4 text-zinc-900" />
                       </div>
                       <span className="text-sm font-semibold text-zinc-900">Cold Email</span>
                     </div>
 
-                    <div className="space-y-3 pl-2">
+                    <div className="flex h-full min-h-0 flex-col space-y-3">
                       <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1 block">Subject Line</label>
+                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">Subject Line</label>
                         <input
                           className="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900"
                           value={(editForm.contentEmailSubject as string) || ""}
@@ -910,64 +1158,51 @@ export default function CampaignDetailPage() {
                         />
                       </div>
 
-                      <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1 block">Email Body</label>
+                      <div className="flex min-h-0 flex-1 flex-col">
+                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">Email Body</label>
                         <textarea
-                          className="min-h-75 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 resize-y"
+                          className="h-full min-h-0 w-full resize-none rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900"
                           value={(editForm.contentEmail as string) || ""}
                           onChange={(e) => handleContentChange("contentEmail", e.target.value)}
                         />
                       </div>
                     </div>
-                  </div>
+                  </Card>
 
-                  {/* WhatsApp */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-zinc-100 rounded-md">
-                        <MessageCircle className="h-4 w-4 text-zinc-900" />
-                      </div>
-                      <span className="text-sm font-semibold text-zinc-900">WhatsApp</span>
-                    </div>
+                  <div className="grid min-h-0 grid-cols-1 gap-4 xl:h-full xl:grid-rows-2">
+                    <AttachmentSection
+                      title="Email Attachments"
+                      subtitle="Sent with cold email"
+                      attachments={((editForm.emailAttachments as Attachment[]) || []).filter(Boolean)}
+                      pendingUploads={pendingEmailUploads}
+                      onPickFiles={openEmailPicker}
+                      onRemovePending={(tempId) => removePending(tempId, "email")}
+                      onRemoveAttachment={(id) => removeUploadedAttachment(id, "email")}
+                      className="h-full"
+                    />
 
-                    <textarea
-                      className="min-h-98 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 resize-none"
-                      value={(editForm.contentWhatsapp as string) || ""}
-                      onChange={(e) => handleContentChange("contentWhatsapp", e.target.value)}
+                    <AttachmentSection
+                      title="WhatsApp Attachments"
+                      subtitle="Sent with WhatsApp"
+                      attachments={((editForm.whatsappAttachments as Attachment[]) || []).filter(Boolean)}
+                      pendingUploads={pendingWhatsappUploads}
+                      onPickFiles={openWhatsappPicker}
+                      onRemovePending={(tempId) => removePending(tempId, "whatsapp")}
+                      onRemoveAttachment={(id) => removeUploadedAttachment(id, "whatsapp")}
+                      className="h-full"
                     />
                   </div>
                 </div>
-
-                {/* ✅ NEW: two attachment areas */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <AttachmentSection
-                    title="Email Attachments"
-                    subtitle="Sent with cold email"
-                    attachments={((editForm.emailAttachments as Attachment[]) || []).filter(Boolean)}
-                    pendingUploads={pendingEmailUploads}
-                    onPickFiles={openEmailPicker}
-                    onRemovePending={(tempId) => removePending(tempId, "email")}
-                    onRemoveAttachment={(id) => removeUploadedAttachment(id, "email")}
-                  />
-
-                  <AttachmentSection
-                    title="WhatsApp Attachments"
-                    subtitle="Sent with WhatsApp"
-                    attachments={((editForm.whatsappAttachments as Attachment[]) || []).filter(Boolean)}
-                    pendingUploads={pendingWhatsappUploads}
-                    onPickFiles={openWhatsappPicker}
-                    onRemovePending={(tempId) => removePending(tempId, "whatsapp")}
-                    onRemoveAttachment={(id) => removeUploadedAttachment(id, "whatsapp")}
-                  />
-                </div>
               </div>
 
-              <div className="p-4 border-t border-zinc-100 bg-zinc-50/50 flex justify-end gap-3">
+              <div className="relative z-[2] flex flex-col gap-3 border-t border-zinc-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-zinc-500">Changes are saved before approval and outreach is triggered.</p>
+
                 {selectedLead.approvalStatus === "pending" ? (
-                  <>
+                  <div className="flex justify-end gap-3">
                     <Button
                       variant="ghost"
-                      className="text-zinc-500 hover:text-red-600 hover:bg-red-50"
+                      className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-zinc-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                       onClick={async () => {
                         await handleReject(selectedLead.id);
                         closeModal();
@@ -976,13 +1211,13 @@ export default function CampaignDetailPage() {
                       Reject
                     </Button>
 
-                    <Button className="bg-sidebar text-white hover:bg-zinc-800" disabled={saving} onClick={handleSaveAndApprove}>
+                    <Button className="btn-sidebar-noise h-9 px-3.5" disabled={saving} onClick={handleSaveAndApprove}>
                       {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                      Save & Approve
+                      Save &amp; Approve
                     </Button>
-                  </>
+                  </div>
                 ) : (
-                  <Button variant="outline" onClick={closeModal} className="min-w-24">
+                  <Button variant="outline" onClick={closeModal} className="analytics-frost-btn h-9 min-w-24 px-3">
                     Close
                   </Button>
                 )}
@@ -994,3 +1229,5 @@ export default function CampaignDetailPage() {
     </div>
   );
 }
+
+
