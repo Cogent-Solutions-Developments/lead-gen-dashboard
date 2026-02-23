@@ -46,7 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (!ready || selected === null) return null;
 
   if (isChooser) {
-    return <main className="min-h-screen ">{children}</main>;
+    return <main className="min-h-screen bg-transparent">{children}</main>;
   }
 
   if (!selected) return null;
@@ -54,7 +54,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Sidebar />
-      <main className="ml-64 min-h-screen p-6">{children}</main>
+      <main className="ml-72 min-h-screen bg-transparent p-6">{children}</main>
     </>
   );
 }

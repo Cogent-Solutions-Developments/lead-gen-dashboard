@@ -9,8 +9,8 @@ import {
   Webhook, 
   Plus, 
   CheckCircle, 
+  MessageSquare,
   Settings, 
-  Sparkles,
   UserRound 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ const navItems = [
   { name: "New Campaign", href: "/campaigns/new", icon: Plus },
   // { name: "Completed", href: "/completed", icon: CheckCircle },
   { name: "Leads", href: "/leads", icon: CheckCircle },
+  { name: "Replies", href: "/replies", icon: MessageSquare },
 ];
 
 export function Sidebar() {
@@ -53,8 +54,27 @@ export function Sidebar() {
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar p-5 text-sidebar-foreground font-sans border-r border-zinc-100 flex flex-col"
+      className="sidebar-modern fixed left-0 top-0 z-40 flex h-screen w-72 flex-col p-5 font-sans text-sidebar-foreground"
     >
+      <div className="pointer-events-none !absolute -right-40 top-[50%] !z-0 -translate-y-1/2 opacity-40 rotate-12">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-[46rem] w-[46rem] text-white/14"
+        >
+          <path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2" />
+          <path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06" />
+          <path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8" />
+        </svg>
+      </div>
+
       {/* 1. Logo Section */}
       <div className="mb-10 flex items-center gap-3 px-2 flex-shrink-0">
         <motion.div
@@ -72,14 +92,14 @@ export function Sidebar() {
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3 }}
-          className="text-2xl font-medium tracking-wide text-sidebar-foreground"
+          className="text-2xl font-medium tracking-wide text-sidebar-foreground drop-shadow-sm "
         >
           supernizo
         </motion.span>
       </div>
 
       {/* 2. Navigation Items (Scrollable if needed) */}
-      <nav className="space-y-2 flex-1 overflow-y-auto">
+      <nav className="flex-1  space-y-2 overflow-y-auto pr-1">
         {navItems.map((item, index) => {
           const isActive = pathname === item.href;
           return (
@@ -92,10 +112,10 @@ export function Sidebar() {
               <Link href={item.href}>
                 <Button
                   variant="ghost"
-                  className={`w-full justify-start gap-3 rounded-full px-4 py-6 text-[15px] font-medium transition-all duration-200 ${
+                  className={`w-full justify-start gap-3 rounded-lg border px-4 py-6 text-[15px] font-medium transition-all duration-200 ${
                     isActive
-                      ? "bg-sidebar-secondary text-sidebar-primary-foreground shadow-md hover:bg-sidebar-secondary/60"
-                      : "text-sidebar-foreground hover:bg-sidebar-primary/90 hover:text-sidebar-accent-foreground"
+                      ? "sidebar-chip-active"
+                      : "border-transparent bg-transparent text-sidebar-foreground/90 shadow-none hover:border-white/25 hover:bg-white/12 hover:text-sidebar-accent-foreground hover:shadow-[0_8px_18px_-16px_rgba(0,0,0,0.55)]"
                   }`}
                 >
                   <item.icon className="h-5 w-5" />
@@ -115,7 +135,7 @@ export function Sidebar() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="relative overflow-hidden mb-4 rounded-2xl bg-[#5984C8] p-5 text-white shadow-lg"
+          className="relative mb-4 overflow-hidden rounded-2xl border border-white/25 bg-[linear-gradient(150deg,rgba(255,255,255,0.34)_0%,rgba(255,255,255,0.06)_45%,rgba(0,0,0,0.16)_100%)] p-5 text-white shadow-[0_20px_34px_-20px_rgba(0,0,0,0.85)] backdrop-blur-md"
         >
           {/* 1. THE WATERMARK IMAGE */}
           <div className="absolute -bottom-45 h-[500px] w-[500px] -right-45 z-0 opacity-40 pointer-events-none">
@@ -142,7 +162,8 @@ export function Sidebar() {
             <Link href="/analytics">
               <Button 
                 size="sm"
-                className="mt-1 w-full bg-white text-zinc-900 hover:bg-zinc-200 font-semibold shadow-sm"
+                variant="ghost"
+                className="analytics-frost-btn mt-1 w-full font-medium"
               >
                 View Analytics
               </Button>
@@ -159,7 +180,7 @@ export function Sidebar() {
           <Link href="/settings">
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 rounded-full px-4 py-2 text-[15px] text-sidebar-foreground/60 hover:bg-sidebar-primary/0 hover:text-sidebar-accent-foreground"
+              className="w-full justify-start gap-3 rounded-full bg-transparent px-4 py-2 text-[15px] text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-accent-foreground"
             >
               <Settings className="h-5 w-5" />
               Settings
@@ -175,7 +196,7 @@ export function Sidebar() {
           <Link href="/">
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 rounded-full px-4 py-2 text-[15px] text-sidebar-foreground/60 hover:bg-sidebar-primary/0 hover:text-sidebar-accent-foreground"
+              className="w-full justify-start gap-3 rounded-full bg-transparent px-4 py-2 text-[15px] text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-accent-foreground"
             >
               <UserRound className="h-5 w-5" />
               <span className="flex items-center gap-2">

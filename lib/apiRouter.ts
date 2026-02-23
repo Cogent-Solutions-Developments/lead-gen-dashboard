@@ -7,7 +7,12 @@ export type {
   CampaignListItem,
   DashboardStats,
   LeadItem,
+  MessageStatus,
   RecentCampaign,
+  ReplyNotification,
+  WhatsAppInbound,
+  WhatsAppMessagesResponse,
+  WhatsAppNotificationsResponse,
 } from "@/lib/api";
 
 const pickModule = (persona?: Persona) =>
@@ -54,6 +59,34 @@ export const exportCampaignCsvUrl: typeof sales.exportCampaignCsvUrl = (...args)
 
 export const stopCampaign: typeof sales.stopCampaign = (...args) =>
   pickModule().stopCampaign(...args);
+
+export const listReplyNotifications: typeof sales.listReplyNotifications = (...args) =>
+  pickModule().listReplyNotifications(...args);
+
+export const listMessageStatuses: typeof sales.listMessageStatuses = (...args) =>
+  pickModule().listMessageStatuses(...args);
+
+export const markReplyAsRead: typeof sales.markReplyAsRead = (...args) =>
+  pickModule().markReplyAsRead(...args);
+
+// WhatsApp inbound is shared for all personas (single backend stream)
+export const fetchInbound: typeof sales.fetchInbound = (...args) =>
+  sales.fetchInbound(...args);
+
+export const fetchWhatsAppNotifications: typeof sales.fetchWhatsAppNotifications = (...args) =>
+  sales.fetchWhatsAppNotifications(...args);
+
+export const fetchMessages: typeof sales.fetchMessages = (...args) =>
+  sales.fetchMessages(...args);
+
+export const startWhatsAppPolling: typeof sales.startWhatsAppPolling = (...args) =>
+  sales.startWhatsAppPolling(...args);
+
+export const fetchUnreadCount: typeof sales.fetchUnreadCount = (...args) =>
+  sales.fetchUnreadCount(...args);
+
+export const markRead: typeof sales.markRead = (...args) =>
+  sales.markRead(...args);
 
 export function getApiKeyClient(persona?: Persona) {
   return pickModule(persona).api;

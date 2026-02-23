@@ -2,17 +2,23 @@
 import type {
   CampaignDetail,
   CampaignListItem,
+  CreateCampaignRequest,
   DashboardStats,
   LeadItem,
+  MessageStatus,
   RecentCampaign,
+  ReplyNotification,
 } from "./api";
 
 export type {
   CampaignDetail,
   CampaignListItem,
+  CreateCampaignRequest,
   DashboardStats,
   LeadItem,
+  MessageStatus,
   RecentCampaign,
+  ReplyNotification,
 };
 
 const apiClientDelegate = axios.create({
@@ -53,10 +59,11 @@ export async function getDashboardDistribution() {
   return data as { total: number; contacted: number; pending: number; other: number };
 }
 
-export async function getRecentCampaigns(limit = 5) {
+export async function getRecentCampaigns(limit?: number) {
+  const params = typeof limit === "number" ? { limit } : undefined;
   const { data } = await apiClientDelegate.get<{ campaigns: RecentCampaign[] }>(
     "/api/delegates/campaigns/recent",
-    { params: { limit } }
+    { params }
   );
   return data;
 }
@@ -70,7 +77,11 @@ export async function listCampaigns(params: { status?: string; limit?: number; o
   return data;
 }
 
-export async function createCampaign(icp: string) {
+export async function createCampaign(payload: string | CreateCampaignRequest) {
+  const requestBody = {
+    icp: typeof payload === "string" ? payload : payload.icp,
+  };
+
   const { data } = await apiClientDelegate.post<{
     id: string;
     name: string;
@@ -78,7 +89,7 @@ export async function createCampaign(icp: string) {
     status: string;
     progress: number;
     createdAt: string;
-  }>("/api/delegates/campaigns", { icp });
+  }>("/api/delegates/campaigns", requestBody);
   return data;
 }
 
@@ -143,6 +154,42 @@ export async function stopCampaign(id: string) {
     `/api/delegates/campaigns/${id}/stop`
   );
   return data as { campaignId: string; status: string; message: string };
+}
+
+export async function listReplyNotifications(params?: {
+  campaignId?: string;
+  unreadOnly?: boolean;
+  limit?: number;
+}) {
+  const { data } = await apiClientDelegate.get<{
+    replies: ReplyNotification[];
+    total: number;
+    unread: number;
+  }>("/api/delegates/messages/replies", {
+    params,
+  });
+  return data;
+}
+
+export async function listMessageStatuses(params?: {
+  campaignId?: string;
+  leadId?: string;
+  limit?: number;
+}) {
+  const { data } = await apiClientDelegate.get<{
+    statuses: MessageStatus[];
+  }>("/api/delegates/messages/status", {
+    params,
+  });
+  return data;
+}
+
+export async function markReplyAsRead(id: string) {
+  const { data } = await apiClientDelegate.put<{
+    id: string;
+    isRead: boolean;
+  }>(`/api/delegates/messages/replies/${id}/read`);
+  return data;
 }
 
 export const api = axios.create({
