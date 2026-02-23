@@ -57,6 +57,10 @@ export type CampaignDetail = {
 
 export type CreateCampaignRequest = {
   icp: string;
+  name?: string;
+  location?: string;
+  date?: string;
+  category?: string;
 };
 
 export type LeadItem = {
@@ -197,9 +201,7 @@ export async function listCampaigns(params: { status?: string; limit?: number; o
 }
 
 export async function createCampaign(payload: string | CreateCampaignRequest) {
-  const requestBody = {
-    icp: typeof payload === "string" ? payload : payload.icp,
-  };
+  const requestBody = typeof payload === "string" ? { icp: payload } : payload;
 
   const { data } = await apiClient.post<{
     id: string;
