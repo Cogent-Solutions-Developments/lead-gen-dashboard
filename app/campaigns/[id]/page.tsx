@@ -673,7 +673,10 @@ export default function CampaignDetailPage() {
   };
 
   // const sendDraft = async (draftId: string) => api.post(`/api/v1/drafts/${draftId}/send`);
-  const sendLead = async (leadId: string) => api.post(`/api/leads/${leadId}/send`);
+  const sendLead = async (leadId: string, attachmentId: string) =>
+    api.post(`/api/leads/${leadId}/send`, null, {
+      params: { attachment_id: attachmentId },
+    });
 
 
   const startPollingLead = (leadId: string) => {
@@ -941,6 +944,11 @@ export default function CampaignDetailPage() {
   };
 
   const handleApprove = async (leadId: string) => {
+    if (!commonAttachmentId) {
+      toast.error("Attachment is required");
+      return;
+    }
+
     try {
       await api.put(`/api/leads/${leadId}/approve`);
 
@@ -959,7 +967,7 @@ export default function CampaignDetailPage() {
       toast.success("Lead approved, sending outreach...");
 
       // ✅ NEW: send by leadId (backend locates latest draft)
-      await sendLead(leadId);
+      await sendLead(leadId, commonAttachmentId);
 
       startPollingLead(leadId);
     } catch (e: any) {
@@ -1083,6 +1091,10 @@ export default function CampaignDetailPage() {
   // -----------------------------
   const handleSaveAndApprove = async () => {
     if (!selectedLead) return;
+    if (!commonAttachmentId) {
+      toast.error("Attachment is required");
+      return;
+    }
 
     setSaving(true);
     const leadId = selectedLead.id;
@@ -1184,7 +1196,7 @@ export default function CampaignDetailPage() {
       // startPollingLead(leadId);
 
       // NEW: send by leadId
-      await sendLead(leadId);
+      await sendLead(leadId, commonAttachmentId);
       startPollingLead(leadId);
 
     } catch (e: any) {
