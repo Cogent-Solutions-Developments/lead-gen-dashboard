@@ -1,8 +1,13 @@
 import axios from "axios";
 
+const apiKey = (process.env.NEXT_PUBLIC_API_KEY || "").trim();
+
 export const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
   timeout: 60000,
+  headers: {
+    ...(apiKey ? { "x-api-key": apiKey } : {}),
+  },
   withCredentials: true, // future-ready if you use cookies/session
 });
 

@@ -34,7 +34,12 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 import { useParams } from "next/navigation";
-import { getApiKeyClient } from "@/lib/apiRouter";
+import {
+  approveSelectedCampaignLeads,
+  getApiKeyClient,
+  sendSelectedCampaignLeads,
+  uploadCampaignCommonAttachment,
+} from "@/lib/apiRouter";
 import { usePersona } from "@/hooks/usePersona";
 
 // -----------------------------
@@ -48,7 +53,7 @@ const LinkedInIcon = ({ className }: { className?: string }) => (
 
 type ApprovalStatus = "pending" | "approved" | "rejected";
 type OutreachState = "pending" | "sending" | "sent";
-type AttachmentChannel = "email" | "whatsapp";
+type AttachmentChannel = "email" | "whatsapp" | "common";
 type LeadFilterKey = "new" | "sent" | "rejected";
 
 type Attachment = {
@@ -301,6 +306,7 @@ const AttachmentSection = ({
   title,
   subtitle,
   attachments,
+  readonlyAttachments,
   pendingUploads,
   onPickFiles,
   onRemoveAttachment,
@@ -310,13 +316,15 @@ const AttachmentSection = ({
   title: string;
   subtitle: string;
   attachments: Attachment[];
+  readonlyAttachments?: Attachment[];
   pendingUploads: PendingUpload[];
   onPickFiles: () => void;
   onRemoveAttachment: (id: string) => void;
   onRemovePending: (tempId: string) => void;
   className?: string;
 }) => {
-  const hasAny = attachments.length > 0 || pendingUploads.length > 0;
+  const readonlyList = readonlyAttachments || [];
+  const hasAny = attachments.length > 0 || pendingUploads.length > 0 || readonlyList.length > 0;
 
   return (
     <Card className={`flex min-h-0 flex-col rounded-xl border border-zinc-200 bg-white shadow-sm ${className || ""}`}>
@@ -349,6 +357,21 @@ const AttachmentSection = ({
           </div>
         ) : (
           <div className="space-y-2">
+            {readonlyList.map((a) => (
+              <div key={a.id} className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium text-zinc-900">
+                    {a.name}
+                    <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Attach All</span>
+                  </div>
+                  <div className="text-xs text-zinc-500">
+                    {a.mime ? a.mime : "File"}
+                    {a.sizeBytes != null ? ` • ${formatBytes(a.sizeBytes)}` : ""}
+                  </div>
+                </div>
+              </div>
+            ))}
+
             {pendingUploads.map((p) => (
               <div key={p.tempId} className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2">
                 <div className="min-w-0">
@@ -455,6 +478,13 @@ export default function CampaignDetailPage() {
   const [domainFilter, setDomainFilter] = useState("");
   const [phoneFilter, setPhoneFilter] = useState("");
   const [isTableFilterOpen, setIsTableFilterOpen] = useState(false);
+  const [bulkSelectMode, setBulkSelectMode] = useState(false);
+  const [selectedBulkLeadIds, setSelectedBulkLeadIds] = useState<Set<string>>(new Set());
+  const [universalAttachment, setUniversalAttachment] = useState<Attachment | null>(null);
+  const [commonAttachmentId, setCommonAttachmentId] = useState<string | null>(null);
+  const [isCommonAttachmentUploading, setIsCommonAttachmentUploading] = useState(false);
+  const [showBulkSendConfirm, setShowBulkSendConfirm] = useState(false);
+  const [isBulkSending, setIsBulkSending] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(15);
 
@@ -470,6 +500,7 @@ export default function CampaignDetailPage() {
   const emailFileRef = useRef<HTMLInputElement | null>(null);
   const whatsappFileRef = useRef<HTMLInputElement | null>(null);
   const tableFilterRef = useRef<HTMLDivElement | null>(null);
+  const universalAttachmentRef = useRef<HTMLInputElement | null>(null);
 
   const pendingCount = useMemo(() => leads.filter((l) => l.approvalStatus === "pending").length, [leads]);
   const approvedCount = useMemo(() => leads.filter((l) => l.approvalStatus === "approved").length, [leads]);
@@ -529,6 +560,9 @@ export default function CampaignDetailPage() {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredLeads.slice(start, start + itemsPerPage);
   }, [filteredLeads, currentPage, itemsPerPage]);
+  const selectedBulkCount = selectedBulkLeadIds.size;
+  const isCurrentPageAllSelected =
+    paginatedLeads.length > 0 && paginatedLeads.every((lead) => selectedBulkLeadIds.has(lead.id));
 
   const visiblePageNumbers = useMemo(() => {
     const windowSize = 5;
@@ -564,13 +598,39 @@ export default function CampaignDetailPage() {
     [leads, campaign?.name]
   );
 
+  const applyLatestCommonAttachment = (raw: unknown) => {
+    const rows = Array.isArray((raw as { attachments?: unknown[] } | null)?.attachments)
+      ? ((raw as { attachments: unknown[] }).attachments as Array<Record<string, unknown>>)
+      : [];
+
+    const latest = rows[0];
+    if (!latest || !latest.id) {
+      setUniversalAttachment(null);
+      setCommonAttachmentId(null);
+      return;
+    }
+
+    const mapped: Attachment = {
+      id: String(latest.id),
+      name: String(latest.name || "attachment"),
+      mime: String(latest.mime || "application/octet-stream"),
+      sizeBytes: typeof latest.sizeBytes === "number" ? latest.sizeBytes : undefined,
+      url: latest.url ? String(latest.url) : undefined,
+      channel: "common",
+    };
+
+    setUniversalAttachment(mapped);
+    setCommonAttachmentId(mapped.id);
+  };
+
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [cRes, lRes, infoRes] = await Promise.all([
+      const [cRes, lRes, infoRes, commonRes] = await Promise.all([
         api.get(`/api/campaigns/${campaignId}`),
         api.get(`/api/campaigns/${campaignId}/leads`, { params: { status: "all" } }),
         api.get(`/api/campaigns/${campaignId}/info`).catch(() => null),
+        api.get(`/api/campaigns/${campaignId}/common-attachments`).catch(() => null),
       ]);
 
       setCampaign(cRes.data);
@@ -604,6 +664,7 @@ export default function CampaignDetailPage() {
       }));
 
       setLeads(mapped);
+      applyLatestCommonAttachment(commonRes?.data ?? null);
     } catch (e: any) {
       toast.error("Failed to load campaign", { description: e?.message });
     } finally {
@@ -612,7 +673,10 @@ export default function CampaignDetailPage() {
   };
 
   // const sendDraft = async (draftId: string) => api.post(`/api/v1/drafts/${draftId}/send`);
-  const sendLead = async (leadId: string) => api.post(`/api/leads/${leadId}/send`);
+  const sendLead = async (leadId: string, attachmentId: string) =>
+    api.post(`/api/leads/${leadId}/send`, null, {
+      params: { attachment_id: attachmentId },
+    });
 
 
   const startPollingLead = (leadId: string) => {
@@ -708,6 +772,167 @@ export default function CampaignDetailPage() {
     setCurrentPage(nextPage);
   };
 
+  const handleToggleBulkSelectMode = () => {
+    setBulkSelectMode((prev) => {
+      if (prev) {
+        setSelectedBulkLeadIds(new Set());
+      }
+      return !prev;
+    });
+  };
+
+  const handlePickUniversalAttachment = () => {
+    universalAttachmentRef.current?.click();
+  };
+
+  const handleViewUniversalAttachment = () => {
+    if (!universalAttachment?.url) {
+      toast.error("No attachment selected");
+      return;
+    }
+    window.open(universalAttachment.url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleDeleteUniversalAttachment = async () => {
+    if (!commonAttachmentId) {
+      setUniversalAttachment(null);
+      return;
+    }
+
+    try {
+      await api.delete(`/api/campaigns/${campaignId}/common-attachment/${commonAttachmentId}`);
+      setUniversalAttachment(null);
+      setCommonAttachmentId(null);
+      toast.success("Attachment removed");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } }; message?: string };
+      toast.error("Failed to delete attachment", {
+        description: err.response?.data?.detail || err.message || "Please try again.",
+      });
+    }
+  };
+
+  const handleUniversalAttachmentChange = async (files: FileList | null) => {
+    const picked = files?.[0];
+    if (!picked) return;
+
+    const allowedExt = new Set([".pdf", ".doc", ".docx", ".ppt", ".pptx", ".png", ".jpg", ".jpeg"]);
+    const lower = picked.name.toLowerCase();
+    const dot = lower.lastIndexOf(".");
+    const ext = dot >= 0 ? lower.slice(dot) : "";
+    if (ext && !allowedExt.has(ext)) {
+      toast.error("Unsupported file type", { description: "Use PDF, DOC, PPT, PNG, JPG, or JPEG." });
+      return;
+    }
+
+    if (picked.size > MAX_ATTACHMENT_BYTES) {
+      toast.error("Attachment too large", { description: "File must be 3MB or smaller." });
+      return;
+    }
+
+    try {
+      setIsCommonAttachmentUploading(true);
+      const res = await uploadCampaignCommonAttachment(campaignId, picked);
+      setCommonAttachmentId(res.attachment_id);
+      setUniversalAttachment({
+        id: res.attachment_id,
+        name: picked.name,
+        mime: picked.type || "application/octet-stream",
+        sizeBytes: picked.size,
+        channel: "common",
+      });
+      try {
+        const commonRes = await api.get(`/api/campaigns/${campaignId}/common-attachments`);
+        applyLatestCommonAttachment(commonRes?.data ?? null);
+      } catch {
+        // keep fallback local metadata if list endpoint is temporarily unavailable
+      }
+      toast.success("Attachment uploaded", { description: picked.name });
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } }; message?: string };
+      toast.error("Failed to upload attachment", {
+        description: err.response?.data?.detail || err.message || "Please try again.",
+      });
+    } finally {
+      setIsCommonAttachmentUploading(false);
+    }
+  };
+
+  const handleSelectBulkLead = (leadId: string, checked: boolean) => {
+    setSelectedBulkLeadIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(leadId);
+      else next.delete(leadId);
+      return next;
+    });
+  };
+
+  const handleSelectAllCurrentPage = (checked: boolean) => {
+    setSelectedBulkLeadIds((prev) => {
+      const next = new Set(prev);
+      for (const lead of paginatedLeads) {
+        if (checked) next.add(lead.id);
+        else next.delete(lead.id);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAllFiltered = () => {
+    setSelectedBulkLeadIds(new Set(filteredLeads.map((lead) => lead.id)));
+  };
+
+  const handleBulkSendRequest = () => {
+    if (selectedBulkCount === 0) {
+      toast.error("Select at least one lead");
+      return;
+    }
+    if (!commonAttachmentId) {
+      toast.error("Attachment is required");
+      return;
+    }
+    if (isCommonAttachmentUploading) {
+      toast.error("Attachment is still uploading");
+      return;
+    }
+    setShowBulkSendConfirm(true);
+  };
+
+  const handleConfirmBulkSend = async () => {
+    if (!commonAttachmentId || selectedBulkCount === 0 || isBulkSending) return;
+    setIsBulkSending(true);
+
+    try {
+      const leadIds = Array.from(selectedBulkLeadIds);
+
+      await approveSelectedCampaignLeads({
+        campaignId,
+        leadIds,
+      });
+
+      const data = await sendSelectedCampaignLeads({
+        campaignId,
+        leadIds,
+        attachmentId: commonAttachmentId,
+      });
+
+      toast.success("Bulk outreach queued", {
+        description: data?.message || `Queued outreach for ${selectedBulkCount} selected leads.`,
+      });
+
+      setShowBulkSendConfirm(false);
+      setBulkSelectMode(false);
+      setSelectedBulkLeadIds(new Set());
+      await fetchAll();
+    } catch (error: any) {
+      toast.error("Failed to queue bulk outreach", {
+        description: error?.response?.data?.detail || error?.message || "Please try again.",
+      });
+    } finally {
+      setIsBulkSending(false);
+    }
+  };
+
   const handleReject = async (leadId: string) => {
     try {
       await api.put(`/api/leads/${leadId}/reject`);
@@ -719,6 +944,11 @@ export default function CampaignDetailPage() {
   };
 
   const handleApprove = async (leadId: string) => {
+    if (!commonAttachmentId) {
+      toast.error("Attachment is required");
+      return;
+    }
+
     try {
       await api.put(`/api/leads/${leadId}/approve`);
 
@@ -737,7 +967,7 @@ export default function CampaignDetailPage() {
       toast.success("Lead approved, sending outreach...");
 
       // ✅ NEW: send by leadId (backend locates latest draft)
-      await sendLead(leadId);
+      await sendLead(leadId, commonAttachmentId);
 
       startPollingLead(leadId);
     } catch (e: any) {
@@ -861,6 +1091,10 @@ export default function CampaignDetailPage() {
   // -----------------------------
   const handleSaveAndApprove = async () => {
     if (!selectedLead) return;
+    if (!commonAttachmentId) {
+      toast.error("Attachment is required");
+      return;
+    }
 
     setSaving(true);
     const leadId = selectedLead.id;
@@ -962,7 +1196,7 @@ export default function CampaignDetailPage() {
       // startPollingLead(leadId);
 
       // NEW: send by leadId
-      await sendLead(leadId);
+      await sendLead(leadId, commonAttachmentId);
       startPollingLead(leadId);
 
     } catch (e: any) {
@@ -1061,7 +1295,7 @@ export default function CampaignDetailPage() {
         <div className="pointer-events-none absolute -left-24 -bottom-20 h-56 w-56 rounded-full bg-gradient-to-tr from-blue-300/20 via-sky-200/10 to-transparent blur-3xl" />
 
         <div className="relative z-[6] flex flex-col gap-2 px-6 pt-0.5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="inline-flex items-center rounded-xl border border-zinc-200/90 bg-white/60 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.94),0_8px_14px_-12px_rgba(2,10,27,0.58)] backdrop-blur-[6px]">
+          <div className="inline-flex flex-wrap items-center rounded-xl border border-zinc-200/90 bg-white/60 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_8px_-10px_rgba(2,10,27,0.34)] backdrop-blur-[6px]">
             {leadFilterTabs.map((tab) => (
               <button
                 key={tab.key}
@@ -1069,7 +1303,7 @@ export default function CampaignDetailPage() {
                 onClick={() => setLeadFilter(tab.key)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                   leadFilter === tab.key
-                    ? "bg-zinc-900 text-white shadow-[0_10px_16px_-14px_rgba(2,10,27,0.65)]"
+                    ? "bg-zinc-900 text-white shadow-[0_6px_10px_-12px_rgba(2,10,27,0.42)]"
                     : "text-zinc-600 hover:bg-white hover:text-zinc-900"
                 }`}
               >
@@ -1079,6 +1313,27 @@ export default function CampaignDetailPage() {
                 </span>
               </button>
             ))}
+
+            <span className="mx-1.5 h-4 w-px bg-zinc-300/80" aria-hidden="true" />
+
+            <button
+              type="button"
+              onClick={handleToggleBulkSelectMode}
+              className={`px-2 py-1 text-[11px] font-semibold transition-colors ${
+                bulkSelectMode ? "text-zinc-900" : "text-zinc-500 hover:text-zinc-800"
+              }`}
+            >
+              Select
+            </button>
+
+            <button
+              type="button"
+              onClick={handleBulkSendRequest}
+              disabled={selectedBulkCount === 0 || !commonAttachmentId || isCommonAttachmentUploading || isBulkSending}
+              className="px-2 py-1 text-[11px] font-semibold text-sidebar-primary transition-colors hover:text-sidebar-primary/85 disabled:cursor-not-allowed disabled:text-zinc-300"
+            >
+              Send Selected
+            </button>
           </div>
 
           <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:flex-nowrap">
@@ -1093,6 +1348,47 @@ export default function CampaignDetailPage() {
             </div>
 
             <div className="flex items-center gap-1.5">
+              <Button
+                type="button"
+                onClick={handlePickUniversalAttachment}
+                disabled={isCommonAttachmentUploading}
+                aria-label={isCommonAttachmentUploading ? "Uploading attachment" : "Add attachment"}
+                title={isCommonAttachmentUploading ? "Uploading attachment" : "Add attachment"}
+                className={`h-8 w-8 rounded-md border p-0 shadow-none disabled:cursor-not-allowed disabled:opacity-50 ${
+                  commonAttachmentId && universalAttachment
+                    ? "border-emerald-200/90 bg-emerald-50/90 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50"
+                    : "border-zinc-200/80 bg-white/82 text-zinc-700 hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+                }`}
+              >
+                {isCommonAttachmentUploading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Paperclip className="h-3.5 w-3.5" />
+                )}
+              </Button>
+
+              <Button
+                type="button"
+                onClick={handleViewUniversalAttachment}
+                disabled={!commonAttachmentId || !universalAttachment?.url || isCommonAttachmentUploading}
+                aria-label="View attachment"
+                title="View attachment"
+                className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 p-0 text-zinc-700 shadow-none hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Eye className="h-3.5 w-3.5" />
+              </Button>
+
+              <Button
+                type="button"
+                onClick={handleDeleteUniversalAttachment}
+                disabled={!commonAttachmentId || isCommonAttachmentUploading || isBulkSending}
+                aria-label="Delete attachment"
+                title="Delete attachment"
+                className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 p-0 text-zinc-700 shadow-none hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+
               <div ref={tableFilterRef} className="relative">
                 <Button
                   type="button"
@@ -1177,11 +1473,46 @@ export default function CampaignDetailPage() {
           </div>
         </div>
 
+        {bulkSelectMode && (
+          <div className="relative z-[5] flex flex-wrap items-center gap-2 px-6 pt-1 text-[11px] text-zinc-500">
+            <span>Select leads for bulk outreach.</span>
+            <span>{selectedBulkCount} selected.</span>
+            {universalAttachment && commonAttachmentId ? (
+              <span className="truncate text-zinc-600">
+                Attachment: {universalAttachment.name}
+              </span>
+            ) : (
+              <span className="text-zinc-400">No attachment selected.</span>
+            )}
+
+            {filteredLeads.length > 0 && (
+              <button
+                type="button"
+                onClick={handleSelectAllFiltered}
+                className="font-semibold text-zinc-700 hover:text-zinc-900"
+              >
+                Select all filtered ({filteredLeads.length})
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="relative z-[2] px-4 pb-2 pt-3">
           <div>
             <table className="min-w-[960px] w-full">
             <thead className="border-b border-zinc-100/85 bg-white/70">
               <tr>
+                {bulkSelectMode && (
+                  <th className="w-10 px-3 py-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={isCurrentPageAllSelected}
+                      onChange={(e) => handleSelectAllCurrentPage(e.target.checked)}
+                      aria-label="Select all on current page"
+                      className="h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
+                    />
+                  </th>
+                )}
                 <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Profile</th>
                 <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Contact Info</th>
                 <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Content</th>
@@ -1193,7 +1524,7 @@ export default function CampaignDetailPage() {
             <tbody className="divide-y divide-zinc-100/70">
               {paginatedLeads.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-sm text-zinc-500">
+                  <td colSpan={bulkSelectMode ? 6 : 5} className="px-6 py-10 text-center text-sm text-zinc-500">
                     No {activeFilterLabel.toLowerCase()} leads found.
                   </td>
                 </tr>
@@ -1205,6 +1536,17 @@ export default function CampaignDetailPage() {
 
                 return (
                   <tr key={item.id} className="group transition-colors hover:bg-white/46">
+                    {bulkSelectMode && (
+                      <td className="px-3 py-3.5 text-center align-top">
+                        <input
+                          type="checkbox"
+                          checked={selectedBulkLeadIds.has(item.id)}
+                          onChange={(e) => handleSelectBulkLead(item.id, e.target.checked)}
+                          aria-label={`Select ${item.employeeName}`}
+                          className="mt-0.5 h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
+                        />
+                      </td>
+                    )}
                     <td className="px-4 py-3.5">
                       <div className="flex flex-col">
                         <span className="font-semibold text-zinc-900">{item.employeeName}</span>
@@ -1388,7 +1730,71 @@ export default function CampaignDetailPage() {
           if (whatsappFileRef.current) whatsappFileRef.current.value = "";
         }}
       />
+      <input
+        ref={universalAttachmentRef}
+        type="file"
+        className="hidden"
+        accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg"
+        onChange={(e) => {
+          handleUniversalAttachmentChange(e.target.files);
+          if (universalAttachmentRef.current) universalAttachmentRef.current.value = "";
+        }}
+      />
       <AnimatePresence>
+        {showBulkSendConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[72] flex items-center justify-center bg-zinc-950/50 p-4 backdrop-blur-[3px]"
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0, y: 8 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 8 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="w-full max-w-md overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_24px_40px_-28px_rgba(2,10,27,0.68)]"
+            >
+              <div className="space-y-2 border-b border-zinc-100 px-5 py-4">
+                <h3 className="text-base font-semibold text-zinc-900">Confirm bulk outreach</h3>
+                <p className="text-sm text-zinc-600">
+                  Do you want to outreach <span className="font-semibold text-zinc-900">{selectedBulkCount}</span> selected leads?
+                </p>
+                {universalAttachment && commonAttachmentId ? (
+                  <p className="text-xs text-zinc-500">Attachment: {universalAttachment.name}</p>
+                ) : null}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 px-5 py-4">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={isBulkSending}
+                  onClick={() => setShowBulkSendConfirm(false)}
+                  className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleConfirmBulkSend}
+                  disabled={isBulkSending}
+                  className="h-9 rounded-md border border-sidebar-primary/75 bg-sidebar-primary px-3.5 text-sidebar-foreground hover:bg-sidebar-primary/90 disabled:opacity-60"
+                >
+                  {isBulkSending ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    "Yes, Send All"
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
         {selectedLead && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -1424,7 +1830,7 @@ export default function CampaignDetailPage() {
               </div>
 
               <div className="relative z-[2] flex-1 space-y-5 overflow-y-auto scrollbar-hide bg-white p-6">
-                <div className="grid gap-5 xl:h-[24.5rem] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                <div className="grid gap-5 xl:h-[24.5rem] xl:grid-cols-1">
                   <Card className="h-full rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
                     <div className="mb-4 flex items-center gap-2">
                       <div className="rounded-md border border-zinc-200 bg-white p-1.5">
@@ -1454,7 +1860,7 @@ export default function CampaignDetailPage() {
                     </div>
                   </Card>
 
-                  <div className="grid min-h-0 grid-cols-1 gap-4 xl:h-full xl:grid-rows-2">
+                  <div className="hidden min-h-0 grid-cols-1 gap-4 xl:h-full xl:grid-rows-2">
                     <AttachmentSection
                       title="Email Attachments"
                       subtitle="Sent with cold email"

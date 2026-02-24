@@ -12,6 +12,14 @@ export type {
   MessageStatus,
   RecentCampaign,
   ReplyNotification,
+  SendAllCampaignChannels,
+  SendAllCampaignRequest,
+  SendAllCampaignResponse,
+  UploadCommonAttachmentResponse,
+  ApproveSelectedLeadsRequest,
+  ApproveSelectedLeadsResponse,
+  SendSelectedLeadsRequest,
+  SendSelectedLeadsResponse,
   WhatsAppInbound,
   WhatsAppMessagesResponse,
   WhatsAppNotificationsResponse,
@@ -64,6 +72,18 @@ export const exportCampaignCsvUrl: typeof sales.exportCampaignCsvUrl = (...args)
 
 export const stopCampaign: typeof sales.stopCampaign = (...args) =>
   pickModule().stopCampaign(...args);
+
+export const sendAllCampaignLeads: typeof sales.sendAllCampaignLeads = (...args) =>
+  pickModule().sendAllCampaignLeads(...args);
+
+export const uploadCampaignCommonAttachment: typeof sales.uploadCampaignCommonAttachment = (...args) =>
+  pickModule().uploadCampaignCommonAttachment(...args);
+
+export const approveSelectedCampaignLeads: typeof sales.approveSelectedCampaignLeads = (...args) =>
+  pickModule().approveSelectedCampaignLeads(...args);
+
+export const sendSelectedCampaignLeads: typeof sales.sendSelectedCampaignLeads = (...args) =>
+  pickModule().sendSelectedCampaignLeads(...args);
 
 export const listReplyNotifications: typeof sales.listReplyNotifications = (...args) =>
   pickModule().listReplyNotifications(...args);
