@@ -10,6 +10,13 @@ import type {
   MessageStatus,
   RecentCampaign,
   ReplyNotification,
+  UploadCommonAttachmentResponse,
+  ApproveSelectedLeadsRequest,
+  ApproveSelectedLeadsResponse,
+  SendSelectedLeadsRequest,
+  SendSelectedLeadsResponse,
+  SendAllCampaignRequest,
+  SendAllCampaignResponse,
 } from "./api";
 
 export type {
@@ -23,13 +30,19 @@ export type {
   MessageStatus,
   RecentCampaign,
   ReplyNotification,
+  UploadCommonAttachmentResponse,
+  ApproveSelectedLeadsRequest,
+  ApproveSelectedLeadsResponse,
+  SendSelectedLeadsRequest,
+  SendSelectedLeadsResponse,
+  SendAllCampaignRequest,
+  SendAllCampaignResponse,
 };
 
 const apiClientDelegate = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
   timeout: 60000,
   headers: {
-    "Content-Type": "application/json",
     "x-api-key": process.env.NEXT_PUBLIC_API_KEY || "",
   },
   withCredentials: true,
@@ -165,6 +178,54 @@ export async function stopCampaign(id: string) {
   return data as { campaignId: string; status: string; message: string };
 }
 
+export async function sendAllCampaignLeads(payload: SendAllCampaignRequest) {
+  const { campaignId, leadIds, channels = "both", file } = payload;
+  const query = new URLSearchParams();
+  query.set("channels", channels);
+  for (const leadId of leadIds) query.append("leads", leadId);
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const { data } = await apiClientDelegate.post<SendAllCampaignResponse>(
+    `/api/delegates/campaigns/${campaignId}/send-all?${query.toString()}`,
+    formData
+  );
+  return data;
+}
+
+export async function uploadCampaignCommonAttachment(campaignId: string, file: File | Blob) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const { data } = await apiClientDelegate.post<UploadCommonAttachmentResponse>(
+    `/api/delegates/campaigns/${campaignId}/upload-common-attachment`,
+    formData
+  );
+  return data;
+}
+
+export async function approveSelectedCampaignLeads(payload: ApproveSelectedLeadsRequest) {
+  const { campaignId, leadIds } = payload;
+  const { data } = await apiClientDelegate.post<ApproveSelectedLeadsResponse>(
+    `/api/delegates/campaigns/${campaignId}/approve-selected-leads`,
+    leadIds
+  );
+  return data;
+}
+
+export async function sendSelectedCampaignLeads(payload: SendSelectedLeadsRequest) {
+  const { campaignId, leadIds, attachmentId } = payload;
+  const query = new URLSearchParams();
+  query.set("attachment_id", attachmentId);
+
+  const { data } = await apiClientDelegate.post<SendSelectedLeadsResponse>(
+    `/api/delegates/campaigns/${campaignId}/send-selected-leads?${query.toString()}`,
+    leadIds
+  );
+  return data;
+}
+
 export async function listReplyNotifications(params?: {
   campaignId?: string;
   unreadOnly?: boolean;
@@ -205,7 +266,6 @@ export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
   timeout: 60000,
   headers: {
-    "Content-Type": "application/json",
     "x-api-key": process.env.NEXT_PUBLIC_API_KEY || "",
   },
 });

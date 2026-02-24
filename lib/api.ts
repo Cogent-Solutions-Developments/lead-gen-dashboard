@@ -69,6 +69,52 @@ export type CreateCampaignRequest = {
   category?: string;
 };
 
+export type SendAllCampaignChannels = "email" | "whatsapp" | "both";
+
+export type SendAllCampaignRequest = {
+  campaignId: string;
+  leadIds: string[];
+  channels?: SendAllCampaignChannels;
+  file: File | Blob;
+};
+
+export type SendAllCampaignResponse = {
+  ok: boolean;
+  campaignId: string;
+  pendingFound: number;
+  approved: number;
+  queuedEmail: number;
+  queuedWhatsapp: number;
+  attachmentsCreated: number;
+  attachmentOriginalName: string;
+  channels: SendAllCampaignChannels;
+  message: string;
+};
+
+export type UploadCommonAttachmentResponse = {
+  message: string;
+  attachment_id: string;
+};
+
+export type ApproveSelectedLeadsRequest = {
+  campaignId: string;
+  leadIds: string[];
+};
+
+export type ApproveSelectedLeadsResponse = {
+  message: string;
+};
+
+export type SendSelectedLeadsRequest = {
+  campaignId: string;
+  leadIds: string[];
+  attachmentId: string;
+};
+
+export type SendSelectedLeadsResponse = {
+  message: string;
+};
+
 export type CampaignInfo = {
   campaignId: string;
   name: string | null;
@@ -290,6 +336,54 @@ export function exportCampaignCsvUrl(id: string) {
 export async function stopCampaign(id: string) {
   const { data } = await apiClient.post(`/api/campaigns/${id}/stop`);
   return data as { campaignId: string; status: string; message: string };
+}
+
+export async function sendAllCampaignLeads(payload: SendAllCampaignRequest) {
+  const { campaignId, leadIds, channels = "both", file } = payload;
+  const query = new URLSearchParams();
+  query.set("channels", channels);
+  for (const leadId of leadIds) query.append("leads", leadId);
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const { data } = await apiClient.post<SendAllCampaignResponse>(
+    `/api/campaigns/${campaignId}/send-all?${query.toString()}`,
+    formData
+  );
+  return data;
+}
+
+export async function uploadCampaignCommonAttachment(campaignId: string, file: File | Blob) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const { data } = await apiClient.post<UploadCommonAttachmentResponse>(
+    `/api/campaigns/${campaignId}/upload-common-attachment`,
+    formData
+  );
+  return data;
+}
+
+export async function approveSelectedCampaignLeads(payload: ApproveSelectedLeadsRequest) {
+  const { campaignId, leadIds } = payload;
+  const { data } = await apiClient.post<ApproveSelectedLeadsResponse>(
+    `/api/campaigns/${campaignId}/approve-selected-leads`,
+    leadIds
+  );
+  return data;
+}
+
+export async function sendSelectedCampaignLeads(payload: SendSelectedLeadsRequest) {
+  const { campaignId, leadIds, attachmentId } = payload;
+  const query = new URLSearchParams();
+  query.set("attachment_id", attachmentId);
+
+  const { data } = await apiClient.post<SendSelectedLeadsResponse>(
+    `/api/campaigns/${campaignId}/send-selected-leads?${query.toString()}`,
+    leadIds
+  );
+  return data;
 }
 
 export async function listReplyNotifications(params?: {
