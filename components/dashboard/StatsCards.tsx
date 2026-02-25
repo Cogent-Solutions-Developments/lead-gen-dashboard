@@ -146,7 +146,7 @@ export function StatsCards() {
     {
       name: "Leads Contacted",
       value: loading ? "..." : formatMetric(stats?.leadsContacted),
-      label: "Emails sent",
+      label: "Outreach sent",
       accentClass: "from-indigo-300/28 to-blue-700/9",
       icon: SendFill,
       watermark: {
