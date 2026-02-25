@@ -538,22 +538,30 @@ export default function TotalLeads() {
 
   return (
     <div className="font-sans flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1">
-      <div className="flex shrink-0 flex-col gap-3 border-b border-zinc-100/90 pb-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Nizo Finder</h1>
-          <p className="mt-1 text-sm text-zinc-500">Professional lead discovery with precision filtering and clean data views.</p>
-        </div>
+      <div className="relative shrink-0 overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.88)_0%,rgba(250,252,255,0.72)_56%,rgba(240,246,253,0.58)_100%)] px-4 pb-4 pt-3 shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74)] backdrop-blur-[14px] [backdrop-filter:saturate(168%)_blur(14px)]">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-36 w-36 rounded-full bg-gradient-to-br from-sky-300/34 via-blue-500/16 to-transparent blur-3xl" />
+        <div className="pointer-events-none absolute -left-20 -bottom-16 h-44 w-44 rounded-full bg-gradient-to-tr from-blue-300/20 via-sky-200/8 to-transparent blur-3xl" />
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => void fetchAllLeads()} className="h-10 border-zinc-200 text-zinc-700 hover:bg-zinc-50">
-            <RefreshCcw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
+        <div className="relative z-[1] flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Nizo Finder</h1>
+            <p className="mt-1 text-sm text-zinc-500">Professional lead discovery with precision filtering and clean data views.</p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => void fetchAllLeads()} className="h-10 border-zinc-200/90 bg-white/82 text-zinc-700 shadow-none hover:border-zinc-300 hover:bg-white">
+              <RefreshCcw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+          </div>
         </div>
       </div>
 
-      <Card className="mt-3 shrink-0 overflow-hidden rounded-xl border border-zinc-200/85 bg-white/70 shadow-none">
-        <div className="px-4 py-3">
+      <Card className="relative isolate mt-3 shrink-0 overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.84)_0%,rgba(250,252,255,0.66)_56%,rgba(240,246,253,0.56)_100%)] backdrop-blur-[16px] [backdrop-filter:saturate(175%)_blur(16px)] shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74),inset_0_0_22px_rgba(255,255,255,0.2)]">
+        <div className="pointer-events-none absolute -right-20 -top-20 h-52 w-52 rounded-full bg-gradient-to-br from-sky-300/30 via-blue-500/10 to-transparent blur-3xl" />
+        <div className="pointer-events-none absolute -left-20 -bottom-20 h-52 w-52 rounded-full bg-gradient-to-tr from-blue-300/16 via-sky-200/8 to-transparent blur-3xl" />
+
+        <div className="relative z-[1] px-4 py-3">
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative min-w-0 flex-1">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
@@ -619,7 +627,7 @@ export default function TotalLeads() {
           </div>
 
           {isAdvancedOpen && (
-            <div className="mt-3 rounded-xl border border-zinc-200/85 bg-white p-3">
+            <div className="mt-3 rounded-xl border border-zinc-200/85 bg-white/92 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_8px_16px_-14px_rgba(2,10,27,0.34)] backdrop-blur-[6px]">
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Name</label>
@@ -708,8 +716,11 @@ export default function TotalLeads() {
         </div>
       </Card>
 
-      <Card className="relative isolate mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200/85 bg-white/70 shadow-none">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100/85 bg-white/45 px-4 py-3">
+      <Card className="relative isolate mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.84)_0%,rgba(250,252,255,0.66)_56%,rgba(240,246,253,0.56)_100%)] backdrop-blur-[16px] [backdrop-filter:saturate(175%)_blur(16px)] shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74),inset_0_0_22px_rgba(255,255,255,0.2)]">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-60 w-60 rounded-full bg-gradient-to-br from-sky-300/28 via-blue-500/12 to-transparent blur-3xl" />
+        <div className="pointer-events-none absolute -left-24 -bottom-24 h-60 w-60 rounded-full bg-gradient-to-tr from-blue-300/18 via-sky-200/8 to-transparent blur-3xl" />
+
+        <div className="relative z-[1] flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100/85 bg-white/45 px-4 py-3">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold text-zinc-900">Lead Explorer</h2>
             {activeFilterCount > 0 ? (
@@ -728,7 +739,7 @@ export default function TotalLeads() {
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-auto px-4 pb-2 pt-2">
+        <div className="relative z-[1] min-h-0 flex-1 overflow-auto px-4 pb-2 pt-2">
           <table className="min-w-[1100px] w-full">
             <thead className="border-b border-zinc-100/85 bg-white/70">
               <tr>
@@ -821,7 +832,7 @@ export default function TotalLeads() {
         </div>
 
         {filteredLeads.length > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100/85 bg-white/38 px-4 py-3">
+          <div className="relative z-[1] flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100/85 bg-white/38 px-4 py-3">
             <span className="text-xs text-zinc-500">
               Showing {showingFrom}-{showingTo} of {filteredLeads.length} leads
             </span>
