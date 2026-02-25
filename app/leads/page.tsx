@@ -96,17 +96,24 @@ function formatEventLabel(raw: string) {
 function positionBucket(titleRaw: string): string {
   const t = (titleRaw || "").toLowerCase();
 
-  if (/\bchief executive\b|\bceo\b/.test(t)) return "CEO";
-  if (/\bchief technology\b|\bcto\b/.test(t)) return "CTO";
-  if (/\bchief information\b|\bcio\b/.test(t)) return "CIO";
-  if (/\bchief operating\b|\bcoo\b/.test(t)) return "COO";
-  if (/\bchief financial\b|\bcfo\b/.test(t)) return "CFO";
-  if (/\bchief marketing\b|\bcmo\b/.test(t)) return "CMO";
-  if (/\bchief revenue\b|\bcro\b/.test(t)) return "CRO";
-  if (/\bchief security\b|\bcso\b/.test(t)) return "CSO";
-  if (/\bchief (?:product|commercial)\b|\bcpo\b|\bcco\b/.test(t)) return "Chief";
+  if (/\bchief executive(?: officer)?\b|\bceo\b/.test(t)) return "CEO";
+  if (/\bchief technology(?: officer)?\b|\bcto\b/.test(t)) return "CTO";
+  if (/\bchief information(?: officer)?\b|\bcio\b/.test(t)) return "CIO";
+  if (/\bchief operating(?: officer)?\b|\bcoo\b/.test(t)) return "COO";
+  if (/\bchief financial(?: officer)?\b|\bcfo\b/.test(t)) return "CFO";
+  if (/\bchief marketing(?: officer)?\b|\bcmo\b/.test(t)) return "CMO";
+  if (/\bchief revenue(?: officer)?\b|\bcro\b/.test(t)) return "CRO";
+  if (/\bchief information security(?: officer)?\b|\bciso\b/.test(t)) return "CISO";
+  if (/\bchief security(?: officer)?\b|\bcso\b/.test(t)) return "CSO";
+  if (/\bchief product(?: officer)?\b|\bcpo\b/.test(t)) return "CPO";
+  if (/\bchief commercial(?: officer)?\b|\bcco\b/.test(t)) return "CCO";
+  if (/\bchief digital(?: officer)?\b|\bcdo\b/.test(t)) return "CDO";
+  if (/\bchief people(?: officer)?\b|\bchief human resources(?: officer)?\b|\bchro\b/.test(t))
+    return "CHRO";
+  if (/\bchief\b/.test(t)) return "Chief";
 
   if (/\bvp\b|\bvice president\b/.test(t)) return "VP";
+  if (/\bmanaging director\b/.test(t)) return "Director";
   if (/\bdirector\b/.test(t)) return "Director";
   if (/\bhead of\b/.test(t)) return "Head";
   if (/\bmanager\b/.test(t)) return "Manager";
@@ -308,6 +315,13 @@ export default function TotalLeads() {
       "COO",
       "CFO",
       "CMO",
+      "CRO",
+      "CISO",
+      "CSO",
+      "CPO",
+      "CCO",
+      "CDO",
+      "CHRO",
       "Chief",
       "VP",
       "Director",
@@ -526,8 +540,8 @@ export default function TotalLeads() {
     <div className="font-sans flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1">
       <div className="flex shrink-0 flex-col gap-3 border-b border-zinc-100/90 pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Leads Intelligence</h1>
-          <p className="mt-1 text-sm text-zinc-500">Apollo-style lead search with deep filters and fast pagination.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Nizo Finder</h1>
+          <p className="mt-1 text-sm text-zinc-500">Professional lead discovery with precision filtering and clean data views.</p>
         </div>
 
         <div className="flex items-center gap-2">
