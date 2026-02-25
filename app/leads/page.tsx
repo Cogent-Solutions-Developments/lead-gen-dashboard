@@ -17,6 +17,7 @@ import {
   Search,
   FileUp,
   X,
+  Copy,
   ExternalLink,
   UploadCloud,
   SlidersHorizontal,
@@ -493,6 +494,26 @@ export default function TotalLeads() {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  const handleCopyLeadDetails = async (lead: Lead) => {
+    const detailText = [
+      `Event: ${lead.eventName || "-"}`,
+      `Name: ${lead.employeeName || "-"}`,
+      `Title: ${lead.title || "-"}`,
+      `Company: ${lead.company || "-"}`,
+      `Email: ${lead.email || "-"}`,
+      `Phone: ${lead.phone || "-"}`,
+      `LinkedIn: ${lead.linkedinUrl || "-"}`,
+      `Website: ${lead.companyUrl || "-"}`,
+    ].join("\n");
+
+    try {
+      await navigator.clipboard.writeText(detailText);
+      toast.success("Lead details copied");
+    } catch {
+      toast.error("Could not copy lead details");
+    }
+  };
+
   const uploadSelectedFiles = useCallback(async () => {
     if (!selectedFiles.length) {
       toast.info("Select files to upload");
@@ -750,13 +771,14 @@ export default function TotalLeads() {
                 <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Email</th>
                 <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Phone</th>
                 <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Links</th>
+                <th className="px-3 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-zinc-400">Actions</th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-zinc-100/70">
               {paginatedLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-sm text-zinc-500">
+                  <td colSpan={8} className="px-6 py-12 text-center text-sm text-zinc-500">
                     No leads match the current filter combination.
                   </td>
                 </tr>
@@ -823,6 +845,19 @@ export default function TotalLeads() {
                           </span>
                         )}
                       </div>
+                    </td>
+
+                    <td className="px-3 py-3 align-top text-right">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => void handleCopyLeadDetails(item)}
+                        className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-500 shadow-none hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+                        title="Copy lead details"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
                     </td>
                   </tr>
                 ))

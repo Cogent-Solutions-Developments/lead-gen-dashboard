@@ -8,7 +8,7 @@ import {
   Rocket, 
   Webhook, 
   Plus, 
-  CheckCircle, 
+  TrainFront,
   MessageSquare,
   Settings, 
   UserRound 
@@ -22,7 +22,7 @@ const navItems = [
   { name: "Campaigns", href: "/campaigns", icon: Rocket },
   { name: "New Campaign", href: "/campaigns/new", icon: Plus },
   // { name: "Completed", href: "/completed", icon: CheckCircle },
-  { name: "Leads", href: "/leads", icon: CheckCircle },
+  { name: "Nizo Finder", href: "/leads", icon: TrainFront },
   { name: "Replies", href: "/replies", icon: MessageSquare },
 ];
 
