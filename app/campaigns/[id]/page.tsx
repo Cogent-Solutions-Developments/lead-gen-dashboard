@@ -159,11 +159,63 @@ const EXPORT_HEADER_LABELS: Record<keyof LeadExportRow, string> = {
   linkedinUrl: "LinkedIn URL",
   companyUrl: "Company URL",
 };
+const GENERATED_DRAFT_STATUSES = new Set([
+  "content_generated",
+  "needs_review",
+  "approved",
+  "rejected",
+  "sent",
+  "sending",
+  "queued",
+]);
 
 const normalizeApprovalStatus = (s: any): ApprovalStatus => {
   if (s === "content_generated" || s === "needs_review") return "pending";
   return s === "approved" || s === "rejected" || s === "pending" ? s : "pending";
 };
+
+function normalizeTitleBucket(titleRaw: string): string {
+  const t = (titleRaw || "").toLowerCase();
+
+  if (/\bchief executive(?: officer)?\b|\bceo\b/.test(t)) return "CEO";
+  if (/\bchief technology(?: officer)?\b|\bcto\b/.test(t)) return "CTO";
+  if (/\bchief information(?: officer)?\b|\bcio\b/.test(t)) return "CIO";
+  if (/\bchief operating(?: officer)?\b|\bcoo\b/.test(t)) return "COO";
+  if (/\bchief financial(?: officer)?\b|\bcfo\b/.test(t)) return "CFO";
+  if (/\bchief marketing(?: officer)?\b|\bcmo\b/.test(t)) return "CMO";
+  if (/\bchief revenue(?: officer)?\b|\bcro\b/.test(t)) return "CRO";
+  if (/\bchief information security(?: officer)?\b|\bciso\b/.test(t)) return "CISO";
+  if (/\bchief security(?: officer)?\b|\bcso\b/.test(t)) return "CSO";
+  if (/\bchief product(?: officer)?\b|\bcpo\b/.test(t)) return "CPO";
+  if (/\bchief commercial(?: officer)?\b|\bcco\b/.test(t)) return "CCO";
+  if (/\bchief digital(?: officer)?\b|\bcdo\b/.test(t)) return "CDO";
+  if (/\bchief people(?: officer)?\b|\bchief human resources(?: officer)?\b|\bchro\b/.test(t))
+    return "CHRO";
+  if (/\bchief\b/.test(t)) return "Chief";
+
+  if (/\bvp\b|\bvice president\b/.test(t)) return "VP";
+  if (/\bmanaging director\b/.test(t)) return "Director";
+  if (/\bdirector\b/.test(t)) return "Director";
+  if (/\bhead of\b/.test(t)) return "Head";
+  if (/\bmanager\b/.test(t)) return "Manager";
+  if (/\blead\b/.test(t)) return "Lead";
+
+  if (!t.trim()) return "Unknown";
+  return "Other";
+}
+
+function hasGeneratedContent(lead: Lead): boolean {
+  const draftStatus = String(lead.draftStatus || "").toLowerCase();
+
+  if (GENERATED_DRAFT_STATUSES.has(draftStatus)) return true;
+
+  return Boolean(
+    String(lead.contentEmailSubject || "").trim() ||
+      String(lead.contentEmail || "").trim() ||
+      String(lead.contentLinkedin || "").trim() ||
+      String(lead.contentWhatsapp || "").trim()
+  );
+}
 
 // -----------------------------
 // Outreach icons
@@ -522,6 +574,9 @@ export default function CampaignDetailPage() {
         : leadFilter === "sent"
           ? leads.filter((l) => l.approvalStatus === "approved")
           : leads.filter((l) => l.approvalStatus === "rejected");
+    const prioritized = [...statusFiltered].sort(
+      (a, b) => Number(hasGeneratedContent(b)) - Number(hasGeneratedContent(a))
+    );
 
     const asText = (value: unknown) => String(value ?? "").toLowerCase();
     const query = tableSearch.trim().toLowerCase();
@@ -529,19 +584,23 @@ export default function CampaignDetailPage() {
     const domainQuery = domainFilter.trim().toLowerCase();
     const phoneQuery = phoneFilter.trim().toLowerCase().replaceAll(" ", "");
 
-    return statusFiltered.filter((lead) => {
+    return prioritized.filter((lead) => {
+      const leadTitle = asText(lead.title);
+      const titleBucket = normalizeTitleBucket(leadTitle).toLowerCase();
+
       const searchMatch =
         !query ||
         asText(lead.id).includes(query) ||
         asText(lead.batchId).includes(query) ||
         asText(lead.employeeName).includes(query) ||
-        asText(lead.title).includes(query) ||
+        leadTitle.includes(query) ||
+        titleBucket.includes(query) ||
         asText(lead.company).includes(query) ||
         asText(lead.email).includes(query) ||
         asText(lead.phone).includes(query) ||
         asText(lead.companyUrl).includes(query);
 
-      const jobTitleMatch = !jobTitleQuery || asText(lead.title).includes(jobTitleQuery);
+      const jobTitleMatch = !jobTitleQuery || leadTitle.includes(jobTitleQuery) || titleBucket.includes(jobTitleQuery);
 
       // Domain can be partial/suffix like ".ae", ".sa", or full company domain.
       const domainHaystack = `${asText(lead.email)} ${asText(lead.companyUrl)}`;
@@ -1533,6 +1592,11 @@ export default function CampaignDetailPage() {
               {paginatedLeads.map((item) => {
                 const status = approvalStyles[item.approvalStatus] ?? approvalStyles.pending;
                 const StatusIcon = status.icon;
+                const titleBucket = normalizeTitleBucket(item.title || "");
+                const showTitleBucket =
+                  titleBucket !== "Other" &&
+                  titleBucket !== "Unknown" &&
+                  !(item.title || "").toLowerCase().includes(titleBucket.toLowerCase());
 
                 return (
                   <tr key={item.id} className="group transition-colors hover:bg-white/46">
@@ -1551,6 +1615,11 @@ export default function CampaignDetailPage() {
                       <div className="flex flex-col">
                         <span className="font-semibold text-zinc-900">{item.employeeName}</span>
                         <span className="text-xs text-zinc-500">{item.title}</span>
+                        {showTitleBucket ? (
+                          <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                            {titleBucket}
+                          </span>
+                        ) : null}
                         <a href={item.companyUrl} target="_blank" rel="noreferrer" className="mt-0.5 w-fit text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
                           {item.companyUrl}
                         </a>
