@@ -12,7 +12,6 @@ function formatCount(value: number) {
 
 export function RepliesOverviewCard() {
   const [totalReplies, setTotalReplies] = useState(0);
-  const [unreadReplies, setUnreadReplies] = useState(0);
   const [loading, setLoading] = useState(true);
   const { persona } = usePersona();
 
@@ -21,16 +20,13 @@ export function RepliesOverviewCard() {
 
     const load = async () => {
       try {
-        const [allNotifications, unreadNotifications, repliesMeta] = await Promise.allSettled([
+        const [allNotifications, repliesMeta] = await Promise.allSettled([
           fetchWhatsAppNotifications({ limit: 200, unreadOnly: false }),
-          fetchWhatsAppNotifications({ limit: 200, unreadOnly: true }),
           listReplyNotifications({ limit: 1 }),
         ]);
         if (!alive) return;
 
         let total = 0;
-        let unread = 0;
-        let hasUnreadMeta = false;
 
         if (allNotifications.status === "fulfilled") {
           total = allNotifications.value.notifications.length;
@@ -38,20 +34,12 @@ export function RepliesOverviewCard() {
 
         if (repliesMeta.status === "fulfilled") {
           total = Math.max(total, repliesMeta.value.total || 0, repliesMeta.value.replies?.length || 0);
-          unread = repliesMeta.value.unread || 0;
-          hasUnreadMeta = true;
-        }
-
-        if (!hasUnreadMeta && unreadNotifications.status === "fulfilled") {
-          unread = unreadNotifications.value.notifications.length;
         }
 
         setTotalReplies(total);
-        setUnreadReplies(unread);
       } catch (error) {
         if (!alive) return;
         setTotalReplies(0);
-        setUnreadReplies(0);
         console.warn("Failed to load replies overview", error);
       } finally {
         if (!alive) return;
@@ -79,12 +67,9 @@ export function RepliesOverviewCard() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/76">
               Total Replies
             </p>
-            <div className="space-y-0.5">
-              <span className="block text-3xl font-semibold leading-none tracking-tight text-white xl:text-4xl">
+            <div>
+              <span className="block text-5xl font-medium leading-none tracking-tight text-white xl:text-6xl">
                 {loading ? "..." : formatCount(totalReplies)}
-              </span>
-              <span className="block text-xs font-medium text-white/75">
-                {formatCount(unreadReplies)} unread
               </span>
             </div>
           </div>
