@@ -527,6 +527,7 @@ export default function CampaignDetailPage() {
   const [leadFilter, setLeadFilter] = useState<LeadFilterKey>("new");
   const [tableSearch, setTableSearch] = useState("");
   const [jobTitleFilter, setJobTitleFilter] = useState("");
+  const [hasEmailOnly, setHasEmailOnly] = useState(false);
   const [domainFilter, setDomainFilter] = useState("");
   const [phoneFilter, setPhoneFilter] = useState("");
   const [isTableFilterOpen, setIsTableFilterOpen] = useState(false);
@@ -606,12 +607,14 @@ export default function CampaignDetailPage() {
       const domainHaystack = `${asText(lead.email)} ${asText(lead.companyUrl)}`;
       const domainMatch = !domainQuery || domainHaystack.includes(domainQuery);
 
+      const emailPresenceMatch = !hasEmailOnly || String(lead.email || "").trim().length > 0;
+
       const compactPhone = asText(lead.phone).replaceAll(" ", "");
       const phoneMatch = !phoneQuery || compactPhone.includes(phoneQuery);
 
-      return searchMatch && jobTitleMatch && domainMatch && phoneMatch;
+      return searchMatch && jobTitleMatch && emailPresenceMatch && domainMatch && phoneMatch;
     });
-  }, [leads, leadFilter, tableSearch, jobTitleFilter, domainFilter, phoneFilter]);
+  }, [leads, leadFilter, tableSearch, jobTitleFilter, hasEmailOnly, domainFilter, phoneFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / itemsPerPage));
 
@@ -640,7 +643,10 @@ export default function CampaignDetailPage() {
     [campaignCategory, campaign?.category]
   );
   const hasAdvancedTableFilters =
-    jobTitleFilter.trim().length > 0 || domainFilter.trim().length > 0 || phoneFilter.trim().length > 0;
+    jobTitleFilter.trim().length > 0 ||
+    hasEmailOnly ||
+    domainFilter.trim().length > 0 ||
+    phoneFilter.trim().length > 0;
   const exportRows = useMemo<LeadExportRow[]>(
     () =>
       leads.map((lead) => {
@@ -808,7 +814,7 @@ export default function CampaignDetailPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [leadFilter, tableSearch, jobTitleFilter, domainFilter, phoneFilter]);
+  }, [leadFilter, tableSearch, jobTitleFilter, hasEmailOnly, domainFilter, phoneFilter]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -1473,6 +1479,24 @@ export default function CampaignDetailPage() {
                       />
                     </div>
 
+                    <div className="mt-3 flex items-center justify-between rounded-lg border border-zinc-200/75 bg-white/85 px-2.5 py-2">
+                      <div className="pr-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Has Email</p>
+                        <p className="text-[10px] text-zinc-400">Show only leads with an email address</p>
+                      </div>
+                      <label className="relative inline-flex h-[28px] w-[50px] cursor-pointer items-center">
+                        <input
+                          type="checkbox"
+                          checked={hasEmailOnly}
+                          onChange={(e) => setHasEmailOnly(e.target.checked)}
+                          className="peer sr-only"
+                          aria-label="Has email only"
+                        />
+                        <span className="absolute inset-0 rounded-full border border-zinc-300 bg-white transition-colors duration-300 peer-checked:border-transparent peer-checked:bg-[#5fdd54]" />
+                        <span className="pointer-events-none absolute left-[1px] top-[1px] h-[24px] w-[24px] rounded-full bg-white shadow-[0_2px_5px_rgba(0,0,0,0.35)] transition-transform duration-300 peer-checked:translate-x-[22px]" />
+                      </label>
+                    </div>
+
                     <div className="mt-3 space-y-2">
                       <label className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Domain</label>
                       <Input
@@ -1498,6 +1522,7 @@ export default function CampaignDetailPage() {
                         type="button"
                         onClick={() => {
                           setJobTitleFilter("");
+                          setHasEmailOnly(false);
                           setDomainFilter("");
                           setPhoneFilter("");
                         }}
