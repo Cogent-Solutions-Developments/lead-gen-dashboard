@@ -120,7 +120,7 @@ export default function SignInPage() {
               </span>
             </div>
 
-            <h1 className="max-w-2xl text-4xl font-semibold leading-tight">
+            <h1 className="max-w-2xl text-[2.5rem] font-semibold leading-tight">
 AI-powered outreach orchestration for the Cogent Solutions Sales and Delegate teams.            </h1>
             <p className="mt-4 max-w-xl text-sm leading-7 text-blue-50/90">
               supernizo helps your team run targeted campaigns, review leads faster, and manage outreach in one
