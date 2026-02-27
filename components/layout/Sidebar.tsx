@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { 
   LayoutDashboard, 
@@ -10,12 +10,15 @@ import {
   Plus, 
   TrainFront,
   MessageSquare,
-  Settings, 
-  UserRound 
+  UserRound,
+  LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useMemo, useState } from "react";
 import { usePersona } from "@/hooks/usePersona";
+import { clearPersona } from "@/lib/persona";
+import { getSupabaseClient } from "@/lib/supabaseClient";
+import { toast } from "sonner";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -28,12 +31,28 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [rotation, setRotation] = useState(0);
   const { persona } = usePersona();
   const personaLabel = useMemo(
     () => (persona === "delegates" ? "Delegates" : "Sales"),
     [persona]
   );
+
+  const handleSignOut = async () => {
+    try {
+      const supabase = getSupabaseClient();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to sign out.";
+      toast.error("Sign out failed", { description: message });
+      return;
+    }
+
+    clearPersona();
+    router.replace("/sign-in");
+  };
 
   // Logic for random rotation intervals
   useEffect(() => {
@@ -171,27 +190,10 @@ export function Sidebar() {
           </div>
         </motion.div>
 
-        {/* --- Settings Link --- */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-        >
-          <Link href="/settings">
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start gap-3 rounded-full bg-transparent px-4 py-2 text-[15px] text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-accent-foreground"
-            >
-              <Settings className="h-5 w-5" />
-              Settings
-            </Button>
-          </Link>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
         >
           <Link href="/">
             <Button 
@@ -206,6 +208,21 @@ export function Sidebar() {
               </span>
             </Button>
           </Link>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+        >
+          <Button
+            variant="ghost"
+            onClick={handleSignOut}
+            className="w-full justify-start gap-3 rounded-full bg-transparent px-4 py-2 text-[15px] text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-accent-foreground"
+          >
+            <LogOut className="h-5 w-5" />
+            Sign out
+          </Button>
         </motion.div>
       </div>
     </motion.aside>
