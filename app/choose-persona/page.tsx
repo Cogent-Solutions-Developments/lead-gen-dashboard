@@ -84,7 +84,7 @@ export default function ChoosePersonaPage() {
               scale: { type: "spring", stiffness: 260, damping: 20 },
               rotate: { duration: 2, ease: "easeInOut" },
             }}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-700 text-white"
           >
             <Webhook className="h-5 w-5" />
           </motion.div>
