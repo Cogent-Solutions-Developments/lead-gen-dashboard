@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { motion } from "framer-motion";
-import { House, Plus } from "lucide-react";
+import { Plus, User } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -32,9 +32,11 @@ export default function DashboardPage() {
         
         <div className="flex items-center gap-2">
           <Link href="/">
-            <Button className="analytics-frost-btn h-10 px-3.5 shadow-[0_0_12px_-6px_rgba(2,10,27,0.62)] hover:shadow-[0_0_14px_-6px_rgba(2,10,27,0.72)]">
-              <House className="h-4 w-4" />
-              Home
+            <Button
+              aria-label="Change user role"
+              className="analytics-frost-btn h-10 w-10 p-0 shadow-[0_0_12px_-6px_rgba(2,10,27,0.62)] hover:shadow-[0_0_14px_-6px_rgba(2,10,27,0.72)]"
+            >
+              <User className="h-4 w-4" />
             </Button>
           </Link>
 
