@@ -23,6 +23,12 @@ export function setPersona(next: Persona) {
   window.dispatchEvent(new CustomEvent("persona-change", { detail: next }));
 }
 
+export function clearPersona() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(STORAGE_KEY);
+  window.dispatchEvent(new CustomEvent("persona-change"));
+}
+
 export function onPersonaChange(cb: (persona: Persona) => void) {
   if (typeof window === "undefined") return () => {};
 
