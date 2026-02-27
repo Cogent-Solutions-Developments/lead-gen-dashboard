@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { 
+import {
   LayoutDashboard, 
   Rocket, 
   Webhook, 
@@ -14,8 +14,7 @@ import {
   LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useEffect, useMemo, useState } from "react";
-import { usePersona } from "@/hooks/usePersona";
+import { useEffect, useState } from "react";
 import { clearPersona } from "@/lib/persona";
 import { getSupabaseClient } from "@/lib/supabaseClient";
 import { toast } from "sonner";
@@ -33,11 +32,6 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [rotation, setRotation] = useState(0);
-  const { persona } = usePersona();
-  const personaLabel = useMemo(
-    () => (persona === "delegates" ? "Delegates" : "Sales"),
-    [persona]
-  );
 
   const handleSignOut = async () => {
     try {
@@ -201,11 +195,7 @@ export function Sidebar() {
               className="w-full justify-start gap-3 rounded-full bg-transparent px-4 py-2 text-[15px] text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-accent-foreground"
             >
               <UserRound className="h-5 w-5" />
-              <span className="flex items-center gap-2">
-                <span>User Role</span>
-                <span className="text-sidebar-foreground/30">-</span>
-                <span className="text-sidebar-foreground/80">{personaLabel}</span>
-              </span>
+              <span>Change User Role</span>
             </Button>
           </Link>
         </motion.div>
