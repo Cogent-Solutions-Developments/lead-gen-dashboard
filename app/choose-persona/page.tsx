@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePersona } from "@/hooks/usePersona";
@@ -23,7 +22,7 @@ export default function ChoosePersonaPage() {
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white">
       <div className="pointer-events-none absolute inset-0 z-0">
-        <div className="absolute -right-40 top-1/2 -translate-y-1/2 rotate-[26deg] opacity-[0.05]">
+        <div className="absolute -right-40 top-1/2 -translate-y-1/2 rotate-[26deg] opacity-[0.03]">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="24"
@@ -87,15 +86,6 @@ export default function ChoosePersonaPage() {
                   <span className="h-2 w-2 rounded-full bg-[radial-gradient(circle_at_35%_30%,#93c5fd_0%,#2563eb_55%,#1d4ed8_100%)]" />
                 </span>
               )}
-              <Image
-                src="/sales2.png"
-                alt="Sales workspace"
-                width={1200}
-                height={700}
-                className="mx-auto mb-5 h-auto max-h-40 w-full object-contain"
-                priority
-              />
-
               <div className="space-y-1">
                 <p className="text-lg font-semibold text-zinc-900">Sales Workspace</p>
               </div>
@@ -119,14 +109,6 @@ export default function ChoosePersonaPage() {
                   <span className="h-2 w-2 rounded-full bg-[radial-gradient(circle_at_35%_30%,#93c5fd_0%,#2563eb_55%,#1d4ed8_100%)]" />
                 </span>
               )}
-              <Image
-                src="/dele.png"
-                alt="Delegate workspace"
-                width={1200}
-                height={700}
-                className="mx-auto mb-5 h-auto max-h-40 w-full object-contain"
-              />
-
               <div className="space-y-1">
                 <p className="text-lg font-semibold text-zinc-900">Delegate Workspace</p>
               </div>
