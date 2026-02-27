@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { Loader2, Webhook } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ export default function SignInPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [rotation, setRotation] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -33,6 +35,19 @@ export default function SignInPage() {
       active = false;
     };
   }, [router]);
+
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const rotateIcon = () => {
+      setRotation((prev) => prev + 360);
+      const randomDelay = Math.floor(Math.random() * 7000) + 3000;
+      timeoutId = setTimeout(rotateIcon, randomDelay);
+    };
+
+    timeoutId = setTimeout(rotateIcon, 2000);
+    return () => clearTimeout(timeoutId);
+  }, []);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -89,17 +104,24 @@ export default function SignInPage() {
 
           <div className="relative z-10 p-10 text-white">
             <div className="mb-10 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-sidebar-primary-foreground shadow-[0_6px_14px_-10px_rgba(2,6,23,0.65)]">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1, rotate: rotation }}
+                transition={{
+                  scale: { type: "spring", stiffness: 260, damping: 20 },
+                  rotate: { duration: 2, ease: "easeInOut" },
+                }}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-sidebar-primary-foreground shadow-[0_6px_14px_-10px_rgba(2,6,23,0.65)]"
+              >
                 <Webhook className="h-5 w-5 opacity-70" />
-              </div>
+              </motion.div>
               <span className="text-2xl font-medium tracking-wide text-sidebar-foreground drop-shadow-sm">
                 supernizo
               </span>
             </div>
 
-            <h1 className="max-w-xl text-4xl font-semibold leading-tight">
-              AI-powered outreach orchestration for modern B2B growth teams.
-            </h1>
+            <h1 className="max-w-2xl text-4xl font-semibold leading-tight">
+AI-powered outreach orchestration for the Cogent Solutions Sales and Delegate teams.            </h1>
             <p className="mt-4 max-w-xl text-sm leading-7 text-blue-50/90">
               supernizo helps your team run targeted campaigns, review leads faster, and manage outreach in one
               premium workflow.
@@ -110,7 +132,7 @@ export default function SignInPage() {
         <section className="relative flex items-center justify-center bg-[linear-gradient(145deg,rgba(232,242,255,0.62)_0%,rgba(255,255,255,0.96)_52%,rgba(235,245,255,0.55)_100%)] px-4 py-10 sm:px-8 lg:px-12">
           <div className="w-full max-w-lg text-center">
             <p className="text-4xl font-medium leading-none tracking-tight text-zinc-800">Welcome To supernizo</p>
-            <p className="mt-5 text-base font-normal leading-6 text-zinc-500">
+            <p className="mt-4 text-base font-normal leading-6 text-zinc-500">
               Sign in to continue your campaigns.
             </p>
 
@@ -140,7 +162,7 @@ export default function SignInPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="btn-sidebar-noise mx-auto mt-10 h-11 w-52 rounded-md text-sm font-semibold"
+                className="btn-sidebar-noise btn-sidebar-noise-strong mx-auto mt-10 h-11 w-52 rounded-md text-sm font-medium text-white disabled:opacity-60"
               >
                 {loading ? (
                   <>
@@ -158,7 +180,7 @@ export default function SignInPage() {
             </form>
           </div>
           <div className="absolute bottom-2 left-1/2 w-full -translate-x-1/2 px-6 text-center text-[11px] text-zinc-500">
-            Internal tool. Confidential use only. Unauthorized access is prohibited. © 2026 supernizo. All rights
+            Internal tool. Confidential use only. Unauthorized access is prohibited. (c) 2026 supernizo. All rights
             reserved.
           </div>
         </section>

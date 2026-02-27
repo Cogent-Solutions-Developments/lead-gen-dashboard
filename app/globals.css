@@ -518,6 +518,16 @@
       0 8px 16px -14px rgb(8 28 70 / 0.9),
       inset 0 1px 0 rgb(255 255 255 / 0.22);
   }
+
+  .btn-sidebar-noise-strong::before {
+    opacity: 0.34;
+    background-size: 96px 96px;
+    filter: contrast(1.18) brightness(1.04);
+  }
+
+  .btn-sidebar-noise-strong::after {
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.3) 0%, transparent 40%);
+  }
 }
 
 @layer base {
