@@ -1,5 +1,6 @@
-﻿import * as sales from "@/lib/api";
+import * as sales from "@/lib/api";
 import * as delegates from "@/lib/apidele";
+import * as production from "@/lib/apiproduction";
 import { getPersona, type Persona } from "@/lib/persona";
 
 export type {
@@ -25,8 +26,12 @@ export type {
   WhatsAppNotificationsResponse,
 } from "@/lib/api";
 
-const pickModule = (persona?: Persona) =>
-  (persona ?? getPersona()) === "delegates" ? delegates : sales;
+const pickModule = (persona?: Persona) => {
+  const selected = persona ?? getPersona();
+  if (selected === "delegates") return delegates;
+  if (selected === "production") return production;
+  return sales;
+};
 
 export const getDashboardStats: typeof sales.getDashboardStats = (...args) =>
   pickModule().getDashboardStats(...args);
