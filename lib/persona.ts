@@ -1,11 +1,11 @@
-﻿export type Persona = "sales" | "delegates";
+export type Persona = "sales" | "delegates" | "production";
 
 const STORAGE_KEY = "persona";
 
 export function getStoredPersona(): Persona | null {
   if (typeof window === "undefined") return null;
   const value = window.localStorage.getItem(STORAGE_KEY);
-  if (value === "sales" || value === "delegates") return value;
+  if (value === "sales" || value === "delegates" || value === "production") return value;
   return null;
 }
 
@@ -34,7 +34,7 @@ export function onPersonaChange(cb: (persona: Persona) => void) {
 
   const handler = (event: Event) => {
     const detail = (event as CustomEvent).detail as Persona | undefined;
-    if (detail === "sales" || detail === "delegates") {
+    if (detail === "sales" || detail === "delegates" || detail === "production") {
       cb(detail);
     } else {
       cb(getPersona());

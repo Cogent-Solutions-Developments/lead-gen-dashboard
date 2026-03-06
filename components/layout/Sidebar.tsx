@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { clearPersona } from "@/lib/persona";
+import { usePersona } from "@/hooks/usePersona";
 import { getSupabaseClient } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
@@ -31,7 +32,9 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { persona } = usePersona();
   const [rotation, setRotation] = useState(0);
+  const personaLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
 
   const handleSignOut = async () => {
     try {
@@ -195,7 +198,7 @@ export function Sidebar() {
               className="w-full justify-start gap-3 rounded-full bg-transparent px-4 py-2 text-[15px] text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-accent-foreground"
             >
               <UserRound className="h-5 w-5" />
-              <span>Change User Role</span>
+              <span>{`Current User - ${personaLabel}`}</span>
             </Button>
           </Link>
         </motion.div>
