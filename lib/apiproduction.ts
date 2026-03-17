@@ -48,6 +48,27 @@ const apiClientProduction = axios.create({
   withCredentials: true,
 });
 
+type ApiError = Error & {
+  status?: number;
+  data?: unknown;
+};
+
+function isNotFoundError(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as ApiError).status === 404;
+}
+
+async function with404Fallback<T>(
+  primary: () => Promise<T>,
+  fallback: () => Promise<T>
+): Promise<T> {
+  try {
+    return await primary();
+  } catch (error) {
+    if (!isNotFoundError(error)) throw error;
+    return fallback();
+  }
+}
+
 // Clean error messages
 apiClientProduction.interceptors.response.use(
   (res) => res,
@@ -58,7 +79,10 @@ apiClientProduction.interceptors.response.use(
           ? err.response.data
           : JSON.stringify(err.response.data)
         : err.message || "Request failed";
-    return Promise.reject(new Error(msg));
+    const wrapped = new Error(msg) as ApiError;
+    wrapped.status = err?.response?.status;
+    wrapped.data = err?.response?.data;
+    return Promise.reject(wrapped);
   }
 );
 
@@ -187,31 +211,64 @@ export async function sendAllCampaignLeads(payload: SendAllCampaignRequest) {
   const formData = new FormData();
   formData.append("file", file);
 
-  const { data } = await apiClientProduction.post<SendAllCampaignResponse>(
-    `/api/productions/campaigns/${campaignId}/send-all?${query.toString()}`,
-    formData
+  return with404Fallback(
+    async () => {
+      const { data } = await apiClientProduction.post<SendAllCampaignResponse>(
+        `/api/productions/campaigns/${campaignId}/send-all?${query.toString()}`,
+        formData
+      );
+      return data;
+    },
+    async () => {
+      const { data } = await apiClientProduction.post<SendAllCampaignResponse>(
+        `/api/campaigns/${campaignId}/send-all?${query.toString()}`,
+        formData
+      );
+      return data;
+    }
   );
-  return data;
 }
 
 export async function uploadCampaignCommonAttachment(campaignId: string, file: File | Blob) {
   const formData = new FormData();
   formData.append("file", file);
 
-  const { data } = await apiClientProduction.post<UploadCommonAttachmentResponse>(
-    `/api/productions/campaigns/${campaignId}/upload-common-attachment`,
-    formData
+  return with404Fallback(
+    async () => {
+      const { data } = await apiClientProduction.post<UploadCommonAttachmentResponse>(
+        `/api/productions/campaigns/${campaignId}/upload-common-attachment`,
+        formData
+      );
+      return data;
+    },
+    async () => {
+      const { data } = await apiClientProduction.post<UploadCommonAttachmentResponse>(
+        `/api/campaigns/${campaignId}/upload-common-attachment`,
+        formData
+      );
+      return data;
+    }
   );
-  return data;
 }
 
 export async function approveSelectedCampaignLeads(payload: ApproveSelectedLeadsRequest) {
   const { campaignId, leadIds } = payload;
-  const { data } = await apiClientProduction.post<ApproveSelectedLeadsResponse>(
-    `/api/productions/campaigns/${campaignId}/approve-selected-leads`,
-    leadIds
+  return with404Fallback(
+    async () => {
+      const { data } = await apiClientProduction.post<ApproveSelectedLeadsResponse>(
+        `/api/productions/campaigns/${campaignId}/approve-selected-leads`,
+        leadIds
+      );
+      return data;
+    },
+    async () => {
+      const { data } = await apiClientProduction.post<ApproveSelectedLeadsResponse>(
+        `/api/campaigns/${campaignId}/approve-selected-leads`,
+        leadIds
+      );
+      return data;
+    }
   );
-  return data;
 }
 
 export async function sendSelectedCampaignLeads(payload: SendSelectedLeadsRequest) {
@@ -219,11 +276,22 @@ export async function sendSelectedCampaignLeads(payload: SendSelectedLeadsReques
   const query = new URLSearchParams();
   query.set("attachment_id", attachmentId);
 
-  const { data } = await apiClientProduction.post<SendSelectedLeadsResponse>(
-    `/api/productions/campaigns/${campaignId}/send-selected-leads?${query.toString()}`,
-    leadIds
+  return with404Fallback(
+    async () => {
+      const { data } = await apiClientProduction.post<SendSelectedLeadsResponse>(
+        `/api/productions/campaigns/${campaignId}/send-selected-leads?${query.toString()}`,
+        leadIds
+      );
+      return data;
+    },
+    async () => {
+      const { data } = await apiClientProduction.post<SendSelectedLeadsResponse>(
+        `/api/campaigns/${campaignId}/send-selected-leads?${query.toString()}`,
+        leadIds
+      );
+      return data;
+    }
   );
-  return data;
 }
 
 export async function listReplyNotifications(params?: {
@@ -231,14 +299,73 @@ export async function listReplyNotifications(params?: {
   unreadOnly?: boolean;
   limit?: number;
 }) {
-  const { data } = await apiClientProduction.get<{
-    replies: ReplyNotification[];
-    total: number;
-    unread: number;
-  }>("/api/productions/messages/replies", {
-    params,
-  });
-  return data;
+  return with404Fallback(
+    async () => {
+      const { data } = await apiClientProduction.get<{
+        replies: ReplyNotification[];
+        total: number;
+        unread: number;
+      }>("/api/productions/messages/replies", {
+        params,
+      });
+      return data;
+    },
+    async () => {
+      try {
+        const { data } = await apiClientProduction.get<{
+          replies: ReplyNotification[];
+          total: number;
+          unread: number;
+        }>("/api/messages/replies", {
+          params,
+        });
+        return data;
+      } catch (error) {
+        if (!isNotFoundError(error)) throw error;
+
+        const { data } = await apiClientProduction.get<{
+          notifications?: Array<{
+            id?: string;
+            providerMessageId?: string | null;
+            fromPhone?: string | null;
+            contactName?: string | null;
+            text?: string | null;
+            receivedAt?: string;
+          }>;
+        }>("/api/whatsapp/notifications", {
+          params: {
+            limit: params?.limit,
+            unread_only: params?.unreadOnly ? true : undefined,
+          },
+        });
+
+        const replies: ReplyNotification[] = (data.notifications || []).map((n) => ({
+          id: String(n.id || ""),
+          campaignId: null,
+          messageId: n.providerMessageId || null,
+          channel: "whatsapp",
+          text: String(n.text || ""),
+          receivedAt: n.receivedAt || new Date().toISOString(),
+          isRead: false,
+          recipient: {
+            leadId: null,
+            leadName: n.contactName || null,
+            title: null,
+            company: null,
+            email: null,
+            phone: n.fromPhone || null,
+            linkedinUrl: null,
+          },
+        }));
+
+        return {
+          replies,
+          total: replies.length,
+          unread: replies.length,
+        };
+      }
+    }
+  );
 }
 
 export async function listMessageStatuses(params?: {
@@ -246,20 +373,53 @@ export async function listMessageStatuses(params?: {
   leadId?: string;
   limit?: number;
 }) {
-  const { data } = await apiClientProduction.get<{
-    statuses: MessageStatus[];
-  }>("/api/productions/messages/status", {
-    params,
-  });
-  return data;
+  return with404Fallback(
+    async () => {
+      const { data } = await apiClientProduction.get<{
+        statuses: MessageStatus[];
+      }>("/api/productions/messages/status", {
+        params,
+      });
+      return data;
+    },
+    async () => {
+      try {
+        const { data } = await apiClientProduction.get<{
+          statuses: MessageStatus[];
+        }>("/api/messages/status", {
+          params,
+        });
+        return data;
+      } catch (error) {
+        if (!isNotFoundError(error)) throw error;
+        return { statuses: [] };
+      }
+    }
+  );
 }
 
 export async function markReplyAsRead(id: string) {
-  const { data } = await apiClientProduction.put<{
-    id: string;
-    isRead: boolean;
-  }>(`/api/productions/messages/replies/${id}/read`);
-  return data;
+  return with404Fallback(
+    async () => {
+      const { data } = await apiClientProduction.put<{
+        id: string;
+        isRead: boolean;
+      }>(`/api/productions/messages/replies/${id}/read`);
+      return data;
+    },
+    async () => {
+      try {
+        const { data } = await apiClientProduction.put<{
+          id: string;
+          isRead: boolean;
+        }>(`/api/messages/replies/${id}/read`);
+        return data;
+      } catch (error) {
+        if (!isNotFoundError(error)) throw error;
+        return { id, isRead: true };
+      }
+    }
+  );
 }
 
 export const api = axios.create({
@@ -272,7 +432,15 @@ export const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const url = config.url || "";
-  if (url.startsWith("/api/") && !url.startsWith("/api/productions/")) {
+  const isSharedCommonAttachmentRoute =
+    /^\/api\/campaigns\/[^/]+\/common-attachments(?:\?.*)?$/i.test(url) ||
+    /^\/api\/campaigns\/[^/]+\/common-attachment\/[^/]+(?:\?.*)?$/i.test(url);
+
+  if (
+    url.startsWith("/api/") &&
+    !url.startsWith("/api/productions/") &&
+    !isSharedCommonAttachmentRoute
+  ) {
     config.url = url.replace(/^\/api\//, "/api/productions/");
   }
   return config;
