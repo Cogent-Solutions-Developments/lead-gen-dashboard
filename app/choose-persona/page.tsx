@@ -17,9 +17,10 @@ export default function ChoosePersonaPage() {
   const stored = getStoredPersona();
   const salesCurrent = stored === "sales" || !stored;
   const delegatesCurrent = stored === "delegates";
+  const productionCurrent = stored === "production";
   const [rotation, setRotation] = useState(0);
 
-  const selectPersona = (next: "sales" | "delegates") => {
+  const selectPersona = (next: "sales" | "delegates" | "production") => {
     setPersona(next);
     router.push("/dashboard");
   };
@@ -111,7 +112,7 @@ export default function ChoosePersonaPage() {
           </Button>
         </div>
 
-        <div className="-mt-6 w-full max-w-4xl">
+        <div className="-mt-6 w-full max-w-6xl">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -148,7 +149,7 @@ export default function ChoosePersonaPage() {
           </motion.div>
 
           <div className="w-full">
-            <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-7 md:grid-cols-2 xl:grid-cols-3">
               <div className="group relative flex h-full flex-col rounded-2xl border border-zinc-200/80 bg-white/72 p-6 shadow-[0_14px_26px_-28px_rgba(9,40,105,0.32)] transition-all duration-200 hover:border-zinc-300/90 hover:shadow-[0_20px_30px_-28px_rgba(9,40,105,0.4)]">
                 {salesCurrent && (
                   <span className="absolute right-4 top-4 flex h-4 w-4 items-center justify-center rounded-full border border-blue-500/90 bg-white shadow-[0_0_0_3px_rgba(59,130,246,0.14)]">
@@ -160,7 +161,7 @@ export default function ChoosePersonaPage() {
                 </div>
 
                 <p className="mt-4 text-sm leading-6 text-zinc-600">
-                  Core sales operations with campaign building, lead review, and outreach execution.
+                  Plan and launch revenue campaigns, prioritize high-intent accounts, and move qualified conversations into pipeline.
                 </p>
 
                 <Button
@@ -183,7 +184,7 @@ export default function ChoosePersonaPage() {
                 </div>
 
                 <p className="mt-4 text-sm leading-6 text-zinc-600">
-                  Delegate-focused access that maps to the same workflows through delegate APIs.
+                  Coordinate event and partner outreach, follow up with priority prospects, and keep stakeholder engagement on track.
                 </p>
 
                 <Button
@@ -195,13 +196,39 @@ export default function ChoosePersonaPage() {
                   <ArrowRight className="ml-1 h-4 w-4" />
                 </Button>
               </div>
+
+              <div className="group relative flex h-full flex-col rounded-2xl border border-zinc-200/80 bg-white/72 p-6 shadow-[0_14px_26px_-28px_rgba(9,40,105,0.32)] transition-all duration-200 hover:border-zinc-300/90 hover:shadow-[0_20px_30px_-28px_rgba(9,40,105,0.4)]">
+                {productionCurrent && (
+                  <span className="absolute right-4 top-4 flex h-4 w-4 items-center justify-center rounded-full border border-blue-500/90 bg-white shadow-[0_0_0_3px_rgba(59,130,246,0.14)]">
+                    <span className="h-2 w-2 rounded-full bg-[radial-gradient(circle_at_35%_30%,#93c5fd_0%,#2563eb_55%,#1d4ed8_100%)]" />
+                  </span>
+                )}
+                <div className="space-y-1">
+                  <p className="text-lg font-semibold text-zinc-900">Production Workspace</p>
+                </div>
+
+                <p className="mt-4 text-sm leading-6 text-zinc-600">
+                  Execute approved outreach at scale with controlled quality, consistent messaging, and delivery-ready operations.
+                </p>
+
+                <Button
+                  variant="outline"
+                  className="mt-8 h-10 w-full rounded-md border-zinc-200 bg-white/80 text-zinc-700 hover:bg-zinc-50"
+                  onClick={() => selectPersona("production")}
+                >
+                  Continue as Production
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="absolute bottom-8 left-6 text-sm text-zinc-500">
           Current selection:{" "}
-          <span className="font-semibold text-zinc-700">{persona === "delegates" ? "Delegates" : "Sales"}</span>
+          <span className="font-semibold text-zinc-700">
+            {persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales"}
+          </span>
         </div>
 
       </div>

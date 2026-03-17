@@ -13,7 +13,7 @@ import { usePersona } from "@/hooks/usePersona";
 
 export default function DashboardPage() {
   const { persona } = usePersona();
-  const personaLabel = persona === "delegates" ? "Delegates" : "Sales";
+  const personaLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
 
   return (
     <div className="font-sans flex h-[calc(100dvh-3rem)] flex-col overflow-y-auto bg-transparent p-1 lg:overflow-hidden">
