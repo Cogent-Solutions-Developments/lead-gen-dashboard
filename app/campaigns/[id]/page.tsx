@@ -52,7 +52,7 @@ const LinkedInIcon = ({ className }: { className?: string }) => (
 );
 
 type ApprovalStatus = "pending" | "approved" | "rejected";
-type OutreachState = "pending" | "sending" | "sent";
+type OutreachState = "pending" | "queued" | "sending" | "sent" | "failed";
 type AttachmentChannel = "email" | "whatsapp" | "common";
 type LeadFilterKey = "new" | "sent" | "rejected";
 
@@ -169,9 +169,43 @@ const GENERATED_DRAFT_STATUSES = new Set([
   "queued",
 ]);
 
-const normalizeApprovalStatus = (s: any): ApprovalStatus => {
+const normalizeApprovalStatus = (s: unknown): ApprovalStatus => {
   if (s === "content_generated" || s === "needs_review") return "pending";
   return s === "approved" || s === "rejected" || s === "pending" ? s : "pending";
+};
+
+const normalizeOutreachState = (value: unknown): OutreachState => {
+  const s = String(value || "").toLowerCase();
+  if (s === "pending" || s === "queued" || s === "sending" || s === "sent" || s === "failed") {
+    return s;
+  }
+  return "pending";
+};
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+const extractOutreachStatus = (source: unknown): Required<NonNullable<Lead["outreachStatus"]>> | undefined => {
+  const src = asRecord(source);
+  if (!src) return undefined;
+
+  const direct = asRecord(src.outreachStatus);
+  const fromDraftMeta =
+    asRecord(asRecord(asRecord(src.draft)?.meta)?.outreach) ??
+    asRecord(asRecord(src.draft_meta)?.outreach) ??
+    asRecord(asRecord(src.draftMeta)?.outreach);
+
+  const picked =
+    direct && typeof direct === "object" ? direct : fromDraftMeta && typeof fromDraftMeta === "object" ? fromDraftMeta : null;
+
+  if (!picked) return undefined;
+
+  return {
+    email: normalizeOutreachState(picked.email),
+    linkedin: normalizeOutreachState(picked.linkedin),
+    whatsapp: normalizeOutreachState(picked.whatsapp),
+  };
 };
 
 function normalizeTitleBucket(titleRaw: string): string {
@@ -231,7 +265,9 @@ const buildOutreachStatus = (lead: Lead): Required<NonNullable<Lead["outreachSta
 
   const s = String(lead.draftStatus || "").toLowerCase();
   if (s === "sent") return { email: "sent", linkedin: "sent", whatsapp: "sent" };
-  if (s === "sending") return { email: "sending", linkedin: "pending", whatsapp: "pending" };
+  if (s === "queued") return { email: "queued", linkedin: "pending", whatsapp: "queued" };
+  if (s === "sending") return { email: "sending", linkedin: "pending", whatsapp: "sending" };
+  if (s === "failed") return { email: "failed", linkedin: "pending", whatsapp: "failed" };
 
   return { email: "pending", linkedin: "pending", whatsapp: "pending" };
 };
@@ -241,6 +277,7 @@ const OutreachStatusIcons = ({ status }: { status: Required<NonNullable<Lead["ou
     if (s === "sent") return "bg-emerald-50 text-emerald-600 border-emerald-200 shadow-sm";
     if (s === "sending") return "bg-amber-50 text-amber-500 border-amber-200 animate-pulse";
     if (s === "queued") return "bg-blue-50 text-blue-500 border-blue-200 animate-pulse";
+    if (s === "failed") return "bg-rose-50 text-rose-600 border-rose-200";
 
     return "bg-zinc-50 text-zinc-300 border-zinc-100";
   };
@@ -721,7 +758,7 @@ export default function CampaignDetailPage() {
 
         draftId: x.draftId ?? null,
         draftStatus: x.draftStatus ?? null,
-        outreachStatus: x.outreachStatus ?? undefined,
+        outreachStatus: extractOutreachStatus(x),
 
         // ✅ expect backend arrays; fallback to empty
         emailAttachments: Array.isArray(x.emailAttachments) ? x.emailAttachments : [],
@@ -754,6 +791,7 @@ export default function CampaignDetailPage() {
         const res = await api.get(`/api/campaigns/${campaignId}/leads`, { params: { status: "all" } });
         const latest = (res.data.leads || []).find((x: any) => x.id === leadId);
         if (!latest) return;
+        const latestOutreachStatus = extractOutreachStatus(latest);
 
         setLeads((prev) =>
           prev.map((l) =>
@@ -762,16 +800,24 @@ export default function CampaignDetailPage() {
                 ...l,
                 approvalStatus: normalizeApprovalStatus(latest.approvalStatus ?? l.approvalStatus),
                 draftStatus: latest.draftStatus ?? l.draftStatus,
-                outreachStatus: latest.outreachStatus ?? l.outreachStatus,
+                outreachStatus: latestOutreachStatus ?? l.outreachStatus,
               }
               : l
           )
         );
 
-        const s = latest.outreachStatus;
-        if (s && s.email === "sent" && s.whatsapp === "sent") {
+        const s = latestOutreachStatus;
+        if (
+          s &&
+          (s.email === "sent" || s.email === "failed") &&
+          (s.whatsapp === "sent" || s.whatsapp === "failed")
+        ) {
           clearInterval(t);
-          toast.success("Outreach sent successfully");
+          if (s.email === "sent" && s.whatsapp === "sent") {
+            toast.success("Outreach sent successfully");
+          } else {
+            toast.error("Outreach completed with failures");
+          }
         }
 
         if (tries >= maxTries) {
