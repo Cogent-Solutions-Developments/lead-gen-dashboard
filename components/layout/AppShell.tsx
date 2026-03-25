@@ -11,6 +11,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const isChooser = pathname === "/" || pathname === "/choose-persona";
   const isAuthRoute = pathname === "/sign-in";
+  const isAgenticRoute = pathname?.startsWith("/agentic-nizo");
   const [selected, setSelected] = useState<boolean>(() => hasPersona());
   const [authChecked, setAuthChecked] = useState(false);
   const [isAuthed, setIsAuthed] = useState(false);
@@ -82,10 +83,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (!isChooser && !selected) {
+    if (!isChooser && !isAgenticRoute && !selected) {
       router.replace("/");
     }
-  }, [authChecked, isAuthed, isAuthRoute, isChooser, selected, router]);
+  }, [authChecked, isAuthed, isAuthRoute, isChooser, isAgenticRoute, selected, router]);
 
   if (!authChecked) return null;
 
@@ -94,7 +95,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <main className="min-h-screen bg-transparent">{children}</main>;
   }
 
-  if (isAuthRoute || isChooser) {
+  if (isAuthRoute || isChooser || isAgenticRoute) {
     return <main className="min-h-screen bg-transparent">{children}</main>;
   }
 

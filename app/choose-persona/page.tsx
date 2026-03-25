@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Home, LogOut, Webhook } from "lucide-react";
+import { ArrowRight, Bot, Home, LogOut, Webhook } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { usePersona } from "@/hooks/usePersona";
@@ -100,6 +100,15 @@ export default function ChoosePersonaPage() {
               aria-label="Go to dashboard"
             >
               <Home className="h-4 w-4" />
+            </Button>
+          </Link>
+          <Link href="/agentic-nizo">
+            <Button
+              variant="outline"
+              className="h-10 rounded-md border-zinc-200 bg-white/90 text-zinc-700 hover:bg-zinc-50"
+            >
+              <Bot className="mr-2 h-4 w-4 text-blue-600" />
+              Agentic Nizo
             </Button>
           </Link>
           <Button
