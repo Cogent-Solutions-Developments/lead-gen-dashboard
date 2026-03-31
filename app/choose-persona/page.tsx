@@ -107,7 +107,7 @@ export default function ChoosePersonaPage() {
               variant="outline"
               className="h-10 rounded-md border-zinc-200 bg-white/90 text-zinc-700 hover:bg-zinc-50"
             >
-              <Bot className="mr-2 h-4 w-4 text-blue-600" />
+              <Bot className="mr-2 h-4 w-4" />
               Agentic Nizo
             </Button>
           </Link>
