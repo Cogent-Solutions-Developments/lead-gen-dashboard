@@ -775,9 +775,9 @@ export default function CampaignDetailPage() {
   };
 
   // const sendDraft = async (draftId: string) => api.post(`/api/v1/drafts/${draftId}/send`);
-  const sendLead = async (leadId: string, attachmentId: string) =>
+  const sendLead = async (leadId: string, attachmentId?: string) =>
     api.post(`/api/leads/${leadId}/send`, null, {
-      params: { attachment_id: attachmentId },
+      params: attachmentId ? { attachment_id: attachmentId } : undefined,
     });
 
 
@@ -998,10 +998,6 @@ export default function CampaignDetailPage() {
       toast.error("Select at least one lead");
       return;
     }
-    if (!commonAttachmentId) {
-      toast.error("Attachment is required");
-      return;
-    }
     if (isCommonAttachmentUploading) {
       toast.error("Attachment is still uploading");
       return;
@@ -1010,7 +1006,7 @@ export default function CampaignDetailPage() {
   };
 
   const handleConfirmBulkSend = async () => {
-    if (!commonAttachmentId || selectedBulkCount === 0 || isBulkSending) return;
+    if (selectedBulkCount === 0 || isBulkSending) return;
     setIsBulkSending(true);
 
     try {
@@ -1024,7 +1020,7 @@ export default function CampaignDetailPage() {
       const data = await sendSelectedCampaignLeads({
         campaignId,
         leadIds,
-        attachmentId: commonAttachmentId,
+        attachmentId: commonAttachmentId ?? undefined,
       });
 
       toast.success("Bulk outreach queued", {
@@ -1055,11 +1051,6 @@ export default function CampaignDetailPage() {
   };
 
   const handleApprove = async (leadId: string) => {
-    if (!commonAttachmentId) {
-      toast.error("Attachment is required");
-      return;
-    }
-
     try {
       await api.put(`/api/leads/${leadId}/approve`);
 
@@ -1078,7 +1069,7 @@ export default function CampaignDetailPage() {
       toast.success("Lead approved, sending outreach...");
 
       // ✅ NEW: send by leadId (backend locates latest draft)
-      await sendLead(leadId, commonAttachmentId);
+      await sendLead(leadId, commonAttachmentId ?? undefined);
 
       startPollingLead(leadId);
     } catch (e: any) {
@@ -1202,10 +1193,6 @@ export default function CampaignDetailPage() {
   // -----------------------------
   const handleSaveAndApprove = async () => {
     if (!selectedLead) return;
-    if (!commonAttachmentId) {
-      toast.error("Attachment is required");
-      return;
-    }
 
     setSaving(true);
     const leadId = selectedLead.id;
@@ -1307,7 +1294,7 @@ export default function CampaignDetailPage() {
       // startPollingLead(leadId);
 
       // NEW: send by leadId
-      await sendLead(leadId, commonAttachmentId);
+      await sendLead(leadId, commonAttachmentId ?? undefined);
       startPollingLead(leadId);
 
     } catch (e: any) {
@@ -1440,7 +1427,7 @@ export default function CampaignDetailPage() {
             <button
               type="button"
               onClick={handleBulkSendRequest}
-              disabled={selectedBulkCount === 0 || !commonAttachmentId || isCommonAttachmentUploading || isBulkSending}
+              disabled={selectedBulkCount === 0 || isCommonAttachmentUploading || isBulkSending}
               className="px-2 py-1 text-[11px] font-semibold text-sidebar-primary transition-colors hover:text-sidebar-primary/85 disabled:cursor-not-allowed disabled:text-zinc-300"
             >
               Send Selected
