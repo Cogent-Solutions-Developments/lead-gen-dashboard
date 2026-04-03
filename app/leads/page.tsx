@@ -30,7 +30,6 @@ import { getApiKeyClient } from "@/lib/apiRouter";
 import { usePersona } from "@/hooks/usePersona";
 
 const GET_ALL_LEADS_ENDPOINT = "/api/all/leads";
-const UPLOAD_ENDPOINT = "/api/leads/uploads";
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
 
 type PresenceFilter = "all" | "yes" | "no";
@@ -522,23 +521,11 @@ export default function TotalLeads() {
 
     setUploading(true);
     try {
-      const form = new FormData();
-      selectedFiles.forEach((f) => form.append("files", f));
-
-      await api.post(UPLOAD_ENDPOINT, form);
-
-      toast.success("Uploaded", { description: `${selectedFiles.length} file(s) uploaded` });
-      setSelectedFiles([]);
-      setUploadOpen(false);
-      await fetchAllLeads();
-    } catch (e: unknown) {
-      toast.error("Upload failed", {
-        description: e instanceof Error ? e.message : "Upload request failed.",
-      });
+      toast.error("Upload endpoint is not available in the current backend.");
     } finally {
       setUploading(false);
     }
-  }, [selectedFiles, api, fetchAllLeads]);
+  }, [selectedFiles]);
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();

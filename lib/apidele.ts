@@ -48,6 +48,11 @@ const apiClientDelegate = axios.create({
   withCredentials: true,
 });
 
+type ApiError = Error & {
+  status?: number;
+  data?: unknown;
+};
+
 // Clean error messages
 apiClientDelegate.interceptors.response.use(
   (res) => res,
@@ -58,7 +63,10 @@ apiClientDelegate.interceptors.response.use(
           ? err.response.data
           : JSON.stringify(err.response.data)
         : err.message || "Request failed";
-    return Promise.reject(new Error(msg));
+    const wrapped = new Error(msg) as ApiError;
+    wrapped.status = err?.response?.status;
+    wrapped.data = err?.response?.data;
+    return Promise.reject(wrapped);
   }
 );
 
@@ -188,7 +196,7 @@ export async function sendAllCampaignLeads(payload: SendAllCampaignRequest) {
   formData.append("file", file);
 
   const { data } = await apiClientDelegate.post<SendAllCampaignResponse>(
-    `/api/delegates/campaigns/${campaignId}/send-all?${query.toString()}`,
+    `/api/campaigns/${campaignId}/send-all?${query.toString()}`,
     formData
   );
   return data;
@@ -199,7 +207,7 @@ export async function uploadCampaignCommonAttachment(campaignId: string, file: F
   formData.append("file", file);
 
   const { data } = await apiClientDelegate.post<UploadCommonAttachmentResponse>(
-    `/api/delegates/campaigns/${campaignId}/upload-common-attachment`,
+    `/api/campaigns/${campaignId}/upload-common-attachment`,
     formData
   );
   return data;
@@ -207,23 +215,29 @@ export async function uploadCampaignCommonAttachment(campaignId: string, file: F
 
 export async function approveSelectedCampaignLeads(payload: ApproveSelectedLeadsRequest) {
   const { campaignId, leadIds } = payload;
-  const { data } = await apiClientDelegate.post<ApproveSelectedLeadsResponse>(
-    `/api/delegates/campaigns/${campaignId}/approve-selected-leads`,
-    leadIds
-  );
-  return data;
+  void campaignId;
+
+  for (const leadId of leadIds) {
+    await apiClientDelegate.put(`/api/delegates/leads/${leadId}/approve`);
+  }
+
+  return {
+    message: `Approved ${leadIds.length} selected leads.`,
+  };
 }
 
 export async function sendSelectedCampaignLeads(payload: SendSelectedLeadsRequest) {
   const { campaignId, leadIds, attachmentId } = payload;
-  const query = new URLSearchParams();
-  query.set("attachment_id", attachmentId);
+  void campaignId;
+  void attachmentId;
 
-  const { data } = await apiClientDelegate.post<SendSelectedLeadsResponse>(
-    `/api/delegates/campaigns/${campaignId}/send-selected-leads?${query.toString()}`,
-    leadIds
-  );
-  return data;
+  for (const leadId of leadIds) {
+    await apiClientDelegate.post(`/api/delegates/leads/${leadId}/send`);
+  }
+
+  return {
+    message: `Queued outreach for ${leadIds.length} selected leads.`,
+  };
 }
 
 export async function listReplyNotifications(params?: {
@@ -232,13 +246,45 @@ export async function listReplyNotifications(params?: {
   limit?: number;
 }) {
   const { data } = await apiClientDelegate.get<{
-    replies: ReplyNotification[];
-    total: number;
-    unread: number;
-  }>("/api/delegates/messages/replies", {
-    params,
+    notifications?: Array<{
+      id?: string;
+      providerMessageId?: string | null;
+      fromPhone?: string | null;
+      contactName?: string | null;
+      text?: string | null;
+      receivedAt?: string;
+    }>;
+  }>("/api/whatsapp/notifications", {
+    params: {
+      limit: params?.limit,
+      unread_only: params?.unreadOnly ? true : undefined,
+    },
   });
-  return data;
+
+  const replies: ReplyNotification[] = (data.notifications || []).map((n) => ({
+    id: String(n.id || ""),
+    campaignId: null,
+    messageId: n.providerMessageId || null,
+    channel: "whatsapp",
+    text: String(n.text || ""),
+    receivedAt: n.receivedAt || new Date().toISOString(),
+    isRead: false,
+    recipient: {
+      leadId: null,
+      leadName: n.contactName || null,
+      title: null,
+      company: null,
+      email: null,
+      phone: n.fromPhone || null,
+      linkedinUrl: null,
+    },
+  }));
+
+  return {
+    replies,
+    total: replies.length,
+    unread: replies.length,
+  };
 }
 
 export async function listMessageStatuses(params?: {
@@ -246,20 +292,12 @@ export async function listMessageStatuses(params?: {
   leadId?: string;
   limit?: number;
 }) {
-  const { data } = await apiClientDelegate.get<{
-    statuses: MessageStatus[];
-  }>("/api/delegates/messages/status", {
-    params,
-  });
-  return data;
+  void params;
+  return { statuses: [] as MessageStatus[] };
 }
 
 export async function markReplyAsRead(id: string) {
-  const { data } = await apiClientDelegate.put<{
-    id: string;
-    isRead: boolean;
-  }>(`/api/delegates/messages/replies/${id}/read`);
-  return data;
+  return { id, isRead: true };
 }
 
 export const api = axios.create({
@@ -272,7 +310,16 @@ export const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const url = config.url || "";
-  if (url.startsWith("/api/") && !url.startsWith("/api/delegates/")) {
+  const isSharedSalesCampaignRoute =
+    /^\/api\/campaigns\/[^/]+\/(?:send-all|upload-common-attachment|approve-selected-leads|send-selected-leads|common-attachments|common-attachment\/[^/]+)(?:\?.*)?$/i.test(
+      url
+    );
+
+  if (
+    url.startsWith("/api/") &&
+    !url.startsWith("/api/delegates/") &&
+    !isSharedSalesCampaignRoute
+  ) {
     config.url = url.replace(/^\/api\//, "/api/delegates/");
   }
   return config;

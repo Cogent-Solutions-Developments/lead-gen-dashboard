@@ -108,7 +108,7 @@ export type ApproveSelectedLeadsResponse = {
 export type SendSelectedLeadsRequest = {
   campaignId: string;
   leadIds: string[];
-  attachmentId: string;
+  attachmentId?: string;
 };
 
 export type SendSelectedLeadsResponse = {
@@ -377,10 +377,11 @@ export async function approveSelectedCampaignLeads(payload: ApproveSelectedLeads
 export async function sendSelectedCampaignLeads(payload: SendSelectedLeadsRequest) {
   const { campaignId, leadIds, attachmentId } = payload;
   const query = new URLSearchParams();
-  query.set("attachment_id", attachmentId);
+  if (attachmentId) query.set("attachment_id", attachmentId);
+  const queryText = query.toString();
 
   const { data } = await apiClient.post<SendSelectedLeadsResponse>(
-    `/api/campaigns/${campaignId}/send-selected-leads?${query.toString()}`,
+    `/api/campaigns/${campaignId}/send-selected-leads${queryText ? `?${queryText}` : ""}`,
     leadIds
   );
   return data;
@@ -392,13 +393,45 @@ export async function listReplyNotifications(params?: {
   limit?: number;
 }) {
   const { data } = await apiClient.get<{
-    replies: ReplyNotification[];
-    total: number;
-    unread: number;
-  }>("/api/messages/replies", {
-    params,
+    notifications?: Array<{
+      id?: string;
+      providerMessageId?: string | null;
+      fromPhone?: string | null;
+      contactName?: string | null;
+      text?: string | null;
+      receivedAt?: string;
+    }>;
+  }>("/api/whatsapp/notifications", {
+    params: {
+      limit: params?.limit,
+      unread_only: params?.unreadOnly ? true : undefined,
+    },
   });
-  return data;
+
+  const replies: ReplyNotification[] = (data.notifications || []).map((n) => ({
+    id: String(n.id || ""),
+    campaignId: null,
+    messageId: n.providerMessageId || null,
+    channel: "whatsapp",
+    text: String(n.text || ""),
+    receivedAt: n.receivedAt || new Date().toISOString(),
+    isRead: false,
+    recipient: {
+      leadId: null,
+      leadName: n.contactName || null,
+      title: null,
+      company: null,
+      email: null,
+      phone: n.fromPhone || null,
+      linkedinUrl: null,
+    },
+  }));
+
+  return {
+    replies,
+    total: replies.length,
+    unread: replies.length,
+  };
 }
 
 export async function listMessageStatuses(params?: {
@@ -406,20 +439,12 @@ export async function listMessageStatuses(params?: {
   leadId?: string;
   limit?: number;
 }) {
-  const { data } = await apiClient.get<{
-    statuses: MessageStatus[];
-  }>("/api/messages/status", {
-    params,
-  });
-  return data;
+  void params;
+  return { statuses: [] as MessageStatus[] };
 }
 
 export async function markReplyAsRead(id: string) {
-  const { data } = await apiClient.put<{
-    id: string;
-    isRead: boolean;
-  }>(`/api/messages/replies/${id}/read`);
-  return data;
+  return { id, isRead: true };
 }
 
 // Backend contract:
