@@ -345,8 +345,11 @@ function deriveContactState(source: Record<string, unknown>): ContactState {
   return "unknown";
 }
 
-function isContactedState(state: ContactState) {
-  return state === "whatsapp" || state === "email" || state === "both";
+function getSentChannelState(state: ContactState) {
+  return {
+    whatsapp: state === "whatsapp" || state === "both",
+    email: state === "email" || state === "both",
+  };
 }
 
 function formatEventLabel(raw: string) {
@@ -1131,7 +1134,7 @@ export default function TotalLeads() {
                 </tr>
               ) : (
                 paginatedLeads.map((item) => {
-                  const contacted = isContactedState(item.contactState);
+                  const sentChannels = getSentChannelState(item.contactState);
 
                   return (
                     <tr key={item.id} className="group transition-colors hover:bg-white/46">
@@ -1174,11 +1177,16 @@ export default function TotalLeads() {
                     </td>
 
                     <td className="px-3 py-3 align-top">
-                      <div className="flex items-center">
+                      <div className="flex items-center gap-2">
                         <span
-                          className={`inline-block h-3 w-3 rounded-full ${contacted ? "bg-emerald-500" : "bg-zinc-300"}`}
-                          title={contacted ? "Contacted" : "Not contacted"}
-                          aria-label={contacted ? "Contacted" : "Not contacted"}
+                          className={`inline-block h-3 w-3 rounded-full ${sentChannels.whatsapp ? "bg-emerald-500" : "bg-zinc-300"}`}
+                          title={sentChannels.whatsapp ? "WhatsApp sent" : "WhatsApp not sent"}
+                          aria-label={sentChannels.whatsapp ? "WhatsApp sent" : "WhatsApp not sent"}
+                        />
+                        <span
+                          className={`inline-block h-3 w-3 rounded-full ${sentChannels.email ? "bg-blue-500" : "bg-zinc-300"}`}
+                          title={sentChannels.email ? "Email sent" : "Email not sent"}
+                          aria-label={sentChannels.email ? "Email sent" : "Email not sent"}
                         />
                       </div>
                     </td>
