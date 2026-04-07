@@ -41,6 +41,10 @@ type SortBy =
   | "company_desc"
   | "event_asc"
   | "position_asc";
+type ContactState = "whatsapp" | "email" | "both" | "in_progress" | "not_contacted" | "unknown";
+type DeliverySignal = "sent" | "in_progress" | "not_contacted";
+type ApprovalStatus = "pending" | "approved" | "rejected";
+type OutreachState = "pending" | "queued" | "sending" | "sent" | "failed";
 
 interface Lead {
   id: string;
@@ -52,6 +56,7 @@ interface Lead {
   phone: string;
   linkedinUrl: string;
   companyUrl: string;
+  contactState: ContactState;
 }
 
 const LinkedInIcon = ({ className }: { className?: string }) => (
@@ -70,8 +75,278 @@ function hasValue(value: string) {
   return value.trim().length > 0;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function normalizeLookupText(value: string) {
+  return value.trim().toLowerCase().replaceAll(/\s+/g, " ");
+}
+
+function normalizeLookupPhone(value: string) {
+  return value.replaceAll(/\D+/g, "");
+}
+
+function buildLookupKeys(source: Record<string, unknown>) {
+  const id = asText(source.id).trim();
+  const name = normalizeLookupText(asText(source.employeeName) || asText(source.employee_name));
+  const company = normalizeLookupText(asText(source.company) || asText(source.companyName));
+  const email = normalizeLookupText(asText(source.email));
+  const phone = normalizeLookupPhone(asText(source.phone));
+  const keys = new Set<string>();
+
+  if (id) keys.add(`id:${id}`);
+  if (name && email) keys.add(`name_email:${name}|${email}`);
+  if (name && phone) keys.add(`name_phone:${name}|${phone}`);
+  if (name && company && email) keys.add(`name_company_email:${name}|${company}|${email}`);
+  if (name && company && phone) keys.add(`name_company_phone:${name}|${company}|${phone}`);
+
+  return Array.from(keys);
+}
+
+const CONTACT_STATE_SCORE: Record<ContactState, number> = {
+  unknown: 0,
+  not_contacted: 1,
+  in_progress: 2,
+  email: 3,
+  whatsapp: 3,
+  both: 4,
+};
+
+function pickBetterContactState(current: ContactState, next: ContactState) {
+  return CONTACT_STATE_SCORE[next] > CONTACT_STATE_SCORE[current] ? next : current;
+}
+
+function normalizeApprovalStatus(value: unknown): ApprovalStatus {
+  const v = String(value || "").toLowerCase();
+  if (v === "approved") return "approved";
+  if (v === "rejected") return "rejected";
+  if (v === "content_generated" || v === "needs_review") return "pending";
+  return "pending";
+}
+
+function normalizeOutreachState(value: unknown): OutreachState {
+  const v = String(value || "").toLowerCase();
+  if (v === "pending" || v === "queued" || v === "sending" || v === "sent" || v === "failed") return v;
+  return "pending";
+}
+
+function extractOutreachStatus(source: Record<string, unknown>) {
+  const direct = asRecord(source.outreachStatus);
+  const fromDraftMeta =
+    asRecord(asRecord(asRecord(source.draft)?.meta)?.outreach) ??
+    asRecord(asRecord(source.draft_meta)?.outreach) ??
+    asRecord(asRecord(source.draftMeta)?.outreach);
+
+  const picked = direct ?? fromDraftMeta;
+  if (!picked) return null;
+
+  return {
+    email: normalizeOutreachState(picked.email),
+    linkedin: normalizeOutreachState(picked.linkedin),
+    whatsapp: normalizeOutreachState(picked.whatsapp),
+  };
+}
+
+function buildOutreachStatus(source: Record<string, unknown>) {
+  const extracted = extractOutreachStatus(source);
+  if (extracted) return extracted;
+
+  const draftStatus = String(source.draftStatus || source.draft_status || "").toLowerCase();
+  if (draftStatus === "sent") return { email: "sent", linkedin: "sent", whatsapp: "sent" } as const;
+  if (draftStatus === "queued") return { email: "queued", linkedin: "pending", whatsapp: "queued" } as const;
+  if (draftStatus === "sending") return { email: "sending", linkedin: "pending", whatsapp: "sending" } as const;
+  if (draftStatus === "failed") return { email: "failed", linkedin: "pending", whatsapp: "failed" } as const;
+  return { email: "pending", linkedin: "pending", whatsapp: "pending" } as const;
+}
+
+function deriveContactStateFromCampaignLead(source: Record<string, unknown>): ContactState {
+  const approval = normalizeApprovalStatus(source.approvalStatus);
+  const outreach = buildOutreachStatus(source);
+
+  if (outreach.email === "sent" && outreach.whatsapp === "sent") return "both";
+  if (outreach.whatsapp === "sent") return "whatsapp";
+  if (outreach.email === "sent") return "email";
+  if (outreach.email === "queued" || outreach.email === "sending" || outreach.whatsapp === "queued" || outreach.whatsapp === "sending") {
+    return "in_progress";
+  }
+
+  // Keep parity with campaign detail tab logic: approved leads are in the "Sent" bucket.
+  if (approval === "approved") return "both";
+  if (approval === "rejected" || approval === "pending") return "not_contacted";
+  return "unknown";
+}
+
+function parseBooleanFlag(value: unknown): boolean | null {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") {
+    if (value === 1) return true;
+    if (value === 0) return false;
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return null;
+    if (["1", "true", "yes", "y"].includes(normalized)) return true;
+    if (["0", "false", "no", "n"].includes(normalized)) return false;
+  }
+  return null;
+}
+
 function normalizePhone(value: string) {
   return value.toLowerCase().replaceAll(/\s+/g, "").replaceAll(/[()-]/g, "");
+}
+
+function classifyDeliverySignalText(value: unknown): DeliverySignal | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase().replaceAll(/[\s-]+/g, "_");
+  if (!normalized) return null;
+
+  if (/\b(uncontacted|not_contacted|failed|error|bounced|rejected|draft|needs_review|pending|new)\b/.test(normalized)) {
+    return "not_contacted";
+  }
+  if (/\b(queued|sending|in_progress|processing|dispatching|retrying)\b/.test(normalized)) {
+    return "in_progress";
+  }
+  if (/\b(sent|delivered|replied|contacted|connected|responded|opened)\b/.test(normalized)) {
+    return "sent";
+  }
+
+  return null;
+}
+
+function strongestSignal(values: Array<DeliverySignal | null>): DeliverySignal | null {
+  if (values.includes("sent")) return "sent";
+  if (values.includes("in_progress")) return "in_progress";
+  if (values.includes("not_contacted")) return "not_contacted";
+  return null;
+}
+
+function signalFromUnknown(value: unknown): DeliverySignal | null {
+  const obj = asRecord(value);
+  if (!obj) return classifyDeliverySignalText(value);
+
+  const signals: Array<DeliverySignal | null> = [classifyDeliverySignalText(value), classifyDeliverySignalText(obj.status)];
+  for (const inner of Object.values(obj)) {
+    signals.push(classifyDeliverySignalText(inner));
+    const innerObj = asRecord(inner);
+    if (innerObj) signals.push(classifyDeliverySignalText(innerObj.status));
+  }
+  return strongestSignal(signals);
+}
+
+function deriveContactState(source: Record<string, unknown>): ContactState {
+  let emailSignal: DeliverySignal | null = null;
+  let whatsappSignal: DeliverySignal | null = null;
+
+  const markEmail = (value: unknown) => {
+    emailSignal = strongestSignal([emailSignal, signalFromUnknown(value)]);
+  };
+
+  const markWhatsapp = (value: unknown) => {
+    whatsappSignal = strongestSignal([whatsappSignal, signalFromUnknown(value)]);
+  };
+
+  const ingestOutreachLike = (value: unknown) => {
+    const obj = asRecord(value);
+    if (!obj) return;
+
+    markEmail(obj.email);
+    markEmail(obj.emailStatus);
+    markEmail(obj.email_status);
+
+    markWhatsapp(obj.whatsapp);
+    markWhatsapp(obj.whatsappStatus);
+    markWhatsapp(obj.whatsapp_status);
+    markWhatsapp(obj.wa);
+  };
+
+  ingestOutreachLike(source.outreachStatus);
+  ingestOutreachLike(source.outreach_status);
+
+  const draft = asRecord(source.draft);
+  const draftMeta = asRecord(draft?.meta);
+  const draftMetaLegacy = asRecord(source.draft_meta);
+  const draftMetaCamel = asRecord(source.draftMeta);
+  ingestOutreachLike(draftMeta?.outreach);
+  ingestOutreachLike(draftMetaLegacy?.outreach);
+  ingestOutreachLike(draftMetaCamel?.outreach);
+
+  markEmail(source.emailStatus);
+  markEmail(source.email_status);
+  markWhatsapp(source.whatsappStatus);
+  markWhatsapp(source.whatsapp_status);
+  markWhatsapp(source.waStatus);
+  markWhatsapp(source.wa_status);
+
+  if (whatsappSignal === "sent" && emailSignal === "sent") return "both";
+  if (whatsappSignal === "sent") return "whatsapp";
+  if (emailSignal === "sent") return "email";
+  if (whatsappSignal === "in_progress" || emailSignal === "in_progress") return "in_progress";
+
+  const boolKeys = [
+    "contacted",
+    "isContacted",
+    "is_contacted",
+    "alreadyContacted",
+    "already_contacted",
+    "connected",
+    "isConnected",
+    "is_connected",
+    "wasContacted",
+    "was_contacted",
+    "hasBeenContacted",
+    "has_been_contacted",
+  ] as const;
+  for (const key of boolKeys) {
+    if (!(key in source)) continue;
+    const parsed = parseBooleanFlag(source[key]);
+    if (parsed === true) return "both";
+    if (parsed === false) return "not_contacted";
+  }
+
+  const emailTimestampKeys = [
+    "emailSentAt",
+    "email_sent_at",
+    "lastEmailSentAt",
+    "last_email_sent_at",
+  ] as const;
+  const whatsappTimestampKeys = [
+    "whatsappSentAt",
+    "whatsapp_sent_at",
+    "waSentAt",
+    "wa_sent_at",
+    "lastWhatsappMessageAt",
+    "last_whatsapp_message_at",
+  ] as const;
+  const hasEmailTimestamp = emailTimestampKeys.some((key) => hasValue(asText(source[key])));
+  const hasWhatsappTimestamp = whatsappTimestampKeys.some((key) => hasValue(asText(source[key])));
+  if (hasEmailTimestamp && hasWhatsappTimestamp) return "both";
+  if (hasWhatsappTimestamp) return "whatsapp";
+  if (hasEmailTimestamp) return "email";
+
+  const directStatusKeys = [
+    "contactStatus",
+    "contact_status",
+    "connectionStatus",
+    "connection_status",
+    "leadStatus",
+    "lead_status",
+    "deliveryStatus",
+    "delivery_status",
+    "messageStatus",
+    "message_status",
+    "draftStatus",
+    "draft_status",
+  ] as const;
+  const genericSignal = strongestSignal(directStatusKeys.map((key) => signalFromUnknown(source[key])));
+  if (genericSignal === "sent") return "both";
+  if (genericSignal === "in_progress") return "in_progress";
+  if (genericSignal === "not_contacted") return "not_contacted";
+  return "unknown";
+}
+
+function isContactedState(state: ContactState) {
+  return state === "whatsapp" || state === "email" || state === "both";
 }
 
 function formatEventLabel(raw: string) {
@@ -235,6 +510,56 @@ export default function TotalLeads() {
   const [dragOver, setDragOver] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const activeStatusSyncRef = useRef(0);
+
+  const fetchCampaignLeadStatusMap = useCallback(async () => {
+    const lookup = new Map<string, ContactState>();
+
+    const campaignIds: string[] = [];
+    let offset = 0;
+    let hasMore = true;
+    const limit = 100;
+
+    while (hasMore) {
+      const res = await api.get("/api/campaigns", { params: { status: "all", limit, offset } });
+      const rows = Array.isArray(res.data?.campaigns) ? (res.data.campaigns as Array<Record<string, unknown>>) : [];
+
+      for (const row of rows) {
+        const id = asText(row.id).trim();
+        if (id) campaignIds.push(id);
+      }
+
+      hasMore = Boolean(res.data?.hasMore) && rows.length > 0;
+      offset += limit;
+      if (offset >= 5000) break;
+    }
+
+    const uniqueCampaignIds = Array.from(new Set(campaignIds));
+    const chunkSize = 6;
+
+    for (let i = 0; i < uniqueCampaignIds.length; i += chunkSize) {
+      const chunk = uniqueCampaignIds.slice(i, i + chunkSize);
+      const chunkResponses = await Promise.all(
+        chunk.map((campaignId) =>
+          api.get(`/api/campaigns/${campaignId}/leads`, { params: { status: "all" } }).catch(() => null)
+        )
+      );
+
+      for (const response of chunkResponses) {
+        const rows = Array.isArray(response?.data?.leads) ? (response?.data?.leads as Array<Record<string, unknown>>) : [];
+        for (const row of rows) {
+          const state = deriveContactStateFromCampaignLead(row);
+          const keys = buildLookupKeys(row);
+          for (const key of keys) {
+            const prev = lookup.get(key) ?? "unknown";
+            lookup.set(key, pickBetterContactState(prev, state));
+          }
+        }
+      }
+    }
+
+    return lookup;
+  }, [api]);
 
   const clearAdvancedFilters = useCallback(() => {
     setNameFilter("");
@@ -258,6 +583,8 @@ export default function TotalLeads() {
   }, [clearAdvancedFilters]);
 
   const fetchAllLeads = useCallback(async () => {
+    const syncRun = Date.now();
+    activeStatusSyncRef.current = syncRun;
     setLoading(true);
     try {
       const res = await api.get(GET_ALL_LEADS_ENDPOINT);
@@ -279,9 +606,41 @@ export default function TotalLeads() {
         phone: asText(x.phone),
         linkedinUrl: asText(x.linkedinUrl) || asText(x.linkedin_url),
         companyUrl: asText(x.companyUrl) || asText(x.company_url),
+        contactState: deriveContactState(x),
       }));
 
       setLeads(mapped);
+
+      void (async () => {
+        try {
+          const lookup = await fetchCampaignLeadStatusMap();
+          if (activeStatusSyncRef.current !== syncRun) return;
+          if (lookup.size === 0) return;
+
+          setLeads((prev) =>
+            prev.map((lead) => {
+              const keys = buildLookupKeys({
+                id: lead.id,
+                employeeName: lead.employeeName,
+                company: lead.company,
+                email: lead.email,
+                phone: lead.phone,
+              });
+
+              let nextState = lead.contactState;
+              for (const key of keys) {
+                const mappedState = lookup.get(key);
+                if (!mappedState) continue;
+                nextState = pickBetterContactState(nextState, mappedState);
+              }
+
+              return nextState === lead.contactState ? lead : { ...lead, contactState: nextState };
+            })
+          );
+        } catch {
+          // Non-blocking: keep base rows even if status enrichment fails.
+        }
+      })();
     } catch (e: unknown) {
       toast.error("Failed to load leads", {
         description: e instanceof Error ? e.message : "Could not fetch leads.",
@@ -289,7 +648,7 @@ export default function TotalLeads() {
     } finally {
       setLoading(false);
     }
-  }, [api]);
+  }, [api, fetchCampaignLeadStatusMap]);
 
   useEffect(() => {
     void fetchAllLeads();
@@ -748,7 +1107,7 @@ export default function TotalLeads() {
         </div>
 
         <div className="relative z-[1] overflow-x-auto px-4 pb-2 pt-2">
-          <table className="min-w-[1100px] w-full">
+          <table className="min-w-[1180px] w-full">
             <thead className="border-b border-zinc-100/85 bg-white/70">
               <tr>
                 <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Event</th>
@@ -757,6 +1116,7 @@ export default function TotalLeads() {
                 <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Company</th>
                 <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Email</th>
                 <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Phone</th>
+                <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Sent</th>
                 <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Links</th>
                 <th className="px-3 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-zinc-400">Actions</th>
               </tr>
@@ -765,13 +1125,16 @@ export default function TotalLeads() {
             <tbody className="divide-y divide-zinc-100/70">
               {paginatedLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-sm text-zinc-500">
+                  <td colSpan={9} className="px-6 py-12 text-center text-sm text-zinc-500">
                     No leads match the current filter combination.
                   </td>
                 </tr>
               ) : (
-                paginatedLeads.map((item) => (
-                  <tr key={item.id} className="group transition-colors hover:bg-white/46">
+                paginatedLeads.map((item) => {
+                  const contacted = isContactedState(item.contactState);
+
+                  return (
+                    <tr key={item.id} className="group transition-colors hover:bg-white/46">
                     <td className="px-3 py-3 align-top">
                       <span className="line-clamp-2 text-sm text-zinc-700">
                         {item.eventName ? formatEventLabel(item.eventName) : "-"}
@@ -811,6 +1174,16 @@ export default function TotalLeads() {
                     </td>
 
                     <td className="px-3 py-3 align-top">
+                      <div className="flex items-center">
+                        <span
+                          className={`inline-block h-3 w-3 rounded-full ${contacted ? "bg-emerald-500" : "bg-zinc-300"}`}
+                          title={contacted ? "Contacted" : "Not contacted"}
+                          aria-label={contacted ? "Contacted" : "Not contacted"}
+                        />
+                      </div>
+                    </td>
+
+                    <td className="px-3 py-3 align-top">
                       <div className="flex items-center gap-3">
                         {item.linkedinUrl ? (
                           <a href={item.linkedinUrl} target="_blank" rel="noreferrer" className="text-zinc-400 transition-colors hover:text-zinc-900" title="LinkedIn">
@@ -846,8 +1219,9 @@ export default function TotalLeads() {
                         <Copy className="h-3.5 w-3.5" />
                       </Button>
                     </td>
-                  </tr>
-                ))
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -1025,4 +1399,3 @@ export default function TotalLeads() {
     </div>
   );
 }
-
