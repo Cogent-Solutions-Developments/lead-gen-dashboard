@@ -13,7 +13,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Mail,
-  MessageCircle,
   CheckCircle,
   Clock,
   XCircle,
@@ -273,23 +272,21 @@ const buildOutreachStatus = (lead: Lead): Required<NonNullable<Lead["outreachSta
 };
 
 const OutreachStatusIcons = ({ status }: { status: Required<NonNullable<Lead["outreachStatus"]>> }) => {
-  const getStyle = (s: string) => {
-    if (s === "sent") return "bg-emerald-50 text-emerald-600 border-emerald-200 shadow-sm";
-    if (s === "sending") return "bg-amber-50 text-amber-500 border-amber-200 animate-pulse";
-    if (s === "queued") return "bg-blue-50 text-blue-500 border-blue-200 animate-pulse";
-    if (s === "failed") return "bg-rose-50 text-rose-600 border-rose-200";
-
-    return "bg-zinc-50 text-zinc-300 border-zinc-100";
-  };
+  const whatsappSent = status.whatsapp === "sent";
+  const emailSent = status.email === "sent";
 
   return (
-    <div className="flex items-center justify-end gap-1.5">
-      <div className={`flex h-6 w-6 items-center justify-center rounded-full border transition-all duration-500 ${getStyle(status.email)}`} title="Email">
-        <Mail className="h-3 w-3" />
-      </div>
-      <div className={`flex h-6 w-6 items-center justify-center rounded-full border transition-all duration-500 delay-150 ${getStyle(status.whatsapp)}`} title="WhatsApp">
-        <MessageCircle className="h-3 w-3" />
-      </div>
+    <div className="flex items-center justify-center gap-2" title="Sent status">
+      <span
+        className={`inline-block h-3 w-3 rounded-full ${whatsappSent ? "bg-emerald-500" : "bg-zinc-300"}`}
+        title={whatsappSent ? "WhatsApp sent" : "WhatsApp not sent"}
+        aria-label={whatsappSent ? "WhatsApp sent" : "WhatsApp not sent"}
+      />
+      <span
+        className={`inline-block h-3 w-3 rounded-full ${emailSent ? "bg-blue-500" : "bg-zinc-300"}`}
+        title={emailSent ? "Email sent" : "Email not sent"}
+        aria-label={emailSent ? "Email sent" : "Email not sent"}
+      />
     </div>
   );
 };
@@ -1634,6 +1631,7 @@ export default function CampaignDetailPage() {
                 <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Contact Info</th>
                 <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Content</th>
                 <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Status</th>
+                <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-zinc-400">Sent</th>
                 <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-zinc-400">Quick Actions</th>
               </tr>
             </thead>
@@ -1641,7 +1639,7 @@ export default function CampaignDetailPage() {
             <tbody className="divide-y divide-zinc-100/70">
               {paginatedLeads.length === 0 && (
                 <tr>
-                  <td colSpan={bulkSelectMode ? 6 : 5} className="px-6 py-10 text-center text-sm text-zinc-500">
+                  <td colSpan={bulkSelectMode ? 7 : 6} className="px-6 py-10 text-center text-sm text-zinc-500">
                     No {activeFilterLabel.toLowerCase()} leads found.
                   </td>
                 </tr>
@@ -1718,6 +1716,10 @@ export default function CampaignDetailPage() {
                       </Badge>
                     </td>
 
+                    <td className="px-4 py-3.5">
+                      <OutreachStatusIcons status={buildOutreachStatus(item)} />
+                    </td>
+
                     <td className="px-4 py-3.5 text-right">
                       <div className="flex min-w-[152px] justify-end gap-2">
                         <Button
@@ -1749,9 +1751,7 @@ export default function CampaignDetailPage() {
                           </>
                         ) : item.approvalStatus === "rejected" ? (
                           <span className="text-xs italic text-zinc-400">Rejected</span>
-                        ) : (
-                          <OutreachStatusIcons status={buildOutreachStatus(item)} />
-                        )}
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -2047,5 +2047,3 @@ export default function CampaignDetailPage() {
     </div>
   );
 }
-
-
