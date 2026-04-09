@@ -21,6 +21,9 @@ import type {
   SendAllCampaignResponse,
   UploadCampaignRequest,
   UploadCampaignResponse,
+  ListWhatsAppOptOutsResponse,
+  UploadWhatsAppOptOutCsvResponse,
+  DisableLeadWhatsAppResponse,
 } from "./api";
 
 export type {
@@ -45,6 +48,9 @@ export type {
   SendAllCampaignResponse,
   UploadCampaignRequest,
   UploadCampaignResponse,
+  ListWhatsAppOptOutsResponse,
+  UploadWhatsAppOptOutCsvResponse,
+  DisableLeadWhatsAppResponse,
 };
 
 const apiClientDelegate = axios.create({
@@ -264,6 +270,47 @@ export async function sendSelectedCampaignLeads(payload: SendSelectedLeadsReques
   return {
     message: `Queued outreach for ${leadIds.length} selected leads.`,
   };
+}
+
+export async function listWhatsAppOptOuts(params?: {
+  limit?: number;
+  activeOnly?: boolean;
+}) {
+  const { data } = await apiClientDelegate.get<ListWhatsAppOptOutsResponse>(
+    "/api/marketing/opt-outs",
+    {
+      params: {
+        limit: params?.limit,
+        active_only:
+          typeof params?.activeOnly === "boolean"
+            ? params.activeOnly
+            : undefined,
+      },
+    }
+  );
+  return data;
+}
+
+export async function uploadWhatsAppOptOutCsv(file: File | Blob) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const { data } = await apiClientDelegate.post<UploadWhatsAppOptOutCsvResponse>(
+    "/api/marketing/opt-outs/upload",
+    formData
+  );
+  return data;
+}
+
+export async function disableLeadWhatsApp(leadId: string, reason?: string) {
+  const { data } = await apiClientDelegate.post<DisableLeadWhatsAppResponse>(
+    `/api/leads/${leadId}/marketing/disable`,
+    null,
+    {
+      params: reason?.trim() ? { reason: reason.trim() } : undefined,
+    }
+  );
+  return data;
 }
 
 export async function listReplyNotifications(params?: {
