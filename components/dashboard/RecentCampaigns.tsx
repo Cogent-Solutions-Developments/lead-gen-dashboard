@@ -142,7 +142,7 @@ export function RecentCampaigns() {
                     <h4 className="truncate pr-4 font-medium text-zinc-900">{c.name}</h4>
                     <p className="text-xs text-zinc-500">
                       <span className="font-medium text-zinc-700">{c.leadsCount}</span>{" "}
-                      leads generated
+                      leads in campaign
                     </p>
                   </div>
                 </div>

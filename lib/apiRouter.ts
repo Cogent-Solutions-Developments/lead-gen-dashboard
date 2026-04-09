@@ -4,10 +4,13 @@ import * as production from "@/lib/apiproduction";
 import { getPersona, type Persona } from "@/lib/persona";
 
 export type {
+  CampaignImportSummary,
   CampaignInfo,
   CampaignInfoResponse,
   CampaignDetail,
   CampaignListItem,
+  CreateCampaignRequest,
+  CreateCampaignResponse,
   DashboardStats,
   LeadItem,
   MessageStatus,
@@ -17,6 +20,8 @@ export type {
   SendAllCampaignRequest,
   SendAllCampaignResponse,
   UploadCommonAttachmentResponse,
+  UploadCampaignRequest,
+  UploadCampaignResponse,
   ApproveSelectedLeadsRequest,
   ApproveSelectedLeadsResponse,
   SendSelectedLeadsRequest,
@@ -47,6 +52,9 @@ export const listCampaigns: typeof sales.listCampaigns = (...args) =>
 
 export const createCampaign: typeof sales.createCampaign = (...args) =>
   pickModule().createCampaign(...args);
+
+export const createCampaignFromUpload: typeof sales.createCampaignFromUpload = (...args) =>
+  pickModule().createCampaignFromUpload(...args);
 
 export const getCampaign: typeof sales.getCampaign = (...args) =>
   pickModule().getCampaign(...args);

@@ -35,10 +35,12 @@ import { toast } from "sonner";
 import { useParams } from "next/navigation";
 import {
   approveSelectedCampaignLeads,
+  type CampaignImportSummary,
   getApiKeyClient,
   sendSelectedCampaignLeads,
   uploadCampaignCommonAttachment,
 } from "@/lib/apiRouter";
+import { consumeCampaignUploadSummary } from "@/lib/campaignUploadSummary";
 import { usePersona } from "@/hooks/usePersona";
 
 // -----------------------------
@@ -388,6 +390,10 @@ function buildLeadClipboardText(lead: Lead) {
   return rows.join("\n");
 }
 
+function formatImportSummaryToast(summary: CampaignImportSummary) {
+  return `${summary.importedLeads} leads imported from ${summary.fileName}.`;
+}
+
 const AttachmentSection = ({
   title,
   subtitle,
@@ -574,6 +580,7 @@ export default function CampaignDetailPage() {
   const [isBulkSending, setIsBulkSending] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(15);
+  const [uploadImportSummary, setUploadImportSummary] = useState<CampaignImportSummary | null>(null);
 
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [editForm, setEditForm] = useState<Partial<Lead>>({});
@@ -832,6 +839,18 @@ export default function CampaignDetailPage() {
     fetchAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaignId, persona]);
+
+  useEffect(() => {
+    if (!campaignId) return;
+
+    const summary = consumeCampaignUploadSummary(campaignId);
+    setUploadImportSummary(summary);
+    if (!summary) return;
+
+    toast.success("Lead sheet imported", {
+      description: formatImportSummaryToast(summary),
+    });
+  }, [campaignId]);
 
   useEffect(() => {
     if (selectedLead) {
@@ -1384,6 +1403,54 @@ export default function CampaignDetailPage() {
           </Card>
         </div>
       </div>
+
+      {uploadImportSummary ? (
+        <Card className="relative mt-3 overflow-hidden rounded-2xl border border-emerald-200/80 bg-[linear-gradient(160deg,rgba(236,253,245,0.92)_0%,rgba(255,255,255,0.92)_60%,rgba(240,253,250,0.84)_100%)] p-5 shadow-[0_16px_28px_-24px_rgba(5,150,105,0.68)]">
+          <div className="pointer-events-none absolute -right-12 -top-12 h-28 w-28 rounded-full bg-emerald-200/45 blur-3xl" />
+          <div className="relative z-[1]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700/80">
+                  Lead Sheet Imported
+                </p>
+                <h2 className="mt-1 text-lg font-semibold tracking-tight text-zinc-900">
+                  Campaign is ready for review
+                </h2>
+                <p className="mt-1 text-sm text-zinc-600">
+                  Imported from <span className="font-semibold text-zinc-900">{uploadImportSummary.fileName}</span>.
+                  Uploaded campaigns use only CSV leads for approval and outreach.
+                </p>
+              </div>
+
+              <Badge className="w-fit rounded-full border border-emerald-200/90 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 shadow-none">
+                Review Ready
+              </Badge>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              {[
+                { label: "Imported Leads", value: uploadImportSummary.importedLeads },
+                { label: "Companies", value: uploadImportSummary.companies },
+                { label: "Invalid Rows", value: uploadImportSummary.invalidRows },
+                { label: "Duplicates", value: uploadImportSummary.duplicatesCollapsed },
+                { label: "Rejected Rows", value: uploadImportSummary.rejectedRows },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-xl border border-emerald-100/80 bg-white/80 px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]"
+                >
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                    {item.label}
+                  </p>
+                  <p className="mt-1 text-xl font-semibold tracking-tight text-zinc-900">
+                    {item.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      ) : null}
 
       <Card className="relative isolate mt-3 flex flex-col overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.84)_0%,rgba(250,252,255,0.66)_56%,rgba(240,246,253,0.56)_100%)] backdrop-blur-[16px] [backdrop-filter:saturate(175%)_blur(16px)] shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74),inset_0_0_22px_rgba(255,255,255,0.2)]">
         <div className="pointer-events-none absolute -right-20 -top-24 h-60 w-60 rounded-full bg-gradient-to-br from-sky-300/34 via-blue-500/12 to-blue-700/0 blur-3xl" />
