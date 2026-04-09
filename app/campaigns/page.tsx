@@ -61,7 +61,14 @@ const statusConfig: Record<
   },
 };
 
-const filterOnlyStatuses = ["processing", "completed", "failed", "cancelled"] as const;
+const filterOnlyStatuses = [
+  "processing",
+  "needs_review",
+  "active_outreach",
+  "completed",
+  "failed",
+  "cancelled",
+] as const;
 
 function statusUI(status: string) {
   return statusConfig[status] || {

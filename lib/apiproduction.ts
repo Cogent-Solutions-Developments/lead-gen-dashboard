@@ -1,10 +1,12 @@
 import axios from "axios";
 import type {
+  CampaignImportSummary,
   CampaignInfo,
   CampaignInfoResponse,
   CampaignDetail,
   CampaignListItem,
   CreateCampaignRequest,
+  CreateCampaignResponse,
   DashboardStats,
   LeadItem,
   MessageStatus,
@@ -17,14 +19,18 @@ import type {
   SendSelectedLeadsResponse,
   SendAllCampaignRequest,
   SendAllCampaignResponse,
+  UploadCampaignRequest,
+  UploadCampaignResponse,
 } from "./api";
 
 export type {
+  CampaignImportSummary,
   CampaignInfo,
   CampaignInfoResponse,
   CampaignDetail,
   CampaignListItem,
   CreateCampaignRequest,
+  CreateCampaignResponse,
   DashboardStats,
   LeadItem,
   MessageStatus,
@@ -37,6 +43,8 @@ export type {
   SendSelectedLeadsResponse,
   SendAllCampaignRequest,
   SendAllCampaignResponse,
+  UploadCampaignRequest,
+  UploadCampaignResponse,
 };
 
 const apiClientProduction = axios.create({
@@ -105,14 +113,32 @@ export async function listCampaigns(params: { status?: string; limit?: number; o
 export async function createCampaign(payload: string | CreateCampaignRequest) {
   const requestBody = typeof payload === "string" ? { icp: payload } : payload;
 
-  const { data } = await apiClientProduction.post<{
-    id: string;
-    name: string;
-    icpPreview: string;
-    status: string;
-    progress: number;
-    createdAt: string;
-  }>("/api/productions/campaigns", requestBody);
+  const { data } = await apiClientProduction.post<CreateCampaignResponse>(
+    "/api/productions/campaigns",
+    requestBody
+  );
+  return data;
+}
+
+export async function createCampaignFromUpload(payload: UploadCampaignRequest) {
+  const formData = new FormData();
+  formData.append("name", payload.name.trim());
+  formData.append("location", payload.location?.trim() ?? "");
+  formData.append("category", payload.category?.trim() ?? "");
+  formData.append("date", payload.date?.trim() ?? "");
+  formData.append("icp", payload.icp?.trim() ?? "");
+
+  const leadSheetName =
+    typeof File !== "undefined" && payload.leadSheet instanceof File && payload.leadSheet.name
+      ? payload.leadSheet.name
+      : "lead-sheet.csv";
+
+  formData.append("leadSheet", payload.leadSheet, leadSheetName);
+
+  const { data } = await apiClientProduction.post<UploadCampaignResponse>(
+    "/api/productions/campaigns",
+    formData
+  );
   return data;
 }
 
