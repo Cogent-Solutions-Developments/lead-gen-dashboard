@@ -115,6 +115,43 @@ export type SendSelectedLeadsResponse = {
   message: string;
 };
 
+export type WhatsAppOptOutItem = {
+  id: string;
+  phoneE164: string;
+  isActive: boolean;
+  source: string | null;
+  reason: string | null;
+  provider: string | null;
+  personId: string | null;
+  campaignId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ListWhatsAppOptOutsResponse = {
+  ok: boolean;
+  items: WhatsAppOptOutItem[];
+};
+
+export type UploadWhatsAppOptOutCsvResponse = {
+  ok: boolean;
+  filename: string;
+  totalRows: number;
+  effectiveRows: number;
+  created: number;
+  updated: number;
+  invalid: number;
+};
+
+export type DisableLeadWhatsAppResponse = {
+  ok: boolean;
+  created: boolean;
+  leadId: string;
+  phoneE164: string;
+  isActive: boolean;
+  source: string;
+};
+
 export type CampaignInfo = {
   campaignId: string;
   name: string | null;
@@ -383,6 +420,47 @@ export async function sendSelectedCampaignLeads(payload: SendSelectedLeadsReques
   const { data } = await apiClient.post<SendSelectedLeadsResponse>(
     `/api/campaigns/${campaignId}/send-selected-leads${queryText ? `?${queryText}` : ""}`,
     leadIds
+  );
+  return data;
+}
+
+export async function listWhatsAppOptOuts(params?: {
+  limit?: number;
+  activeOnly?: boolean;
+}) {
+  const { data } = await apiClient.get<ListWhatsAppOptOutsResponse>(
+    "/api/marketing/opt-outs",
+    {
+      params: {
+        limit: params?.limit,
+        active_only:
+          typeof params?.activeOnly === "boolean"
+            ? params.activeOnly
+            : undefined,
+      },
+    }
+  );
+  return data;
+}
+
+export async function uploadWhatsAppOptOutCsv(file: File | Blob) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const { data } = await apiClient.post<UploadWhatsAppOptOutCsvResponse>(
+    "/api/marketing/opt-outs/upload",
+    formData
+  );
+  return data;
+}
+
+export async function disableLeadWhatsApp(leadId: string, reason?: string) {
+  const { data } = await apiClient.post<DisableLeadWhatsAppResponse>(
+    `/api/leads/${leadId}/marketing/disable`,
+    null,
+    {
+      params: reason?.trim() ? { reason: reason.trim() } : undefined,
+    }
   );
   return data;
 }
