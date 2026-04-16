@@ -17,6 +17,8 @@ import type {
   ApproveSelectedLeadsResponse,
   SendSelectedLeadsRequest,
   SendSelectedLeadsResponse,
+  CreateWhatsAppOptOutRequest,
+  CreateWhatsAppOptOutResponse,
   SendAllCampaignRequest,
   SendAllCampaignResponse,
   UploadCampaignRequest,
@@ -44,6 +46,8 @@ export type {
   ApproveSelectedLeadsResponse,
   SendSelectedLeadsRequest,
   SendSelectedLeadsResponse,
+  CreateWhatsAppOptOutRequest,
+  CreateWhatsAppOptOutResponse,
   SendAllCampaignRequest,
   SendAllCampaignResponse,
   UploadCampaignRequest,
@@ -247,29 +251,24 @@ export async function uploadCampaignCommonAttachment(campaignId: string, file: F
 
 export async function approveSelectedCampaignLeads(payload: ApproveSelectedLeadsRequest) {
   const { campaignId, leadIds } = payload;
-  void campaignId;
-
-  for (const leadId of leadIds) {
-    await apiClientDelegate.put(`/api/delegates/leads/${leadId}/approve`);
-  }
-
-  return {
-    message: `Approved ${leadIds.length} selected leads.`,
-  };
+  const { data } = await apiClientDelegate.post<ApproveSelectedLeadsResponse>(
+    `/api/campaigns/${campaignId}/approve-selected-leads`,
+    leadIds
+  );
+  return data;
 }
 
 export async function sendSelectedCampaignLeads(payload: SendSelectedLeadsRequest) {
   const { campaignId, leadIds, attachmentId } = payload;
-  void campaignId;
-  void attachmentId;
+  const query = new URLSearchParams();
+  if (attachmentId) query.set("attachment_id", attachmentId);
+  const queryText = query.toString();
 
-  for (const leadId of leadIds) {
-    await apiClientDelegate.post(`/api/delegates/leads/${leadId}/send`);
-  }
-
-  return {
-    message: `Queued outreach for ${leadIds.length} selected leads.`,
-  };
+  const { data } = await apiClientDelegate.post<SendSelectedLeadsResponse>(
+    `/api/campaigns/${campaignId}/send-selected-leads${queryText ? `?${queryText}` : ""}`,
+    leadIds
+  );
+  return data;
 }
 
 export async function listWhatsAppOptOuts(params?: {
@@ -298,6 +297,21 @@ export async function uploadWhatsAppOptOutCsv(file: File | Blob) {
   const { data } = await apiClientDelegate.post<UploadWhatsAppOptOutCsvResponse>(
     "/api/marketing/opt-outs/upload",
     formData
+  );
+  return data;
+}
+
+export async function createWhatsAppOptOut(payload: CreateWhatsAppOptOutRequest) {
+  const body = {
+    phone: payload.phone?.trim() || undefined,
+    email: payload.email?.trim() || undefined,
+    leadId: payload.leadId?.trim() || undefined,
+    reason: payload.reason?.trim() || undefined,
+    source: payload.source?.trim() || undefined,
+  };
+  const { data } = await apiClientDelegate.post<CreateWhatsAppOptOutResponse>(
+    "/api/marketing/opt-outs",
+    body
   );
   return data;
 }

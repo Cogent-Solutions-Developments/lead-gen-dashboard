@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { User, Key, ShieldOff, RefreshCw, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 import {
+  createWhatsAppOptOut,
   listWhatsAppOptOuts,
   uploadWhatsAppOptOutCsv,
   type UploadWhatsAppOptOutCsvResponse,
@@ -38,14 +39,31 @@ function getErrorMessage(error: unknown): string {
   return "Please try again.";
 }
 
+function normalizePhoneInput(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return trimmed.replace(/\s+/g, "");
+}
+
+function displayIdentity(row: WhatsAppOptOutItem) {
+  if (row.identityValue) return row.identityValue;
+  if (row.phoneE164) return row.phoneE164;
+  if (row.email) return row.email;
+  return "-";
+}
+
 export default function SettingsPage() {
   const { persona } = usePersona();
   const [optOutRows, setOptOutRows] = useState<WhatsAppOptOutItem[]>([]);
   const [optOutLoading, setOptOutLoading] = useState(false);
   const [uploadingCsv, setUploadingCsv] = useState(false);
+  const [addingManual, setAddingManual] = useState(false);
   const [activeOnly, setActiveOnly] = useState(true);
   const [selectedCsv, setSelectedCsv] = useState<File | null>(null);
   const [uploadSummary, setUploadSummary] = useState<UploadWhatsAppOptOutCsvResponse | null>(null);
+  const [manualPhone, setManualPhone] = useState("");
+  const [manualEmail, setManualEmail] = useState("");
+  const [manualReason, setManualReason] = useState("");
 
   const loadOptOutList = useCallback(async () => {
     setOptOutLoading(true);
@@ -91,6 +109,40 @@ export default function SettingsPage() {
       });
     } finally {
       setUploadingCsv(false);
+    }
+  };
+
+  const handleManualAdd = async () => {
+    const phone = normalizePhoneInput(manualPhone);
+    const email = manualEmail.trim();
+    const reason = manualReason.trim();
+
+    if (!phone && !email) {
+      toast.error("Provide a phone or email");
+      return;
+    }
+
+    try {
+      setAddingManual(true);
+      const response = await createWhatsAppOptOut({
+        phone: phone || undefined,
+        email: email || undefined,
+        reason: reason || undefined,
+        source: "frontend_manual",
+      });
+      toast.success("Suppression saved", {
+        description: response.created ? "A new suppression record was created." : "Existing suppression record was updated.",
+      });
+      setManualPhone("");
+      setManualEmail("");
+      setManualReason("");
+      await loadOptOutList();
+    } catch (error: unknown) {
+      toast.error("Failed to save suppression", {
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setAddingManual(false);
     }
   };
 
@@ -200,12 +252,52 @@ export default function SettingsPage() {
               <Button
                 variant="outline"
                 onClick={() => void loadOptOutList()}
-                disabled={optOutLoading || uploadingCsv}
+                disabled={optOutLoading || uploadingCsv || addingManual}
                 className="border-slate-200 text-slate-700"
               >
                 <RefreshCw className={`mr-2 h-4 w-4 ${optOutLoading ? "animate-spin" : ""}`} />
                 Refresh
               </Button>
+            </div>
+
+            <div className="mb-3 grid gap-3 rounded-lg border border-slate-200 bg-slate-50/60 p-4 md:grid-cols-3">
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-slate-700">Phone (optional)</label>
+                <Input
+                  value={manualPhone}
+                  onChange={(event) => setManualPhone(event.target.value)}
+                  placeholder="+9477xxxxxxx"
+                  disabled={addingManual}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-slate-700">Email (optional)</label>
+                <Input
+                  value={manualEmail}
+                  onChange={(event) => setManualEmail(event.target.value)}
+                  placeholder="contact@example.com"
+                  disabled={addingManual}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-slate-700">Reason (optional)</label>
+                <Input
+                  value={manualReason}
+                  onChange={(event) => setManualReason(event.target.value)}
+                  placeholder="requested no marketing"
+                  disabled={addingManual}
+                />
+              </div>
+              <div className="md:col-span-3">
+                <Button
+                  onClick={() => void handleManualAdd()}
+                  disabled={addingManual}
+                  className="w-full md:w-auto"
+                >
+                  {addingManual ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Add Manual Suppression
+                </Button>
+              </div>
             </div>
 
             <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50/60 p-4 md:grid-cols-[1fr_auto] md:items-end">
@@ -218,7 +310,7 @@ export default function SettingsPage() {
                   disabled={uploadingCsv}
                 />
                 <p className="text-xs text-slate-500">
-                  Supported columns: <span className="font-mono">phone</span>, <span className="font-mono">mobile</span>, <span className="font-mono">number</span>.
+                  Supported columns: <span className="font-mono">phone</span>, <span className="font-mono">mobile</span>, <span className="font-mono">number</span>, <span className="font-mono">email</span>.
                 </p>
               </div>
               <Button onClick={() => void handleOptOutCsvUpload()} disabled={!selectedCsv || uploadingCsv}>
@@ -246,8 +338,10 @@ export default function SettingsPage() {
             </div>
 
             {uploadSummary ? (
-              <div className="mt-4 grid gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mt-4 grid gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 sm:grid-cols-2 lg:grid-cols-6">
                 <span>Effective rows: {uploadSummary.effectiveRows}</span>
+                <span>Phone rows: {uploadSummary.phoneRows}</span>
+                <span>Email rows: {uploadSummary.emailRows}</span>
                 <span>Created: {uploadSummary.created}</span>
                 <span>Updated: {uploadSummary.updated}</span>
                 <span>Invalid: {uploadSummary.invalid}</span>
@@ -258,7 +352,10 @@ export default function SettingsPage() {
               <table className="min-w-full text-left text-sm">
                 <thead className="bg-slate-100/80 text-xs uppercase tracking-wide text-slate-600">
                   <tr>
+                    <th className="px-3 py-2">Scope</th>
+                    <th className="px-3 py-2">Identity</th>
                     <th className="px-3 py-2">Phone</th>
+                    <th className="px-3 py-2">Email</th>
                     <th className="px-3 py-2">Source</th>
                     <th className="px-3 py-2">Reason</th>
                     <th className="px-3 py-2">Created</th>
@@ -267,14 +364,17 @@ export default function SettingsPage() {
                 <tbody className="divide-y divide-slate-100">
                   {optOutRows.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-3 py-6 text-center text-slate-500">
+                      <td colSpan={7} className="px-3 py-6 text-center text-slate-500">
                         {optOutLoading ? "Loading opt-out records..." : "No opt-out records found."}
                       </td>
                     </tr>
                   ) : (
                     optOutRows.map((row) => (
                       <tr key={row.id} className="bg-white">
-                        <td className="px-3 py-2 font-mono text-xs text-slate-700">{row.phoneE164}</td>
+                        <td className="px-3 py-2 text-slate-600">{row.scope || "-"}</td>
+                        <td className="px-3 py-2 font-mono text-xs text-slate-700">{displayIdentity(row)}</td>
+                        <td className="px-3 py-2 font-mono text-xs text-slate-700">{row.phoneE164 || "-"}</td>
+                        <td className="px-3 py-2 font-mono text-xs text-slate-700">{row.email || "-"}</td>
                         <td className="px-3 py-2 text-slate-600">{row.source || "-"}</td>
                         <td className="px-3 py-2 text-slate-600">{row.reason || "-"}</td>
                         <td className="px-3 py-2 text-slate-500">{formatDateTime(row.createdAt)}</td>

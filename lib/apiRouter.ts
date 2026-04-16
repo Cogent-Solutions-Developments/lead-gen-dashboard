@@ -26,10 +26,13 @@ export type {
   ApproveSelectedLeadsResponse,
   SendSelectedLeadsRequest,
   SendSelectedLeadsResponse,
+  CreateWhatsAppOptOutRequest,
+  CreateWhatsAppOptOutResponse,
   ListWhatsAppOptOutsResponse,
   UploadWhatsAppOptOutCsvResponse,
   DisableLeadWhatsAppResponse,
   WhatsAppOptOutItem,
+  SuppressionMeta,
   WhatsAppInbound,
   WhatsAppMessagesResponse,
   WhatsAppNotificationsResponse,
@@ -107,6 +110,9 @@ export const listWhatsAppOptOuts: typeof sales.listWhatsAppOptOuts = (...args) =
 
 export const uploadWhatsAppOptOutCsv: typeof sales.uploadWhatsAppOptOutCsv = (...args) =>
   pickModule().uploadWhatsAppOptOutCsv(...args);
+
+export const createWhatsAppOptOut: typeof sales.createWhatsAppOptOut = (...args) =>
+  pickModule().createWhatsAppOptOut(...args);
 
 export const disableLeadWhatsApp: typeof sales.disableLeadWhatsApp = (...args) =>
   pickModule().disableLeadWhatsApp(...args);
