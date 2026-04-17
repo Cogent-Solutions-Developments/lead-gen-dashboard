@@ -43,8 +43,17 @@ type SortBy =
   | "position_asc";
 type ContactState = "whatsapp" | "email" | "both" | "in_progress" | "not_contacted" | "unknown";
 type DeliverySignal = "sent" | "in_progress" | "not_contacted";
-type ApprovalStatus = "pending" | "approved" | "rejected";
+type ApprovalStatus = "pending" | "approved" | "rejected" | "suppressed";
 type OutreachState = "pending" | "queued" | "sending" | "sent" | "failed";
+
+type SuppressionInfo = {
+  active?: boolean;
+  matchedBy?: string | null;
+  source?: string | null;
+  reason?: string | null;
+  phoneE164?: string | null;
+  email?: string | null;
+};
 
 interface Lead {
   id: string;
@@ -57,6 +66,10 @@ interface Lead {
   linkedinUrl: string;
   companyUrl: string;
   contactState: ContactState;
+  approvalStatus: ApprovalStatus;
+  isSuppressed: boolean;
+  contactReadOnly: boolean;
+  suppression: SuppressionInfo | null;
 }
 
 const LinkedInIcon = ({ className }: { className?: string }) => (
@@ -121,8 +134,41 @@ function normalizeApprovalStatus(value: unknown): ApprovalStatus {
   const v = String(value || "").toLowerCase();
   if (v === "approved") return "approved";
   if (v === "rejected") return "rejected";
+  if (v === "suppressed") return "suppressed";
   if (v === "content_generated" || v === "needs_review") return "pending";
   return "pending";
+}
+
+function parseBoolean(value: unknown): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value > 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return ["1", "true", "yes", "y"].includes(normalized);
+  }
+  return false;
+}
+
+function normalizeSuppression(value: unknown): SuppressionInfo | null {
+  const source = asRecord(value);
+  if (!source) return null;
+  return {
+    active: parseBoolean(source.active),
+    matchedBy: source.matchedBy ? String(source.matchedBy) : null,
+    source: source.source ? String(source.source) : null,
+    reason: source.reason ? String(source.reason) : null,
+    phoneE164: source.phoneE164 ? String(source.phoneE164) : null,
+    email: source.email ? String(source.email) : null,
+  };
+}
+
+function isLeadSuppressed(lead: Lead): boolean {
+  return (
+    lead.contactReadOnly ||
+    lead.isSuppressed ||
+    lead.approvalStatus === "suppressed" ||
+    Boolean(lead.suppression?.active)
+  );
 }
 
 function normalizeOutreachState(value: unknown): OutreachState {
@@ -163,6 +209,13 @@ function buildOutreachStatus(source: Record<string, unknown>) {
 function deriveContactStateFromCampaignLead(source: Record<string, unknown>): ContactState {
   const approval = normalizeApprovalStatus(source.approvalStatus);
   const outreach = buildOutreachStatus(source);
+  const suppressed =
+    approval === "suppressed" ||
+    parseBoolean(source.isSuppressed) ||
+    parseBoolean(source.contactReadOnly) ||
+    parseBoolean(asRecord(source.suppression)?.active);
+
+  if (suppressed) return "not_contacted";
 
   if (outreach.email === "sent" && outreach.whatsapp === "sent") return "both";
   if (outreach.whatsapp === "sent") return "whatsapp";
@@ -610,6 +663,10 @@ export default function TotalLeads() {
         linkedinUrl: asText(x.linkedinUrl) || asText(x.linkedin_url),
         companyUrl: asText(x.companyUrl) || asText(x.company_url),
         contactState: deriveContactState(x),
+        approvalStatus: normalizeApprovalStatus(x.approvalStatus),
+        isSuppressed: parseBoolean(x.isSuppressed),
+        contactReadOnly: parseBoolean(x.contactReadOnly),
+        suppression: normalizeSuppression(x.suppression),
       }));
 
       setLeads(mapped);
@@ -622,6 +679,12 @@ export default function TotalLeads() {
 
           setLeads((prev) =>
             prev.map((lead) => {
+              if (isLeadSuppressed(lead)) {
+                return lead.contactState === "not_contacted"
+                  ? lead
+                  : { ...lead, contactState: "not_contacted" };
+              }
+
               const keys = buildLookupKeys({
                 id: lead.id,
                 employeeName: lead.employeeName,
@@ -1134,10 +1197,16 @@ export default function TotalLeads() {
                 </tr>
               ) : (
                 paginatedLeads.map((item) => {
-                  const sentChannels = getSentChannelState(item.contactState);
+                  const isReadOnly = isLeadSuppressed(item);
+                  const sentChannels = isReadOnly
+                    ? { whatsapp: false, email: false }
+                    : getSentChannelState(item.contactState);
 
                   return (
-                    <tr key={item.id} className="group transition-colors hover:bg-white/46">
+                    <tr
+                      key={item.id}
+                      className={`group transition-colors ${isReadOnly ? "bg-rose-50/35 hover:bg-rose-50/45" : "hover:bg-white/46"}`}
+                    >
                     <td className="px-3 py-3 align-top">
                       <span className="line-clamp-2 text-sm text-zinc-700">
                         {item.eventName ? formatEventLabel(item.eventName) : "-"}
@@ -1173,7 +1242,20 @@ export default function TotalLeads() {
                     </td>
 
                     <td className="px-3 py-3 align-top">
-                      <span className="text-xs text-zinc-500">{item.phone || "-"}</span>
+                      <div className="space-y-1">
+                        <span className="text-xs text-zinc-500">{item.phone || "-"}</span>
+                        {isReadOnly ? (
+                          <span className="block w-fit rounded border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-700">
+                            Suppressed
+                          </span>
+                        ) : null}
+                        {isReadOnly && (item.suppression?.source || item.suppression?.reason) ? (
+                          <div className="rounded border border-rose-100 bg-rose-50/60 px-2 py-1 text-[10px] leading-relaxed text-rose-700">
+                            {item.suppression?.source ? <p>Source: {item.suppression.source}</p> : null}
+                            {item.suppression?.reason ? <p>Reason: {item.suppression.reason}</p> : null}
+                          </div>
+                        ) : null}
+                      </div>
                     </td>
 
                     <td className="px-3 py-3 align-top">
@@ -1222,7 +1304,8 @@ export default function TotalLeads() {
                         size="icon"
                         onClick={() => void handleCopyLeadDetails(item)}
                         className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-500 shadow-none hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
-                        title="Copy lead details"
+                        title={isReadOnly ? "Suppressed lead is read-only" : "Copy lead details"}
+                        disabled={isReadOnly}
                       >
                         <Copy className="h-3.5 w-3.5" />
                       </Button>

@@ -29,6 +29,7 @@ import {
   Trash2,
   Paperclip,
   UploadCloud,
+  PhoneOff,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -36,8 +37,12 @@ import { useParams } from "next/navigation";
 import {
   approveSelectedCampaignLeads,
   type CampaignImportSummary,
+  disableLeadWhatsApp,
   getApiKeyClient,
+  listWhatsAppOptOuts,
   sendSelectedCampaignLeads,
+  type SuppressionMeta,
+  type WhatsAppOptOutItem,
   uploadCampaignCommonAttachment,
 } from "@/lib/apiRouter";
 import { consumeCampaignUploadSummary } from "@/lib/campaignUploadSummary";
@@ -52,10 +57,10 @@ const LinkedInIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-type ApprovalStatus = "pending" | "approved" | "rejected";
+type ApprovalStatus = "pending" | "approved" | "rejected" | "suppressed";
 type OutreachState = "pending" | "queued" | "sending" | "sent" | "failed";
 type AttachmentChannel = "email" | "whatsapp" | "common";
-type LeadFilterKey = "new" | "sent" | "rejected";
+type LeadFilterKey = "new" | "sent" | "rejected" | "suppressed";
 
 type Attachment = {
   id: string;
@@ -95,7 +100,12 @@ interface Lead {
   contentLinkedin: string;
   contentWhatsapp: string;
 
+  reviewStatus?: string | null;
   approvalStatus: ApprovalStatus;
+  isSuppressed?: boolean;
+  suppression?: SuppressionMeta | null;
+  contactReadOnly?: boolean;
+  sendable?: boolean;
 
   outreachStatus?: {
     email: OutreachState;
@@ -106,6 +116,11 @@ interface Lead {
   // ✅ Separate attachments
   emailAttachments?: Attachment[];
   whatsappAttachments?: Attachment[];
+
+  whatsappOptedOut?: boolean;
+  whatsappOptOutSource?: string | null;
+  whatsappOptOutReason?: string | null;
+  whatsappOptOutPhoneE164?: string | null;
 }
 
 interface CampaignDetail {
@@ -122,6 +137,8 @@ interface CampaignDetail {
     pending: number;
     approved: number;
     rejected: number;
+    suppressed: number;
+    sendableApproved: number;
   };
 }
 
@@ -139,6 +156,7 @@ const approvalStyles = {
   pending: { bg: "bg-zinc-100 text-zinc-500 border-zinc-200", icon: Clock },
   approved: { bg: "bg-sidebar-primary/10 text-emerald-900 border-sidebar-primary/20", icon: CheckCircle },
   rejected: { bg: "bg-white text-zinc-400 border-zinc-200 line-through", icon: XCircle },
+  suppressed: { bg: "bg-rose-50 text-rose-700 border-rose-200", icon: XCircle },
 };
 
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
@@ -172,7 +190,7 @@ const GENERATED_DRAFT_STATUSES = new Set([
 
 const normalizeApprovalStatus = (s: unknown): ApprovalStatus => {
   if (s === "content_generated" || s === "needs_review") return "pending";
-  return s === "approved" || s === "rejected" || s === "pending" ? s : "pending";
+  return s === "approved" || s === "rejected" || s === "suppressed" || s === "pending" ? s : "pending";
 };
 
 const normalizeOutreachState = (value: unknown): OutreachState => {
@@ -185,6 +203,62 @@ const normalizeOutreachState = (value: unknown): OutreachState => {
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function hasText(value: unknown): boolean {
+  return String(value ?? "").trim().length > 0;
+}
+
+function parseBoolean(value: unknown): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value > 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return ["1", "true", "yes", "y"].includes(normalized);
+  }
+  return false;
+}
+
+function normalizeSuppressionMeta(value: unknown): SuppressionMeta | null {
+  const source = asRecord(value);
+  if (!source) return null;
+  return {
+    active: parseBoolean(source.active),
+    scope: source.scope ? String(source.scope) : null,
+    matchedBy: source.matchedBy ? String(source.matchedBy) : null,
+    source: source.source ? String(source.source) : null,
+    reason: source.reason ? String(source.reason) : null,
+    provider: source.provider ? String(source.provider) : null,
+    phoneE164: source.phoneE164 ? String(source.phoneE164) : null,
+    email: source.email ? String(source.email) : null,
+    personId: source.personId ? String(source.personId) : null,
+    campaignId: source.campaignId ? String(source.campaignId) : null,
+    identifiers: asRecord(source.identifiers),
+    legacy: parseBoolean(source.legacy),
+  };
+}
+
+function normalizePhoneDigits(value: unknown): string {
+  return String(value ?? "").replace(/\D+/g, "");
+}
+
+function buildPhoneLookupKeys(value: unknown): string[] {
+  const digits = normalizePhoneDigits(value);
+  if (!digits) return [];
+
+  const keys = new Set<string>([digits]);
+  if (digits.length >= 10) keys.add(digits.slice(-10));
+  if (digits.length >= 8) keys.add(digits.slice(-8));
+  return Array.from(keys);
+}
+
+function isMarketingOptOutError(detail: string): boolean {
+  const text = detail.toLowerCase();
+  return (
+    text.includes("opted out from marketing messages") ||
+    text.includes("opted out from whatsapp") ||
+    text.includes("opted out")
+  );
 }
 
 const extractOutreachStatus = (source: unknown): Required<NonNullable<Lead["outreachStatus"]>> | undefined => {
@@ -581,6 +655,10 @@ export default function CampaignDetailPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(15);
   const [uploadImportSummary, setUploadImportSummary] = useState<CampaignImportSummary | null>(null);
+  const [optOutItems, setOptOutItems] = useState<WhatsAppOptOutItem[]>([]);
+  const [disableTargetLead, setDisableTargetLead] = useState<Lead | null>(null);
+  const [disableReason, setDisableReason] = useState("");
+  const [isDisablingWhatsapp, setIsDisablingWhatsapp] = useState(false);
 
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [editForm, setEditForm] = useState<Partial<Lead>>({});
@@ -599,15 +677,138 @@ export default function CampaignDetailPage() {
   const pendingCount = useMemo(() => leads.filter((l) => l.approvalStatus === "pending").length, [leads]);
   const approvedCount = useMemo(() => leads.filter((l) => l.approvalStatus === "approved").length, [leads]);
   const rejectedCount = useMemo(() => leads.filter((l) => l.approvalStatus === "rejected").length, [leads]);
+  const suppressedCount = useMemo(() => leads.filter((l) => l.approvalStatus === "suppressed").length, [leads]);
+  const sendableApprovedCount = useMemo(() => {
+    const backendValue = Number(campaign?.stats?.sendableApproved ?? NaN);
+    if (Number.isFinite(backendValue)) return backendValue;
+    return leads.filter((l) => l.approvalStatus === "approved" && l.sendable !== false).length;
+  }, [campaign?.stats?.sendableApproved, leads]);
+  const totalLeadCount = useMemo(() => Number(campaign?.stats?.total ?? leads.length), [campaign?.stats?.total, leads.length]);
+  const pendingMetricCount = useMemo(() => Number(campaign?.stats?.pending ?? pendingCount), [campaign?.stats?.pending, pendingCount]);
+  const approvedMetricCount = useMemo(() => Number(campaign?.stats?.approved ?? approvedCount), [campaign?.stats?.approved, approvedCount]);
+  const rejectedMetricCount = useMemo(() => Number(campaign?.stats?.rejected ?? rejectedCount), [campaign?.stats?.rejected, rejectedCount]);
+  const suppressedMetricCount = useMemo(() => Number(campaign?.stats?.suppressed ?? suppressedCount), [campaign?.stats?.suppressed, suppressedCount]);
 
   const leadFilterTabs = useMemo(
     () => [
       { key: "new" as const, label: "New", count: pendingCount },
       { key: "sent" as const, label: "Sent", count: approvedCount },
       { key: "rejected" as const, label: "Rejected", count: rejectedCount },
+      { key: "suppressed" as const, label: "Suppressed", count: suppressedCount },
     ],
-    [pendingCount, approvedCount, rejectedCount]
+    [pendingCount, approvedCount, rejectedCount, suppressedCount]
   );
+  const optOutByPersonId = useMemo(() => {
+    const map = new Map<string, WhatsAppOptOutItem>();
+    for (const item of optOutItems) {
+      const personId = String(item.personId || "").trim();
+      if (!personId) continue;
+      if (!map.has(personId)) map.set(personId, item);
+    }
+    return map;
+  }, [optOutItems]);
+
+  const optOutByPhoneKey = useMemo(() => {
+    const map = new Map<string, WhatsAppOptOutItem>();
+    for (const item of optOutItems) {
+      for (const key of buildPhoneLookupKeys(item.phoneE164)) {
+        if (!map.has(key)) map.set(key, item);
+      }
+    }
+    return map;
+  }, [optOutItems]);
+
+  const optOutByEmailKey = useMemo(() => {
+    const map = new Map<string, WhatsAppOptOutItem>();
+    for (const item of optOutItems) {
+      const emailKey = String(item.email || "").trim().toLowerCase();
+      if (!emailKey) continue;
+      if (!map.has(emailKey)) map.set(emailKey, item);
+    }
+    return map;
+  }, [optOutItems]);
+
+  const leadOptOutById = useMemo(() => {
+    const map = new Map<string, WhatsAppOptOutItem | null>();
+
+    for (const lead of leads) {
+      if (lead.suppression?.active || lead.isSuppressed || lead.contactReadOnly || lead.approvalStatus === "suppressed") {
+        map.set(lead.id, {
+          id: `suppression-${lead.id}`,
+          scope: lead.suppression?.scope || "marketing",
+          identityType: lead.suppression?.matchedBy || null,
+          identityValue: lead.suppression?.email || lead.suppression?.phoneE164 || null,
+          phoneE164: lead.suppression?.phoneE164 || lead.phone || null,
+          email: lead.suppression?.email || lead.email || null,
+          isActive: true,
+          source: lead.suppression?.source || "backend",
+          reason: lead.suppression?.reason || "suppressed",
+          provider: lead.suppression?.provider || "backend",
+          personId: lead.suppression?.personId || null,
+          campaignId: lead.suppression?.campaignId || campaignId || null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        continue;
+      }
+
+      const byPersonId = optOutByPersonId.get(lead.id);
+      if (byPersonId) {
+        map.set(lead.id, byPersonId);
+        continue;
+      }
+
+      const phoneKeys = buildPhoneLookupKeys(lead.phone);
+      const byPhone = phoneKeys.map((key) => optOutByPhoneKey.get(key)).find(Boolean) ?? null;
+      if (byPhone) {
+        map.set(lead.id, byPhone);
+        continue;
+      }
+
+      const emailKey = String(lead.email || "").trim().toLowerCase();
+      if (emailKey) {
+        const byEmail = optOutByEmailKey.get(emailKey);
+        if (byEmail) {
+          map.set(lead.id, byEmail);
+          continue;
+        }
+      }
+
+      if (lead.whatsappOptedOut) {
+        map.set(lead.id, {
+          id: `local-${lead.id}`,
+          scope: "marketing",
+          identityType: "phone",
+          identityValue: lead.whatsappOptOutPhoneE164 || lead.phone || null,
+          phoneE164: lead.whatsappOptOutPhoneE164 || lead.phone || "",
+          email: lead.email || null,
+          isActive: true,
+          source: lead.whatsappOptOutSource || "backend",
+          reason: lead.whatsappOptOutReason || "opted out",
+          provider: "backend",
+          personId: lead.id,
+          campaignId: campaignId || null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        continue;
+      }
+
+      map.set(lead.id, null);
+    }
+
+    return map;
+  }, [campaignId, leads, optOutByEmailKey, optOutByPersonId, optOutByPhoneKey]);
+
+  const isLeadMarketingOptedOut = (lead: Lead) => {
+    if (lead.contactReadOnly) return true;
+    if (lead.approvalStatus === "suppressed") return true;
+    if (lead.isSuppressed) return true;
+    if (lead.suppression?.active) return true;
+    return Boolean(leadOptOutById.get(lead.id));
+  };
+  const isLeadOutreachBlocked = (lead: Lead) =>
+    isLeadMarketingOptedOut(lead) || lead.sendable === false;
 
   const filteredLeads = useMemo(() => {
     const statusFiltered =
@@ -615,7 +816,9 @@ export default function CampaignDetailPage() {
         ? leads.filter((l) => l.approvalStatus === "pending")
         : leadFilter === "sent"
           ? leads.filter((l) => l.approvalStatus === "approved")
-          : leads.filter((l) => l.approvalStatus === "rejected");
+          : leadFilter === "rejected"
+            ? leads.filter((l) => l.approvalStatus === "rejected")
+            : leads.filter((l) => l.approvalStatus === "suppressed");
     const prioritized = [...statusFiltered].sort(
       (a, b) => Number(hasGeneratedContent(b)) - Number(hasGeneratedContent(a))
     );
@@ -657,15 +860,41 @@ export default function CampaignDetailPage() {
     });
   }, [leads, leadFilter, tableSearch, jobTitleFilter, hasEmailOnly, domainFilter, phoneFilter]);
 
+  const selectableFilteredLeads = useMemo(
+    () =>
+      filteredLeads.filter((lead) => {
+        const blocked =
+          lead.sendable === false ||
+          lead.contactReadOnly ||
+          lead.approvalStatus === "suppressed" ||
+          lead.isSuppressed ||
+          Boolean(lead.suppression?.active) ||
+          Boolean(leadOptOutById.get(lead.id));
+        return !blocked;
+      }),
+    [filteredLeads, leadOptOutById]
+  );
+  const leadById = useMemo(() => {
+    const map = new Map<string, Lead>();
+    for (const lead of leads) map.set(lead.id, lead);
+    return map;
+  }, [leads]);
+
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / itemsPerPage));
 
   const paginatedLeads = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredLeads.slice(start, start + itemsPerPage);
   }, [filteredLeads, currentPage, itemsPerPage]);
-  const selectedBulkCount = selectedBulkLeadIds.size;
+  const selectedBulkCount = Array.from(selectedBulkLeadIds).reduce((count, leadId) => {
+    const lead = leadById.get(leadId);
+    if (!lead || isLeadOutreachBlocked(lead)) return count;
+    return count + 1;
+  }, 0);
+  const selectableCurrentPageLeads = paginatedLeads.filter((lead) => !isLeadOutreachBlocked(lead));
   const isCurrentPageAllSelected =
-    paginatedLeads.length > 0 && paginatedLeads.every((lead) => selectedBulkLeadIds.has(lead.id));
+    selectableCurrentPageLeads.length > 0 &&
+    selectableCurrentPageLeads.every((lead) => selectedBulkLeadIds.has(lead.id));
 
   const visiblePageNumbers = useMemo(() => {
     const windowSize = 5;
@@ -732,11 +961,12 @@ export default function CampaignDetailPage() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [cRes, lRes, infoRes, commonRes] = await Promise.all([
+      const [cRes, lRes, infoRes, commonRes, optOutRes] = await Promise.all([
         api.get(`/api/campaigns/${campaignId}`),
         api.get(`/api/campaigns/${campaignId}/leads`, { params: { status: "all" } }),
         api.get(`/api/campaigns/${campaignId}/info`).catch(() => null),
         api.get(`/api/campaigns/${campaignId}/common-attachments`).catch(() => null),
+        listWhatsAppOptOuts({ limit: 1000, activeOnly: true }).catch(() => ({ ok: false, items: [] })),
       ]);
 
       setCampaign(cRes.data);
@@ -758,7 +988,12 @@ export default function CampaignDetailPage() {
         contentLinkedin: x.contentLinkedin || "",
         contentWhatsapp: x.contentWhatsapp || "",
 
+        reviewStatus: x.reviewStatus ?? null,
         approvalStatus: normalizeApprovalStatus(x.approvalStatus),
+        isSuppressed: parseBoolean(x.isSuppressed),
+        suppression: normalizeSuppressionMeta(x.suppression),
+        contactReadOnly: parseBoolean(x.contactReadOnly),
+        sendable: typeof x.sendable === "boolean" ? x.sendable : undefined,
 
         draftId: x.draftId ?? null,
         draftStatus: x.draftStatus ?? null,
@@ -767,10 +1002,15 @@ export default function CampaignDetailPage() {
         // ✅ expect backend arrays; fallback to empty
         emailAttachments: Array.isArray(x.emailAttachments) ? x.emailAttachments : [],
         whatsappAttachments: Array.isArray(x.whatsappAttachments) ? x.whatsappAttachments : [],
+        whatsappOptedOut: Boolean(x.whatsappOptedOut ?? x.isWhatsappOptedOut ?? x.whatsapp_opted_out ?? false),
+        whatsappOptOutSource: x.whatsappOptOutSource ?? x.optOutSource ?? null,
+        whatsappOptOutReason: x.whatsappOptOutReason ?? x.optOutReason ?? null,
+        whatsappOptOutPhoneE164: x.whatsappOptOutPhoneE164 ?? x.optOutPhoneE164 ?? null,
       }));
 
       setLeads(mapped);
       applyLatestCommonAttachment(commonRes?.data ?? null);
+      setOptOutItems(Array.isArray(optOutRes?.items) ? optOutRes.items : []);
     } catch (e: any) {
       toast.error("Failed to load campaign", { description: e?.message });
     } finally {
@@ -785,7 +1025,14 @@ export default function CampaignDetailPage() {
     });
 
 
-  const startPollingLead = (leadId: string) => {
+  const startPollingLead = (
+    leadId: string,
+    expectedChannels: Array<"email" | "whatsapp"> = ["email", "whatsapp"]
+  ) => {
+    if (expectedChannels.length === 0) return;
+
+    const waitForEmail = expectedChannels.includes("email");
+    const waitForWhatsapp = expectedChannels.includes("whatsapp");
     let tries = 0;
     const maxTries = 40;
 
@@ -803,6 +1050,11 @@ export default function CampaignDetailPage() {
               ? {
                 ...l,
                 approvalStatus: normalizeApprovalStatus(latest.approvalStatus ?? l.approvalStatus),
+                reviewStatus: latest.reviewStatus ?? l.reviewStatus ?? null,
+                isSuppressed: parseBoolean(latest.isSuppressed ?? l.isSuppressed),
+                suppression: normalizeSuppressionMeta(latest.suppression) ?? l.suppression ?? null,
+                contactReadOnly: parseBoolean(latest.contactReadOnly ?? l.contactReadOnly),
+                sendable: typeof latest.sendable === "boolean" ? latest.sendable : l.sendable,
                 draftStatus: latest.draftStatus ?? l.draftStatus,
                 outreachStatus: latestOutreachStatus ?? l.outreachStatus,
               }
@@ -811,16 +1063,20 @@ export default function CampaignDetailPage() {
         );
 
         const s = latestOutreachStatus;
-        if (
-          s &&
-          (s.email === "sent" || s.email === "failed") &&
-          (s.whatsapp === "sent" || s.whatsapp === "failed")
-        ) {
-          clearInterval(t);
-          if (s.email === "sent" && s.whatsapp === "sent") {
-            toast.success("Outreach sent successfully");
-          } else {
-            toast.error("Outreach completed with failures");
+        if (s) {
+          const emailDone = !waitForEmail || s.email === "sent" || s.email === "failed";
+          const whatsappDone = !waitForWhatsapp || s.whatsapp === "sent" || s.whatsapp === "failed";
+          if (emailDone && whatsappDone) {
+            clearInterval(t);
+
+            const emailSent = !waitForEmail || s.email === "sent";
+            const whatsappSent = !waitForWhatsapp || s.whatsapp === "sent";
+            if (emailSent && whatsappSent) {
+              toast.success("Outreach sent successfully");
+            } else {
+              toast.error("Outreach completed with failures");
+            }
+            return;
           }
         }
 
@@ -859,6 +1115,25 @@ export default function CampaignDetailPage() {
       setPendingWhatsappUploads([]);
     }
   }, [selectedLead]);
+
+  useEffect(() => {
+    setSelectedBulkLeadIds((prev) => {
+      const next = new Set<string>();
+      prev.forEach((leadId) => {
+        const lead = leadById.get(leadId);
+        if (!lead) return;
+        const blocked =
+          lead.sendable === false ||
+          lead.contactReadOnly ||
+          lead.approvalStatus === "suppressed" ||
+          lead.isSuppressed ||
+          Boolean(lead.suppression?.active) ||
+          Boolean(leadOptOutById.get(lead.id));
+        if (!blocked) next.add(leadId);
+      });
+      return next;
+    });
+  }, [leadById, leadOptOutById]);
 
   useEffect(() => {
     if (!isTableFilterOpen) return;
@@ -986,6 +1261,9 @@ export default function CampaignDetailPage() {
   };
 
   const handleSelectBulkLead = (leadId: string, checked: boolean) => {
+    const lead = leadById.get(leadId);
+    if (!lead || isLeadOutreachBlocked(lead)) return;
+
     setSelectedBulkLeadIds((prev) => {
       const next = new Set(prev);
       if (checked) next.add(leadId);
@@ -997,7 +1275,7 @@ export default function CampaignDetailPage() {
   const handleSelectAllCurrentPage = (checked: boolean) => {
     setSelectedBulkLeadIds((prev) => {
       const next = new Set(prev);
-      for (const lead of paginatedLeads) {
+      for (const lead of selectableCurrentPageLeads) {
         if (checked) next.add(lead.id);
         else next.delete(lead.id);
       }
@@ -1006,7 +1284,7 @@ export default function CampaignDetailPage() {
   };
 
   const handleSelectAllFiltered = () => {
-    setSelectedBulkLeadIds(new Set(filteredLeads.map((lead) => lead.id)));
+    setSelectedBulkLeadIds(new Set(selectableFilteredLeads.map((lead) => lead.id)));
   };
 
   const handleBulkSendRequest = () => {
@@ -1026,30 +1304,73 @@ export default function CampaignDetailPage() {
     setIsBulkSending(true);
 
     try {
-      const leadIds = Array.from(selectedBulkLeadIds);
+      const selectedLeads = Array.from(selectedBulkLeadIds)
+        .map((leadId) => leadById.get(leadId))
+        .filter((lead): lead is Lead => Boolean(lead));
+      const eligibleLeads = selectedLeads.filter((lead) => !isLeadOutreachBlocked(lead));
+      const leadIds = eligibleLeads.map((lead) => lead.id);
+      const skippedCount = selectedLeads.length - eligibleLeads.length;
 
-      await approveSelectedCampaignLeads({
+      if (leadIds.length === 0) {
+        toast.error("Selected leads cannot be sent", {
+          description: "Selected leads are suppressed or not sendable.",
+        });
+        setShowBulkSendConfirm(false);
+        return;
+      }
+
+      const approveResult = await approveSelectedCampaignLeads({
         campaignId,
         leadIds,
       });
 
-      const data = await sendSelectedCampaignLeads({
-        campaignId,
-        leadIds,
-        attachmentId: commonAttachmentId ?? undefined,
+      const approvedLeadIds = Array.isArray(approveResult?.approvedLeadIds)
+        ? approveResult.approvedLeadIds
+        : leadIds;
+      const suppressedFromApprove = Number(approveResult?.suppressedCount ?? 0);
+
+      let sendSummaryMessage = "No sendable leads after suppression checks.";
+      let queuedLeads = 0;
+      let suppressedFromSend = 0;
+      if (approvedLeadIds.length > 0) {
+        const sendResult = await sendSelectedCampaignLeads({
+          campaignId,
+          leadIds: approvedLeadIds,
+          attachmentId: commonAttachmentId ?? undefined,
+        });
+        queuedLeads = Number(sendResult?.queuedLeads ?? approvedLeadIds.length);
+        suppressedFromSend = Number(sendResult?.suppressedOptOut ?? 0);
+        sendSummaryMessage =
+          sendResult?.message ||
+          `Queued outreach for ${queuedLeads} lead(s).`;
+      }
+
+      toast.success("Bulk outreach processed", {
+        description: `Approved ${approvedLeadIds.length}, queued ${queuedLeads}. ${sendSummaryMessage}`,
       });
 
-      toast.success("Bulk outreach queued", {
-        description: data?.message || `Queued outreach for ${selectedBulkCount} selected leads.`,
-      });
+      const totalSuppressed = skippedCount + suppressedFromApprove + suppressedFromSend;
+      if (totalSuppressed > 0) {
+        toast.warning("Some leads were skipped", {
+          description: `${totalSuppressed} lead(s) were suppressed or blocked and were not sent.`,
+        });
+      }
 
       setShowBulkSendConfirm(false);
       setBulkSelectMode(false);
       setSelectedBulkLeadIds(new Set());
       await fetchAll();
     } catch (error: any) {
+      const detail = String(error?.response?.data?.detail || error?.message || "");
+      if (isMarketingOptOutError(detail)) {
+        toast.warning("Some selected leads are blocked", {
+          description: "Suppressed leads are blocked from marketing outreach.",
+        });
+        await fetchAll();
+        return;
+      }
       toast.error("Failed to queue bulk outreach", {
-        description: error?.response?.data?.detail || error?.message || "Please try again.",
+        description: detail || "Please try again.",
       });
     } finally {
       setIsBulkSending(false);
@@ -1057,6 +1378,14 @@ export default function CampaignDetailPage() {
   };
 
   const handleReject = async (leadId: string) => {
+    const lead = leadById.get(leadId);
+    if (lead && isLeadMarketingOptedOut(lead)) {
+      toast.warning("Action blocked", {
+        description: "This lead is in the opt-out list and is read-only.",
+      });
+      return;
+    }
+
     try {
       await api.put(`/api/leads/${leadId}/reject`);
       toast.success("Lead rejected");
@@ -1067,29 +1396,193 @@ export default function CampaignDetailPage() {
   };
 
   const handleApprove = async (leadId: string) => {
+    const lead = leadById.get(leadId);
+    if (!lead) return;
+
+    const optedOut = isLeadMarketingOptedOut(lead);
+    if (optedOut) {
+      toast.warning("Action blocked", {
+        description: "This lead is in the opt-out list and cannot receive any messages.",
+      });
+      return;
+    }
+    if (lead.sendable === false) {
+      toast.warning("Action blocked", {
+        description: "This lead is currently not sendable.",
+      });
+      return;
+    }
+
     try {
-      await api.put(`/api/leads/${leadId}/approve`);
+      const approveResponse = await api.put(`/api/leads/${leadId}/approve`);
+      const approvedLead = approveResponse?.data ?? {};
+      const resolvedStatus = normalizeApprovalStatus(approvedLead.approvalStatus ?? "approved");
+      const resolvedSuppression = normalizeSuppressionMeta(approvedLead.suppression);
+      const suppressedNow =
+        resolvedStatus === "suppressed" ||
+        parseBoolean(approvedLead.isSuppressed) ||
+        parseBoolean(approvedLead.contactReadOnly) ||
+        Boolean(resolvedSuppression?.active);
+      const resolvedSendable =
+        typeof approvedLead.sendable === "boolean"
+          ? approvedLead.sendable
+          : !suppressedNow;
 
       setLeads((prev) =>
         prev.map((item) =>
           item.id === leadId
             ? {
               ...item,
-              approvalStatus: "approved",
-              outreachStatus: { email: "sending", linkedin: "pending", whatsapp: "pending" },
+              approvalStatus: resolvedStatus,
+              isSuppressed: suppressedNow,
+              suppression: resolvedSuppression ?? item.suppression ?? null,
+              contactReadOnly: suppressedNow || parseBoolean(approvedLead.contactReadOnly),
+              sendable:
+                typeof approvedLead.sendable === "boolean"
+                  ? approvedLead.sendable
+                  : suppressedNow
+                    ? false
+                    : item.sendable,
+              outreachStatus: suppressedNow
+                ? item.outreachStatus
+                : { email: "sending", linkedin: "pending", whatsapp: "pending" },
             }
             : item
         )
       );
 
+      if (suppressedNow) {
+        toast.warning("Lead suppressed", {
+          description: resolvedSuppression?.reason || "This lead is blocked from all marketing messages.",
+        });
+        return;
+      }
+      if (!resolvedSendable) {
+        toast.warning("Lead not sendable", {
+          description: "This lead cannot be queued for outreach right now.",
+        });
+        return;
+      }
+
       toast.success("Lead approved, sending outreach...");
 
       // ✅ NEW: send by leadId (backend locates latest draft)
-      await sendLead(leadId, commonAttachmentId ?? undefined);
+      const sendResponse = await sendLead(leadId, commonAttachmentId ?? undefined);
+      const queuedChannels = Array.isArray(sendResponse?.data?.queuedChannels)
+        ? (sendResponse.data.queuedChannels as string[])
+        : [];
+      const queuedEmail = queuedChannels.includes("email");
+      const queuedWhatsapp = queuedChannels.includes("whatsapp");
 
-      startPollingLead(leadId);
+      setLeads((prev) =>
+        prev.map((item) =>
+          item.id === leadId
+            ? {
+              ...item,
+              outreachStatus: {
+                email: queuedEmail ? "queued" : "pending",
+                linkedin: "pending",
+                whatsapp: queuedWhatsapp ? "queued" : "pending",
+              },
+            }
+            : item
+        )
+      );
+
+      startPollingLead(
+        leadId,
+        ["email", "whatsapp"].filter((channel) =>
+          queuedChannels.includes(channel)
+        ) as Array<"email" | "whatsapp">
+      );
     } catch (e: any) {
-      toast.error("Approve/send failed", { description: e?.response?.data?.detail || e?.message });
+      const detail = String(e?.response?.data?.detail || e?.message || "");
+      if (isMarketingOptOutError(detail)) {
+        toast.warning("Lead is opted out", {
+          description: "This lead is blocked from all marketing messages.",
+        });
+        await fetchAll();
+        return;
+      }
+      toast.error("Approve/send failed", { description: detail });
+    }
+  };
+
+  const openDisableWhatsappConfirm = (lead: Lead) => {
+    if (!hasText(lead.phone) && !hasText(lead.email)) {
+      toast.error("Lead has no phone or email");
+      return;
+    }
+    if (isLeadMarketingOptedOut(lead)) {
+      toast.info("Already opted out", {
+        description: "This lead is already blocked for all marketing messages.",
+      });
+      return;
+    }
+    setDisableReason("");
+    setDisableTargetLead(lead);
+  };
+
+  const closeDisableWhatsappConfirm = () => {
+    if (isDisablingWhatsapp) return;
+    setDisableTargetLead(null);
+    setDisableReason("");
+  };
+
+  const handleConfirmDisableWhatsapp = async () => {
+    if (!disableTargetLead || isDisablingWhatsapp) return;
+
+    try {
+      setIsDisablingWhatsapp(true);
+      const response = await disableLeadWhatsApp(
+        disableTargetLead.id,
+        disableReason.trim() || undefined
+      );
+      const effectiveReason = disableReason.trim() || "disabled from frontend marketing controls";
+
+      setLeads((prev) =>
+        prev.map((lead) =>
+          lead.id === disableTargetLead.id
+            ? {
+              ...lead,
+              approvalStatus: "suppressed",
+              isSuppressed: true,
+              contactReadOnly: true,
+              sendable: false,
+              suppression: {
+                active: true,
+                scope: "marketing",
+                matchedBy: response.phoneE164 ? "phone" : response.email ? "email" : null,
+                source: response.source || "manual_disable",
+                reason: response.reason || effectiveReason,
+                provider: "frontend",
+                phoneE164: response.phoneE164 || lead.phone || null,
+                email: response.email || lead.email || null,
+                personId: lead.id,
+                campaignId: campaignId || null,
+              },
+              whatsappOptedOut: true,
+              whatsappOptOutSource: response.source || "manual_disable",
+              whatsappOptOutReason: response.reason || effectiveReason,
+              whatsappOptOutPhoneE164: response.phoneE164 || lead.phone || null,
+            }
+            : lead
+        )
+      );
+
+      toast.success("Lead added to opt-out", {
+        description: `${disableTargetLead.employeeName} will not receive any marketing messages.`,
+      });
+
+      setDisableTargetLead(null);
+      setDisableReason("");
+      await fetchAll();
+    } catch (error: any) {
+      toast.error("Failed to disable marketing", {
+        description: error?.response?.data?.detail || error?.message || "Please try again.",
+      });
+    } finally {
+      setIsDisablingWhatsapp(false);
     }
   };
 
@@ -1210,6 +1703,20 @@ export default function CampaignDetailPage() {
   const handleSaveAndApprove = async () => {
     if (!selectedLead) return;
 
+    const optedOut = isLeadMarketingOptedOut(selectedLead);
+    if (optedOut) {
+      toast.warning("Action blocked", {
+        description: "This lead is in the opt-out list and cannot receive any messages.",
+      });
+      return;
+    }
+    if (selectedLead.sendable === false) {
+      toast.warning("Action blocked", {
+        description: "This lead is currently not sendable.",
+      });
+      return;
+    }
+
     setSaving(true);
     const leadId = selectedLead.id;
 
@@ -1266,8 +1773,19 @@ export default function CampaignDetailPage() {
       };
 
       const res = await api.put(`/api/leads/${leadId}/content`, payload);
-
-      toast.success("Saved & Approved, sending outreach...");
+      const approveResponse = await api.put(`/api/leads/${leadId}/approve`);
+      const approvedLead = approveResponse?.data ?? {};
+      const resolvedStatus = normalizeApprovalStatus(approvedLead.approvalStatus ?? "approved");
+      const resolvedSuppression = normalizeSuppressionMeta(approvedLead.suppression);
+      const suppressedNow =
+        resolvedStatus === "suppressed" ||
+        parseBoolean(approvedLead.isSuppressed) ||
+        parseBoolean(approvedLead.contactReadOnly) ||
+        Boolean(resolvedSuppression?.active);
+      const resolvedSendable =
+        typeof approvedLead.sendable === "boolean"
+          ? approvedLead.sendable
+          : !suppressedNow;
 
       // 4) Update local row
       setLeads((prev) =>
@@ -1279,14 +1797,26 @@ export default function CampaignDetailPage() {
               contentEmail: res.data.contentEmail ?? l.contentEmail,
               contentLinkedin: res.data.contentLinkedin ?? l.contentLinkedin,
               contentWhatsapp: res.data.contentWhatsapp ?? l.contentWhatsapp,
-              approvalStatus: "approved",
+              reviewStatus: approvedLead.reviewStatus ?? l.reviewStatus ?? null,
+              approvalStatus: resolvedStatus,
+              isSuppressed: suppressedNow,
+              suppression: resolvedSuppression ?? l.suppression ?? null,
+              contactReadOnly: suppressedNow || parseBoolean(approvedLead.contactReadOnly),
+              sendable:
+                typeof approvedLead.sendable === "boolean"
+                  ? approvedLead.sendable
+                  : suppressedNow
+                    ? false
+                    : l.sendable,
               emailAttachments: Array.isArray(res.data.emailAttachments)
                 ? res.data.emailAttachments
                 : ((editForm.emailAttachments as Attachment[]) || l.emailAttachments || []),
               whatsappAttachments: Array.isArray(res.data.whatsappAttachments)
                 ? res.data.whatsappAttachments
                 : ((editForm.whatsappAttachments as Attachment[]) || l.whatsappAttachments || []),
-              outreachStatus: { email: "sending", linkedin: "pending", whatsapp: "pending" },
+              outreachStatus: suppressedNow
+                ? l.outreachStatus
+                : { email: "sending", linkedin: "pending", whatsapp: "pending" },
             }
             : l
         )
@@ -1297,6 +1827,21 @@ export default function CampaignDetailPage() {
       setEditForm({});
       setPendingEmailUploads([]);
       setPendingWhatsappUploads([]);
+
+      if (suppressedNow) {
+        toast.warning("Lead suppressed", {
+          description: resolvedSuppression?.reason || "This lead is blocked from all marketing messages.",
+        });
+        return;
+      }
+      if (!resolvedSendable) {
+        toast.warning("Lead not sendable", {
+          description: "This lead cannot be queued for outreach right now.",
+        });
+        return;
+      }
+
+      toast.success("Saved & Approved, sending outreach...");
 
       // 6) send
       // const lead = leads.find((l) => l.id === leadId);
@@ -1309,12 +1854,45 @@ export default function CampaignDetailPage() {
       // await sendDraft(draftId);
       // startPollingLead(leadId);
 
-      // NEW: send by leadId
-      await sendLead(leadId, commonAttachmentId ?? undefined);
-      startPollingLead(leadId);
+      const sendResponse = await sendLead(leadId, commonAttachmentId ?? undefined);
+      const queuedChannels = Array.isArray(sendResponse?.data?.queuedChannels)
+        ? (sendResponse.data.queuedChannels as string[])
+        : [];
+      const queuedEmail = queuedChannels.includes("email");
+      const queuedWhatsapp = queuedChannels.includes("whatsapp");
+
+      setLeads((prev) =>
+        prev.map((item) =>
+          item.id === leadId
+            ? {
+              ...item,
+              outreachStatus: {
+                email: queuedEmail ? "queued" : "pending",
+                linkedin: "pending",
+                whatsapp: queuedWhatsapp ? "queued" : "pending",
+              },
+            }
+            : item
+        )
+      );
+
+      startPollingLead(
+        leadId,
+        ["email", "whatsapp"].filter((channel) =>
+          queuedChannels.includes(channel)
+        ) as Array<"email" | "whatsapp">
+      );
 
     } catch (e: any) {
-      toast.error("Save/send failed", { description: e?.response?.data?.detail || e?.message });
+      const detail = String(e?.response?.data?.detail || e?.message || "");
+      if (isMarketingOptOutError(detail)) {
+        toast.warning("Lead is opted out", {
+          description: "This lead is blocked from all marketing messages.",
+        });
+        await fetchAll();
+        return;
+      }
+      toast.error("Save/send failed", { description: detail });
     } finally {
       setSaving(false);
     }
@@ -1365,42 +1943,24 @@ export default function CampaignDetailPage() {
           </div>
         </div>
 
-        <div className="relative z-[1] mt-3 grid gap-3 border-t border-zinc-100/80 pt-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Card className="rounded-2xl border border-zinc-200 bg-white p-3">
-            <div className="flex h-full flex-col">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500/90">Total Leads</span>
-              <div className="mt-auto flex items-end">
-                <span className="text-xl font-semibold tracking-tight text-zinc-900">{leads.length}</span>
+        <div className="relative z-[1] mt-3 grid gap-3 border-t border-zinc-100/80 pt-3 sm:grid-cols-2 xl:grid-cols-6">
+          {[
+            { label: "Total Leads", value: totalLeadCount, valueClass: "text-zinc-900" },
+            { label: "Pending", value: pendingMetricCount, valueClass: "text-zinc-900" },
+            { label: "Approved", value: approvedMetricCount, valueClass: "text-sidebar-primary" },
+            { label: "Sendable Approved", value: sendableApprovedCount, valueClass: "text-emerald-700" },
+            { label: "Suppressed", value: suppressedMetricCount, valueClass: "text-rose-700" },
+            { label: "Rejected", value: rejectedMetricCount, valueClass: "text-zinc-500" },
+          ].map((metric) => (
+            <Card key={metric.label} className="rounded-2xl border border-zinc-200 bg-white p-3">
+              <div className="flex h-full flex-col">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500/90">{metric.label}</span>
+                <div className="mt-auto flex items-end">
+                  <span className={`text-xl font-semibold tracking-tight ${metric.valueClass}`}>{metric.value}</span>
+                </div>
               </div>
-            </div>
-          </Card>
-
-          <Card className="rounded-2xl border border-zinc-200 bg-white p-3">
-            <div className="flex h-full flex-col">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500/90">Pending</span>
-              <div className="mt-auto flex items-end">
-                <span className="text-xl font-semibold tracking-tight text-zinc-900">{pendingCount}</span>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="rounded-2xl border border-zinc-200 bg-white p-3">
-            <div className="flex h-full flex-col">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500/90">Approved</span>
-              <div className="mt-auto flex items-end">
-                <span className="text-xl font-semibold tracking-tight text-sidebar-primary">{approvedCount}</span>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="rounded-2xl border border-zinc-200 bg-white p-3">
-            <div className="flex h-full flex-col">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500/90">Rejected</span>
-              <div className="mt-auto flex items-end">
-                <span className="text-xl font-semibold tracking-tight text-zinc-500">{rejectedCount}</span>
-              </div>
-            </div>
-          </Card>
+            </Card>
+          ))}
         </div>
       </div>
 
@@ -1666,13 +2226,13 @@ export default function CampaignDetailPage() {
               <span className="text-zinc-400">No attachment selected.</span>
             )}
 
-            {filteredLeads.length > 0 && (
+            {selectableFilteredLeads.length > 0 && (
               <button
                 type="button"
                 onClick={handleSelectAllFiltered}
                 className="font-semibold text-zinc-700 hover:text-zinc-900"
               >
-                Select all filtered ({filteredLeads.length})
+                Select all filtered ({selectableFilteredLeads.length})
               </button>
             )}
           </div>
@@ -1690,6 +2250,7 @@ export default function CampaignDetailPage() {
                       checked={isCurrentPageAllSelected}
                       onChange={(e) => handleSelectAllCurrentPage(e.target.checked)}
                       aria-label="Select all on current page"
+                      disabled={selectableCurrentPageLeads.length === 0}
                       className="h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
                     />
                   </th>
@@ -1720,9 +2281,25 @@ export default function CampaignDetailPage() {
                   titleBucket !== "Other" &&
                   titleBucket !== "Unknown" &&
                   !(item.title || "").toLowerCase().includes(titleBucket.toLowerCase());
+                const optOutEntry = leadOptOutById.get(item.id) ?? null;
+                const isOptedOut = Boolean(optOutEntry);
+                const isLeadReadOnly = isLeadMarketingOptedOut(item);
+                const isOutreachBlocked = isLeadOutreachBlocked(item);
+                const disableWhatsappAction = (!hasText(item.phone) && !hasText(item.email)) || isOptedOut;
+                const suppressionMeta = item.suppression || null;
+                const suppressionSource = optOutEntry?.source || suppressionMeta?.source || null;
+                const suppressionReason = optOutEntry?.reason || suppressionMeta?.reason || null;
+                const suppressionMatchedBy = suppressionMeta?.matchedBy || optOutEntry?.identityType || null;
+                const suppressionPhone = suppressionMeta?.phoneE164 || optOutEntry?.phoneE164 || item.phone || null;
+                const suppressionEmail = suppressionMeta?.email || optOutEntry?.email || item.email || null;
 
                 return (
-                  <tr key={item.id} className="group transition-colors hover:bg-white/46">
+                  <tr
+                    key={item.id}
+                    className={`group transition-colors ${
+                      isLeadReadOnly ? "bg-rose-50/35 hover:bg-rose-50/50" : "hover:bg-white/46"
+                    }`}
+                  >
                     {bulkSelectMode && (
                       <td className="px-3 py-3.5 text-center align-top">
                         <input
@@ -1730,6 +2307,7 @@ export default function CampaignDetailPage() {
                           checked={selectedBulkLeadIds.has(item.id)}
                           onChange={(e) => handleSelectBulkLead(item.id, e.target.checked)}
                           aria-label={`Select ${item.employeeName}`}
+                          disabled={isOutreachBlocked}
                           className="mt-0.5 h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
                         />
                       </td>
@@ -1753,6 +2331,20 @@ export default function CampaignDetailPage() {
                       <div className="flex flex-col gap-1">
                         <span className="font-mono text-xs text-zinc-600">{item.email}</span>
                         <span className="text-xs text-zinc-400">{item.phone}</span>
+                        {isLeadReadOnly ? (
+                          <span className="w-fit rounded border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-700">
+                            Suppressed
+                          </span>
+                        ) : null}
+                        {isLeadReadOnly ? (
+                          <div className="rounded border border-rose-100 bg-rose-50/60 px-2 py-1 text-[10px] leading-relaxed text-rose-700">
+                            {suppressionSource ? <p>Source: {suppressionSource}</p> : null}
+                            {suppressionReason ? <p>Reason: {suppressionReason}</p> : null}
+                            {suppressionMatchedBy ? <p>Matched by: {suppressionMatchedBy}</p> : null}
+                            {suppressionPhone ? <p>Phone: {suppressionPhone}</p> : null}
+                            {suppressionEmail ? <p>Email: {suppressionEmail}</p> : null}
+                          </div>
+                        ) : null}
                         <div className="mt-1 flex gap-3">
                           <a href={item.linkedinUrl} target="_blank" rel="noreferrer" className="text-zinc-400 transition-colors hover:text-zinc-900">
                             <LinkedInIcon className="h-3.5 w-3.5" />
@@ -1770,6 +2362,7 @@ export default function CampaignDetailPage() {
                         size="sm"
                         className="h-8 rounded-md border border-zinc-200/80 bg-white/82 text-xs font-semibold text-zinc-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
                         onClick={() => setSelectedLead(item)}
+                        disabled={isLeadReadOnly}
                       >
                         <Eye className="mr-2 h-3.5 w-3.5 text-zinc-400" />
                         Review Content
@@ -1777,10 +2370,25 @@ export default function CampaignDetailPage() {
                     </td>
 
                     <td className="px-4 py-3.5">
-                      <Badge className={`rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide shadow-none ${status.bg}`}>
-                        <StatusIcon className="mr-1.5 h-3 w-3" />
-                        {item.approvalStatus}
-                      </Badge>
+                      <div className="flex flex-col gap-1">
+                        <Badge className={`w-fit rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide shadow-none ${status.bg}`}>
+                          <StatusIcon className="mr-1.5 h-3 w-3" />
+                          {item.approvalStatus}
+                        </Badge>
+                        {isLeadReadOnly ? (
+                          <span className="w-fit rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-700">
+                            Blocked
+                          </span>
+                        ) : null}
+                        {!isLeadReadOnly && item.sendable === false ? (
+                          <span className="w-fit rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                            Not Sendable
+                          </span>
+                        ) : null}
+                        {item.reviewStatus ? (
+                          <span className="text-[10px] text-zinc-500">Review: {item.reviewStatus}</span>
+                        ) : null}
+                      </div>
                     </td>
 
                     <td className="px-4 py-3.5">
@@ -1788,15 +2396,32 @@ export default function CampaignDetailPage() {
                     </td>
 
                     <td className="px-4 py-3.5 text-right">
-                      <div className="flex min-w-[152px] justify-end gap-2">
+                      <div className="flex min-w-[190px] justify-end gap-2">
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-500 hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
                           onClick={() => handleCopyLeadDetails(item)}
-                          title="Copy lead details"
+                          title={isLeadReadOnly ? "Lead actions are blocked" : "Copy lead details"}
+                          disabled={isLeadReadOnly}
                         >
                           <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-400 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 disabled:cursor-not-allowed disabled:opacity-45"
+                          onClick={() => openDisableWhatsappConfirm(item)}
+                          title={
+                            !hasText(item.phone) && !hasText(item.email)
+                              ? "Lead has no phone or email"
+                              : isOptedOut
+                                ? "Already in opt-out list"
+                                : "Disable marketing for this lead"
+                          }
+                          disabled={disableWhatsappAction}
+                        >
+                          <PhoneOff className="h-3.5 w-3.5" />
                         </Button>
                         {item.approvalStatus === "pending" ? (
                           <>
@@ -1805,13 +2430,26 @@ export default function CampaignDetailPage() {
                               size="icon"
                               className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-400 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                               onClick={() => handleReject(item.id)}
+                              disabled={isLeadReadOnly}
                             >
                               <X className="h-4 w-4" />
                             </Button>
                             <Button
                               size="icon"
-                              className="h-8 w-8 rounded-md border border-sidebar-primary/75 bg-sidebar-primary text-sidebar-foreground shadow-[0_8px_14px_-12px_rgba(17,46,98,0.62)] hover:bg-sidebar-primary/85"
+                              className={`h-8 w-8 rounded-md border text-sidebar-foreground shadow-[0_8px_14px_-12px_rgba(17,46,98,0.62)] ${
+                                isOutreachBlocked
+                                  ? "cursor-not-allowed border-zinc-200 bg-zinc-200 text-zinc-400 shadow-none"
+                                  : "border-sidebar-primary/75 bg-sidebar-primary hover:bg-sidebar-primary/85"
+                              }`}
                               onClick={() => handleApprove(item.id)}
+                              disabled={isOutreachBlocked}
+                              title={
+                                isLeadReadOnly
+                                  ? "Lead is suppressed and read-only"
+                                  : item.sendable === false
+                                    ? "Lead is currently not sendable"
+                                  : "Approve and send"
+                              }
                             >
                               <Check className="h-4 w-4" />
                             </Button>
@@ -1989,6 +2627,72 @@ export default function CampaignDetailPage() {
           </motion.div>
         )}
 
+        {disableTargetLead && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[73] flex items-center justify-center bg-zinc-950/50 p-4 backdrop-blur-[3px]"
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0, y: 8 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 8 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="w-full max-w-md overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_24px_40px_-28px_rgba(2,10,27,0.68)]"
+            >
+              <div className="space-y-2 border-b border-zinc-100 px-5 py-4">
+                <h3 className="text-base font-semibold text-zinc-900">Disable Marketing For Lead</h3>
+                <p className="text-sm text-zinc-600">
+                  Add <span className="font-semibold text-zinc-900">{disableTargetLead.employeeName}</span> to opt-out list?
+                </p>
+                <p className="text-xs text-zinc-500">Phone: {disableTargetLead.phone || "-"}</p>
+                <p className="text-xs text-zinc-500">Email: {disableTargetLead.email || "-"}</p>
+              </div>
+
+              <div className="space-y-2 px-5 py-4">
+                <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  Reason (optional)
+                </label>
+                <Input
+                  value={disableReason}
+                  onChange={(event) => setDisableReason(event.target.value)}
+                  placeholder="e.g. requested to stop all marketing messages"
+                  disabled={isDisablingWhatsapp}
+                  className="border-zinc-200"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 border-t border-zinc-100 px-5 py-4">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={isDisablingWhatsapp}
+                  onClick={closeDisableWhatsappConfirm}
+                  className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleConfirmDisableWhatsapp}
+                  disabled={isDisablingWhatsapp}
+                  className="h-9 rounded-md border border-amber-500/75 bg-amber-500 px-3.5 text-white hover:bg-amber-600 disabled:opacity-60"
+                >
+                  {isDisablingWhatsapp ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                      Disabling...
+                    </>
+                  ) : (
+                    "Yes, Disable Marketing"
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
         {selectedLead && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -2081,13 +2785,25 @@ export default function CampaignDetailPage() {
               </div>
 
               <div className="relative z-[2] flex flex-col gap-3 border-t border-zinc-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs text-zinc-500">Changes are saved before approval and outreach is triggered.</p>
+                <div className="space-y-1">
+                  <p className="text-xs text-zinc-500">Changes are saved before approval and outreach is triggered.</p>
+                  {isLeadMarketingOptedOut(selectedLead) ? (
+                    <p className="text-xs font-medium text-rose-600">
+                      This lead is suppressed by contact rules. Actions are disabled.
+                    </p>
+                  ) : selectedLead.sendable === false ? (
+                    <p className="text-xs font-medium text-amber-700">
+                      This lead is currently not sendable. Update content or lead data before outreach.
+                    </p>
+                  ) : null}
+                </div>
 
                 {selectedLead.approvalStatus === "pending" ? (
                   <div className="flex justify-end gap-3">
                     <Button
                       variant="ghost"
                       className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-zinc-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                      disabled={isLeadMarketingOptedOut(selectedLead)}
                       onClick={async () => {
                         await handleReject(selectedLead.id);
                         closeModal();
@@ -2096,8 +2812,16 @@ export default function CampaignDetailPage() {
                       Reject
                     </Button>
 
-                    <Button className="btn-sidebar-noise h-9 px-3.5" disabled={saving} onClick={handleSaveAndApprove}>
-                      {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    <Button
+                      className="btn-sidebar-noise h-9 px-3.5"
+                      disabled={saving || isLeadOutreachBlocked(selectedLead)}
+                      onClick={handleSaveAndApprove}
+                    >
+                      {saving ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Save className="mr-2 h-4 w-4" />
+                      )}
                       Save &amp; Approve
                     </Button>
                   </div>

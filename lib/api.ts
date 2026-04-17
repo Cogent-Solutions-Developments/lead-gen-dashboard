@@ -58,6 +58,8 @@ export type CampaignDetail = {
     pending: number;
     approved: number;
     rejected: number;
+    suppressed: number;
+    sendableApproved: number;
   };
 };
 
@@ -114,6 +116,8 @@ export type SendAllCampaignResponse = {
   campaignId: string;
   pendingFound: number;
   approved: number;
+  suppressedOptOut: number;
+  skippedNoContent: number;
   queuedEmail: number;
   queuedWhatsapp: number;
   attachmentsCreated: number;
@@ -134,6 +138,10 @@ export type ApproveSelectedLeadsRequest = {
 
 export type ApproveSelectedLeadsResponse = {
   message: string;
+  approvedLeadIds?: string[];
+  suppressedLeadIds?: string[];
+  approvedCount?: number;
+  suppressedCount?: number;
 };
 
 export type SendSelectedLeadsRequest = {
@@ -144,6 +152,89 @@ export type SendSelectedLeadsRequest = {
 
 export type SendSelectedLeadsResponse = {
   message: string;
+  queuedLeads?: number;
+  suppressedOptOut?: number;
+};
+
+export type SuppressionMeta = {
+  active?: boolean;
+  scope?: string | null;
+  matchedBy?: string | null;
+  source?: string | null;
+  reason?: string | null;
+  provider?: string | null;
+  phoneE164?: string | null;
+  email?: string | null;
+  personId?: string | null;
+  campaignId?: string | null;
+  identifiers?: Record<string, unknown> | null;
+  legacy?: boolean;
+};
+
+export type WhatsAppOptOutItem = {
+  id: string;
+  scope?: string | null;
+  identityType?: string | null;
+  identityValue?: string | null;
+  phoneE164?: string | null;
+  email?: string | null;
+  isActive: boolean;
+  source: string | null;
+  reason: string | null;
+  provider: string | null;
+  personId: string | null;
+  campaignId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ListWhatsAppOptOutsResponse = {
+  ok: boolean;
+  items: WhatsAppOptOutItem[];
+};
+
+export type UploadWhatsAppOptOutCsvResponse = {
+  ok: boolean;
+  filename: string;
+  totalRows: number;
+  phoneRows: number;
+  emailRows: number;
+  effectiveRows: number;
+  created: number;
+  updated: number;
+  invalid: number;
+};
+
+export type CreateWhatsAppOptOutRequest = {
+  phone?: string;
+  email?: string;
+  leadId?: string;
+  reason?: string;
+  source?: string;
+};
+
+export type CreateWhatsAppOptOutResponse = {
+  ok: boolean;
+  created: boolean;
+  suppressionId?: string;
+  isActive: boolean;
+  source: string;
+  reason: string | null;
+  phoneE164: string | null;
+  email: string | null;
+  personId: string | null;
+  campaignId: string | null;
+};
+
+export type DisableLeadWhatsAppResponse = {
+  ok: boolean;
+  created: boolean;
+  leadId: string;
+  phoneE164: string | null;
+  email: string | null;
+  isActive: boolean;
+  source: string;
+  reason: string | null;
 };
 
 export type CampaignInfo = {
@@ -175,7 +266,13 @@ export type LeadItem = {
   contentEmail: string | null;
   contentLinkedin: string | null;
   contentWhatsapp: string | null;
-  approvalStatus: "pending" | "approved" | "rejected";
+  reviewStatus?: string | null;
+  approvalStatus: "pending" | "approved" | "rejected" | "suppressed";
+  outreachStatus?: string | Record<string, unknown> | null;
+  isSuppressed?: boolean;
+  suppression?: SuppressionMeta | null;
+  contactReadOnly?: boolean;
+  sendable?: boolean;
 };
 
 export type MessageChannel = "email" | "whatsapp" | "linkedin" | "other";
@@ -426,6 +523,62 @@ export async function sendSelectedCampaignLeads(payload: SendSelectedLeadsReques
   const { data } = await apiClient.post<SendSelectedLeadsResponse>(
     `/api/campaigns/${campaignId}/send-selected-leads${queryText ? `?${queryText}` : ""}`,
     leadIds
+  );
+  return data;
+}
+
+export async function listWhatsAppOptOuts(params?: {
+  limit?: number;
+  activeOnly?: boolean;
+}) {
+  const { data } = await apiClient.get<ListWhatsAppOptOutsResponse>(
+    "/api/marketing/opt-outs",
+    {
+      params: {
+        limit: params?.limit,
+        active_only:
+          typeof params?.activeOnly === "boolean"
+            ? params.activeOnly
+            : undefined,
+      },
+    }
+  );
+  return data;
+}
+
+export async function uploadWhatsAppOptOutCsv(file: File | Blob) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const { data } = await apiClient.post<UploadWhatsAppOptOutCsvResponse>(
+    "/api/marketing/opt-outs/upload",
+    formData
+  );
+  return data;
+}
+
+export async function createWhatsAppOptOut(payload: CreateWhatsAppOptOutRequest) {
+  const body = {
+    phone: payload.phone?.trim() || undefined,
+    email: payload.email?.trim() || undefined,
+    leadId: payload.leadId?.trim() || undefined,
+    reason: payload.reason?.trim() || undefined,
+    source: payload.source?.trim() || undefined,
+  };
+  const { data } = await apiClient.post<CreateWhatsAppOptOutResponse>(
+    "/api/marketing/opt-outs",
+    body
+  );
+  return data;
+}
+
+export async function disableLeadWhatsApp(leadId: string, reason?: string) {
+  const { data } = await apiClient.post<DisableLeadWhatsAppResponse>(
+    `/api/leads/${leadId}/marketing/disable`,
+    null,
+    {
+      params: reason?.trim() ? { reason: reason.trim() } : undefined,
+    }
   );
   return data;
 }

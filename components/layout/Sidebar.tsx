@@ -11,6 +11,7 @@ import {
   Upload,
   TrainFront,
   MessageSquare,
+  Settings,
   UserRound,
   LogOut
 } from "lucide-react";
@@ -29,6 +30,7 @@ const navItems = [
   // { name: "Completed", href: "/completed", icon: CheckCircle },
   { name: "Nizo Finder", href: "/leads", icon: TrainFront },
   { name: "Replies", href: "/replies", icon: MessageSquare },
+  { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 export function Sidebar() {
