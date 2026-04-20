@@ -37,6 +37,7 @@ import { useParams } from "next/navigation";
 import {
   approveSelectedCampaignLeads,
   type CampaignImportSummary,
+  type ChannelCapabilities,
   disableLeadWhatsApp,
   getApiKeyClient,
   listWhatsAppOptOuts,
@@ -113,6 +114,7 @@ interface Lead {
   suppression?: SuppressionMeta | null;
   contactReadOnly?: boolean;
   sendable?: boolean;
+  channelCapabilities?: ChannelCapabilities | null;
 
   outreachStatus?: {
     email: OutreachState;
@@ -249,6 +251,10 @@ function normalizePhoneDigits(value: unknown): string {
   return String(value ?? "").replace(/\D+/g, "");
 }
 
+function isExecutedOutreachState(state: OutreachState): boolean {
+  return state === "queued" || state === "sending" || state === "sent";
+}
+
 function buildPhoneLookupKeys(value: unknown): string[] {
   const digits = normalizePhoneDigits(value);
   if (!digits) return [];
@@ -289,6 +295,53 @@ const extractOutreachStatus = (source: unknown): Required<NonNullable<Lead["outr
     whatsapp: normalizeOutreachState(picked.whatsapp),
   };
 };
+
+function normalizeChannelCapability(value: unknown) {
+  const source = asRecord(value);
+  if (!source) return null;
+
+  return {
+    sendable: source.sendable == null ? undefined : parseBoolean(source.sendable),
+    attachmentsSupported: parseBoolean(source.attachmentsSupported),
+    delivery: source.delivery ? String(source.delivery) : null,
+    usesDraftContent: parseBoolean(source.usesDraftContent),
+    requiresApprovedDraft: parseBoolean(source.requiresApprovedDraft),
+    mode: source.mode ? String(source.mode) : null,
+    enabled: source.enabled == null ? undefined : parseBoolean(source.enabled),
+    templateConfigured:
+      source.templateConfigured == null ? undefined : parseBoolean(source.templateConfigured),
+  };
+}
+
+function normalizeChannelCapabilities(value: unknown): ChannelCapabilities | null {
+  const source = asRecord(value);
+  if (!source) return null;
+
+  const email = normalizeChannelCapability(source.email);
+  const whatsapp = normalizeChannelCapability(source.whatsapp);
+
+  if (!email && !whatsapp) return null;
+  return { email, whatsapp };
+}
+
+function normalizeAttachment(value: unknown): Attachment | null {
+  const source = asRecord(value);
+  if (!source || !source.id) return null;
+
+  return {
+    id: String(source.id),
+    name: String(source.name || "attachment"),
+    url: source.url ? String(source.url) : undefined,
+    mime: source.mime ? String(source.mime) : undefined,
+    sizeBytes: typeof source.sizeBytes === "number" ? source.sizeBytes : undefined,
+    channel: source.channel ? (String(source.channel) as AttachmentChannel) : undefined,
+  };
+}
+
+function normalizeAttachments(value: unknown): Attachment[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => normalizeAttachment(item)).filter((item): item is Attachment => Boolean(item));
+}
 
 function normalizeTitleBucket(titleRaw: string): string {
   const t = (titleRaw || "").toLowerCase();
@@ -616,6 +669,10 @@ async function uploadLeadAttachment(
   channel: AttachmentChannel,
   file: File
 ): Promise<Attachment> {
+  if (channel !== "email") {
+    throw new Error("WhatsApp attachments are not available yet.");
+  }
+
   const form = new FormData();
   form.append("file", file);
 
@@ -699,12 +756,12 @@ export default function CampaignDetailPage() {
 
   const leadFilterTabs = useMemo(
     () => [
-      { key: "new" as const, label: "New", count: pendingCount },
-      { key: "sent" as const, label: "Sent", count: approvedCount },
+      { key: "new" as const, label: "New", count: leads.filter((lead) => isLeadInNewBucket(lead)).length },
+      { key: "sent" as const, label: "Sent", count: leads.filter((lead) => isLeadInSentBucket(lead)).length },
       { key: "rejected" as const, label: "Rejected", count: rejectedCount },
       { key: "suppressed" as const, label: "Suppressed", count: suppressedCount },
     ],
-    [pendingCount, approvedCount, rejectedCount, suppressedCount]
+    [leads, rejectedCount, suppressedCount]
   );
   const optOutByPersonId = useMemo(() => {
     const map = new Map<string, WhatsAppOptOutItem>();
@@ -808,22 +865,72 @@ export default function CampaignDetailPage() {
     return map;
   }, [campaignId, leads, optOutByEmailKey, optOutByPersonId, optOutByPhoneKey]);
 
-  const isLeadMarketingOptedOut = (lead: Lead) => {
+  function isLeadMarketingOptedOut(lead: Lead) {
     if (lead.contactReadOnly) return true;
     if (lead.approvalStatus === "suppressed") return true;
     if (lead.isSuppressed) return true;
     if (lead.suppression?.active) return true;
     return Boolean(leadOptOutById.get(lead.id));
-  };
-  const isLeadOutreachBlocked = (lead: Lead) =>
-    isLeadMarketingOptedOut(lead) || lead.sendable === false;
+  }
+  function isLeadOutreachBlocked(lead: Lead) {
+    return isLeadMarketingOptedOut(lead) || lead.sendable === false;
+  }
+  function leadSupportsEmailAction(lead: Lead) {
+    return hasText(lead.email);
+  }
+  function leadSupportsWhatsappAction(lead: Lead) {
+    return hasText(lead.phone);
+  }
+  function isLeadEmailActionCompleted(lead: Lead) {
+    return isExecutedOutreachState(buildOutreachStatus(lead).email);
+  }
+  function isLeadWhatsappActionCompleted(lead: Lead) {
+    return isExecutedOutreachState(buildOutreachStatus(lead).whatsapp);
+  }
+  function isLeadFullyActioned(lead: Lead) {
+    const needsEmail = leadSupportsEmailAction(lead);
+    const needsWhatsapp = leadSupportsWhatsappAction(lead);
+
+    if (!needsEmail && !needsWhatsapp) return false;
+    if (needsEmail && !isLeadEmailActionCompleted(lead)) return false;
+    if (needsWhatsapp && !isLeadWhatsappActionCompleted(lead)) return false;
+    return true;
+  }
+  function isLeadInNewBucket(lead: Lead) {
+    return lead.approvalStatus !== "rejected" && lead.approvalStatus !== "suppressed" && !isLeadFullyActioned(lead);
+  }
+  function isLeadInSentBucket(lead: Lead) {
+    return lead.approvalStatus !== "rejected" && lead.approvalStatus !== "suppressed" && isLeadFullyActioned(lead);
+  }
+  function getEmailCapabilityDisabledReason(lead: Lead) {
+    if (!hasText(lead.email)) return "Lead has no email address.";
+
+    const capability = lead.channelCapabilities?.email;
+    if (!capability) return null;
+    if (capability.sendable === false) {
+      return "Email is not currently sendable for this lead.";
+    }
+
+    return null;
+  }
+  function getWhatsappCapabilityDisabledReason(lead: Lead) {
+    if (!hasText(lead.phone)) return "Lead has no phone number.";
+
+    const capability = lead.channelCapabilities?.whatsapp;
+    if (!capability) return null;
+    if (capability.enabled === false) return "WhatsApp sending is disabled.";
+    if (capability.templateConfigured === false) return "WhatsApp template is not configured.";
+    if (capability.sendable === false) return "WhatsApp is not currently sendable for this lead.";
+
+    return null;
+  }
 
   const filteredLeads = useMemo(() => {
     const statusFiltered =
       leadFilter === "new"
-        ? leads.filter((l) => l.approvalStatus === "pending")
+        ? leads.filter((l) => isLeadInNewBucket(l))
         : leadFilter === "sent"
-          ? leads.filter((l) => l.approvalStatus === "approved")
+          ? leads.filter((l) => isLeadInSentBucket(l))
           : leadFilter === "rejected"
             ? leads.filter((l) => l.approvalStatus === "rejected")
             : leads.filter((l) => l.approvalStatus === "suppressed");
@@ -1002,14 +1109,15 @@ export default function CampaignDetailPage() {
         suppression: normalizeSuppressionMeta(x.suppression),
         contactReadOnly: parseBoolean(x.contactReadOnly),
         sendable: typeof x.sendable === "boolean" ? x.sendable : undefined,
+        channelCapabilities: normalizeChannelCapabilities(x.channelCapabilities),
 
         draftId: x.draftId ?? null,
         draftStatus: x.draftStatus ?? null,
         outreachStatus: extractOutreachStatus(x),
 
         // ✅ expect backend arrays; fallback to empty
-        emailAttachments: Array.isArray(x.emailAttachments) ? x.emailAttachments : [],
-        whatsappAttachments: Array.isArray(x.whatsappAttachments) ? x.whatsappAttachments : [],
+        emailAttachments: normalizeAttachments(x.emailAttachments),
+        whatsappAttachments: normalizeAttachments(x.whatsappAttachments),
         whatsappOptedOut: Boolean(x.whatsappOptedOut ?? x.isWhatsappOptedOut ?? x.whatsapp_opted_out ?? false),
         whatsappOptOutSource: x.whatsappOptOutSource ?? x.optOutSource ?? null,
         whatsappOptOutReason: x.whatsappOptOutReason ?? x.optOutReason ?? null,
@@ -1069,8 +1177,15 @@ export default function CampaignDetailPage() {
                 suppression: normalizeSuppressionMeta(latest.suppression) ?? l.suppression ?? null,
                 contactReadOnly: parseBoolean(latest.contactReadOnly ?? l.contactReadOnly),
                 sendable: typeof latest.sendable === "boolean" ? latest.sendable : l.sendable,
+                channelCapabilities: normalizeChannelCapabilities(latest.channelCapabilities) ?? l.channelCapabilities ?? null,
                 draftStatus: latest.draftStatus ?? l.draftStatus,
                 outreachStatus: latestOutreachStatus ?? l.outreachStatus,
+                emailAttachments: Array.isArray(latest.emailAttachments)
+                  ? normalizeAttachments(latest.emailAttachments)
+                  : l.emailAttachments,
+                whatsappAttachments: Array.isArray(latest.whatsappAttachments)
+                  ? normalizeAttachments(latest.whatsappAttachments)
+                  : l.whatsappAttachments,
               }
               : l
           )
@@ -1118,16 +1233,32 @@ export default function CampaignDetailPage() {
   };
 
   const getLeadSendActionDisabledReason = (lead: Lead, action: LeadSendAction) => {
+    const outreachStatus = buildOutreachStatus(lead);
     if (isLeadMarketingOptedOut(lead)) return "This lead is in the opt-out list and cannot receive any messages.";
     if (lead.sendable === false) return "This lead is currently not sendable.";
+    const emailCapabilityReason = getEmailCapabilityDisabledReason(lead);
+    const whatsappCapabilityReason = getWhatsappCapabilityDisabledReason(lead);
+    if (action === "email" && isExecutedOutreachState(outreachStatus.email)) {
+      return "Email already queued or sent.";
+    }
+    if (action === "whatsapp" && isExecutedOutreachState(outreachStatus.whatsapp)) {
+      return "WhatsApp already queued or sent.";
+    }
+    if (
+      action === "both" &&
+      (isExecutedOutreachState(outreachStatus.email) || isExecutedOutreachState(outreachStatus.whatsapp))
+    ) {
+      return "Use the remaining channel action.";
+    }
     if ((action === "both" || action === "email") && isCommonAttachmentUploading) {
       return "Attachment is still uploading.";
     }
-    if (action === "email" && !hasText(lead.email)) return "Lead has no email address.";
-    if (action === "whatsapp" && !hasText(lead.phone)) return "Lead has no phone number.";
+    if (action === "email") return emailCapabilityReason;
+    if (action === "whatsapp") return whatsappCapabilityReason;
     if (action === "both" && !hasText(lead.email) && !hasText(lead.phone)) {
       return "Lead has no phone or email.";
     }
+    if (action === "both") return emailCapabilityReason || whatsappCapabilityReason;
     return null;
   };
 
@@ -1528,7 +1659,10 @@ export default function CampaignDetailPage() {
 
       let sendSummaryMessage = "No sendable leads after suppression checks.";
       let queuedLeads = 0;
+      let queuedEmail = 0;
+      let queuedWhatsapp = 0;
       let suppressedFromSend = 0;
+      let skippedNoChannel = 0;
       if (approvedLeadIds.length > 0) {
         const sendResult = await sendSelectedCampaignLeads({
           campaignId,
@@ -1536,20 +1670,28 @@ export default function CampaignDetailPage() {
           attachmentId: commonAttachmentId ?? undefined,
         });
         queuedLeads = Number(sendResult?.queuedLeads ?? approvedLeadIds.length);
+        queuedEmail = Number(sendResult?.queuedEmail ?? 0);
+        queuedWhatsapp = Number(sendResult?.queuedWhatsapp ?? 0);
         suppressedFromSend = Number(sendResult?.suppressedOptOut ?? 0);
+        skippedNoChannel = Number(sendResult?.skippedNoChannel ?? 0);
         sendSummaryMessage =
           sendResult?.message ||
           `Queued outreach for ${queuedLeads} lead(s).`;
       }
 
       toast.success("Bulk outreach processed", {
-        description: `Approved ${approvedLeadIds.length}, queued ${queuedLeads}. ${sendSummaryMessage}`,
+        description: `Approved ${approvedLeadIds.length}, queued ${queuedLeads} lead(s) (${queuedEmail} email, ${queuedWhatsapp} WhatsApp). ${sendSummaryMessage}`,
       });
 
       const totalSuppressed = skippedCount + suppressedFromApprove + suppressedFromSend;
       if (totalSuppressed > 0) {
         toast.warning("Some leads were skipped", {
           description: `${totalSuppressed} lead(s) were suppressed or blocked and were not sent.`,
+        });
+      }
+      if (skippedNoChannel > 0) {
+        toast.info("Some leads had no sendable channel", {
+          description: `${skippedNoChannel} lead(s) were approved but had no queueable email or WhatsApp channel.`,
         });
       }
 
@@ -1635,6 +1777,8 @@ export default function CampaignDetailPage() {
                   : suppressedNow
                     ? false
                     : item.sendable,
+              channelCapabilities:
+                normalizeChannelCapabilities(approvedLead.channelCapabilities) ?? item.channelCapabilities ?? null,
             }
             : item
         )
@@ -1667,6 +1811,7 @@ export default function CampaignDetailPage() {
             : suppressedNow
               ? false
               : lead.sendable,
+        channelCapabilities: normalizeChannelCapabilities(approvedLead.channelCapabilities) ?? lead.channelCapabilities ?? null,
       };
 
       await runLeadSendAction(approvedLeadState, action, { manageLoading: false });
@@ -1936,8 +2081,10 @@ export default function CampaignDetailPage() {
       // 1) Upload Email attachments
       await uploadQueue("email", pendingEmailUploads, setPendingEmailUploads, "emailAttachments");
 
-      // 2) Upload WhatsApp attachments
-      await uploadQueue("whatsapp", pendingWhatsappUploads, setPendingWhatsappUploads, "whatsappAttachments");
+      if (pendingWhatsappUploads.length > 0) {
+        setPendingWhatsappUploads([]);
+        toast.info("WhatsApp attachments are not available yet.");
+      }
 
       // 3) Save content + attachments lists
       const payload = {
@@ -1985,11 +2132,13 @@ export default function CampaignDetailPage() {
                   : suppressedNow
                     ? false
                     : l.sendable,
+              channelCapabilities:
+                normalizeChannelCapabilities(approvedLead.channelCapabilities) ?? l.channelCapabilities ?? null,
               emailAttachments: Array.isArray(res.data.emailAttachments)
-                ? res.data.emailAttachments
+                ? normalizeAttachments(res.data.emailAttachments)
                 : ((editForm.emailAttachments as Attachment[]) || l.emailAttachments || []),
               whatsappAttachments: Array.isArray(res.data.whatsappAttachments)
-                ? res.data.whatsappAttachments
+                ? normalizeAttachments(res.data.whatsappAttachments)
                 : ((editForm.whatsappAttachments as Attachment[]) || l.whatsappAttachments || []),
               outreachStatus: suppressedNow
                 ? l.outreachStatus
@@ -2462,6 +2611,21 @@ export default function CampaignDetailPage() {
                 const isOptedOut = Boolean(optOutEntry);
                 const isLeadReadOnly = isLeadMarketingOptedOut(item);
                 const isOutreachBlocked = isLeadOutreachBlocked(item);
+                const canSendEmail = leadSupportsEmailAction(item);
+                const canSendWhatsapp = leadSupportsWhatsappAction(item);
+                const emailActionCompleted = isLeadEmailActionCompleted(item);
+                const whatsappActionCompleted = isLeadWhatsappActionCompleted(item);
+                const showEmailAction = canSendEmail;
+                const showWhatsappAction = canSendWhatsapp;
+                const showBothAction =
+                  canSendEmail &&
+                  canSendWhatsapp &&
+                  !emailActionCompleted &&
+                  !whatsappActionCompleted;
+                const showSendActions =
+                  item.approvalStatus !== "rejected" &&
+                  item.approvalStatus !== "suppressed" &&
+                  !isLeadFullyActioned(item);
                 const sendBothDisabledReason = getLeadSendActionDisabledReason(item, "both");
                 const sendEmailDisabledReason = getLeadSendActionDisabledReason(item, "email");
                 const sendWhatsappDisabledReason = getLeadSendActionDisabledReason(item, "whatsapp");
@@ -2606,60 +2770,87 @@ export default function CampaignDetailPage() {
                         >
                           <PhoneOff className="h-3.5 w-3.5" />
                         </Button>
-                        {item.approvalStatus === "pending" ? (
+                        {showSendActions ? (
                           <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-500 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-45"
-                              onClick={() => void handleApprove(item.id, "whatsapp")}
-                              disabled={Boolean(sendWhatsappDisabledReason) || isSendingWhatsapp}
-                              title={sendWhatsappDisabledReason || "Approve and send WhatsApp only"}
-                            >
-                              {isSendingWhatsapp ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <WhatsAppIcon className="h-3.5 w-3.5" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-500 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-45"
-                              onClick={() => void handleApprove(item.id, "email")}
-                              disabled={Boolean(sendEmailDisabledReason) || isSendingEmail}
-                              title={sendEmailDisabledReason || "Approve and send Email only"}
-                            >
-                              {isSendingEmail ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Mail className="h-3.5 w-3.5" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-400 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                              onClick={() => handleReject(item.id)}
-                              disabled={isLeadReadOnly}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              className={`h-8 w-8 rounded-md border text-sidebar-foreground shadow-[0_8px_14px_-12px_rgba(17,46,98,0.62)] ${
-                                Boolean(sendBothDisabledReason) || isSendingBoth
-                                  ? "cursor-not-allowed border-zinc-200 bg-zinc-200 text-zinc-400 shadow-none"
-                                  : "border-sidebar-primary/75 bg-sidebar-primary hover:bg-sidebar-primary/85"
-                              }`}
-                              onClick={() => void handleApprove(item.id, "both")}
-                              disabled={Boolean(sendBothDisabledReason) || isSendingBoth}
-                              title={
-                                sendBothDisabledReason || "Approve and send both"
-                              }
-                            >
-                              {isSendingBoth ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                            </Button>
+                            {showWhatsappAction ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-500 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-45"
+                                onClick={() =>
+                                  void (item.approvalStatus === "pending"
+                                    ? handleApprove(item.id, "whatsapp")
+                                    : handleSendLeadAction(item, "whatsapp"))
+                                }
+                                disabled={Boolean(sendWhatsappDisabledReason) || isSendingWhatsapp}
+                                title={
+                                  sendWhatsappDisabledReason ||
+                                  (item.approvalStatus === "pending" ? "Approve and send WhatsApp only" : "Send WhatsApp only")
+                                }
+                              >
+                                {isSendingWhatsapp ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <WhatsAppIcon className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                            ) : null}
+                            {showEmailAction ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-500 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-45"
+                                onClick={() =>
+                                  void (item.approvalStatus === "pending"
+                                    ? handleApprove(item.id, "email")
+                                    : handleSendLeadAction(item, "email"))
+                                }
+                                disabled={Boolean(sendEmailDisabledReason) || isSendingEmail}
+                                title={
+                                  sendEmailDisabledReason ||
+                                  (item.approvalStatus === "pending" ? "Approve and send Email only" : "Send Email only")
+                                }
+                              >
+                                {isSendingEmail ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Mail className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                            ) : null}
+                            {item.approvalStatus === "pending" ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-400 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                                onClick={() => handleReject(item.id)}
+                                disabled={isLeadReadOnly}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            ) : null}
+                            {showBothAction ? (
+                              <Button
+                                size="icon"
+                                className={`h-8 w-8 rounded-md border text-sidebar-foreground shadow-[0_8px_14px_-12px_rgba(17,46,98,0.62)] ${
+                                  Boolean(sendBothDisabledReason) || isSendingBoth
+                                    ? "cursor-not-allowed border-zinc-200 bg-zinc-200 text-zinc-400 shadow-none"
+                                    : "border-sidebar-primary/75 bg-sidebar-primary hover:bg-sidebar-primary/85"
+                                }`}
+                                onClick={() =>
+                                  void (item.approvalStatus === "pending"
+                                    ? handleApprove(item.id, "both")
+                                    : handleSendLeadAction(item, "both"))
+                                }
+                                disabled={Boolean(sendBothDisabledReason) || isSendingBoth}
+                                title={
+                                  sendBothDisabledReason ||
+                                  (item.approvalStatus === "pending" ? "Approve and send both" : "Send both")
+                                }
+                              >
+                                {isSendingBoth ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                              </Button>
+                            ) : null}
                           </>
                         ) : item.approvalStatus === "rejected" ? (
                           <span className="text-xs italic text-zinc-400">Rejected</span>

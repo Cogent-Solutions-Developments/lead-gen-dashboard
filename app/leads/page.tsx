@@ -224,9 +224,7 @@ function deriveContactStateFromCampaignLead(source: Record<string, unknown>): Co
     return "in_progress";
   }
 
-  // Keep parity with campaign detail tab logic: approved leads are in the "Sent" bucket.
-  if (approval === "approved") return "both";
-  if (approval === "rejected" || approval === "pending") return "not_contacted";
+  if (approval === "approved" || approval === "rejected" || approval === "pending") return "not_contacted";
   return "unknown";
 }
 
