@@ -57,10 +57,17 @@ const LinkedInIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const WhatsAppIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M12.04 2C6.5 2 2 6.4 2 11.84c0 1.93.58 3.81 1.67 5.43L2.28 22l4.94-1.29a10.15 10.15 0 004.82 1.21h.01c5.54 0 10.04-4.4 10.04-9.84C22.09 6.4 17.59 2 12.04 2zm0 18.18h-.01a8.43 8.43 0 01-4.28-1.16l-.31-.18-2.94.77.79-2.84-.2-.33a8.08 8.08 0 01-1.27-4.36c0-4.47 3.69-8.11 8.22-8.11 2.2 0 4.26.84 5.81 2.37a8 8 0 012.41 5.73c0 4.47-3.69 8.11-8.22 8.11zm4.5-6.02c-.25-.12-1.49-.73-1.72-.81-.23-.08-.4-.12-.57.12-.17.24-.65.81-.8.97-.15.16-.29.18-.54.06-.25-.12-1.05-.38-2-1.2-.74-.64-1.24-1.44-1.38-1.68-.15-.24-.02-.37.11-.49.12-.12.25-.3.37-.45.12-.14.16-.24.25-.4.08-.16.04-.3-.02-.42-.06-.12-.57-1.36-.78-1.86-.21-.5-.43-.43-.57-.44h-.49c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2 0 1.18.86 2.32.98 2.48.12.16 1.69 2.68 4.16 3.65 2.48.97 2.48.65 2.92.61.44-.04 1.49-.61 1.7-1.2.21-.59.21-1.09.15-1.2-.06-.1-.23-.16-.48-.28z" />
+  </svg>
+);
+
 type ApprovalStatus = "pending" | "approved" | "rejected" | "suppressed";
 type OutreachState = "pending" | "queued" | "sending" | "sent" | "failed";
 type AttachmentChannel = "email" | "whatsapp" | "common";
 type LeadFilterKey = "new" | "sent" | "rejected" | "suppressed";
+type LeadSendAction = "both" | "email" | "whatsapp";
 
 type Attachment = {
   id: string;
@@ -667,6 +674,7 @@ export default function CampaignDetailPage() {
   // ✅ Separate pending queues
   const [pendingEmailUploads, setPendingEmailUploads] = useState<PendingUpload[]>([]);
   const [pendingWhatsappUploads, setPendingWhatsappUploads] = useState<PendingUpload[]>([]);
+  const [leadSendLoading, setLeadSendLoading] = useState<Record<string, Partial<Record<LeadSendAction, boolean>>>>({});
 
   // ✅ Separate file pickers
   const emailFileRef = useRef<HTMLInputElement | null>(null);
@@ -1023,6 +1031,12 @@ export default function CampaignDetailPage() {
     api.post(`/api/leads/${leadId}/send`, null, {
       params: attachmentId ? { attachment_id: attachmentId } : undefined,
     });
+  const sendLeadEmailOnly = async (leadId: string, attachmentId?: string) =>
+    api.post(`/api/leads/${leadId}/send-email`, null, {
+      params: attachmentId ? { attachment_id: attachmentId } : undefined,
+    });
+  const sendLeadWhatsappOnly = async (leadId: string) =>
+    api.post(`/api/leads/${leadId}/send-whatsapp`);
 
 
   const startPollingLead = (
@@ -1088,6 +1102,189 @@ export default function CampaignDetailPage() {
         if (tries >= maxTries) clearInterval(t);
       }
     }, 3000);
+  };
+
+  const setLeadSendActionLoading = (leadId: string, action: LeadSendAction, value: boolean) => {
+    setLeadSendLoading((prev) => {
+      const current = prev[leadId] || {};
+      const next = { ...current, [action]: value };
+      if (!next.both && !next.email && !next.whatsapp) {
+        const clone = { ...prev };
+        delete clone[leadId];
+        return clone;
+      }
+      return { ...prev, [leadId]: next };
+    });
+  };
+
+  const getLeadSendActionDisabledReason = (lead: Lead, action: LeadSendAction) => {
+    if (isLeadMarketingOptedOut(lead)) return "This lead is in the opt-out list and cannot receive any messages.";
+    if (lead.sendable === false) return "This lead is currently not sendable.";
+    if ((action === "both" || action === "email") && isCommonAttachmentUploading) {
+      return "Attachment is still uploading.";
+    }
+    if (action === "email" && !hasText(lead.email)) return "Lead has no email address.";
+    if (action === "whatsapp" && !hasText(lead.phone)) return "Lead has no phone number.";
+    if (action === "both" && !hasText(lead.email) && !hasText(lead.phone)) {
+      return "Lead has no phone or email.";
+    }
+    return null;
+  };
+
+  const runLeadSendAction = async (
+    lead: Lead,
+    action: LeadSendAction,
+    options?: { manageLoading?: boolean }
+  ) => {
+    const previousOutreachStatus = buildOutreachStatus(lead);
+    const expectedChannels =
+      action === "both" ? (["email", "whatsapp"] as Array<"email" | "whatsapp">) : ([action] as Array<"email" | "whatsapp">);
+
+    if (options?.manageLoading !== false) {
+      setLeadSendActionLoading(lead.id, action, true);
+    }
+    setLeads((prev) =>
+      prev.map((item) =>
+        item.id === lead.id
+          ? {
+              ...item,
+              outreachStatus: {
+                email: expectedChannels.includes("email") ? "sending" : previousOutreachStatus.email,
+                linkedin: previousOutreachStatus.linkedin,
+                whatsapp: expectedChannels.includes("whatsapp") ? "sending" : previousOutreachStatus.whatsapp,
+              },
+            }
+          : item
+      )
+    );
+
+    try {
+      const queuedChannels: Array<"email" | "whatsapp"> = [];
+      const channelErrors: string[] = [];
+
+      const appendQueuedChannels = (
+        response: { data?: { queuedChannels?: unknown } } | undefined,
+        fallbackChannels: Array<"email" | "whatsapp">
+      ) => {
+        const resolved = Array.isArray(response?.data?.queuedChannels)
+          ? (response?.data?.queuedChannels as string[]).filter(
+              (channel): channel is "email" | "whatsapp" => channel === "email" || channel === "whatsapp"
+            )
+          : fallbackChannels;
+
+        for (const channel of resolved) {
+          if (!queuedChannels.includes(channel)) queuedChannels.push(channel);
+        }
+      };
+
+      const runChannelSend = async (channel: "email" | "whatsapp") => {
+        try {
+          const response =
+            channel === "email"
+              ? await sendLeadEmailOnly(lead.id, commonAttachmentId ?? undefined)
+              : await sendLeadWhatsappOnly(lead.id);
+          appendQueuedChannels(response, [channel]);
+        } catch (error: any) {
+          const detail = String(error?.response?.data?.detail || error?.message || "");
+          if (isMarketingOptOutError(detail)) {
+            throw error;
+          }
+          channelErrors.push(`${channel === "email" ? "Email" : "WhatsApp"}: ${detail || "Failed to queue."}`);
+        }
+      };
+
+      if (action === "both") {
+        await runChannelSend("email");
+        await runChannelSend("whatsapp");
+      } else {
+        const response =
+          action === "email"
+            ? await sendLeadEmailOnly(lead.id, commonAttachmentId ?? undefined)
+            : await sendLeadWhatsappOnly(lead.id);
+        appendQueuedChannels(response, expectedChannels);
+      }
+
+      if (queuedChannels.length === 0 && channelErrors.length > 0) {
+        throw new Error(channelErrors.join(" "));
+      }
+
+      setLeads((prev) =>
+        prev.map((item) =>
+          item.id === lead.id
+            ? {
+                ...item,
+                outreachStatus: {
+                  email: queuedChannels.includes("email") ? "queued" : previousOutreachStatus.email,
+                  linkedin: previousOutreachStatus.linkedin,
+                  whatsapp: queuedChannels.includes("whatsapp") ? "queued" : previousOutreachStatus.whatsapp,
+                },
+              }
+            : item
+        )
+      );
+
+      if (queuedChannels.length > 0) {
+        startPollingLead(lead.id, queuedChannels);
+      }
+
+      if (action === "both" && channelErrors.length > 0) {
+        toast.warning("Partially queued", {
+          description: channelErrors.join(" "),
+        });
+      } else {
+        toast.success(
+          action === "both"
+            ? "Outreach queued"
+            : action === "email"
+              ? "Email queued"
+              : "WhatsApp queued"
+        );
+      }
+    } catch (error: any) {
+      const detail = String(error?.response?.data?.detail || error?.message || "");
+
+      setLeads((prev) =>
+        prev.map((item) =>
+          item.id === lead.id
+            ? {
+                ...item,
+                outreachStatus: previousOutreachStatus,
+              }
+            : item
+        )
+      );
+
+      if (isMarketingOptOutError(detail)) {
+        toast.warning("Lead is opted out", {
+          description: "This lead is blocked from all marketing messages.",
+        });
+        await fetchAll();
+        return;
+      }
+
+      toast.error(
+        action === "both"
+          ? "Send failed"
+          : action === "email"
+            ? "Email send failed"
+            : "WhatsApp send failed",
+        { description: detail || "Please try again." }
+      );
+    } finally {
+      if (options?.manageLoading !== false) {
+        setLeadSendActionLoading(lead.id, action, false);
+      }
+    }
+  };
+
+  const handleSendLeadAction = async (lead: Lead, action: LeadSendAction) => {
+    const disabledReason = getLeadSendActionDisabledReason(lead, action);
+    if (disabledReason) {
+      toast.warning("Action blocked", { description: disabledReason });
+      return;
+    }
+
+    await runLeadSendAction(lead, action);
   };
 
   useEffect(() => {
@@ -1395,25 +1592,20 @@ export default function CampaignDetailPage() {
     }
   };
 
-  const handleApprove = async (leadId: string) => {
+  const handleApprove = async (leadId: string, action: LeadSendAction = "both") => {
     const lead = leadById.get(leadId);
     if (!lead) return;
 
-    const optedOut = isLeadMarketingOptedOut(lead);
-    if (optedOut) {
+    const disabledReason = getLeadSendActionDisabledReason(lead, action);
+    if (disabledReason) {
       toast.warning("Action blocked", {
-        description: "This lead is in the opt-out list and cannot receive any messages.",
-      });
-      return;
-    }
-    if (lead.sendable === false) {
-      toast.warning("Action blocked", {
-        description: "This lead is currently not sendable.",
+        description: disabledReason,
       });
       return;
     }
 
     try {
+      setLeadSendActionLoading(leadId, action, true);
       const approveResponse = await api.put(`/api/leads/${leadId}/approve`);
       const approvedLead = approveResponse?.data ?? {};
       const resolvedStatus = normalizeApprovalStatus(approvedLead.approvalStatus ?? "approved");
@@ -1443,9 +1635,6 @@ export default function CampaignDetailPage() {
                   : suppressedNow
                     ? false
                     : item.sendable,
-              outreachStatus: suppressedNow
-                ? item.outreachStatus
-                : { email: "sending", linkedin: "pending", whatsapp: "pending" },
             }
             : item
         )
@@ -1464,37 +1653,23 @@ export default function CampaignDetailPage() {
         return;
       }
 
-      toast.success("Lead approved, sending outreach...");
 
       // ✅ NEW: send by leadId (backend locates latest draft)
-      const sendResponse = await sendLead(leadId, commonAttachmentId ?? undefined);
-      const queuedChannels = Array.isArray(sendResponse?.data?.queuedChannels)
-        ? (sendResponse.data.queuedChannels as string[])
-        : [];
-      const queuedEmail = queuedChannels.includes("email");
-      const queuedWhatsapp = queuedChannels.includes("whatsapp");
+      const approvedLeadState: Lead = {
+        ...lead,
+        approvalStatus: resolvedStatus,
+        isSuppressed: suppressedNow,
+        suppression: resolvedSuppression ?? lead.suppression ?? null,
+        contactReadOnly: suppressedNow || parseBoolean(approvedLead.contactReadOnly),
+        sendable:
+          typeof approvedLead.sendable === "boolean"
+            ? approvedLead.sendable
+            : suppressedNow
+              ? false
+              : lead.sendable,
+      };
 
-      setLeads((prev) =>
-        prev.map((item) =>
-          item.id === leadId
-            ? {
-              ...item,
-              outreachStatus: {
-                email: queuedEmail ? "queued" : "pending",
-                linkedin: "pending",
-                whatsapp: queuedWhatsapp ? "queued" : "pending",
-              },
-            }
-            : item
-        )
-      );
-
-      startPollingLead(
-        leadId,
-        ["email", "whatsapp"].filter((channel) =>
-          queuedChannels.includes(channel)
-        ) as Array<"email" | "whatsapp">
-      );
+      await runLeadSendAction(approvedLeadState, action, { manageLoading: false });
     } catch (e: any) {
       const detail = String(e?.response?.data?.detail || e?.message || "");
       if (isMarketingOptOutError(detail)) {
@@ -1505,6 +1680,8 @@ export default function CampaignDetailPage() {
         return;
       }
       toast.error("Approve/send failed", { description: detail });
+    } finally {
+      setLeadSendActionLoading(leadId, action, false);
     }
   };
 
@@ -2285,6 +2462,12 @@ export default function CampaignDetailPage() {
                 const isOptedOut = Boolean(optOutEntry);
                 const isLeadReadOnly = isLeadMarketingOptedOut(item);
                 const isOutreachBlocked = isLeadOutreachBlocked(item);
+                const sendBothDisabledReason = getLeadSendActionDisabledReason(item, "both");
+                const sendEmailDisabledReason = getLeadSendActionDisabledReason(item, "email");
+                const sendWhatsappDisabledReason = getLeadSendActionDisabledReason(item, "whatsapp");
+                const isSendingBoth = Boolean(leadSendLoading[item.id]?.both);
+                const isSendingEmail = Boolean(leadSendLoading[item.id]?.email);
+                const isSendingWhatsapp = Boolean(leadSendLoading[item.id]?.whatsapp);
                 const disableWhatsappAction = (!hasText(item.phone) && !hasText(item.email)) || isOptedOut;
                 const suppressionMeta = item.suppression || null;
                 const suppressionSource = optOutEntry?.source || suppressionMeta?.source || null;
@@ -2396,7 +2579,7 @@ export default function CampaignDetailPage() {
                     </td>
 
                     <td className="px-4 py-3.5 text-right">
-                      <div className="flex min-w-[190px] justify-end gap-2">
+                      <div className="flex min-w-[250px] justify-end gap-2">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -2428,6 +2611,34 @@ export default function CampaignDetailPage() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-500 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-45"
+                              onClick={() => void handleApprove(item.id, "whatsapp")}
+                              disabled={Boolean(sendWhatsappDisabledReason) || isSendingWhatsapp}
+                              title={sendWhatsappDisabledReason || "Approve and send WhatsApp only"}
+                            >
+                              {isSendingWhatsapp ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <WhatsAppIcon className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-500 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-45"
+                              onClick={() => void handleApprove(item.id, "email")}
+                              disabled={Boolean(sendEmailDisabledReason) || isSendingEmail}
+                              title={sendEmailDisabledReason || "Approve and send Email only"}
+                            >
+                              {isSendingEmail ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Mail className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-400 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                               onClick={() => handleReject(item.id)}
                               disabled={isLeadReadOnly}
@@ -2437,21 +2648,17 @@ export default function CampaignDetailPage() {
                             <Button
                               size="icon"
                               className={`h-8 w-8 rounded-md border text-sidebar-foreground shadow-[0_8px_14px_-12px_rgba(17,46,98,0.62)] ${
-                                isOutreachBlocked
+                                Boolean(sendBothDisabledReason) || isSendingBoth
                                   ? "cursor-not-allowed border-zinc-200 bg-zinc-200 text-zinc-400 shadow-none"
                                   : "border-sidebar-primary/75 bg-sidebar-primary hover:bg-sidebar-primary/85"
                               }`}
-                              onClick={() => handleApprove(item.id)}
-                              disabled={isOutreachBlocked}
+                              onClick={() => void handleApprove(item.id, "both")}
+                              disabled={Boolean(sendBothDisabledReason) || isSendingBoth}
                               title={
-                                isLeadReadOnly
-                                  ? "Lead is suppressed and read-only"
-                                  : item.sendable === false
-                                    ? "Lead is currently not sendable"
-                                  : "Approve and send"
+                                sendBothDisabledReason || "Approve and send both"
                               }
                             >
-                              <Check className="h-4 w-4" />
+                              {isSendingBoth ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                             </Button>
                           </>
                         ) : item.approvalStatus === "rejected" ? (
