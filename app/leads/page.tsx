@@ -24,9 +24,10 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCcw,
+  PhoneOff,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getApiKeyClient } from "@/lib/apiRouter";
+import { disableLeadWhatsApp, getApiKeyClient } from "@/lib/apiRouter";
 import { usePersona } from "@/hooks/usePersona";
 
 const GET_ALL_LEADS_ENDPOINT = "/api/all/leads";
@@ -563,6 +564,9 @@ export default function TotalLeads() {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [disableTargetLead, setDisableTargetLead] = useState<Lead | null>(null);
+  const [disableReason, setDisableReason] = useState("");
+  const [isDisablingLead, setIsDisablingLead] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const activeStatusSyncRef = useRef(0);
 
@@ -914,6 +918,78 @@ export default function TotalLeads() {
 
   const removeFile = (idx: number) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const openDisableLeadConfirm = (lead: Lead) => {
+    if (!hasValue(lead.phone) && !hasValue(lead.email)) {
+      toast.error("Lead has no phone or email");
+      return;
+    }
+    if (isLeadSuppressed(lead)) {
+      toast.info("Already opted out", {
+        description: "This lead is already blocked for all marketing messages.",
+      });
+      return;
+    }
+
+    setDisableReason("");
+    setDisableTargetLead(lead);
+  };
+
+  const closeDisableLeadConfirm = () => {
+    if (isDisablingLead) return;
+    setDisableTargetLead(null);
+    setDisableReason("");
+  };
+
+  const handleConfirmDisableLead = async () => {
+    if (!disableTargetLead || isDisablingLead) return;
+
+    try {
+      setIsDisablingLead(true);
+      const response = await disableLeadWhatsApp(
+        disableTargetLead.id,
+        disableReason.trim() || undefined
+      );
+      const effectiveReason = disableReason.trim() || "disabled from Nizo Finder";
+
+      setLeads((prev) =>
+        prev.map((lead) =>
+          lead.id === disableTargetLead.id
+            ? {
+                ...lead,
+                approvalStatus: "suppressed",
+                isSuppressed: true,
+                contactReadOnly: true,
+                contactState: "not_contacted",
+                suppression: {
+                  active: true,
+                  matchedBy: response.phoneE164 ? "phone" : response.email ? "email" : null,
+                  source: response.source || "manual_disable",
+                  reason: response.reason || effectiveReason,
+                  phoneE164: response.phoneE164 || lead.phone || null,
+                  email: response.email || lead.email || null,
+                },
+              }
+            : lead
+        )
+      );
+
+      toast.success("Lead added to opt-out", {
+        description: `${disableTargetLead.employeeName} will not receive any marketing messages.`,
+      });
+
+      setDisableTargetLead(null);
+      setDisableReason("");
+      await fetchAllLeads();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } }; message?: string };
+      toast.error("Failed to disable marketing", {
+        description: err.response?.data?.detail || err.message || "Please try again.",
+      });
+    } finally {
+      setIsDisablingLead(false);
+    }
   };
 
   const handleCopyLeadDetails = async (lead: Lead) => {
@@ -1296,17 +1372,36 @@ export default function TotalLeads() {
                     </td>
 
                     <td className="px-3 py-3 align-top text-right">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => void handleCopyLeadDetails(item)}
-                        className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-500 shadow-none hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
-                        title={isReadOnly ? "Suppressed lead is read-only" : "Copy lead details"}
-                        disabled={isReadOnly}
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => void handleCopyLeadDetails(item)}
+                          className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-500 shadow-none hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+                          title={isReadOnly ? "Suppressed lead is read-only" : "Copy lead details"}
+                          disabled={isReadOnly}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openDisableLeadConfirm(item)}
+                          className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-400 shadow-none hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 disabled:cursor-not-allowed disabled:opacity-45"
+                          title={
+                            !hasValue(item.phone) && !hasValue(item.email)
+                              ? "Lead has no phone or email"
+                              : isReadOnly
+                                ? "Already in opt-out list"
+                                : "Disable marketing for this lead"
+                          }
+                          disabled={(!hasValue(item.phone) && !hasValue(item.email)) || isReadOnly}
+                        >
+                          <PhoneOff className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </td>
                     </tr>
                   );
@@ -1373,6 +1468,63 @@ export default function TotalLeads() {
           </div>
         )}
       </Card>
+
+      {disableTargetLead ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/60 p-4 backdrop-blur-sm"
+          onMouseDown={closeDisableLeadConfirm}
+        >
+          <div
+            className="w-full max-w-md overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-2xl"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="border-b border-zinc-100 bg-zinc-50/60 px-6 py-4">
+              <h3 className="text-lg font-semibold text-zinc-900">Add Lead to Opt-Out</h3>
+              <p className="mt-1 text-xs text-zinc-500">
+                Block <span className="font-semibold text-zinc-900">{disableTargetLead.employeeName}</span> from future marketing outreach.
+              </p>
+            </div>
+
+            <div className="space-y-4 px-6 py-5">
+              <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
+                This will suppress the lead across marketing actions, even if you do not remember the original campaign.
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                  Reason
+                </label>
+                <textarea
+                  value={disableReason}
+                  onChange={(event) => setDisableReason(event.target.value)}
+                  placeholder="Optional note for why this lead is being opted out"
+                  rows={4}
+                  className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 outline-none transition focus:border-zinc-300 focus:ring-1 focus:ring-zinc-200"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-zinc-100 bg-zinc-50/50 px-6 py-4">
+              <Button
+                variant="outline"
+                className="border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+                onClick={closeDisableLeadConfirm}
+                disabled={isDisablingLead}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-zinc-900 text-white hover:bg-zinc-800"
+                onClick={() => void handleConfirmDisableLead()}
+                disabled={isDisablingLead}
+              >
+                {isDisablingLead ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Add to Opt-Out
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {uploadOpen && (
         <div
