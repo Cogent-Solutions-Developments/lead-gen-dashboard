@@ -223,16 +223,21 @@ export async function stopCampaign(id: string) {
 }
 
 export async function sendAllCampaignLeads(payload: SendAllCampaignRequest) {
-  const { campaignId, leadIds, channels = "both", file } = payload;
+  const { campaignId, channels = "both", file } = payload;
   const query = new URLSearchParams();
   query.set("channels", channels);
-  for (const leadId of leadIds) query.append("leads", leadId);
 
   const formData = new FormData();
-  formData.append("file", file);
+  if (file) {
+    const filename =
+      typeof File !== "undefined" && file instanceof File && file.name
+        ? file.name
+        : "attachment";
+    formData.append("file", file, filename);
+  }
 
   const { data } = await apiClientDelegate.post<SendAllCampaignResponse>(
-    `/api/campaigns/${campaignId}/send-all?${query.toString()}`,
+    `/api/delegates/campaigns/${campaignId}/send-all?${query.toString()}`,
     formData
   );
   return data;
@@ -243,7 +248,7 @@ export async function uploadCampaignCommonAttachment(campaignId: string, file: F
   formData.append("file", file);
 
   const { data } = await apiClientDelegate.post<UploadCommonAttachmentResponse>(
-    `/api/campaigns/${campaignId}/upload-common-attachment`,
+    `/api/delegates/campaigns/${campaignId}/upload-common-attachment`,
     formData
   );
   return data;
@@ -252,7 +257,7 @@ export async function uploadCampaignCommonAttachment(campaignId: string, file: F
 export async function approveSelectedCampaignLeads(payload: ApproveSelectedLeadsRequest) {
   const { campaignId, leadIds } = payload;
   const { data } = await apiClientDelegate.post<ApproveSelectedLeadsResponse>(
-    `/api/campaigns/${campaignId}/approve-selected-leads`,
+    `/api/delegates/campaigns/${campaignId}/approve-selected-leads`,
     leadIds
   );
   return data;
@@ -265,7 +270,7 @@ export async function sendSelectedCampaignLeads(payload: SendSelectedLeadsReques
   const queryText = query.toString();
 
   const { data } = await apiClientDelegate.post<SendSelectedLeadsResponse>(
-    `/api/campaigns/${campaignId}/send-selected-leads${queryText ? `?${queryText}` : ""}`,
+    `/api/delegates/campaigns/${campaignId}/send-selected-leads${queryText ? `?${queryText}` : ""}`,
     leadIds
   );
   return data;
@@ -397,16 +402,7 @@ export const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const url = config.url || "";
-  const isSharedSalesCampaignRoute =
-    /^\/api\/campaigns\/[^/]+\/(?:send-all|upload-common-attachment|approve-selected-leads|send-selected-leads|common-attachments|common-attachment\/[^/]+)(?:\?.*)?$/i.test(
-      url
-    );
-
-  if (
-    url.startsWith("/api/") &&
-    !url.startsWith("/api/delegates/") &&
-    !isSharedSalesCampaignRoute
-  ) {
+  if (url.startsWith("/api/") && !url.startsWith("/api/delegates/")) {
     config.url = url.replace(/^\/api\//, "/api/delegates/");
   }
   return config;

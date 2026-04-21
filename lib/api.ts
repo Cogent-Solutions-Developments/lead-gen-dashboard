@@ -103,12 +103,14 @@ export type UploadCampaignResponse = CreateCampaignResponse & {
 };
 
 export type SendAllCampaignChannels = "email" | "whatsapp" | "both";
+export type OutreachRequestChannel = "email" | "whatsapp";
+export type RequestedOutreachChannels = OutreachRequestChannel[];
 
 export type SendAllCampaignRequest = {
   campaignId: string;
-  leadIds: string[];
+  leadIds?: string[];
   channels?: SendAllCampaignChannels;
-  file: File | Blob;
+  file?: File | Blob;
 };
 
 export type SendAllCampaignResponse = {
@@ -117,12 +119,12 @@ export type SendAllCampaignResponse = {
   pendingFound: number;
   approved: number;
   suppressedOptOut: number;
-  skippedNoContent: number;
+  skippedNoChannel?: number;
   queuedEmail: number;
   queuedWhatsapp: number;
-  attachmentsCreated: number;
-  attachmentOriginalName: string;
-  channels: SendAllCampaignChannels;
+  attachmentsCreated?: number;
+  attachmentOriginalName?: string | null;
+  requestedChannels?: RequestedOutreachChannels;
   message: string;
 };
 
@@ -153,7 +155,36 @@ export type SendSelectedLeadsRequest = {
 export type SendSelectedLeadsResponse = {
   message: string;
   queuedLeads?: number;
+  queuedEmail?: number;
+  queuedWhatsapp?: number;
   suppressedOptOut?: number;
+  skippedNoChannel?: number;
+  requestedChannels?: RequestedOutreachChannels;
+};
+
+export type LeadAttachment = {
+  id: string;
+  name: string;
+  url?: string | null;
+  mime?: string | null;
+  sizeBytes?: number | null;
+  channel?: string | null;
+};
+
+export type ChannelCapability = {
+  sendable?: boolean;
+  attachmentsSupported?: boolean;
+  delivery?: string | null;
+  usesDraftContent?: boolean;
+  requiresApprovedDraft?: boolean;
+  mode?: string | null;
+  enabled?: boolean;
+  templateConfigured?: boolean;
+};
+
+export type ChannelCapabilities = {
+  email?: ChannelCapability | null;
+  whatsapp?: ChannelCapability | null;
 };
 
 export type SuppressionMeta = {
@@ -273,6 +304,9 @@ export type LeadItem = {
   suppression?: SuppressionMeta | null;
   contactReadOnly?: boolean;
   sendable?: boolean;
+  channelCapabilities?: ChannelCapabilities | null;
+  emailAttachments?: LeadAttachment[];
+  whatsappAttachments?: LeadAttachment[];
 };
 
 export type MessageChannel = "email" | "whatsapp" | "linkedin" | "other";
@@ -479,13 +513,18 @@ export async function stopCampaign(id: string) {
 }
 
 export async function sendAllCampaignLeads(payload: SendAllCampaignRequest) {
-  const { campaignId, leadIds, channels = "both", file } = payload;
+  const { campaignId, channels = "both", file } = payload;
   const query = new URLSearchParams();
   query.set("channels", channels);
-  for (const leadId of leadIds) query.append("leads", leadId);
 
   const formData = new FormData();
-  formData.append("file", file);
+  if (file) {
+    const filename =
+      typeof File !== "undefined" && file instanceof File && file.name
+        ? file.name
+        : "attachment";
+    formData.append("file", file, filename);
+  }
 
   const { data } = await apiClient.post<SendAllCampaignResponse>(
     `/api/campaigns/${campaignId}/send-all?${query.toString()}`,
