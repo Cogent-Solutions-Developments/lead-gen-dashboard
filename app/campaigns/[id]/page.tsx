@@ -1092,11 +1092,11 @@ export default function CampaignDetailPage() {
         batchId: x.batchId,
         employeeName: x.employeeName,
         title: x.title || "",
-        company: x.company || "",
+        company: x.company || x.companyName || x.company_name || "",
         email: x.email || "",
         phone: x.phone || "",
         linkedinUrl: x.linkedinUrl || "",
-        companyUrl: x.companyUrl || "",
+        companyUrl: x.companyUrl || x.company_url || "",
 
         contentEmailSubject: x.contentEmailSubject || "",
         contentEmail: x.contentEmail || "",
@@ -1135,10 +1135,6 @@ export default function CampaignDetailPage() {
   };
 
   // const sendDraft = async (draftId: string) => api.post(`/api/v1/drafts/${draftId}/send`);
-  const sendLead = async (leadId: string, attachmentId?: string) =>
-    api.post(`/api/leads/${leadId}/send`, null, {
-      params: attachmentId ? { attachment_id: attachmentId } : undefined,
-    });
   const sendLeadEmailOnly = async (leadId: string, attachmentId?: string) =>
     api.post(`/api/leads/${leadId}/send-email`, null, {
       params: attachmentId ? { attachment_id: attachmentId } : undefined,
@@ -2020,98 +2016,28 @@ export default function CampaignDetailPage() {
   };
 
   // -----------------------------
-  // Save & Approve (uploads both channels first)
+  // Save only (content updates only)
   // -----------------------------
-  const handleSaveAndApprove = async () => {
+  const handleSave = async () => {
     if (!selectedLead) return;
-
-    const optedOut = isLeadMarketingOptedOut(selectedLead);
-    if (optedOut) {
-      toast.warning("Action blocked", {
-        description: "This lead is in the opt-out list and cannot receive any messages.",
-      });
-      return;
-    }
-    if (selectedLead.sendable === false) {
-      toast.warning("Action blocked", {
-        description: "This lead is currently not sendable.",
-      });
-      return;
-    }
 
     setSaving(true);
     const leadId = selectedLead.id;
 
     try {
-      const uploadQueue = async (
-        channel: AttachmentChannel,
-        pending: PendingUpload[],
-        setPending: React.Dispatch<React.SetStateAction<PendingUpload[]>>,
-        mergeInto: "emailAttachments" | "whatsappAttachments"
-      ) => {
-        if (pending.length === 0) return;
+      const ignoredAttachmentChanges = pendingEmailUploads.length > 0 || pendingWhatsappUploads.length > 0;
 
-        // mark uploading
-        setPending((prev) => prev.map((p) => ({ ...p, uploading: true, error: undefined })));
-
-        const uploaded: Attachment[] = [];
-
-        for (const p of pending) {
-          try {
-            const att = await uploadLeadAttachment(api, leadId, channel, p.file);
-            uploaded.push(att);
-            setPending((prev) => prev.filter((x) => x.tempId !== p.tempId));
-          } catch (e: any) {
-            const msg = e?.response?.data?.detail || e?.message || "Upload failed";
-            setPending((prev) =>
-              prev.map((x) => (x.tempId === p.tempId ? { ...x, uploading: false, error: msg } : x))
-            );
-            toast.error("Attachment upload failed", { description: `${p.name}: ${msg}` });
-          }
-        }
-
-        if (uploaded.length > 0) {
-          setEditForm((prev) => ({
-            ...prev,
-            [mergeInto]: [...(((prev as any)[mergeInto] as Attachment[]) || []), ...uploaded],
-          }));
-        }
-      };
-
-      // 1) Upload Email attachments
-      await uploadQueue("email", pendingEmailUploads, setPendingEmailUploads, "emailAttachments");
-
-      if (pendingWhatsappUploads.length > 0) {
-        setPendingWhatsappUploads([]);
-        toast.info("WhatsApp attachments are not available yet.");
-      }
-
-      // 3) Save content + attachments lists
+      // Save content only. Attachment flows stay separate from this button.
       const payload = {
         contentEmailSubject: editForm.contentEmailSubject,
         contentEmail: editForm.contentEmail,
         contentLinkedin: editForm.contentLinkedin,
         contentWhatsapp: editForm.contentWhatsapp,
-        emailAttachments: (editForm.emailAttachments as Attachment[]) || [],
-        whatsappAttachments: (editForm.whatsappAttachments as Attachment[]) || [],
       };
 
       const res = await api.put(`/api/leads/${leadId}/content`, payload);
-      const approveResponse = await api.put(`/api/leads/${leadId}/approve`);
-      const approvedLead = approveResponse?.data ?? {};
-      const resolvedStatus = normalizeApprovalStatus(approvedLead.approvalStatus ?? "approved");
-      const resolvedSuppression = normalizeSuppressionMeta(approvedLead.suppression);
-      const suppressedNow =
-        resolvedStatus === "suppressed" ||
-        parseBoolean(approvedLead.isSuppressed) ||
-        parseBoolean(approvedLead.contactReadOnly) ||
-        Boolean(resolvedSuppression?.active);
-      const resolvedSendable =
-        typeof approvedLead.sendable === "boolean"
-          ? approvedLead.sendable
-          : !suppressedNow;
 
-      // 4) Update local row
+      // Update local row content only.
       setLeads((prev) =>
         prev.map((l) =>
           l.id === leadId
@@ -2121,104 +2047,25 @@ export default function CampaignDetailPage() {
               contentEmail: res.data.contentEmail ?? l.contentEmail,
               contentLinkedin: res.data.contentLinkedin ?? l.contentLinkedin,
               contentWhatsapp: res.data.contentWhatsapp ?? l.contentWhatsapp,
-              reviewStatus: approvedLead.reviewStatus ?? l.reviewStatus ?? null,
-              approvalStatus: resolvedStatus,
-              isSuppressed: suppressedNow,
-              suppression: resolvedSuppression ?? l.suppression ?? null,
-              contactReadOnly: suppressedNow || parseBoolean(approvedLead.contactReadOnly),
-              sendable:
-                typeof approvedLead.sendable === "boolean"
-                  ? approvedLead.sendable
-                  : suppressedNow
-                    ? false
-                    : l.sendable,
-              channelCapabilities:
-                normalizeChannelCapabilities(approvedLead.channelCapabilities) ?? l.channelCapabilities ?? null,
-              emailAttachments: Array.isArray(res.data.emailAttachments)
-                ? normalizeAttachments(res.data.emailAttachments)
-                : ((editForm.emailAttachments as Attachment[]) || l.emailAttachments || []),
-              whatsappAttachments: Array.isArray(res.data.whatsappAttachments)
-                ? normalizeAttachments(res.data.whatsappAttachments)
-                : ((editForm.whatsappAttachments as Attachment[]) || l.whatsappAttachments || []),
-              outreachStatus: suppressedNow
-                ? l.outreachStatus
-                : { email: "sending", linkedin: "pending", whatsapp: "pending" },
+              reviewStatus: res.data.reviewStatus ?? l.reviewStatus ?? null,
             }
             : l
         )
       );
 
-      // 5) close modal
       setSelectedLead(null);
       setEditForm({});
       setPendingEmailUploads([]);
       setPendingWhatsappUploads([]);
-
-      if (suppressedNow) {
-        toast.warning("Lead suppressed", {
-          description: resolvedSuppression?.reason || "This lead is blocked from all marketing messages.",
+      if (ignoredAttachmentChanges) {
+        toast.info("Attachment changes were not saved", {
+          description: "Save only stores content updates. Attachments are handled separately.",
         });
-        return;
       }
-      if (!resolvedSendable) {
-        toast.warning("Lead not sendable", {
-          description: "This lead cannot be queued for outreach right now.",
-        });
-        return;
-      }
-
-      toast.success("Saved & Approved, sending outreach...");
-
-      // 6) send
-      // const lead = leads.find((l) => l.id === leadId);
-      // const draftId = lead?.draftId;
-      // if (!draftId) {
-      //   toast.error("Cannot send: draftId missing. Ensure backend returns draftId.");
-      //   return;
-      // }
-
-      // await sendDraft(draftId);
-      // startPollingLead(leadId);
-
-      const sendResponse = await sendLead(leadId, commonAttachmentId ?? undefined);
-      const queuedChannels = Array.isArray(sendResponse?.data?.queuedChannels)
-        ? (sendResponse.data.queuedChannels as string[])
-        : [];
-      const queuedEmail = queuedChannels.includes("email");
-      const queuedWhatsapp = queuedChannels.includes("whatsapp");
-
-      setLeads((prev) =>
-        prev.map((item) =>
-          item.id === leadId
-            ? {
-              ...item,
-              outreachStatus: {
-                email: queuedEmail ? "queued" : "pending",
-                linkedin: "pending",
-                whatsapp: queuedWhatsapp ? "queued" : "pending",
-              },
-            }
-            : item
-        )
-      );
-
-      startPollingLead(
-        leadId,
-        ["email", "whatsapp"].filter((channel) =>
-          queuedChannels.includes(channel)
-        ) as Array<"email" | "whatsapp">
-      );
-
+      toast.success("Changes saved");
     } catch (e: any) {
       const detail = String(e?.response?.data?.detail || e?.message || "");
-      if (isMarketingOptOutError(detail)) {
-        toast.warning("Lead is opted out", {
-          description: "This lead is blocked from all marketing messages.",
-        });
-        await fetchAll();
-        return;
-      }
-      toast.error("Save/send failed", { description: detail });
+      toast.error("Save failed", { description: detail });
     } finally {
       setSaving(false);
     }
@@ -2668,9 +2515,13 @@ export default function CampaignDetailPage() {
                             {titleBucket}
                           </span>
                         ) : null}
-                        <a href={item.companyUrl} target="_blank" rel="noreferrer" className="mt-0.5 w-fit text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
-                          {item.companyUrl}
-                        </a>
+                        {item.companyUrl ? (
+                          <a href={item.companyUrl} target="_blank" rel="noreferrer" className="mt-0.5 w-fit text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
+                            {item.companyUrl}
+                          </a>
+                        ) : item.company ? (
+                          <span className="mt-0.5 w-fit text-xs text-zinc-400">{item.company}</span>
+                        ) : null}
                       </div>
                     </td>
 
@@ -2696,9 +2547,11 @@ export default function CampaignDetailPage() {
                           <a href={item.linkedinUrl} target="_blank" rel="noreferrer" className="text-zinc-400 transition-colors hover:text-zinc-900">
                             <LinkedInIcon className="h-3.5 w-3.5" />
                           </a>
-                          <a href={item.companyUrl} target="_blank" rel="noreferrer" className="text-zinc-400 transition-colors hover:text-zinc-900">
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </a>
+                          {item.companyUrl ? (
+                            <a href={item.companyUrl} target="_blank" rel="noreferrer" className="text-zinc-400 transition-colors hover:text-zinc-900">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          ) : null}
                         </div>
                       </div>
                     </td>
@@ -3184,14 +3037,14 @@ export default function CampaignDetailPage() {
 
               <div className="relative z-[2] flex flex-col gap-3 border-t border-zinc-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-1">
-                  <p className="text-xs text-zinc-500">Changes are saved before approval and outreach is triggered.</p>
+                  <p className="text-xs text-zinc-500">Changes are saved only. No approval or outreach is triggered here.</p>
                   {isLeadMarketingOptedOut(selectedLead) ? (
                     <p className="text-xs font-medium text-rose-600">
-                      This lead is suppressed by contact rules. Actions are disabled.
+                      This lead is suppressed for outreach, but content changes can still be saved.
                     </p>
                   ) : selectedLead.sendable === false ? (
                     <p className="text-xs font-medium text-amber-700">
-                      This lead is currently not sendable. Update content or lead data before outreach.
+                      This lead is currently not sendable, but content changes can still be saved.
                     </p>
                   ) : null}
                 </div>
@@ -3212,15 +3065,15 @@ export default function CampaignDetailPage() {
 
                     <Button
                       className="btn-sidebar-noise h-9 px-3.5"
-                      disabled={saving || isLeadOutreachBlocked(selectedLead)}
-                      onClick={handleSaveAndApprove}
+                      disabled={saving}
+                      onClick={handleSave}
                     >
                       {saving ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
                         <Save className="mr-2 h-4 w-4" />
                       )}
-                      Save &amp; Approve
+                      Save
                     </Button>
                   </div>
                 ) : (
