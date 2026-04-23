@@ -21,7 +21,6 @@ function isSuperOnlyPath(pathname: string) {
     pathname === "/settings" ||
     pathname === "/replies" ||
     pathname === "/campaigns/new" ||
-    pathname === "/campaigns/upload" ||
     pathname.startsWith("/admin")
   );
 }
