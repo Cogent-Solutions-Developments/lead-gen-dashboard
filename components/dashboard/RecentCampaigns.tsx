@@ -18,6 +18,7 @@ const statusStyles: Record<string, string> = {
   active: "border-emerald-200/90 bg-emerald-50/90 text-emerald-700",
   completed: "border-zinc-200/85 bg-zinc-100/88 text-zinc-700",
   processing: "border-blue-200/90 bg-blue-50/90 text-blue-700",
+  content_generating: "border-blue-200/90 bg-blue-50/90 text-blue-700",
   needs_review: "border-amber-200/90 bg-amber-50/90 text-amber-700",
   active_outreach: "border-indigo-200/85 bg-indigo-50/88 text-indigo-700",
   paused: "border-orange-200/90 bg-orange-50/90 text-orange-700",
@@ -35,6 +36,28 @@ function formatStatus(status: string) {
     .join(" ");
 }
 
+function isManualUploadCampaign(
+  campaign: Pick<RecentCampaign, "campaignType" | "manualUpload" | "campaignSource">
+) {
+  return (
+    campaign.campaignType === "manual_upload" ||
+    campaign.manualUpload === true ||
+    String(campaign.campaignSource || "").toLowerCase() === "manual_csv_upload"
+  );
+}
+
+function getCampaignDisplayStatus(campaign: RecentCampaign) {
+  const status = String(campaign.status || "").toLowerCase();
+
+  if (!isManualUploadCampaign(campaign)) return status;
+  if (status === "cancelled" || status === "failed" || status === "active_outreach") return status;
+  if (status === "completed" || status === "needs_review" || status === "content_ready" || status === "people_ready") {
+    return "completed";
+  }
+
+  return "content_generating";
+}
+
 export function RecentCampaigns() {
   const [campaigns, setCampaigns] = useState<RecentCampaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +68,9 @@ export function RecentCampaigns() {
     name: campaign.name,
     leadsCount: campaign.totalLeads,
     status: campaign.status,
+    campaignType: campaign.campaignType,
+    manualUpload: campaign.manualUpload,
+    campaignSource: campaign.campaignSource,
   });
 
   const toTime = (value: string) => {
@@ -127,38 +153,42 @@ export function RecentCampaigns() {
           )}
 
           {!loading &&
-            campaigns.map((c) => (
-              <Link
-                key={c.id}
-                href={`/campaigns/${c.id}`}
-                className="group my-1 flex w-full items-center justify-between rounded-xl border border-transparent bg-gradient-to-b from-white/90 to-slate-50/80 p-4 text-left shadow-none transition-colors hover:border-slate-300/90 hover:from-white/95 hover:to-slate-50/85"
-              >
-                <div className="flex min-w-0 items-center gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-300/70 bg-gradient-to-br from-white/95 to-blue-50/75 text-slate-500 transition-colors group-hover:border-slate-300/90 group-hover:from-white/95 group-hover:to-blue-100/75 group-hover:text-blue-700">
-                    <LayoutTemplate className="h-5 w-5" />
+            campaigns.map((c) => {
+              const displayStatus = getCampaignDisplayStatus(c);
+
+              return (
+                <Link
+                  key={c.id}
+                  href={`/campaigns/${c.id}`}
+                  className="group my-1 flex w-full items-center justify-between rounded-xl border border-transparent bg-gradient-to-b from-white/90 to-slate-50/80 p-4 text-left shadow-none transition-colors hover:border-slate-300/90 hover:from-white/95 hover:to-slate-50/85"
+                >
+                  <div className="flex min-w-0 items-center gap-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-300/70 bg-gradient-to-br from-white/95 to-blue-50/75 text-slate-500 transition-colors group-hover:border-slate-300/90 group-hover:from-white/95 group-hover:to-blue-100/75 group-hover:text-blue-700">
+                      <LayoutTemplate className="h-5 w-5" />
+                    </div>
+
+                    <div className="min-w-0 space-y-0.5">
+                      <h4 className="truncate pr-4 font-medium text-zinc-900">{c.name}</h4>
+                      <p className="text-xs text-zinc-500">
+                        <span className="font-medium text-zinc-700">{c.leadsCount}</span>{" "}
+                        leads in campaign
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="min-w-0 space-y-0.5">
-                    <h4 className="truncate pr-4 font-medium text-zinc-900">{c.name}</h4>
-                    <p className="text-xs text-zinc-500">
-                      <span className="font-medium text-zinc-700">{c.leadsCount}</span>{" "}
-                      leads in campaign
-                    </p>
+                  <div className="flex shrink-0 items-center gap-4">
+                    <Badge
+                      className={`rounded-full border px-2.5 font-normal shadow-none backdrop-blur-[6px] [backdrop-filter:saturate(130%)_blur(6px)] ${safeStyle(
+                        displayStatus
+                      )}`}
+                    >
+                      {formatStatus(displayStatus)}
+                    </Badge>
+                    <ChevronRight className="h-4 w-4 text-zinc-300 transition-transform group-hover:translate-x-0.5 group-hover:text-zinc-500" />
                   </div>
-                </div>
-
-                <div className="flex shrink-0 items-center gap-4">
-                  <Badge
-                    className={`rounded-full border px-2.5 font-normal shadow-none backdrop-blur-[6px] [backdrop-filter:saturate(130%)_blur(6px)] ${safeStyle(
-                      c.status
-                    )}`}
-                  >
-                    {formatStatus(c.status)}
-                  </Badge>
-                  <ChevronRight className="h-4 w-4 text-zinc-300 transition-transform group-hover:translate-x-0.5 group-hover:text-zinc-500" />
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
 
         </div>
       </div>

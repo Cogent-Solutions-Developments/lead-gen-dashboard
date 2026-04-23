@@ -9,6 +9,7 @@ export type {
   CampaignInfoResponse,
   CampaignDetail,
   CampaignListItem,
+  CampaignType,
   CreateCampaignRequest,
   CreateCampaignResponse,
   DeleteBlockedDetail,
@@ -16,6 +17,7 @@ export type {
   DeleteCampaignResponse,
   DashboardStats,
   DeleteCampaignResult,
+  ForceDeleteCampaignResponse,
   LeadItem,
   LeadAttachment,
   MessageStatus,
@@ -105,6 +107,9 @@ export const stopCampaign: typeof sales.stopCampaign = (...args) =>
 
 export const deleteCampaign: typeof sales.deleteCampaign = (...args) =>
   pickModule().deleteCampaign(...args);
+
+export const forceDeleteCampaign: typeof sales.forceDeleteCampaign = (...args) =>
+  pickModule().forceDeleteCampaign(...args);
 
 export const sendAllCampaignLeads: typeof sales.sendAllCampaignLeads = (...args) =>
   pickModule().sendAllCampaignLeads(...args);

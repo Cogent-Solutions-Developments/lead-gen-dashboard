@@ -15,12 +15,8 @@ type CampaignActionDialogProps = {
   onClose: () => void;
   onConfirmStop?: () => void;
   onConfirmDelete?: () => void;
-  onReviewStop?: () => void;
+  onConfirmForceDelete?: () => void;
 };
-
-function hasCampaignNotTerminalBlocker(detail?: DeleteBlockedDetail | null) {
-  return detail?.blockers.some((blocker) => blocker.code === "campaign_not_terminal") ?? false;
-}
 
 export function CampaignActionDialog({
   open,
@@ -31,7 +27,7 @@ export function CampaignActionDialog({
   onClose,
   onConfirmStop,
   onConfirmDelete,
-  onReviewStop,
+  onConfirmForceDelete,
 }: CampaignActionDialogProps) {
   useEffect(() => {
     if (!open || isBusy) return;
@@ -49,11 +45,8 @@ export function CampaignActionDialog({
   };
 
   const isDeleteBlocked = mode === "delete" && Boolean(blockedDetail);
-  const needsStopFirst = hasCampaignNotTerminalBlocker(blockedDetail);
   const primaryLabel = isDeleteBlocked
-    ? needsStopFirst
-      ? "Review Stop Campaign"
-      : "Try Delete Again"
+    ? "Force Delete"
     : mode === "stop"
       ? "Stop Campaign"
       : "Delete Campaign";
@@ -77,7 +70,11 @@ export function CampaignActionDialog({
           <motion.div
             role="dialog"
             aria-modal="true"
-            aria-label={mode === "stop" ? "Stop campaign confirmation" : "Delete campaign confirmation"}
+            aria-label={
+              mode === "stop"
+                ? "Stop campaign confirmation"
+                : "Delete campaign confirmation"
+            }
             initial={{ opacity: 0, y: 16, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -187,36 +184,24 @@ export function CampaignActionDialog({
                     )}
                   </Button>
                 ) : isDeleteBlocked ? (
-                  needsStopFirst ? (
-                    <Button
-                      type="button"
-                      disabled={isBusy}
-                      onClick={onReviewStop}
-                      className="h-9 rounded-md border border-red-700 bg-red-600 px-3.5 text-xs font-semibold text-white shadow-[0_8px_14px_-10px_rgba(185,28,28,0.68)] hover:border-red-800 hover:bg-red-700 disabled:opacity-70"
-                    >
-                      <Square className="mr-1.5 h-3 w-3 fill-current" />
-                      {primaryLabel}
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      disabled={isBusy}
-                      onClick={onConfirmDelete}
-                      className="h-9 rounded-md border border-red-700 bg-red-600 px-3.5 text-xs font-semibold text-white shadow-[0_8px_14px_-10px_rgba(185,28,28,0.68)] hover:border-red-800 hover:bg-red-700 disabled:opacity-70"
-                    >
-                      {isBusy ? (
-                        <>
-                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                          Checking...
-                        </>
-                      ) : (
-                        <>
-                          <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                          {primaryLabel}
-                        </>
-                      )}
-                    </Button>
-                  )
+                  <Button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={onConfirmForceDelete}
+                    className="h-9 rounded-md border border-red-700 bg-red-600 px-3.5 text-xs font-semibold text-white shadow-[0_8px_14px_-10px_rgba(185,28,28,0.68)] hover:border-red-800 hover:bg-red-700 disabled:opacity-70"
+                  >
+                    {isBusy ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        Force deleting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                        {primaryLabel}
+                      </>
+                    )}
+                  </Button>
                 ) : (
                   <Button
                     type="button"

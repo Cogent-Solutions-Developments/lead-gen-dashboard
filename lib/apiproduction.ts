@@ -12,6 +12,7 @@ import type {
   DashboardStats,
   DeleteCampaignResult,
   DeleteBlocker,
+  ForceDeleteCampaignResponse,
   LeadItem,
   MessageStatus,
   RecentCampaign,
@@ -46,6 +47,7 @@ export type {
   DashboardStats,
   DeleteCampaignResult,
   DeleteBlocker,
+  ForceDeleteCampaignResponse,
   LeadItem,
   MessageStatus,
   RecentCampaign,
@@ -241,6 +243,22 @@ function getDetailMessage(data: unknown, fallback: string) {
   return typeof detail === "string" ? detail : fallback;
 }
 
+function getApiErrorMessage(detail: unknown, fallback: string) {
+  if (typeof detail === "string") return detail;
+  const message = asRecord(detail)?.message;
+  return typeof message === "string" ? message : fallback;
+}
+
+function createApiActionError(status: number, detail: unknown, fallback: string) {
+  const error = new Error(getApiErrorMessage(detail, fallback)) as Error & {
+    status?: number;
+    detail?: unknown;
+  };
+  error.status = status;
+  error.detail = detail;
+  return error;
+}
+
 export async function deleteCampaign(id: string) {
   const response = await apiClientProduction.delete(`/api/productions/campaigns/${id}`, {
     validateStatus: () => true,
@@ -266,6 +284,26 @@ export async function deleteCampaign(id: string) {
     blocked: false,
     data: data as DeleteCampaignResponse,
   } satisfies DeleteCampaignResult;
+}
+
+export async function forceDeleteCampaign(id: string) {
+  const response = await apiClientProduction.post(
+    `/api/productions/campaigns/${id}/force-delete`,
+    { confirm: true, mode: "force" },
+    { validateStatus: () => true }
+  );
+
+  const data = response.data;
+
+  if (response.status < 200 || response.status >= 300) {
+    throw createApiActionError(
+      response.status,
+      asRecord(data)?.detail ?? data,
+      "Force delete failed"
+    );
+  }
+
+  return data as ForceDeleteCampaignResponse;
 }
 
 export async function sendAllCampaignLeads(payload: SendAllCampaignRequest) {

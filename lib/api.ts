@@ -28,13 +28,21 @@ export type RecentCampaign = {
   name: string;
   leadsCount: number;
   status: string;
+  campaignType?: CampaignType;
+  manualUpload?: boolean;
+  campaignSource?: string | null;
 };
+
+export type CampaignType = "manual_upload" | "generated";
 
 export type CampaignListItem = {
   id: string;
   name: string;
   icpPreview: string;
   status: string;
+  campaignType?: CampaignType;
+  manualUpload?: boolean;
+  campaignSource?: string | null;
   category?: string | null;
   location?: string | null;
   date?: string | null;
@@ -49,6 +57,9 @@ export type CampaignDetail = {
   name: string;
   icpPreview: string;
   status: string;
+  campaignType?: CampaignType;
+  manualUpload?: boolean;
+  campaignSource?: string | null;
   category?: string | null;
   location?: string | null;
   date?: string | null;
@@ -76,6 +87,9 @@ export type CreateCampaignResponse = {
   name: string;
   icpPreview: string;
   status: string;
+  campaignType?: CampaignType;
+  manualUpload?: boolean;
+  campaignSource?: string | null;
   progress: number;
   createdAt: string;
 };
@@ -139,6 +153,18 @@ export type DeleteCampaignResponse = {
   status: "deleted";
   message: string;
   deleteReady: true;
+};
+
+export type ForceDeleteCampaignResponse = {
+  campaignId: string;
+  status: "deleted";
+  forced: true;
+  message: string;
+  preparation: {
+    cancelledJobs: number;
+    failedQueueItems: number;
+    progressCleaned: boolean;
+  };
 };
 
 export type DeleteBlocker = {
@@ -338,6 +364,9 @@ export type CampaignInfo = {
 
 export type CampaignInfoResponse = {
   campaignId: string;
+  campaignType?: CampaignType;
+  manualUpload?: boolean;
+  campaignSource?: string | null;
   info: CampaignInfo;
 };
 
@@ -579,6 +608,22 @@ function getDetailMessage(data: unknown, fallback: string) {
   return typeof detail === "string" ? detail : fallback;
 }
 
+function getApiErrorMessage(detail: unknown, fallback: string) {
+  if (typeof detail === "string") return detail;
+  const message = asRecord(detail)?.message;
+  return typeof message === "string" ? message : fallback;
+}
+
+function createApiActionError(status: number, detail: unknown, fallback: string) {
+  const error = new Error(getApiErrorMessage(detail, fallback)) as Error & {
+    status?: number;
+    detail?: unknown;
+  };
+  error.status = status;
+  error.detail = detail;
+  return error;
+}
+
 async function requestCampaignDelete(
   client: AxiosInstance,
   url: string
@@ -611,6 +656,33 @@ async function requestCampaignDelete(
 
 export async function deleteCampaign(id: string) {
   return requestCampaignDelete(apiClient, `/api/campaigns/${id}`);
+}
+
+async function requestCampaignForceDelete(
+  client: AxiosInstance,
+  url: string
+): Promise<ForceDeleteCampaignResponse> {
+  const response = await client.post(
+    url,
+    { confirm: true, mode: "force" },
+    { validateStatus: () => true }
+  );
+
+  const data = response.data;
+
+  if (response.status < 200 || response.status >= 300) {
+    throw createApiActionError(
+      response.status,
+      asRecord(data)?.detail ?? data,
+      "Force delete failed"
+    );
+  }
+
+  return data as ForceDeleteCampaignResponse;
+}
+
+export async function forceDeleteCampaign(id: string) {
+  return requestCampaignForceDelete(apiClient, `/api/campaigns/${id}/force-delete`);
 }
 
 export async function sendAllCampaignLeads(payload: SendAllCampaignRequest) {

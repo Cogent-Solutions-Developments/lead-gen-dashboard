@@ -23,6 +23,7 @@ import { toast } from "sonner";
 
 import {
   deleteCampaign,
+  forceDeleteCampaign,
   getCampaignInfo,
   listCampaigns,
   stopCampaign,
@@ -39,6 +40,12 @@ const statusConfig: Record<
 > = {
   processing: {
     label: "Processing",
+    style: "border-blue-200/80 bg-blue-50/85 text-blue-700",
+    icon: Loader2,
+    spin: true,
+  },
+  content_generating: {
+    label: "Content Generating",
     style: "border-blue-200/80 bg-blue-50/85 text-blue-700",
     icon: Loader2,
     spin: true,
@@ -67,6 +74,7 @@ const statusConfig: Record<
 
 const filterOnlyStatuses = [
   "processing",
+  "content_generating",
   "needs_review",
   "active_outreach",
   "completed",
@@ -79,6 +87,28 @@ function statusUI(status: string) {
     label: status.replaceAll("_", " "),
     style: "border-zinc-200/80 bg-zinc-100/85 text-zinc-700",
   };
+}
+
+function isManualUploadCampaign(
+  campaign: Pick<CampaignListItem, "campaignType" | "manualUpload" | "campaignSource">
+) {
+  return (
+    campaign.campaignType === "manual_upload" ||
+    campaign.manualUpload === true ||
+    String(campaign.campaignSource || "").toLowerCase() === "manual_csv_upload"
+  );
+}
+
+function getCampaignDisplayStatus(campaign: CampaignListItem) {
+  const status = String(campaign.status || "").toLowerCase();
+
+  if (!isManualUploadCampaign(campaign)) return status;
+  if (status === "cancelled" || status === "failed" || status === "active_outreach") return status;
+  if (status === "completed" || status === "needs_review" || status === "content_ready" || status === "people_ready") {
+    return "completed";
+  }
+
+  return "content_generating";
 }
 
 function hasExplicitTimezone(value: string) {
@@ -208,6 +238,7 @@ export default function CampaignsPage() {
   const [deleteBlockedDetail, setDeleteBlockedDetail] = useState<DeleteBlockedDetail | null>(null);
   const [isStopping, setIsStopping] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isForceDeleting, setIsForceDeleting] = useState(false);
   const { persona } = usePersona();
   const filterPanelRef = useRef<HTMLDivElement | null>(null);
   const listViewportRef = useRef<HTMLDivElement | null>(null);
@@ -311,7 +342,8 @@ export default function CampaignsPage() {
     const selectedCategory = categoryFilter.trim().toLowerCase();
 
     return items.filter((campaign) => {
-      const statusMatch = statusFilter === "all" || campaign.status === statusFilter;
+      const displayStatus = getCampaignDisplayStatus(campaign);
+      const statusMatch = statusFilter === "all" || displayStatus === statusFilter;
       const categoryValue = asSearchText(campaign.category || campaignInfoById[campaign.id]?.category).trim();
       const categoryMatch = selectedCategory === "all" || (!!categoryValue && categoryValue === selectedCategory);
       const searchMatch =
@@ -427,7 +459,7 @@ export default function CampaignsPage() {
   }, [loading, paginatedItems, campaignInfoById]);
 
   const closeDialog = () => {
-    if (isStopping || isDeleting) return;
+    if (isStopping || isDeleting || isForceDeleting) return;
     setDialogTarget(null);
     setDeleteBlockedDetail(null);
   };
@@ -497,13 +529,37 @@ export default function CampaignsPage() {
     }
   };
 
-  const handleReviewStop = () => {
-    if (!dialogTarget) return;
-    setDeleteBlockedDetail(null);
-    setDialogTarget({ ...dialogTarget, mode: "stop" });
+  const handleForceDeleteConfirm = async () => {
+    if (!dialogTarget || dialogTarget.mode !== "delete" || !deleteBlockedDetail || isForceDeleting) return;
+    const campaignId = dialogTarget.id;
+
+    setIsForceDeleting(true);
+
+    try {
+      const result = await forceDeleteCampaign(campaignId);
+      setItems((prev) => prev.filter((campaign) => campaign.id !== campaignId));
+      setCampaignInfoById((prev) => {
+        const next = { ...prev };
+        delete next[campaignId];
+        return next;
+      });
+      setDialogTarget(null);
+      setDeleteBlockedDetail(null);
+      toast.success("Campaign force deleted", { description: result.message });
+      void fetchData();
+    } catch (err: unknown) {
+      toast.error("Force delete failed", { description: getErrorMessage(err) });
+    } finally {
+      setIsForceDeleting(false);
+    }
   };
 
-  const isStopAllowed = (status: string) => !["cancelled", "completed", "failed"].includes(status);
+  const isStopAllowed = (campaign: CampaignListItem) => {
+    if (isManualUploadCampaign(campaign)) {
+      return getCampaignDisplayStatus(campaign) === "content_generating";
+    }
+    return !["cancelled", "completed", "failed"].includes(String(campaign.status || "").toLowerCase());
+  };
 
   const listShell =
     "flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/32 backdrop-blur-[8px]";
@@ -656,7 +712,8 @@ export default function CampaignsPage() {
 
             {!loading &&
               paginatedItems.map((campaign, index) => {
-                const s = statusUI(campaign.status);
+                const displayStatus = getCampaignDisplayStatus(campaign);
+                const s = statusUI(displayStatus);
                 const StatusIcon = s.icon;
                 const campaignInfo = campaignInfoById[campaign.id];
                 const category = campaign.category || campaignInfo?.category;
@@ -701,7 +758,7 @@ export default function CampaignsPage() {
                           </h3>
                         </Link>
 
-                        {campaign.status === "processing" && (
+                        {(displayStatus === "processing" || displayStatus === "content_generating") && (
                           <div className="mt-3 max-w-xs">
                             <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200/80">
                               <motion.div
@@ -745,7 +802,7 @@ export default function CampaignsPage() {
 
                       <div className="flex min-h-[4.5rem] flex-col gap-3 md:items-end md:pt-8">
                         <div className="flex items-center gap-2 md:justify-end">
-                          {isStopAllowed(campaign.status) ? (
+                          {isStopAllowed(campaign) ? (
                             <Button
                               onClick={(e) => openDialog("stop", campaign.id, campaign.name, e)}
                               className="h-9 rounded-md border border-red-700 bg-red-600 px-3.5 text-xs font-semibold text-white shadow-[0_8px_14px_-10px_rgba(185,28,28,0.68)] hover:border-red-800 hover:bg-red-700 hover:text-white"
@@ -856,12 +913,12 @@ export default function CampaignsPage() {
         open={Boolean(dialogTarget)}
         mode={dialogTarget?.mode ?? "stop"}
         campaignName={dialogTarget?.name ?? "Campaign"}
-        isBusy={isStopping || isDeleting}
+        isBusy={isStopping || isDeleting || isForceDeleting}
         blockedDetail={deleteBlockedDetail}
         onClose={closeDialog}
         onConfirmStop={handleStopConfirm}
         onConfirmDelete={handleDeleteConfirm}
-        onReviewStop={handleReviewStop}
+        onConfirmForceDelete={handleForceDeleteConfirm}
       />
     </div>
   );
