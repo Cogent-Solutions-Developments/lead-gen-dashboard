@@ -3,8 +3,28 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { hasPersona, onPersonaChange } from "@/lib/persona";
-import { getSupabaseClient } from "@/lib/supabaseClient";
+import { clearPersona, getStoredPersona, hasPersona, onPersonaChange, setPersona } from "@/lib/persona";
+import {
+  canRoleUsePersona,
+  clearAuthSession,
+  fetchCurrentAuthUser,
+  getAuthLandingPath,
+  getStoredAuthSession,
+  isSuperAdminRole,
+  onAuthSessionChange,
+  personaForRole,
+  type AuthSession,
+} from "@/lib/auth";
+
+function isSuperOnlyPath(pathname: string) {
+  return (
+    pathname === "/settings" ||
+    pathname === "/replies" ||
+    pathname === "/campaigns/new" ||
+    pathname === "/campaigns/upload" ||
+    pathname.startsWith("/admin")
+  );
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -12,8 +32,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isChooser = pathname === "/" || pathname === "/choose-persona";
   const isAuthRoute = pathname === "/sign-in";
   const [selected, setSelected] = useState<boolean>(() => hasPersona());
+  const [session, setSession] = useState<AuthSession | null>(() => getStoredAuthSession());
   const [authChecked, setAuthChecked] = useState(false);
-  const [isAuthed, setIsAuthed] = useState(false);
+  const role = session?.user.role ?? null;
+  const isSuperAdmin = isSuperAdminRole(role);
+  const forcedPersona = personaForRole(role);
 
   useEffect(() => {
     const unsubscribe = onPersonaChange(() => setSelected(hasPersona()));
@@ -31,67 +54,95 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    const sync = () => setSession(getStoredAuthSession());
+    sync();
+    return onAuthSessionChange(sync);
+  }, []);
+
+  useEffect(() => {
     let active = true;
 
     const boot = async () => {
+      const current = getStoredAuthSession();
+      if (!current) {
+        if (active) {
+          setSession(null);
+          setAuthChecked(true);
+        }
+        return;
+      }
+
+      setSession(current);
       try {
-        const supabase = getSupabaseClient();
-        const { data } = await supabase.auth.getSession();
-        if (!active) return;
-        setIsAuthed(Boolean(data.session));
+        await fetchCurrentAuthUser();
       } catch {
-        if (!active) return;
-        setIsAuthed(false);
+        clearAuthSession();
+        clearPersona();
+        if (active) setSession(null);
       } finally {
         if (active) setAuthChecked(true);
       }
     };
 
-    boot();
-
-    let unsubscribe = () => {};
-    try {
-      const supabase = getSupabaseClient();
-      const {
-        data: { subscription },
-      } = supabase.auth.onAuthStateChange((_event, session) => {
-        setIsAuthed(Boolean(session));
-        setAuthChecked(true);
-      });
-      unsubscribe = () => subscription.unsubscribe();
-    } catch {
-      // Missing env vars keeps user unauthenticated.
-    }
+    void boot();
 
     return () => {
       active = false;
-      unsubscribe();
     };
   }, []);
 
   useEffect(() => {
     if (!authChecked) return;
 
-    if (!isAuthed) {
+    if (!session) {
       if (!isAuthRoute) router.replace("/sign-in");
       return;
     }
 
     if (isAuthRoute) {
-      router.replace("/choose-persona");
+      router.replace(getAuthLandingPath(role));
+      return;
+    }
+
+    if (forcedPersona) {
+      if (getStoredPersona() !== forcedPersona) {
+        setPersona(forcedPersona);
+        return;
+      }
+
+      if (isChooser || isSuperOnlyPath(pathname)) {
+        router.replace("/dashboard");
+      }
+      return;
+    }
+
+    if (!isSuperAdmin && isSuperOnlyPath(pathname)) {
+      router.replace("/dashboard");
       return;
     }
 
     if (!isChooser && !selected) {
       router.replace("/");
+      return;
     }
-  }, [authChecked, isAuthed, isAuthRoute, isChooser, selected, router]);
+
+    const selectedPersona = getStoredPersona();
+    if (selectedPersona && !canRoleUsePersona(role, selectedPersona)) {
+      clearPersona();
+      router.replace(getAuthLandingPath(role));
+    }
+  }, [authChecked, forcedPersona, isAuthRoute, isChooser, isSuperAdmin, pathname, role, router, selected, session]);
 
   if (!authChecked) return null;
 
-  if (!isAuthed) {
+  if (!session) {
     if (!isAuthRoute) return null;
     return <main className="min-h-screen bg-transparent">{children}</main>;
+  }
+
+  if (forcedPersona) {
+    if (getStoredPersona() !== forcedPersona) return null;
+    if (isChooser || isSuperOnlyPath(pathname)) return null;
   }
 
   if (isAuthRoute || isChooser) {

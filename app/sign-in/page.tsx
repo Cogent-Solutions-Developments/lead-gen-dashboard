@@ -6,11 +6,12 @@ import { motion } from "framer-motion";
 import { Loader2, Webhook } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { getSupabaseClient } from "@/lib/supabaseClient";
+import { getAuthLandingPath, getStoredAuthSession, loginWithPassword, personaForRole } from "@/lib/auth";
+import { setPersona } from "@/lib/persona";
 
 export default function SignInPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [rotation, setRotation] = useState(0);
@@ -19,14 +20,13 @@ export default function SignInPage() {
     let active = true;
 
     const checkSession = async () => {
-      try {
-        const supabase = getSupabaseClient();
-        const { data } = await supabase.auth.getSession();
-        if (!active) return;
-        if (data.session) router.replace("/choose-persona");
-      } catch {
-        // Missing env or auth client init failure: keep user on sign in page.
+      const session = getStoredAuthSession();
+      if (!active || !session) return;
+      const forcedPersona = personaForRole(session.user.role);
+      if (forcedPersona) {
+        setPersona(forcedPersona);
       }
+      router.replace(getAuthLandingPath(session.user.role));
     };
 
     checkSession();
@@ -51,22 +51,21 @@ export default function SignInPage() {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!email.trim() || !password.trim()) {
-      toast.error("Email and password are required.");
+    if (!username.trim() || !password.trim()) {
+      toast.error("Username and password are required.");
       return;
     }
 
     setLoading(true);
     try {
-      const supabase = getSupabaseClient();
-      const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-      if (error) throw error;
+      const session = await loginWithPassword(username.trim(), password);
+      const forcedPersona = personaForRole(session.user.role);
+      if (forcedPersona) {
+        setPersona(forcedPersona);
+      }
 
       toast.success("Signed in successfully.");
-      router.replace("/choose-persona");
+      router.replace(getAuthLandingPath(session.user.role));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unable to sign in.";
       toast.error("Sign in failed", { description: message });
@@ -139,11 +138,11 @@ AI-powered outreach orchestration for the Cogent Solutions Sales and Delegate te
             <form className="mt-15 space-y-5" onSubmit={submit}>
               <div className="mx-auto w-[76%]">
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="Email"
-                  autoComplete="email"
+                  type="text"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  placeholder="Username"
+                  autoComplete="username"
                   className="h-11 w-full border-0 border-b border-zinc-300/80 bg-transparent px-0 text-sm text-zinc-800 placeholder:text-zinc-400/80 outline-none transition-colors duration-200 focus:border-blue-300/70"
                 />
               </div>

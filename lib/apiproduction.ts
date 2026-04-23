@@ -1,4 +1,5 @@
 import axios from "axios";
+import { attachAuthToken } from "@/lib/auth";
 import type {
   CampaignImportSummary,
   CampaignInfo,
@@ -77,6 +78,8 @@ const apiClientProduction = axios.create({
   },
   withCredentials: true,
 });
+
+apiClientProduction.interceptors.request.use(attachAuthToken);
 
 type ApiError = Error & {
   status?: number;
@@ -485,6 +488,7 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
+  attachAuthToken(config);
   const url = config.url || "";
   if (url.startsWith("/api/") && !url.startsWith("/api/productions/")) {
     config.url = url.replace(/^\/api\//, "/api/productions/");

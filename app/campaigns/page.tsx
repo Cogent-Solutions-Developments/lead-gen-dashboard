@@ -32,6 +32,7 @@ import {
   type CampaignListItem,
 } from "@/lib/apiRouter";
 import { usePersona } from "@/hooks/usePersona";
+import { useAuth } from "@/hooks/useAuth";
 import { CampaignActionDialog } from "@/components/campaigns/CampaignActionDialog";
 
 const statusConfig: Record<
@@ -240,6 +241,7 @@ export default function CampaignsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isForceDeleting, setIsForceDeleting] = useState(false);
   const { persona } = usePersona();
+  const { isSuperAdmin } = useAuth();
   const filterPanelRef = useRef<HTMLDivElement | null>(null);
   const listViewportRef = useRef<HTMLDivElement | null>(null);
 
@@ -471,12 +473,13 @@ export default function CampaignsPage() {
     event?: React.MouseEvent
   ) => {
     event?.preventDefault();
+    if (!isSuperAdmin) return;
     setDeleteBlockedDetail(null);
     setDialogTarget({ id, name: campaignName, mode });
   };
 
   const handleStopConfirm = async () => {
-    if (!dialogTarget || dialogTarget.mode !== "stop" || isStopping) return;
+    if (!isSuperAdmin || !dialogTarget || dialogTarget.mode !== "stop" || isStopping) return;
     const campaignId = dialogTarget.id;
 
     setIsStopping(true);
@@ -497,7 +500,7 @@ export default function CampaignsPage() {
   };
 
   const handleDeleteConfirm = async () => {
-    if (!dialogTarget || dialogTarget.mode !== "delete" || isDeleting) return;
+    if (!isSuperAdmin || !dialogTarget || dialogTarget.mode !== "delete" || isDeleting) return;
     const campaignId = dialogTarget.id;
 
     setIsDeleting(true);
@@ -530,7 +533,7 @@ export default function CampaignsPage() {
   };
 
   const handleForceDeleteConfirm = async () => {
-    if (!dialogTarget || dialogTarget.mode !== "delete" || !deleteBlockedDetail || isForceDeleting) return;
+    if (!isSuperAdmin || !dialogTarget || dialogTarget.mode !== "delete" || !deleteBlockedDetail || isForceDeleting) return;
     const campaignId = dialogTarget.id;
 
     setIsForceDeleting(true);
@@ -684,12 +687,14 @@ export default function CampaignsPage() {
             )}
           </div>
 
-          <Link href="/campaigns/new">
-            <Button className="btn-sidebar-noise h-10">
-              <Plus className="h-4 w-4" />
-              New Campaign
-            </Button>
-          </Link>
+          {isSuperAdmin ? (
+            <Link href="/campaigns/new">
+              <Button className="btn-sidebar-noise h-10">
+                <Plus className="h-4 w-4" />
+                New Campaign
+              </Button>
+            </Link>
+          ) : null}
         </div>
       </div>
 
@@ -802,7 +807,7 @@ export default function CampaignsPage() {
 
                       <div className="flex min-h-[4.5rem] flex-col gap-3 md:items-end md:pt-8">
                         <div className="flex items-center gap-2 md:justify-end">
-                          {isStopAllowed(campaign) ? (
+                          {isSuperAdmin && isStopAllowed(campaign) ? (
                             <Button
                               onClick={(e) => openDialog("stop", campaign.id, campaign.name, e)}
                               className="h-9 rounded-md border border-red-700 bg-red-600 px-3.5 text-xs font-semibold text-white shadow-[0_8px_14px_-10px_rgba(185,28,28,0.68)] hover:border-red-800 hover:bg-red-700 hover:text-white"
@@ -812,13 +817,15 @@ export default function CampaignsPage() {
                             </Button>
                           ) : null}
 
-                          <Button
-                            onClick={(e) => openDialog("delete", campaign.id, campaign.name, e)}
-                            className="h-9 rounded-md border border-red-200/85 bg-white/82 px-3.5 text-xs font-semibold text-red-600 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-red-300 hover:bg-red-50 hover:text-red-700"
-                          >
-                            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                            Delete
-                          </Button>
+                          {isSuperAdmin ? (
+                            <Button
+                              onClick={(e) => openDialog("delete", campaign.id, campaign.name, e)}
+                              className="h-9 rounded-md border border-red-200/85 bg-white/82 px-3.5 text-xs font-semibold text-red-600 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+                            >
+                              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                              Delete
+                            </Button>
+                          ) : null}
 
                           <Link href={`/campaigns/${campaign.id}`}>
                             <Button

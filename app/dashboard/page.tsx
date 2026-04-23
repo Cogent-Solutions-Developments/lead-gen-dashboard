@@ -10,9 +10,11 @@ import { RecentCampaigns } from "@/components/dashboard/RecentCampaigns";
 import { LeadsBreakdown } from "@/components/dashboard/LeadsBreakdown";
 import { RepliesOverviewCard } from "@/components/dashboard/RepliesOverviewCard";
 import { usePersona } from "@/hooks/usePersona";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function DashboardPage() {
   const { persona } = usePersona();
+  const { isSuperAdmin } = useAuth();
   const personaLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
 
   return (
@@ -31,21 +33,25 @@ export default function DashboardPage() {
         </div>
         
         <div className="flex items-center gap-2">
-          <Link href="/">
-            <Button
-              aria-label="Change user role"
-              className="analytics-frost-btn h-10 w-10 p-0 shadow-[0_0_12px_-6px_rgba(2,10,27,0.62)] hover:shadow-[0_0_14px_-6px_rgba(2,10,27,0.72)]"
-            >
-              <User className="h-4 w-4" />
-            </Button>
-          </Link>
+          {isSuperAdmin ? (
+            <Link href="/">
+              <Button
+                aria-label="Change user role"
+                className="analytics-frost-btn h-10 w-10 p-0 shadow-[0_0_12px_-6px_rgba(2,10,27,0.62)] hover:shadow-[0_0_14px_-6px_rgba(2,10,27,0.72)]"
+              >
+                <User className="h-4 w-4" />
+              </Button>
+            </Link>
+          ) : null}
 
-          <Link href="/campaigns/new">
-            <Button className="btn-sidebar-noise h-10">
-              <Plus className="h-4 w-4" />
-              New Campaign
-            </Button>
-          </Link>
+          {isSuperAdmin ? (
+            <Link href="/campaigns/new">
+              <Button className="btn-sidebar-noise h-10">
+                <Plus className="h-4 w-4" />
+                New Campaign
+              </Button>
+            </Link>
+          ) : null}
         </div>
       </motion.div>
 
@@ -68,9 +74,11 @@ export default function DashboardPage() {
 
         {/* Right column: reserved slots + lead breakdown */}
         <div className="flex h-full min-h-0 flex-col gap-5">
-          <div className="shrink-0 lg:h-32">
-            <RepliesOverviewCard />
-          </div>
+          {isSuperAdmin ? (
+            <div className="shrink-0 lg:h-32">
+              <RepliesOverviewCard />
+            </div>
+          ) : null}
           <div className="min-h-0 flex-1">
             <LeadsBreakdown />
           </div>

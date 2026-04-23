@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { usePersona } from "@/hooks/usePersona";
 import { clearPersona, getStoredPersona } from "@/lib/persona";
-import { getSupabaseClient } from "@/lib/supabaseClient";
+import { clearAuthSession } from "@/lib/auth";
 import { toast } from "sonner";
 
 export default function ChoosePersonaPage() {
@@ -27,9 +27,7 @@ export default function ChoosePersonaPage() {
 
   const handleSignOut = async () => {
     try {
-      const supabase = getSupabaseClient();
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      clearAuthSession();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to sign out.";
       toast.error("Sign out failed", { description: message });
