@@ -9,14 +9,21 @@ export type {
   CampaignInfoResponse,
   CampaignDetail,
   CampaignListItem,
+  CampaignType,
   CreateCampaignRequest,
   CreateCampaignResponse,
+  DeleteBlockedDetail,
+  DeleteBlocker,
+  DeleteCampaignResponse,
   DashboardStats,
+  DeleteCampaignResult,
+  ForceDeleteCampaignResponse,
   LeadItem,
   LeadAttachment,
   MessageStatus,
   RecentCampaign,
   ReplyNotification,
+  StopCampaignResponse,
   ChannelCapability,
   ChannelCapabilities,
   OutreachRequestChannel,
@@ -97,6 +104,12 @@ export const exportCampaignCsvUrl: typeof sales.exportCampaignCsvUrl = (...args)
 
 export const stopCampaign: typeof sales.stopCampaign = (...args) =>
   pickModule().stopCampaign(...args);
+
+export const deleteCampaign: typeof sales.deleteCampaign = (...args) =>
+  pickModule().deleteCampaign(...args);
+
+export const forceDeleteCampaign: typeof sales.forceDeleteCampaign = (...args) =>
+  pickModule().forceDeleteCampaign(...args);
 
 export const sendAllCampaignLeads: typeof sales.sendAllCampaignLeads = (...args) =>
   pickModule().sendAllCampaignLeads(...args);

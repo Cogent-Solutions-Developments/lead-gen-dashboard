@@ -7,11 +7,17 @@ import type {
   CampaignListItem,
   CreateCampaignRequest,
   CreateCampaignResponse,
+  DeleteBlockedDetail,
+  DeleteCampaignResponse,
   DashboardStats,
+  DeleteCampaignResult,
+  DeleteBlocker,
+  ForceDeleteCampaignResponse,
   LeadItem,
   MessageStatus,
   RecentCampaign,
   ReplyNotification,
+  StopCampaignResponse,
   UploadCommonAttachmentResponse,
   ApproveSelectedLeadsRequest,
   ApproveSelectedLeadsResponse,
@@ -36,11 +42,17 @@ export type {
   CampaignListItem,
   CreateCampaignRequest,
   CreateCampaignResponse,
+  DeleteBlockedDetail,
+  DeleteCampaignResponse,
   DashboardStats,
+  DeleteCampaignResult,
+  DeleteBlocker,
+  ForceDeleteCampaignResponse,
   LeadItem,
   MessageStatus,
   RecentCampaign,
   ReplyNotification,
+  StopCampaignResponse,
   UploadCommonAttachmentResponse,
   ApproveSelectedLeadsRequest,
   ApproveSelectedLeadsResponse,
@@ -219,7 +231,79 @@ export async function stopCampaign(id: string) {
   const { data } = await apiClientProduction.post(
     `/api/productions/campaigns/${id}/stop`
   );
-  return data as { campaignId: string; status: string; message: string };
+  return data as StopCampaignResponse;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function getDetailMessage(data: unknown, fallback: string) {
+  const detail = asRecord(data)?.detail;
+  return typeof detail === "string" ? detail : fallback;
+}
+
+function getApiErrorMessage(detail: unknown, fallback: string) {
+  if (typeof detail === "string") return detail;
+  const message = asRecord(detail)?.message;
+  return typeof message === "string" ? message : fallback;
+}
+
+function createApiActionError(status: number, detail: unknown, fallback: string) {
+  const error = new Error(getApiErrorMessage(detail, fallback)) as Error & {
+    status?: number;
+    detail?: unknown;
+  };
+  error.status = status;
+  error.detail = detail;
+  return error;
+}
+
+export async function deleteCampaign(id: string) {
+  const response = await apiClientProduction.delete(`/api/productions/campaigns/${id}`, {
+    validateStatus: () => true,
+  });
+
+  const data = response.data;
+  const detail = asRecord(asRecord(data)?.detail);
+
+  if (response.status === 409 && detail?.code === "campaign_delete_blocked") {
+    return {
+      ok: false,
+      blocked: true,
+      detail: detail as DeleteBlockedDetail,
+    } satisfies DeleteCampaignResult;
+  }
+
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(getDetailMessage(data, "Failed to delete campaign"));
+  }
+
+  return {
+    ok: true,
+    blocked: false,
+    data: data as DeleteCampaignResponse,
+  } satisfies DeleteCampaignResult;
+}
+
+export async function forceDeleteCampaign(id: string) {
+  const response = await apiClientProduction.post(
+    `/api/productions/campaigns/${id}/force-delete`,
+    { confirm: true, mode: "force" },
+    { validateStatus: () => true }
+  );
+
+  const data = response.data;
+
+  if (response.status < 200 || response.status >= 300) {
+    throw createApiActionError(
+      response.status,
+      asRecord(data)?.detail ?? data,
+      "Force delete failed"
+    );
+  }
+
+  return data as ForceDeleteCampaignResponse;
 }
 
 export async function sendAllCampaignLeads(payload: SendAllCampaignRequest) {
