@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { type AxiosInstance } from "axios";
 import { apiClient } from "./apiClient";
 
 const waDebugEnabled =
@@ -127,6 +127,64 @@ export type SendAllCampaignResponse = {
   requestedChannels?: RequestedOutreachChannels;
   message: string;
 };
+
+export type StopCampaignResponse = {
+  campaignId: string;
+  status: "cancelled";
+  message: string;
+};
+
+export type DeleteCampaignResponse = {
+  campaignId: string;
+  status: "deleted";
+  message: string;
+  deleteReady: true;
+};
+
+export type DeleteBlocker = {
+  code:
+    | "campaign_not_terminal"
+    | "progress_running"
+    | "content_generation_active"
+    | "profile_batch_active"
+    | "jobs_active"
+    | "send_queue_active";
+  message: string;
+  status?: string;
+  count?: number;
+};
+
+export type DeleteBlockedDetail = {
+  code: "campaign_delete_blocked";
+  message: string;
+  campaignId: string;
+  status: string;
+  deleteReady: false;
+  blockers: DeleteBlocker[];
+  checks: {
+    progressStatus: string;
+    doneTotal: number;
+    targetTotal: number;
+    contentInProgress: boolean;
+    batchInProgress: boolean;
+    stopRequested: boolean;
+    activeJobCount: number;
+    activeSendQueueCount: number;
+  };
+  nextAction: string;
+};
+
+export type DeleteCampaignResult =
+  | {
+      ok: true;
+      blocked: false;
+      data: DeleteCampaignResponse;
+    }
+  | {
+      ok: false;
+      blocked: true;
+      detail: DeleteBlockedDetail;
+    };
 
 export type UploadCommonAttachmentResponse = {
   message: string;
@@ -509,7 +567,50 @@ export function exportCampaignCsvUrl(id: string) {
 
 export async function stopCampaign(id: string) {
   const { data } = await apiClient.post(`/api/campaigns/${id}/stop`);
-  return data as { campaignId: string; status: string; message: string };
+  return data as StopCampaignResponse;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function getDetailMessage(data: unknown, fallback: string) {
+  const detail = asRecord(data)?.detail;
+  return typeof detail === "string" ? detail : fallback;
+}
+
+async function requestCampaignDelete(
+  client: AxiosInstance,
+  url: string
+): Promise<DeleteCampaignResult> {
+  const response = await client.delete(url, {
+    validateStatus: () => true,
+  });
+
+  const data = response.data;
+  const detail = asRecord(asRecord(data)?.detail);
+
+  if (response.status === 409 && detail?.code === "campaign_delete_blocked") {
+    return {
+      ok: false,
+      blocked: true,
+      detail: detail as DeleteBlockedDetail,
+    };
+  }
+
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(getDetailMessage(data, "Failed to delete campaign"));
+  }
+
+  return {
+    ok: true,
+    blocked: false,
+    data: data as DeleteCampaignResponse,
+  };
+}
+
+export async function deleteCampaign(id: string) {
+  return requestCampaignDelete(apiClient, `/api/campaigns/${id}`);
 }
 
 export async function sendAllCampaignLeads(payload: SendAllCampaignRequest) {

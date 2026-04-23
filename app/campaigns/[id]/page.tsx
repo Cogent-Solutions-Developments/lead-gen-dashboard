@@ -1073,8 +1073,10 @@ export default function CampaignDetailPage() {
     setCommonAttachmentId(mapped.id);
   };
 
-  const fetchAll = async () => {
-    setLoading(true);
+  const fetchAll = async (options?: { silent?: boolean }) => {
+    if (!options?.silent) {
+      setLoading(true);
+    }
     try {
       const [cRes, lRes, infoRes, commonRes, optOutRes] = await Promise.all([
         api.get(`/api/campaigns/${campaignId}`),
@@ -1130,7 +1132,9 @@ export default function CampaignDetailPage() {
     } catch (e: any) {
       toast.error("Failed to load campaign", { description: e?.message });
     } finally {
-      setLoading(false);
+      if (!options?.silent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -2106,7 +2110,7 @@ export default function CampaignDetailPage() {
             </div>
           </div>
 
-          <div className="flex flex-nowrap items-center gap-2 self-start">
+          <div className="flex flex-wrap items-center gap-2 self-start">
             <Link href="/campaigns">
               <Button className="analytics-frost-btn h-9 px-3.5">
                 <ArrowLeft className="h-4 w-4" />

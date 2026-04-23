@@ -7,11 +7,16 @@ import type {
   CampaignListItem,
   CreateCampaignRequest,
   CreateCampaignResponse,
+  DeleteBlockedDetail,
+  DeleteCampaignResponse,
   DashboardStats,
+  DeleteCampaignResult,
+  DeleteBlocker,
   LeadItem,
   MessageStatus,
   RecentCampaign,
   ReplyNotification,
+  StopCampaignResponse,
   UploadCommonAttachmentResponse,
   ApproveSelectedLeadsRequest,
   ApproveSelectedLeadsResponse,
@@ -36,11 +41,16 @@ export type {
   CampaignListItem,
   CreateCampaignRequest,
   CreateCampaignResponse,
+  DeleteBlockedDetail,
+  DeleteCampaignResponse,
   DashboardStats,
+  DeleteCampaignResult,
+  DeleteBlocker,
   LeadItem,
   MessageStatus,
   RecentCampaign,
   ReplyNotification,
+  StopCampaignResponse,
   UploadCommonAttachmentResponse,
   ApproveSelectedLeadsRequest,
   ApproveSelectedLeadsResponse,
@@ -219,7 +229,43 @@ export async function stopCampaign(id: string) {
   const { data } = await apiClientProduction.post(
     `/api/productions/campaigns/${id}/stop`
   );
-  return data as { campaignId: string; status: string; message: string };
+  return data as StopCampaignResponse;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function getDetailMessage(data: unknown, fallback: string) {
+  const detail = asRecord(data)?.detail;
+  return typeof detail === "string" ? detail : fallback;
+}
+
+export async function deleteCampaign(id: string) {
+  const response = await apiClientProduction.delete(`/api/productions/campaigns/${id}`, {
+    validateStatus: () => true,
+  });
+
+  const data = response.data;
+  const detail = asRecord(asRecord(data)?.detail);
+
+  if (response.status === 409 && detail?.code === "campaign_delete_blocked") {
+    return {
+      ok: false,
+      blocked: true,
+      detail: detail as DeleteBlockedDetail,
+    } satisfies DeleteCampaignResult;
+  }
+
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(getDetailMessage(data, "Failed to delete campaign"));
+  }
+
+  return {
+    ok: true,
+    blocked: false,
+    data: data as DeleteCampaignResponse,
+  } satisfies DeleteCampaignResult;
 }
 
 export async function sendAllCampaignLeads(payload: SendAllCampaignRequest) {

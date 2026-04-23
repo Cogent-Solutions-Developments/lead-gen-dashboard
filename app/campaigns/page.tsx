@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import {
   Loader2,
   Filter,
   Square,
+  Trash2,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -21,13 +22,16 @@ import Link from "next/link";
 import { toast } from "sonner";
 
 import {
+  deleteCampaign,
   getCampaignInfo,
   listCampaigns,
   stopCampaign,
+  type DeleteBlockedDetail,
   type CampaignInfo,
   type CampaignListItem,
 } from "@/lib/apiRouter";
 import { usePersona } from "@/hooks/usePersona";
+import { CampaignActionDialog } from "@/components/campaigns/CampaignActionDialog";
 
 const statusConfig: Record<
   string,
@@ -182,9 +186,10 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong.";
 }
 
-type StopDialogTarget = {
+type CampaignDialogTarget = {
   id: string;
   name: string;
+  mode: "stop" | "delete";
 };
 
 export default function CampaignsPage() {
@@ -199,8 +204,10 @@ export default function CampaignsPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(4);
-  const [stopTarget, setStopTarget] = useState<StopDialogTarget | null>(null);
+  const [dialogTarget, setDialogTarget] = useState<CampaignDialogTarget | null>(null);
+  const [deleteBlockedDetail, setDeleteBlockedDetail] = useState<DeleteBlockedDetail | null>(null);
   const [isStopping, setIsStopping] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { persona } = usePersona();
   const filterPanelRef = useRef<HTMLDivElement | null>(null);
   const listViewportRef = useRef<HTMLDivElement | null>(null);
@@ -419,27 +426,26 @@ export default function CampaignsPage() {
     };
   }, [loading, paginatedItems, campaignInfoById]);
 
-  useEffect(() => {
-    if (!stopTarget || isStopping) return;
+  const closeDialog = () => {
+    if (isStopping || isDeleting) return;
+    setDialogTarget(null);
+    setDeleteBlockedDetail(null);
+  };
 
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setStopTarget(null);
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [stopTarget, isStopping]);
-
-  const openStopDialog = (e: React.MouseEvent, id: string, campaignName: string) => {
-    e.preventDefault();
-    setStopTarget({ id, name: campaignName });
+  const openDialog = (
+    mode: CampaignDialogTarget["mode"],
+    id: string,
+    campaignName: string,
+    event?: React.MouseEvent
+  ) => {
+    event?.preventDefault();
+    setDeleteBlockedDetail(null);
+    setDialogTarget({ id, name: campaignName, mode });
   };
 
   const handleStopConfirm = async () => {
-    if (!stopTarget || isStopping) return;
-    const campaignId = stopTarget.id;
+    if (!dialogTarget || dialogTarget.mode !== "stop" || isStopping) return;
+    const campaignId = dialogTarget.id;
 
     setIsStopping(true);
     setItems((prev) => prev.map((c) => (c.id === campaignId ? { ...c, status: "cancelled" } : c)));
@@ -447,16 +453,57 @@ export default function CampaignsPage() {
     try {
       const res = await stopCampaign(campaignId);
       toast.success("Stop requested", { description: res.message || "Campaign stopping..." });
-      setStopTarget(null);
+      setDialogTarget(null);
+      setDeleteBlockedDetail(null);
+      void fetchData();
     } catch (err: unknown) {
       toast.error("Stop failed", { description: getErrorMessage(err) });
-      fetchData();
+      void fetchData();
     } finally {
       setIsStopping(false);
     }
   };
 
-  const isStopAllowed = (status: string) => ["processing", "active_outreach"].includes(status);
+  const handleDeleteConfirm = async () => {
+    if (!dialogTarget || dialogTarget.mode !== "delete" || isDeleting) return;
+    const campaignId = dialogTarget.id;
+
+    setIsDeleting(true);
+
+    try {
+      const result = await deleteCampaign(campaignId);
+
+      if (!result.ok) {
+        setDeleteBlockedDetail(result.detail);
+        if (result.detail.blockers.some((blocker) => blocker.code === "campaign_not_terminal")) {
+          toast.info("Stop the campaign first", { description: result.detail.message });
+        }
+        return;
+      }
+
+      setItems((prev) => prev.filter((campaign) => campaign.id !== campaignId));
+      setCampaignInfoById((prev) => {
+        const next = { ...prev };
+        delete next[campaignId];
+        return next;
+      });
+      setDialogTarget(null);
+      setDeleteBlockedDetail(null);
+      toast.success("Campaign deleted", { description: result.data.message });
+    } catch (err: unknown) {
+      toast.error("Delete failed", { description: getErrorMessage(err) });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleReviewStop = () => {
+    if (!dialogTarget) return;
+    setDeleteBlockedDetail(null);
+    setDialogTarget({ ...dialogTarget, mode: "stop" });
+  };
+
+  const isStopAllowed = (status: string) => !["cancelled", "completed", "failed"].includes(status);
 
   const listShell =
     "flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/32 backdrop-blur-[8px]";
@@ -700,13 +747,21 @@ export default function CampaignsPage() {
                         <div className="flex items-center gap-2 md:justify-end">
                           {isStopAllowed(campaign.status) ? (
                             <Button
-                              onClick={(e) => openStopDialog(e, campaign.id, campaign.name)}
+                              onClick={(e) => openDialog("stop", campaign.id, campaign.name, e)}
                               className="h-9 rounded-md border border-red-700 bg-red-600 px-3.5 text-xs font-semibold text-white shadow-[0_8px_14px_-10px_rgba(185,28,28,0.68)] hover:border-red-800 hover:bg-red-700 hover:text-white"
                             >
                               <Square className="mr-1.5 h-3 w-3 fill-current" />
                               Stop
                             </Button>
                           ) : null}
+
+                          <Button
+                            onClick={(e) => openDialog("delete", campaign.id, campaign.name, e)}
+                            className="h-9 rounded-md border border-red-200/85 bg-white/82 px-3.5 text-xs font-semibold text-red-600 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+                          >
+                            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                            Delete
+                          </Button>
 
                           <Link href={`/campaigns/${campaign.id}`}>
                             <Button
@@ -797,85 +852,17 @@ export default function CampaignsPage() {
         </div>
       </div>
 
-      <AnimatePresence>
-        {stopTarget && (
-          <motion.div
-            className="fixed inset-0 z-[70] flex items-center justify-center p-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <button
-              type="button"
-              aria-label="Close confirmation"
-              className="absolute inset-0 bg-zinc-950/35 backdrop-blur-[2px]"
-              onClick={() => {
-                if (!isStopping) setStopTarget(null);
-              }}
-            />
-
-            <motion.div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Stop campaign confirmation"
-              initial={{ opacity: 0, y: 16, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.98 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="relative z-[1] w-full max-w-md overflow-hidden rounded-2xl border border-zinc-200/85 bg-white/96 shadow-[0_0_0_1px_rgba(255,255,255,0.9),0_24px_40px_-24px_rgba(2,10,27,0.6),0_12px_22px_-16px_rgba(15,23,42,0.34)] backdrop-blur-[10px]"
-            >
-              <div className="pointer-events-none absolute -right-14 -top-16 h-44 w-44 rounded-full bg-gradient-to-br from-sky-200/50 via-blue-300/25 to-transparent blur-3xl" />
-              <div className="pointer-events-none absolute -left-14 bottom-0 h-32 w-32 rounded-full bg-gradient-to-tr from-zinc-100/70 to-transparent blur-2xl" />
-
-              <div className="relative space-y-5 p-6">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                    Stop Campaign
-                  </p>
-                  <h2 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900">
-                    Confirm cancellation
-                  </h2>
-                  <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-                    Stop
-                    <span className="mx-1 font-semibold text-zinc-800">{stopTarget.name}</span>
-                    now? This action cannot be undone.
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    disabled={isStopping}
-                    onClick={() => setStopTarget(null)}
-                    className="h-9 rounded-md border border-zinc-200/80 bg-white/90 px-3 text-xs font-semibold text-zinc-700 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:opacity-60"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    disabled={isStopping}
-                    onClick={handleStopConfirm}
-                    className="h-9 rounded-md border border-red-700 bg-red-600 px-3.5 text-xs font-semibold text-white shadow-[0_8px_14px_-10px_rgba(185,28,28,0.68)] hover:border-red-800 hover:bg-red-700 disabled:opacity-70"
-                  >
-                    {isStopping ? (
-                      <>
-                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                        Stopping...
-                      </>
-                    ) : (
-                      <>
-                        <Square className="mr-1.5 h-3 w-3 fill-current" />
-                        Stop Campaign
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <CampaignActionDialog
+        open={Boolean(dialogTarget)}
+        mode={dialogTarget?.mode ?? "stop"}
+        campaignName={dialogTarget?.name ?? "Campaign"}
+        isBusy={isStopping || isDeleting}
+        blockedDetail={deleteBlockedDetail}
+        onClose={closeDialog}
+        onConfirmStop={handleStopConfirm}
+        onConfirmDelete={handleDeleteConfirm}
+        onReviewStop={handleReviewStop}
+      />
     </div>
   );
 }
