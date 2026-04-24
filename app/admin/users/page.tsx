@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
+  ArrowLeft,
   KeyRound,
   Loader2,
   Plus,
@@ -228,15 +230,28 @@ export default function AdminUsersPage() {
           </p>
         </div>
 
-        <Button
-          type="button"
-          onClick={() => void loadUsers()}
-          disabled={loading || saving}
-          className="analytics-frost-btn h-10 px-4"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link href="/choose-persona">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 border-zinc-200 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Workspaces
+            </Button>
+          </Link>
+
+          <Button
+            type="button"
+            onClick={() => void loadUsers()}
+            disabled={loading || saving}
+            className="analytics-frost-btn h-10 px-4"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
       </motion.div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">

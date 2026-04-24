@@ -3,10 +3,11 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Home, LogOut, Webhook } from "lucide-react";
+import { ArrowRight, Home, LogOut, ShieldCheck, Webhook } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { usePersona } from "@/hooks/usePersona";
+import { useAuth } from "@/hooks/useAuth";
 import { clearPersona, getStoredPersona } from "@/lib/persona";
 import { clearAuthSession } from "@/lib/auth";
 import { toast } from "sonner";
@@ -14,11 +15,15 @@ import { toast } from "sonner";
 export default function ChoosePersonaPage() {
   const router = useRouter();
   const { persona, setPersona } = usePersona();
+  const { isSuperAdmin } = useAuth();
   const stored = getStoredPersona();
   const salesCurrent = stored === "sales" || !stored;
   const delegatesCurrent = stored === "delegates";
   const productionCurrent = stored === "production";
   const [rotation, setRotation] = useState(0);
+  const gridClassName = isSuperAdmin
+    ? "grid grid-cols-1 gap-7 md:grid-cols-2 xl:grid-cols-4"
+    : "grid grid-cols-1 gap-7 md:grid-cols-2 xl:grid-cols-3";
 
   const selectPersona = (next: "sales" | "delegates" | "production") => {
     setPersona(next);
@@ -147,7 +152,7 @@ export default function ChoosePersonaPage() {
           </motion.div>
 
           <div className="w-full">
-            <div className="grid grid-cols-1 gap-7 md:grid-cols-2 xl:grid-cols-3">
+            <div className={gridClassName}>
               <div className="group relative flex h-full flex-col rounded-2xl border border-zinc-200/80 bg-white/72 p-6 shadow-[0_14px_26px_-28px_rgba(9,40,105,0.32)] transition-all duration-200 hover:border-zinc-300/90 hover:shadow-[0_20px_30px_-28px_rgba(9,40,105,0.4)]">
                 {salesCurrent && (
                   <span className="absolute right-4 top-4 flex h-4 w-4 items-center justify-center rounded-full border border-blue-500/90 bg-white shadow-[0_0_0_3px_rgba(59,130,246,0.14)]">
@@ -218,6 +223,31 @@ export default function ChoosePersonaPage() {
                   <ArrowRight className="ml-1 h-4 w-4" />
                 </Button>
               </div>
+
+              {isSuperAdmin ? (
+                <div className="group relative flex h-full flex-col rounded-2xl border border-zinc-200/80 bg-white/72 p-6 shadow-[0_14px_26px_-28px_rgba(9,40,105,0.32)] transition-all duration-200 hover:border-zinc-300/90 hover:shadow-[0_20px_30px_-28px_rgba(9,40,105,0.4)]">
+                  <div className="space-y-1">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 text-zinc-700">
+                      <ShieldCheck className="h-5 w-5" />
+                    </div>
+                    <p className="pt-3 text-lg font-semibold text-zinc-900">Admin Panel</p>
+                  </div>
+
+                  <p className="mt-4 text-sm leading-6 text-zinc-600">
+                    Manage users, assign roles, rotate passwords, and keep admin access in one dedicated place without entering a pipeline workspace first.
+                  </p>
+
+                  <Link href="/admin/users" className="mt-8">
+                    <Button
+                      variant="outline"
+                      className="h-10 w-full rounded-md border-zinc-200 bg-white/80 text-zinc-700 hover:bg-zinc-50"
+                    >
+                      Open Admin Panel
+                      <ArrowRight className="ml-1 h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

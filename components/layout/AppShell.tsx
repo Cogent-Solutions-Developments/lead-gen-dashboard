@@ -30,6 +30,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const isChooser = pathname === "/" || pathname === "/choose-persona";
   const isAuthRoute = pathname === "/sign-in";
+  const isStandaloneAdminRoute = pathname.startsWith("/admin");
   const [selected, setSelected] = useState<boolean>(() => hasPersona());
   const [session, setSession] = useState<AuthSession | null>(() => getStoredAuthSession());
   const [authChecked, setAuthChecked] = useState(false);
@@ -120,7 +121,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (!isChooser && !selected) {
+    if (!isChooser && !isStandaloneAdminRoute && !selected) {
       router.replace("/");
       return;
     }
@@ -130,7 +131,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       clearPersona();
       router.replace(getAuthLandingPath(role));
     }
-  }, [authChecked, forcedPersona, isAuthRoute, isChooser, isSuperAdmin, pathname, role, router, selected, session]);
+  }, [authChecked, forcedPersona, isAuthRoute, isChooser, isStandaloneAdminRoute, isSuperAdmin, pathname, role, router, selected, session]);
 
   if (!authChecked) return null;
 
@@ -146,6 +147,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (isAuthRoute || isChooser) {
     return <main className="min-h-screen bg-transparent">{children}</main>;
+  }
+
+  if (isStandaloneAdminRoute) {
+    return <main className="min-h-screen bg-transparent p-6">{children}</main>;
   }
 
   if (!selected) return null;
