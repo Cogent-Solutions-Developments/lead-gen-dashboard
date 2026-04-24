@@ -381,7 +381,7 @@ export type CampaignInfoResponse = {
   info: CampaignInfo;
 };
 
-export type WorkflowStatus = "new" | "pending" | "complete";
+export type WorkflowStatus = string;
 
 export type LeadItem = {
   id: string;
@@ -402,6 +402,12 @@ export type LeadItem = {
   canonicalEventName?: string | null;
   leadIdentityKey?: string | null;
   workflowStatus?: WorkflowStatus | null;
+  workflowStatusLabel?: string | null;
+  hostIcpRunId?: string | null;
+  isManualLead?: boolean | null;
+  manualLeadAddedByUserId?: string | null;
+  manualLeadAddedByUsername?: string | null;
+  manualLeadAddedAt?: string | null;
   reviewStatus?: string | null;
   approvalStatus: "pending" | "approved" | "rejected" | "suppressed";
   outreachStatus?: string | Record<string, unknown> | null;
@@ -420,6 +426,7 @@ export type WorkflowStatusUpdateResponse = {
   canonicalEventName: string;
   leadIdentityKey: string;
   workflowStatus: WorkflowStatus;
+  workflowStatusLabel?: string | null;
   updatedAt?: string | null;
 };
 
@@ -429,11 +436,61 @@ export type EventSummaryItem = {
   leadCount: number;
   campaignCount: number;
   relatedCampaignNames: string[];
+  hostIcpRunId?: string | null;
 };
 
 export type EventSummaryResponse = {
   events: EventSummaryItem[];
   total: number;
+};
+
+export type WorkflowStatusDefinitionItem = {
+  id: string;
+  ownerUserId?: string | null;
+  pipeline?: string | null;
+  statusKey: string;
+  label: string;
+  isSystemDefault: boolean;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type WorkflowStatusDefinitionsResponse = {
+  statuses: WorkflowStatusDefinitionItem[];
+  total: number;
+};
+
+export type EventLeadCreateRequest = {
+  fullName: string;
+  title?: string;
+  companyName?: string;
+  companyUrl?: string;
+  email?: string;
+  phone?: string;
+  linkedinUrl?: string;
+};
+
+export type EventLeadCreateResponse = {
+  id: string;
+  hostIcpRunId?: string | null;
+  canonicalEventKey: string;
+  canonicalEventName: string;
+  leadIdentityKey: string;
+  workflowStatus: WorkflowStatus;
+  workflowStatusLabel?: string | null;
+  employeeName: string;
+  title?: string | null;
+  company?: string | null;
+  companyUrl?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  linkedinUrl?: string | null;
+  isManualLead?: boolean | null;
+  manualLeadAddedByUserId?: string | null;
+  manualLeadAddedByUsername?: string | null;
+  manualLeadAddedAt?: string | null;
 };
 
 export type MessageChannel = "email" | "whatsapp" | "linkedin" | "other";
@@ -608,6 +665,26 @@ export async function listAllLeads() {
 
 export async function listEvents() {
   const { data } = await apiClient.get<EventSummaryResponse>("/api/events");
+  return data;
+}
+
+export async function listWorkflowStatuses() {
+  const { data } = await apiClient.get<WorkflowStatusDefinitionsResponse>("/api/workflow-statuses");
+  return data;
+}
+
+export async function createWorkflowStatus(label: string) {
+  const { data } = await apiClient.post<WorkflowStatusDefinitionItem>("/api/workflow-statuses", {
+    label,
+  });
+  return data;
+}
+
+export async function addEventLead(canonicalEventKey: string, payload: EventLeadCreateRequest) {
+  const { data } = await apiClient.post<EventLeadCreateResponse>(
+    `/api/events/${encodeURIComponent(canonicalEventKey)}/leads`,
+    payload
+  );
   return data;
 }
 

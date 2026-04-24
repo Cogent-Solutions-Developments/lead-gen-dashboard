@@ -13,6 +13,8 @@ import type {
   DashboardStats,
   DeleteCampaignResult,
   DeleteBlocker,
+  EventLeadCreateRequest,
+  EventLeadCreateResponse,
   EventSummaryResponse,
   ForceDeleteCampaignResponse,
   LeadItem,
@@ -35,6 +37,8 @@ import type {
   UploadWhatsAppOptOutCsvResponse,
   DisableLeadWhatsAppResponse,
   WorkflowStatus,
+  WorkflowStatusDefinitionItem,
+  WorkflowStatusDefinitionsResponse,
   WorkflowStatusUpdateResponse,
 } from "./api";
 
@@ -51,6 +55,8 @@ export type {
   DashboardStats,
   DeleteCampaignResult,
   DeleteBlocker,
+  EventLeadCreateRequest,
+  EventLeadCreateResponse,
   EventSummaryResponse,
   ForceDeleteCampaignResponse,
   LeadItem,
@@ -73,6 +79,8 @@ export type {
   UploadWhatsAppOptOutCsvResponse,
   DisableLeadWhatsAppResponse,
   WorkflowStatus,
+  WorkflowStatusDefinitionItem,
+  WorkflowStatusDefinitionsResponse,
   WorkflowStatusUpdateResponse,
 };
 
@@ -204,6 +212,29 @@ export async function listAllLeads() {
 
 export async function listEvents() {
   const { data } = await apiClientProduction.get<EventSummaryResponse>("/api/productions/events");
+  return data;
+}
+
+export async function listWorkflowStatuses() {
+  const { data } = await apiClientProduction.get<WorkflowStatusDefinitionsResponse>(
+    "/api/productions/workflow-statuses"
+  );
+  return data;
+}
+
+export async function createWorkflowStatus(label: string) {
+  const { data } = await apiClientProduction.post<WorkflowStatusDefinitionItem>(
+    "/api/productions/workflow-statuses",
+    { label }
+  );
+  return data;
+}
+
+export async function addEventLead(canonicalEventKey: string, payload: EventLeadCreateRequest) {
+  const { data } = await apiClientProduction.post<EventLeadCreateResponse>(
+    `/api/productions/events/${encodeURIComponent(canonicalEventKey)}/leads`,
+    payload
+  );
   return data;
 }
 

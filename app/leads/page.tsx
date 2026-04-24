@@ -73,6 +73,9 @@ interface Lead {
   isSuppressed: boolean;
   contactReadOnly: boolean;
   suppression: SuppressionInfo | null;
+  isManualLead: boolean;
+  manualLeadAddedByUsername: string;
+  manualLeadAddedAt: string;
 }
 
 const LinkedInIcon = ({ className }: { className?: string }) => (
@@ -671,6 +674,9 @@ function SuperAdminTotalLeads() {
         isSuppressed: parseBoolean(x.isSuppressed),
         contactReadOnly: parseBoolean(x.contactReadOnly),
         suppression: normalizeSuppression(x.suppression),
+        isManualLead: parseBoolean(x.isManualLead),
+        manualLeadAddedByUsername: asText(x.manualLeadAddedByUsername),
+        manualLeadAddedAt: asText(x.manualLeadAddedAt),
       }));
 
       setLeads(mapped);
@@ -1291,6 +1297,18 @@ function SuperAdminTotalLeads() {
 
                     <td className="px-3 py-3 align-top">
                       <span className="block text-sm font-semibold text-zinc-900">{item.employeeName || "-"}</span>
+                      {item.isManualLead ? (
+                        <div className="mt-1 space-y-1">
+                          <span className="inline-flex w-fit rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                            Manual Lead
+                          </span>
+                          <span className="block text-[11px] text-zinc-400">
+                            {item.manualLeadAddedByUsername
+                              ? `Added by ${item.manualLeadAddedByUsername}`
+                              : "Manually added"}
+                          </span>
+                        </div>
+                      ) : null}
                     </td>
 
                     <td className="px-3 py-3 align-top">
