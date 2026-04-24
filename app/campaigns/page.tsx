@@ -34,6 +34,7 @@ import {
 import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
 import { CampaignActionDialog } from "@/components/campaigns/CampaignActionDialog";
+import { NormalUserEventsPage } from "@/components/events/NormalUserEventsPage";
 
 const statusConfig: Record<
   string,
@@ -223,7 +224,7 @@ type CampaignDialogTarget = {
   mode: "stop" | "delete";
 };
 
-export default function CampaignsPage() {
+function SuperAdminCampaignsPage() {
   const [items, setItems] = useState<CampaignListItem[]>([]);
   const [campaignInfoById, setCampaignInfoById] = useState<Record<string, CampaignInfo | null>>(
     {}
@@ -929,4 +930,9 @@ export default function CampaignsPage() {
       />
     </div>
   );
+}
+
+export default function CampaignsPage() {
+  const { isSuperAdmin } = useAuth();
+  return isSuperAdmin ? <SuperAdminCampaignsPage /> : <NormalUserEventsPage />;
 }

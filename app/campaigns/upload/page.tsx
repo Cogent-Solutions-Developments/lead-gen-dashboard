@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createCampaignFromUpload } from "@/lib/apiRouter";
 import { persistCampaignUploadSummary } from "@/lib/campaignUploadSummary";
+import { useAuth } from "@/hooks/useAuth";
 
 const preferredHeaders = [
   "employeeName",
@@ -68,6 +69,7 @@ function getApiErrorMessage(error: unknown) {
 
 export default function UploadCampaignPage() {
   const router = useRouter();
+  const { isSuperAdmin } = useAuth();
   const leadSheetInputRef = useRef<HTMLInputElement | null>(null);
 
   const [name, setName] = useState("");
@@ -141,7 +143,13 @@ export default function UploadCampaignPage() {
         description: `${response.importSummary.importedLeads} leads are ready for review.`,
       });
 
-      router.push(`/campaigns/${response.id}`);
+      if (!isSuperAdmin && response.canonicalEventKey) {
+        router.push(`/leads?event=${encodeURIComponent(response.canonicalEventKey)}`);
+      } else if (!isSuperAdmin) {
+        router.push("/campaigns");
+      } else {
+        router.push(`/campaigns/${response.id}`);
+      }
     } catch (error: unknown) {
       toast.error("Failed to upload campaign", {
         description: getApiErrorMessage(error),

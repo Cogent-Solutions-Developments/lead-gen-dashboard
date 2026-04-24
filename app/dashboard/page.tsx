@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { RecentCampaigns } from "@/components/dashboard/RecentCampaigns";
+import { RecentEvents } from "@/components/dashboard/RecentEvents";
 import { LeadsBreakdown } from "@/components/dashboard/LeadsBreakdown";
 import { RepliesOverviewCard } from "@/components/dashboard/RepliesOverviewCard";
 import { usePersona } from "@/hooks/usePersona";
@@ -68,7 +69,7 @@ export default function DashboardPage() {
             <StatsCards />
           </div>
           <div className="min-h-0 flex-1">
-            <RecentCampaigns />
+            {isSuperAdmin ? <RecentCampaigns /> : <RecentEvents />}
           </div>
         </div>
 

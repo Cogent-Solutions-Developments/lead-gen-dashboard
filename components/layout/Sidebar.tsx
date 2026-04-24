@@ -26,11 +26,11 @@ import { toast } from "sonner";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Campaigns", href: "/campaigns", icon: Rocket },
+  { name: "Campaigns", normalLabel: "Events", href: "/campaigns", icon: Rocket },
   { name: "New Campaign", href: "/campaigns/new", icon: Plus, superOnly: true },
   { name: "Upload Campaign", href: "/campaigns/upload", icon: Upload },
   // { name: "Completed", href: "/completed", icon: CheckCircle },
-  { name: "Nizo Finder", href: "/leads", icon: TrainFront },
+  { name: "Nizo Finder", normalLabel: "Lead Sheet", href: "/leads", icon: TrainFront },
   { name: "Replies", href: "/replies", icon: MessageSquare, superOnly: true },
   { name: "Settings", href: "/settings", icon: Settings, superOnly: true },
   { name: "Admin Users", href: "/admin/users", icon: ShieldCheck, superOnly: true },
@@ -139,9 +139,9 @@ export function Sidebar() {
                       ? "sidebar-chip-active"
                       : "border-transparent bg-transparent text-sidebar-foreground/90 shadow-none hover:border-white/25 hover:bg-white/12 hover:text-sidebar-accent-foreground hover:shadow-[0_8px_18px_-16px_rgba(0,0,0,0.55)]"
                   }`}
-                >
+                  >
                   <item.icon className="h-5 w-5" />
-                  {item.name}
+                  {isSuperAdmin ? item.name : item.normalLabel ?? item.name}
                 </Button>
               </Link>
             </motion.div>

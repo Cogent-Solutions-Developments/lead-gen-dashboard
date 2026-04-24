@@ -29,6 +29,8 @@ import {
 import { toast } from "sonner";
 import { disableLeadWhatsApp, getApiKeyClient } from "@/lib/apiRouter";
 import { usePersona } from "@/hooks/usePersona";
+import { useAuth } from "@/hooks/useAuth";
+import { NormalUserEventLeadSheet } from "@/components/leads/NormalUserEventLeadSheet";
 
 const GET_ALL_LEADS_ENDPOINT = "/api/all/leads";
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
@@ -533,7 +535,7 @@ function sortLeads(rows: Lead[], sortBy: SortBy) {
   return sorted;
 }
 
-export default function TotalLeads() {
+function SuperAdminTotalLeads() {
   const { persona } = usePersona();
   const api = useMemo(() => getApiKeyClient(persona), [persona]);
 
@@ -1639,4 +1641,9 @@ export default function TotalLeads() {
       )}
     </div>
   );
+}
+
+export default function LeadsPage() {
+  const { isSuperAdmin } = useAuth();
+  return isSuperAdmin ? <SuperAdminTotalLeads /> : <NormalUserEventLeadSheet />;
 }

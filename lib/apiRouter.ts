@@ -17,6 +17,8 @@ export type {
   DeleteCampaignResponse,
   DashboardStats,
   DeleteCampaignResult,
+  EventSummaryItem,
+  EventSummaryResponse,
   ForceDeleteCampaignResponse,
   LeadItem,
   LeadAttachment,
@@ -45,6 +47,8 @@ export type {
   DisableLeadWhatsAppResponse,
   WhatsAppOptOutItem,
   SuppressionMeta,
+  WorkflowStatus,
+  WorkflowStatusUpdateResponse,
   WhatsAppInbound,
   WhatsAppMessagesResponse,
   WhatsAppNotificationsResponse,
@@ -84,6 +88,12 @@ export const getCampaignInfo: typeof sales.getCampaignInfo = (...args) =>
 export const getCampaignLeads: typeof sales.getCampaignLeads = (...args) =>
   pickModule().getCampaignLeads(...args);
 
+export const listAllLeads: typeof sales.listAllLeads = (...args) =>
+  pickModule().listAllLeads(...args);
+
+export const listEvents: typeof sales.listEvents = (...args) =>
+  pickModule().listEvents(...args);
+
 export const approveLead: typeof sales.approveLead = (...args) =>
   pickModule().approveLead(...args);
 
@@ -92,6 +102,9 @@ export const rejectLead: typeof sales.rejectLead = (...args) =>
 
 export const updateLeadContent: typeof sales.updateLeadContent = (...args) =>
   pickModule().updateLeadContent(...args);
+
+export const updateLeadWorkflowStatus: typeof sales.updateLeadWorkflowStatus = (...args) =>
+  pickModule().updateLeadWorkflowStatus(...args);
 
 export const approveAllCampaign: typeof sales.approveAllCampaign = (...args) =>
   pickModule().approveAllCampaign(...args);

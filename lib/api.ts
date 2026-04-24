@@ -27,6 +27,8 @@ export type DashboardStats = {
 export type RecentCampaign = {
   id: string;
   name: string;
+  canonicalEventKey?: string | null;
+  canonicalEventName?: string | null;
   leadsCount: number;
   status: string;
   campaignType?: CampaignType;
@@ -40,6 +42,8 @@ export type CampaignListItem = {
   id: string;
   name: string;
   icpPreview: string;
+  canonicalEventKey?: string | null;
+  canonicalEventName?: string | null;
   status: string;
   campaignType?: CampaignType;
   manualUpload?: boolean;
@@ -57,6 +61,8 @@ export type CampaignDetail = {
   id: string;
   name: string;
   icpPreview: string;
+  canonicalEventKey?: string | null;
+  canonicalEventName?: string | null;
   status: string;
   campaignType?: CampaignType;
   manualUpload?: boolean;
@@ -87,6 +93,8 @@ export type CreateCampaignResponse = {
   id: string;
   name: string;
   icpPreview: string;
+  canonicalEventKey?: string | null;
+  canonicalEventName?: string | null;
   status: string;
   campaignType?: CampaignType;
   manualUpload?: boolean;
@@ -365,11 +373,15 @@ export type CampaignInfo = {
 
 export type CampaignInfoResponse = {
   campaignId: string;
+  canonicalEventKey?: string | null;
+  canonicalEventName?: string | null;
   campaignType?: CampaignType;
   manualUpload?: boolean;
   campaignSource?: string | null;
   info: CampaignInfo;
 };
+
+export type WorkflowStatus = "new" | "pending" | "complete";
 
 export type LeadItem = {
   id: string;
@@ -385,6 +397,11 @@ export type LeadItem = {
   contentEmail: string | null;
   contentLinkedin: string | null;
   contentWhatsapp: string | null;
+  eventName?: string | null;
+  canonicalEventKey?: string | null;
+  canonicalEventName?: string | null;
+  leadIdentityKey?: string | null;
+  workflowStatus?: WorkflowStatus | null;
   reviewStatus?: string | null;
   approvalStatus: "pending" | "approved" | "rejected" | "suppressed";
   outreachStatus?: string | Record<string, unknown> | null;
@@ -395,6 +412,28 @@ export type LeadItem = {
   channelCapabilities?: ChannelCapabilities | null;
   emailAttachments?: LeadAttachment[];
   whatsappAttachments?: LeadAttachment[];
+};
+
+export type WorkflowStatusUpdateResponse = {
+  id: string;
+  canonicalEventKey: string;
+  canonicalEventName: string;
+  leadIdentityKey: string;
+  workflowStatus: WorkflowStatus;
+  updatedAt?: string | null;
+};
+
+export type EventSummaryItem = {
+  canonicalEventKey: string;
+  canonicalEventName: string;
+  leadCount: number;
+  campaignCount: number;
+  relatedCampaignNames: string[];
+};
+
+export type EventSummaryResponse = {
+  events: EventSummaryItem[];
+  total: number;
 };
 
 export type MessageChannel = "email" | "whatsapp" | "linkedin" | "other";
@@ -562,6 +601,16 @@ export async function getCampaignLeads(id: string, status: string = "all") {
   return data;
 }
 
+export async function listAllLeads() {
+  const { data } = await apiClient.get<{ leads: LeadItem[]; total: number }>("/api/all/leads");
+  return data;
+}
+
+export async function listEvents() {
+  const { data } = await apiClient.get<EventSummaryResponse>("/api/events");
+  return data;
+}
+
 export async function approveLead(id: string) {
   const { data } = await apiClient.put(`/api/leads/${id}/approve`);
   return data;
@@ -579,6 +628,14 @@ export async function updateLeadContent(id: string, payload: {
   contentWhatsapp: string;
 }) {
   const { data } = await apiClient.put(`/api/leads/${id}/content`, payload);
+  return data;
+}
+
+export async function updateLeadWorkflowStatus(id: string, workflowStatus: WorkflowStatus) {
+  const { data } = await apiClient.put<WorkflowStatusUpdateResponse>(
+    `/api/leads/${id}/workflow-status`,
+    { workflowStatus }
+  );
   return data;
 }
 

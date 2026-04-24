@@ -13,6 +13,7 @@ import type {
   DashboardStats,
   DeleteCampaignResult,
   DeleteBlocker,
+  EventSummaryResponse,
   ForceDeleteCampaignResponse,
   LeadItem,
   MessageStatus,
@@ -33,6 +34,8 @@ import type {
   ListWhatsAppOptOutsResponse,
   UploadWhatsAppOptOutCsvResponse,
   DisableLeadWhatsAppResponse,
+  WorkflowStatus,
+  WorkflowStatusUpdateResponse,
 } from "./api";
 
 export type {
@@ -48,6 +51,7 @@ export type {
   DashboardStats,
   DeleteCampaignResult,
   DeleteBlocker,
+  EventSummaryResponse,
   ForceDeleteCampaignResponse,
   LeadItem,
   MessageStatus,
@@ -68,6 +72,8 @@ export type {
   ListWhatsAppOptOutsResponse,
   UploadWhatsAppOptOutCsvResponse,
   DisableLeadWhatsAppResponse,
+  WorkflowStatus,
+  WorkflowStatusUpdateResponse,
 };
 
 const apiClientProduction = axios.create({
@@ -189,6 +195,18 @@ export async function getCampaignLeads(id: string, status: string = "all") {
   return data;
 }
 
+export async function listAllLeads() {
+  const { data } = await apiClientProduction.get<{ leads: LeadItem[]; total: number }>(
+    "/api/productions/all/leads"
+  );
+  return data;
+}
+
+export async function listEvents() {
+  const { data } = await apiClientProduction.get<EventSummaryResponse>("/api/productions/events");
+  return data;
+}
+
 export async function approveLead(id: string) {
   const { data } = await apiClientProduction.put(`/api/productions/leads/${id}/approve`);
   return data;
@@ -209,6 +227,14 @@ export async function updateLeadContent(
   }
 ) {
   const { data } = await apiClientProduction.put(`/api/productions/leads/${id}/content`, payload);
+  return data;
+}
+
+export async function updateLeadWorkflowStatus(id: string, workflowStatus: WorkflowStatus) {
+  const { data } = await apiClientProduction.put<WorkflowStatusUpdateResponse>(
+    `/api/productions/leads/${id}/workflow-status`,
+    { workflowStatus }
+  );
   return data;
 }
 

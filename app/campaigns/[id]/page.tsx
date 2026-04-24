@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   approveSelectedCampaignLeads,
   type CampaignImportSummary,
@@ -693,7 +693,7 @@ async function deleteLeadAttachment(
   await api.delete(`/api/leads/${leadId}/attachments/${attachmentId}`);
 }
 
-export default function CampaignDetailPage() {
+function SuperAdminCampaignDetailPage() {
   const params = useParams<{ id: string }>();
   const campaignId = params.id;
   const { persona } = usePersona();
@@ -3133,4 +3133,19 @@ export default function CampaignDetailPage() {
       </AnimatePresence>
     </div>
   );
+}
+
+function NormalUserCampaignDetailRedirect() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/campaigns");
+  }, [router]);
+
+  return null;
+}
+
+export default function CampaignDetailPage() {
+  const { isSuperAdmin } = useAuth();
+  return isSuperAdmin ? <SuperAdminCampaignDetailPage /> : <NormalUserCampaignDetailRedirect />;
 }
