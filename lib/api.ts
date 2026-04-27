@@ -27,6 +27,7 @@ export type DashboardStats = {
 export type RecentCampaign = {
   id: string;
   name: string;
+  eventRegistryId?: string | null;
   canonicalEventKey?: string | null;
   canonicalEventName?: string | null;
   leadsCount: number;
@@ -42,6 +43,7 @@ export type CampaignListItem = {
   id: string;
   name: string;
   icpPreview: string;
+  eventRegistryId?: string | null;
   canonicalEventKey?: string | null;
   canonicalEventName?: string | null;
   status: string;
@@ -61,6 +63,7 @@ export type CampaignDetail = {
   id: string;
   name: string;
   icpPreview: string;
+  eventRegistryId?: string | null;
   canonicalEventKey?: string | null;
   canonicalEventName?: string | null;
   status: string;
@@ -87,12 +90,14 @@ export type CreateCampaignRequest = {
   location?: string;
   date?: string;
   category?: string;
+  eventRegistryId?: string;
 };
 
 export type CreateCampaignResponse = {
   id: string;
   name: string;
   icpPreview: string;
+  eventRegistryId?: string | null;
   canonicalEventKey?: string | null;
   canonicalEventName?: string | null;
   status: string;
@@ -118,6 +123,7 @@ export type UploadCampaignRequest = {
   category?: string;
   date?: string;
   icp?: string;
+  eventRegistryId?: string;
   leadSheet: File | Blob;
 };
 
@@ -373,6 +379,7 @@ export type CampaignInfo = {
 
 export type CampaignInfoResponse = {
   campaignId: string;
+  eventRegistryId?: string | null;
   canonicalEventKey?: string | null;
   canonicalEventName?: string | null;
   campaignType?: CampaignType;
@@ -627,6 +634,7 @@ export async function createCampaignFromUpload(payload: UploadCampaignRequest) {
   formData.append("location", payload.location?.trim() ?? "");
   formData.append("category", payload.category?.trim() ?? "");
   formData.append("date", payload.date?.trim() ?? "");
+  formData.append("eventRegistryId", payload.eventRegistryId?.trim() ?? "");
   formData.append("icp", payload.icp?.trim() ?? "");
 
   const leadSheetName =

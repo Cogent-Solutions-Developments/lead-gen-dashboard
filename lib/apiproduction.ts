@@ -165,6 +165,7 @@ export async function createCampaignFromUpload(payload: UploadCampaignRequest) {
   formData.append("location", payload.location?.trim() ?? "");
   formData.append("category", payload.category?.trim() ?? "");
   formData.append("date", payload.date?.trim() ?? "");
+  formData.append("eventRegistryId", payload.eventRegistryId?.trim() ?? "");
   formData.append("icp", payload.icp?.trim() ?? "");
 
   const leadSheetName =

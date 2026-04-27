@@ -42,6 +42,35 @@ export type AuthUserUpdateInput = {
   isActive?: boolean;
 };
 
+export type AdminEventItem = {
+  id: string;
+  eventKey: string;
+  eventName: string;
+  location?: string | null;
+  category?: string | null;
+  date?: string | null;
+  isActive: boolean;
+  createdByUserId?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type AdminEventCreateInput = {
+  eventName: string;
+  eventKey: string;
+  location: string;
+  date: string;
+  isActive: boolean;
+};
+
+export type AdminEventUpdateInput = {
+  eventName?: string;
+  eventKey?: string;
+  location?: string;
+  date?: string;
+  isActive?: boolean;
+};
+
 type AuthError = Error & {
   status?: number;
   data?: unknown;
@@ -315,4 +344,44 @@ export async function deleteAuthUser(userId: string) {
   await authRequest<{ deleted: boolean; user: AuthUser }>(`/api/auth/users/${userId}`, {
     method: "DELETE",
   });
+}
+
+function normalizeAdminEvent(raw: unknown): AdminEventItem {
+  const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  return {
+    id: String(source.id || ""),
+    eventKey: String(source.eventKey || ""),
+    eventName: String(source.eventName || ""),
+    location: source.location == null ? null : String(source.location),
+    category: source.category == null ? null : String(source.category),
+    date: source.date == null ? null : String(source.date),
+    isActive: Boolean(source.isActive),
+    createdByUserId: source.createdByUserId == null ? null : String(source.createdByUserId),
+    createdAt: source.createdAt == null ? null : String(source.createdAt),
+    updatedAt: source.updatedAt == null ? null : String(source.updatedAt),
+  };
+}
+
+export async function listAdminEvents(includeInactive = true) {
+  const params = new URLSearchParams();
+  if (includeInactive) params.set("includeInactive", "true");
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  const data = await authRequest<{ events: AdminEventItem[] }>(`/api/admin/events${suffix}`);
+  return Array.isArray(data.events) ? data.events.map(normalizeAdminEvent) : [];
+}
+
+export async function createAdminEvent(payload: AdminEventCreateInput) {
+  const data = await authRequest<{ event: AdminEventItem }>("/api/admin/events", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return normalizeAdminEvent(data.event);
+}
+
+export async function updateAdminEvent(eventId: string, payload: AdminEventUpdateInput) {
+  const data = await authRequest<{ event: AdminEventItem }>(`/api/admin/events/${eventId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  return normalizeAdminEvent(data.event);
 }

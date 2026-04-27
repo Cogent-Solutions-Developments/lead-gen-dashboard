@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
+  CalendarDays,
   KeyRound,
   Loader2,
   Plus,
@@ -231,6 +232,17 @@ export default function AdminUsersPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Link href="/admin/events">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 border-zinc-200 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
+            >
+              <CalendarDays className="mr-2 h-4 w-4" />
+              Events
+            </Button>
+          </Link>
+
           <Link href="/choose-persona">
             <Button
               type="button"
