@@ -371,6 +371,11 @@ export async function listAdminEvents(includeInactive = true) {
   return Array.isArray(data.events) ? data.events.map(normalizeAdminEvent) : [];
 }
 
+export async function listActiveEventRegistry() {
+  const data = await authRequest<{ events: AdminEventItem[] }>("/api/event-registry/active");
+  return Array.isArray(data.events) ? data.events.map(normalizeAdminEvent) : [];
+}
+
 export async function createAdminEvent(payload: AdminEventCreateInput) {
   const data = await authRequest<{ event: AdminEventItem }>("/api/admin/events", {
     method: "POST",

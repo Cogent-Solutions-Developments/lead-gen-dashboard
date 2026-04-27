@@ -28,7 +28,7 @@ import {
 import { createCampaignFromUpload } from "@/lib/apiRouter";
 import { persistCampaignUploadSummary } from "@/lib/campaignUploadSummary";
 import { useAuth } from "@/hooks/useAuth";
-import { listAdminEvents, type AdminEventItem } from "@/lib/auth";
+import { listActiveEventRegistry, type AdminEventItem } from "@/lib/auth";
 
 const preferredHeaders = [
   "employeeName",
@@ -86,22 +86,17 @@ export default function UploadCampaignPage() {
   const [events, setEvents] = useState<AdminEventItem[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState("");
-  const [name, setName] = useState("");
-  const [location, setLocation] = useState("");
-  const [date, setDate] = useState("");
   const [category, setCategory] = useState("");
   const [notes, setNotes] = useState("");
   const [leadSheet, setLeadSheet] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!isSuperAdmin) return;
-
     let active = true;
     const loadEvents = async () => {
       setEventsLoading(true);
       try {
-        const rows = await listAdminEvents(false);
+        const rows = await listActiveEventRegistry();
         if (!active) return;
         setEvents(rows);
       } catch (error: unknown) {
@@ -120,7 +115,7 @@ export default function UploadCampaignPage() {
     return () => {
       active = false;
     };
-  }, [isSuperAdmin]);
+  }, []);
 
   const selectedEvent = useMemo(
     () => events.find((item) => item.id === selectedEventId) ?? null,
@@ -135,14 +130,10 @@ export default function UploadCampaignPage() {
   };
 
   const validateForm = () => {
-    if (isSuperAdmin) {
-      if (!selectedEvent) return "Event selection is required.";
-      if (!selectedEvent.eventName.trim()) return "Selected event is missing a name.";
-      if (!selectedEvent.location?.trim()) return "Selected event is missing a location.";
-      if (!selectedEvent.date?.trim()) return "Selected event is missing a date.";
-    } else if (!name.trim()) {
-      return "Campaign name is required.";
-    }
+    if (!selectedEvent) return "Event selection is required.";
+    if (!selectedEvent.eventName.trim()) return "Selected event is missing a name.";
+    if (!selectedEvent.location?.trim()) return "Selected event is missing a location.";
+    if (!selectedEvent.date?.trim()) return "Selected event is missing a date.";
     return validateLeadSheet(leadSheet);
   };
 
@@ -179,15 +170,16 @@ export default function UploadCampaignPage() {
     }
 
     if (!leadSheet) return;
+    if (!selectedEvent) return;
 
     setIsSubmitting(true);
     try {
       const response = await createCampaignFromUpload({
-        name: isSuperAdmin ? selectedEvent?.eventName || "" : name.trim(),
-        location: isSuperAdmin ? selectedEvent?.location || "" : location.trim(),
+        name: selectedEvent.eventName,
+        location: selectedEvent.location || "",
         category: category.trim(),
-        date: isSuperAdmin ? selectedEvent?.date || "" : date,
-        eventRegistryId: isSuperAdmin ? selectedEvent?.id || "" : undefined,
+        date: selectedEvent.date || "",
+        eventRegistryId: selectedEvent.id,
         icp: notes.trim(),
         leadSheet,
       });
@@ -241,128 +233,92 @@ export default function UploadCampaignPage() {
           </div>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {isSuperAdmin ? (
-              <>
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    Event Name
-                  </label>
-                  <Select
-                    value={selectedEventId}
-                    onValueChange={setSelectedEventId}
-                    disabled={eventsLoading || isSubmitting}
-                  >
-                    <SelectTrigger className="h-10 border-zinc-200 bg-white">
-                      <SelectValue
-                        placeholder={eventsLoading ? "Loading events..." : "Select an event"}
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {events.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          {item.eventName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {events.length === 0 && !eventsLoading ? (
-                    <p className="text-xs text-zinc-500">
-                      No active events are available.{" "}
-                      <Link href="/admin/events" className="font-semibold text-zinc-700 hover:text-zinc-900">
-                        Activate an event first
-                      </Link>
-                      .
-                    </p>
-                  ) : null}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    Name
-                  </label>
-                  <div className="relative">
-                    <Tags className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                    <Input
-                      value={selectedEvent?.eventName || ""}
-                      readOnly
-                      disabled
-                      placeholder="Select an event"
-                      className="h-10 border-zinc-200 bg-zinc-50 pl-9 text-zinc-700 disabled:opacity-100"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    Location
-                  </label>
-                  <div className="relative">
-                    <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                    <Input
-                      value={selectedEvent?.location || ""}
-                      readOnly
-                      disabled
-                      placeholder="Select an event"
-                      className="h-10 border-zinc-200 bg-zinc-50 pl-9 text-zinc-700 disabled:opacity-100"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    Date
-                  </label>
-                  <div className="relative">
-                    <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                    <Input
-                      value={selectedEvent?.date || ""}
-                      readOnly
-                      disabled
-                      placeholder="Select an event"
-                      className="h-10 border-zinc-200 bg-zinc-50 pl-9 text-zinc-700 disabled:opacity-100"
-                    />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    Name
-                  </label>
-                  <Input
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    placeholder="Qatar Tech Buyers Upload"
-                    className="h-10 border-zinc-200 bg-white"
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Event Name
+              </label>
+              <Select
+                value={selectedEventId}
+                onValueChange={setSelectedEventId}
+                disabled={eventsLoading || isSubmitting}
+              >
+                <SelectTrigger className="h-10 border-zinc-200 bg-white">
+                  <SelectValue
+                    placeholder={eventsLoading ? "Loading events..." : "Select an event"}
                   />
-                </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {events.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.eventName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {events.length === 0 && !eventsLoading ? (
+                isSuperAdmin ? (
+                  <p className="text-xs text-zinc-500">
+                    No active events are available.{" "}
+                    <Link href="/admin/events" className="font-semibold text-zinc-700 hover:text-zinc-900">
+                      Activate an event first
+                    </Link>
+                    .
+                  </p>
+                ) : (
+                  <p className="text-xs text-zinc-500">
+                    No active events are available right now. Please ask an admin to activate one first.
+                  </p>
+                )
+              ) : null}
+            </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    Location <span className="normal-case tracking-normal text-zinc-400">Optional</span>
-                  </label>
-                  <Input
-                    value={location}
-                    onChange={(event) => setLocation(event.target.value)}
-                    placeholder="Doha, Qatar"
-                    className="h-10 border-zinc-200 bg-white"
-                  />
-                </div>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Name
+              </label>
+              <div className="relative">
+                <Tags className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                <Input
+                  value={selectedEvent?.eventName || ""}
+                  readOnly
+                  disabled
+                  placeholder="Select an event"
+                  className="h-10 border-zinc-200 bg-zinc-50 pl-9 text-zinc-700 disabled:opacity-100"
+                />
+              </div>
+            </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    Date <span className="normal-case tracking-normal text-zinc-400">Optional</span>
-                  </label>
-                  <Input
-                    type="date"
-                    value={date}
-                    onChange={(event) => setDate(event.target.value)}
-                    className="h-10 border-zinc-200 bg-white"
-                  />
-                </div>
-              </>
-            )}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Location
+              </label>
+              <div className="relative">
+                <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                <Input
+                  value={selectedEvent?.location || ""}
+                  readOnly
+                  disabled
+                  placeholder="Select an event"
+                  className="h-10 border-zinc-200 bg-zinc-50 pl-9 text-zinc-700 disabled:opacity-100"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Date
+              </label>
+              <div className="relative">
+                <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                <Input
+                  value={selectedEvent?.date || ""}
+                  readOnly
+                  disabled
+                  placeholder="Select an event"
+                  className="h-10 border-zinc-200 bg-zinc-50 pl-9 text-zinc-700 disabled:opacity-100"
+                />
+              </div>
+            </div>
 
             <div className="space-y-2">
               <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
@@ -377,11 +333,9 @@ export default function UploadCampaignPage() {
             </div>
           </div>
 
-          {isSuperAdmin ? (
-            <div className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50/70 p-4 text-xs leading-relaxed text-zinc-500">
-              Event name, location, and date come directly from the selected active registry entry and cannot be edited here. Category and notes remain campaign-specific.
-            </div>
-          ) : null}
+          <div className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50/70 p-4 text-xs leading-relaxed text-zinc-500">
+            Event name, location, and date come directly from the selected active registry entry and cannot be edited here. Category and notes remain campaign-specific.
+          </div>
 
           <div className="mt-6 space-y-2">
             <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
