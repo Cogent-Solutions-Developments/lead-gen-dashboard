@@ -1,4 +1,5 @@
 import axios from "axios";
+import { attachAuthToken } from "@/lib/auth";
 import type {
   CampaignImportSummary,
   CampaignInfo,
@@ -12,6 +13,9 @@ import type {
   DashboardStats,
   DeleteCampaignResult,
   DeleteBlocker,
+  EventLeadCreateRequest,
+  EventLeadCreateResponse,
+  EventSummaryResponse,
   ForceDeleteCampaignResponse,
   LeadItem,
   MessageStatus,
@@ -32,6 +36,10 @@ import type {
   ListWhatsAppOptOutsResponse,
   UploadWhatsAppOptOutCsvResponse,
   DisableLeadWhatsAppResponse,
+  WorkflowStatus,
+  WorkflowStatusDefinitionItem,
+  WorkflowStatusDefinitionsResponse,
+  WorkflowStatusUpdateResponse,
 } from "./api";
 
 export type {
@@ -47,6 +55,9 @@ export type {
   DashboardStats,
   DeleteCampaignResult,
   DeleteBlocker,
+  EventLeadCreateRequest,
+  EventLeadCreateResponse,
+  EventSummaryResponse,
   ForceDeleteCampaignResponse,
   LeadItem,
   MessageStatus,
@@ -67,6 +78,10 @@ export type {
   ListWhatsAppOptOutsResponse,
   UploadWhatsAppOptOutCsvResponse,
   DisableLeadWhatsAppResponse,
+  WorkflowStatus,
+  WorkflowStatusDefinitionItem,
+  WorkflowStatusDefinitionsResponse,
+  WorkflowStatusUpdateResponse,
 };
 
 const apiClientProduction = axios.create({
@@ -77,6 +92,8 @@ const apiClientProduction = axios.create({
   },
   withCredentials: true,
 });
+
+apiClientProduction.interceptors.request.use(attachAuthToken);
 
 type ApiError = Error & {
   status?: number;
@@ -148,6 +165,7 @@ export async function createCampaignFromUpload(payload: UploadCampaignRequest) {
   formData.append("location", payload.location?.trim() ?? "");
   formData.append("category", payload.category?.trim() ?? "");
   formData.append("date", payload.date?.trim() ?? "");
+  formData.append("eventRegistryId", payload.eventRegistryId?.trim() ?? "");
   formData.append("icp", payload.icp?.trim() ?? "");
 
   const leadSheetName =
@@ -186,6 +204,41 @@ export async function getCampaignLeads(id: string, status: string = "all") {
   return data;
 }
 
+export async function listAllLeads() {
+  const { data } = await apiClientProduction.get<{ leads: LeadItem[]; total: number }>(
+    "/api/productions/all/leads"
+  );
+  return data;
+}
+
+export async function listEvents() {
+  const { data } = await apiClientProduction.get<EventSummaryResponse>("/api/productions/events");
+  return data;
+}
+
+export async function listWorkflowStatuses() {
+  const { data } = await apiClientProduction.get<WorkflowStatusDefinitionsResponse>(
+    "/api/productions/workflow-statuses"
+  );
+  return data;
+}
+
+export async function createWorkflowStatus(label: string) {
+  const { data } = await apiClientProduction.post<WorkflowStatusDefinitionItem>(
+    "/api/productions/workflow-statuses",
+    { label }
+  );
+  return data;
+}
+
+export async function addEventLead(canonicalEventKey: string, payload: EventLeadCreateRequest) {
+  const { data } = await apiClientProduction.post<EventLeadCreateResponse>(
+    `/api/productions/events/${encodeURIComponent(canonicalEventKey)}/leads`,
+    payload
+  );
+  return data;
+}
+
 export async function approveLead(id: string) {
   const { data } = await apiClientProduction.put(`/api/productions/leads/${id}/approve`);
   return data;
@@ -206,6 +259,14 @@ export async function updateLeadContent(
   }
 ) {
   const { data } = await apiClientProduction.put(`/api/productions/leads/${id}/content`, payload);
+  return data;
+}
+
+export async function updateLeadWorkflowStatus(id: string, workflowStatus: WorkflowStatus) {
+  const { data } = await apiClientProduction.put<WorkflowStatusUpdateResponse>(
+    `/api/productions/leads/${id}/workflow-status`,
+    { workflowStatus }
+  );
   return data;
 }
 
@@ -485,6 +546,7 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
+  attachAuthToken(config);
   const url = config.url || "";
   if (url.startsWith("/api/") && !url.startsWith("/api/productions/")) {
     config.url = url.replace(/^\/api\//, "/api/productions/");

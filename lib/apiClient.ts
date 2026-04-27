@@ -1,4 +1,5 @@
 import axios from "axios";
+import { attachAuthToken } from "@/lib/auth";
 
 const apiKey = (process.env.NEXT_PUBLIC_API_KEY || "").trim();
 
@@ -10,6 +11,8 @@ export const apiClient = axios.create({
   },
   withCredentials: true, // future-ready if you use cookies/session
 });
+
+apiClient.interceptors.request.use(attachAuthToken);
 
 // Clean error messages
 apiClient.interceptors.response.use(

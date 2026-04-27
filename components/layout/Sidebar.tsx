@@ -13,38 +13,40 @@ import {
   MessageSquare,
   Settings,
   UserRound,
-  LogOut
+  LogOut,
+  ShieldCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { clearPersona } from "@/lib/persona";
 import { usePersona } from "@/hooks/usePersona";
-import { getSupabaseClient } from "@/lib/supabaseClient";
+import { clearAuthSession } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Campaigns", href: "/campaigns", icon: Rocket },
-  { name: "New Campaign", href: "/campaigns/new", icon: Plus },
+  { name: "Campaigns", normalLabel: "Events", href: "/campaigns", icon: Rocket },
+  { name: "New Campaign", href: "/campaigns/new", icon: Plus, superOnly: true },
   { name: "Upload Campaign", href: "/campaigns/upload", icon: Upload },
   // { name: "Completed", href: "/completed", icon: CheckCircle },
-  { name: "Nizo Finder", href: "/leads", icon: TrainFront },
-  { name: "Replies", href: "/replies", icon: MessageSquare },
-  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Nizo Finder", normalLabel: "Lead Sheet", href: "/leads", icon: TrainFront },
+  { name: "Replies", href: "/replies", icon: MessageSquare, superOnly: true },
+  { name: "Settings", href: "/settings", icon: Settings, superOnly: true },
+  { name: "Admin Users", href: "/admin/users", icon: ShieldCheck, superOnly: true },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { persona } = usePersona();
+  const { isSuperAdmin } = useAuth();
   const [rotation, setRotation] = useState(0);
   const personaLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
 
   const handleSignOut = async () => {
     try {
-      const supabase = getSupabaseClient();
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      clearAuthSession();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to sign out.";
       toast.error("Sign out failed", { description: message });
@@ -120,7 +122,7 @@ export function Sidebar() {
 
       {/* 2. Navigation Items (Scrollable if needed) */}
       <nav className="flex-1  space-y-2 overflow-y-auto pr-1">
-        {navItems.map((item, index) => {
+        {navItems.filter((item) => isSuperAdmin || !item.superOnly).map((item, index) => {
           const isActive = pathname === item.href;
           return (
             <motion.div
@@ -137,9 +139,9 @@ export function Sidebar() {
                       ? "sidebar-chip-active"
                       : "border-transparent bg-transparent text-sidebar-foreground/90 shadow-none hover:border-white/25 hover:bg-white/12 hover:text-sidebar-accent-foreground hover:shadow-[0_8px_18px_-16px_rgba(0,0,0,0.55)]"
                   }`}
-                >
+                  >
                   <item.icon className="h-5 w-5" />
-                  {item.name}
+                  {isSuperAdmin ? item.name : item.normalLabel ?? item.name}
                 </Button>
               </Link>
             </motion.div>
@@ -191,21 +193,23 @@ export function Sidebar() {
           </div>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <Link href="/">
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start gap-3 rounded-full bg-transparent px-4 py-2 text-[15px] text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-accent-foreground"
-            >
-              <UserRound className="h-5 w-5" />
-              <span>{`Current User - ${personaLabel}`}</span>
-            </Button>
-          </Link>
-        </motion.div>
+        {isSuperAdmin ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <Link href="/">
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 rounded-full bg-transparent px-4 py-2 text-[15px] text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-accent-foreground"
+              >
+                <UserRound className="h-5 w-5" />
+                <span>{`Current User - ${personaLabel}`}</span>
+              </Button>
+            </Link>
+          </motion.div>
+        ) : null}
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}

@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance } from "axios";
 import { apiClient } from "./apiClient";
+import { attachAuthToken, getAuthHeader } from "@/lib/auth";
 
 const waDebugEnabled =
   process.env.NODE_ENV !== "production" ||
@@ -26,6 +27,9 @@ export type DashboardStats = {
 export type RecentCampaign = {
   id: string;
   name: string;
+  eventRegistryId?: string | null;
+  canonicalEventKey?: string | null;
+  canonicalEventName?: string | null;
   leadsCount: number;
   status: string;
   campaignType?: CampaignType;
@@ -39,6 +43,9 @@ export type CampaignListItem = {
   id: string;
   name: string;
   icpPreview: string;
+  eventRegistryId?: string | null;
+  canonicalEventKey?: string | null;
+  canonicalEventName?: string | null;
   status: string;
   campaignType?: CampaignType;
   manualUpload?: boolean;
@@ -56,6 +63,9 @@ export type CampaignDetail = {
   id: string;
   name: string;
   icpPreview: string;
+  eventRegistryId?: string | null;
+  canonicalEventKey?: string | null;
+  canonicalEventName?: string | null;
   status: string;
   campaignType?: CampaignType;
   manualUpload?: boolean;
@@ -80,12 +90,16 @@ export type CreateCampaignRequest = {
   location?: string;
   date?: string;
   category?: string;
+  eventRegistryId?: string;
 };
 
 export type CreateCampaignResponse = {
   id: string;
   name: string;
   icpPreview: string;
+  eventRegistryId?: string | null;
+  canonicalEventKey?: string | null;
+  canonicalEventName?: string | null;
   status: string;
   campaignType?: CampaignType;
   manualUpload?: boolean;
@@ -109,6 +123,7 @@ export type UploadCampaignRequest = {
   category?: string;
   date?: string;
   icp?: string;
+  eventRegistryId?: string;
   leadSheet: File | Blob;
 };
 
@@ -364,11 +379,16 @@ export type CampaignInfo = {
 
 export type CampaignInfoResponse = {
   campaignId: string;
+  eventRegistryId?: string | null;
+  canonicalEventKey?: string | null;
+  canonicalEventName?: string | null;
   campaignType?: CampaignType;
   manualUpload?: boolean;
   campaignSource?: string | null;
   info: CampaignInfo;
 };
+
+export type WorkflowStatus = string;
 
 export type LeadItem = {
   id: string;
@@ -384,6 +404,17 @@ export type LeadItem = {
   contentEmail: string | null;
   contentLinkedin: string | null;
   contentWhatsapp: string | null;
+  eventName?: string | null;
+  canonicalEventKey?: string | null;
+  canonicalEventName?: string | null;
+  leadIdentityKey?: string | null;
+  workflowStatus?: WorkflowStatus | null;
+  workflowStatusLabel?: string | null;
+  hostIcpRunId?: string | null;
+  isManualLead?: boolean | null;
+  manualLeadAddedByUserId?: string | null;
+  manualLeadAddedByUsername?: string | null;
+  manualLeadAddedAt?: string | null;
   reviewStatus?: string | null;
   approvalStatus: "pending" | "approved" | "rejected" | "suppressed";
   outreachStatus?: string | Record<string, unknown> | null;
@@ -394,6 +425,79 @@ export type LeadItem = {
   channelCapabilities?: ChannelCapabilities | null;
   emailAttachments?: LeadAttachment[];
   whatsappAttachments?: LeadAttachment[];
+};
+
+export type WorkflowStatusUpdateResponse = {
+  id: string;
+  canonicalEventKey: string;
+  canonicalEventName: string;
+  leadIdentityKey: string;
+  workflowStatus: WorkflowStatus;
+  workflowStatusLabel?: string | null;
+  updatedAt?: string | null;
+};
+
+export type EventSummaryItem = {
+  canonicalEventKey: string;
+  canonicalEventName: string;
+  leadCount: number;
+  campaignCount: number;
+  relatedCampaignNames: string[];
+  hostIcpRunId?: string | null;
+};
+
+export type EventSummaryResponse = {
+  events: EventSummaryItem[];
+  total: number;
+};
+
+export type WorkflowStatusDefinitionItem = {
+  id: string;
+  ownerUserId?: string | null;
+  pipeline?: string | null;
+  statusKey: string;
+  label: string;
+  isSystemDefault: boolean;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type WorkflowStatusDefinitionsResponse = {
+  statuses: WorkflowStatusDefinitionItem[];
+  total: number;
+};
+
+export type EventLeadCreateRequest = {
+  fullName: string;
+  title?: string;
+  companyName?: string;
+  companyUrl?: string;
+  email?: string;
+  phone?: string;
+  linkedinUrl?: string;
+};
+
+export type EventLeadCreateResponse = {
+  id: string;
+  hostIcpRunId?: string | null;
+  canonicalEventKey: string;
+  canonicalEventName: string;
+  leadIdentityKey: string;
+  workflowStatus: WorkflowStatus;
+  workflowStatusLabel?: string | null;
+  employeeName: string;
+  title?: string | null;
+  company?: string | null;
+  companyUrl?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  linkedinUrl?: string | null;
+  isManualLead?: boolean | null;
+  manualLeadAddedByUserId?: string | null;
+  manualLeadAddedByUsername?: string | null;
+  manualLeadAddedAt?: string | null;
 };
 
 export type MessageChannel = "email" | "whatsapp" | "linkedin" | "other";
@@ -486,6 +590,7 @@ function getWhatsAppHeaders() {
   const apiKey = (process.env.NEXT_PUBLIC_API_KEY || "").trim();
   const headers: Record<string, string> = {};
   if (apiKey) headers["x-api-key"] = apiKey;
+  Object.assign(headers, getAuthHeader());
   return headers;
 }
 
@@ -529,6 +634,7 @@ export async function createCampaignFromUpload(payload: UploadCampaignRequest) {
   formData.append("location", payload.location?.trim() ?? "");
   formData.append("category", payload.category?.trim() ?? "");
   formData.append("date", payload.date?.trim() ?? "");
+  formData.append("eventRegistryId", payload.eventRegistryId?.trim() ?? "");
   formData.append("icp", payload.icp?.trim() ?? "");
 
   const leadSheetName =
@@ -560,6 +666,36 @@ export async function getCampaignLeads(id: string, status: string = "all") {
   return data;
 }
 
+export async function listAllLeads() {
+  const { data } = await apiClient.get<{ leads: LeadItem[]; total: number }>("/api/all/leads");
+  return data;
+}
+
+export async function listEvents() {
+  const { data } = await apiClient.get<EventSummaryResponse>("/api/events");
+  return data;
+}
+
+export async function listWorkflowStatuses() {
+  const { data } = await apiClient.get<WorkflowStatusDefinitionsResponse>("/api/workflow-statuses");
+  return data;
+}
+
+export async function createWorkflowStatus(label: string) {
+  const { data } = await apiClient.post<WorkflowStatusDefinitionItem>("/api/workflow-statuses", {
+    label,
+  });
+  return data;
+}
+
+export async function addEventLead(canonicalEventKey: string, payload: EventLeadCreateRequest) {
+  const { data } = await apiClient.post<EventLeadCreateResponse>(
+    `/api/events/${encodeURIComponent(canonicalEventKey)}/leads`,
+    payload
+  );
+  return data;
+}
+
 export async function approveLead(id: string) {
   const { data } = await apiClient.put(`/api/leads/${id}/approve`);
   return data;
@@ -577,6 +713,14 @@ export async function updateLeadContent(id: string, payload: {
   contentWhatsapp: string;
 }) {
   const { data } = await apiClient.put(`/api/leads/${id}/content`, payload);
+  return data;
+}
+
+export async function updateLeadWorkflowStatus(id: string, workflowStatus: WorkflowStatus) {
+  const { data } = await apiClient.put<WorkflowStatusUpdateResponse>(
+    `/api/leads/${id}/workflow-status`,
+    { workflowStatus }
+  );
   return data;
 }
 
@@ -1060,3 +1204,5 @@ export const api = axios.create({
     "x-api-key": process.env.NEXT_PUBLIC_API_KEY || "",
   },
 });
+
+api.interceptors.request.use(attachAuthToken);

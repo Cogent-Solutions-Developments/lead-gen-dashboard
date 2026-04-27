@@ -29,6 +29,8 @@ import {
 import { toast } from "sonner";
 import { disableLeadWhatsApp, getApiKeyClient } from "@/lib/apiRouter";
 import { usePersona } from "@/hooks/usePersona";
+import { useAuth } from "@/hooks/useAuth";
+import { NormalUserEventLeadSheet } from "@/components/leads/NormalUserEventLeadSheet";
 
 const GET_ALL_LEADS_ENDPOINT = "/api/all/leads";
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
@@ -71,6 +73,9 @@ interface Lead {
   isSuppressed: boolean;
   contactReadOnly: boolean;
   suppression: SuppressionInfo | null;
+  isManualLead: boolean;
+  manualLeadAddedByUsername: string;
+  manualLeadAddedAt: string;
 }
 
 const LinkedInIcon = ({ className }: { className?: string }) => (
@@ -533,7 +538,7 @@ function sortLeads(rows: Lead[], sortBy: SortBy) {
   return sorted;
 }
 
-export default function TotalLeads() {
+function SuperAdminTotalLeads() {
   const { persona } = usePersona();
   const api = useMemo(() => getApiKeyClient(persona), [persona]);
 
@@ -669,6 +674,9 @@ export default function TotalLeads() {
         isSuppressed: parseBoolean(x.isSuppressed),
         contactReadOnly: parseBoolean(x.contactReadOnly),
         suppression: normalizeSuppression(x.suppression),
+        isManualLead: parseBoolean(x.isManualLead),
+        manualLeadAddedByUsername: asText(x.manualLeadAddedByUsername),
+        manualLeadAddedAt: asText(x.manualLeadAddedAt),
       }));
 
       setLeads(mapped);
@@ -1289,6 +1297,18 @@ export default function TotalLeads() {
 
                     <td className="px-3 py-3 align-top">
                       <span className="block text-sm font-semibold text-zinc-900">{item.employeeName || "-"}</span>
+                      {item.isManualLead ? (
+                        <div className="mt-1 space-y-1">
+                          <span className="inline-flex w-fit rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                            Manual Lead
+                          </span>
+                          <span className="block text-[11px] text-zinc-400">
+                            {item.manualLeadAddedByUsername
+                              ? `Added by ${item.manualLeadAddedByUsername}`
+                              : "Manually added"}
+                          </span>
+                        </div>
+                      ) : null}
                     </td>
 
                     <td className="px-3 py-3 align-top">
@@ -1639,4 +1659,9 @@ export default function TotalLeads() {
       )}
     </div>
   );
+}
+
+export default function LeadsPage() {
+  const { isSuperAdmin } = useAuth();
+  return isSuperAdmin ? <SuperAdminTotalLeads /> : <NormalUserEventLeadSheet />;
 }

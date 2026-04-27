@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   approveSelectedCampaignLeads,
   type CampaignImportSummary,
@@ -48,6 +48,7 @@ import {
 } from "@/lib/apiRouter";
 import { consumeCampaignUploadSummary } from "@/lib/campaignUploadSummary";
 import { usePersona } from "@/hooks/usePersona";
+import { useAuth } from "@/hooks/useAuth";
 
 // -----------------------------
 // Custom LinkedIn Icon
@@ -692,10 +693,12 @@ async function deleteLeadAttachment(
   await api.delete(`/api/leads/${leadId}/attachments/${attachmentId}`);
 }
 
-export default function CampaignDetailPage() {
+function SuperAdminCampaignDetailPage() {
   const params = useParams<{ id: string }>();
   const campaignId = params.id;
   const { persona } = usePersona();
+  const { isSuperAdmin } = useAuth();
+  const canManageLeadActions = isSuperAdmin;
   const api = useMemo(() => getApiKeyClient(persona), [persona]);
 
   const [campaign, setCampaign] = useState<CampaignDetail | null>(null);
@@ -926,14 +929,15 @@ export default function CampaignDetailPage() {
   }
 
   const filteredLeads = useMemo(() => {
-    const statusFiltered =
-      leadFilter === "new"
-        ? leads.filter((l) => isLeadInNewBucket(l))
-        : leadFilter === "sent"
-          ? leads.filter((l) => isLeadInSentBucket(l))
-          : leadFilter === "rejected"
-            ? leads.filter((l) => l.approvalStatus === "rejected")
-            : leads.filter((l) => l.approvalStatus === "suppressed");
+    const statusFiltered = canManageLeadActions
+      ? leadFilter === "new"
+          ? leads.filter((l) => isLeadInNewBucket(l))
+          : leadFilter === "sent"
+            ? leads.filter((l) => isLeadInSentBucket(l))
+            : leadFilter === "rejected"
+              ? leads.filter((l) => l.approvalStatus === "rejected")
+              : leads.filter((l) => l.approvalStatus === "suppressed")
+      : leads;
     const prioritized = [...statusFiltered].sort(
       (a, b) => Number(hasGeneratedContent(b)) - Number(hasGeneratedContent(a))
     );
@@ -973,11 +977,12 @@ export default function CampaignDetailPage() {
 
       return searchMatch && jobTitleMatch && emailPresenceMatch && domainMatch && phoneMatch;
     });
-  }, [leads, leadFilter, tableSearch, jobTitleFilter, hasEmailOnly, domainFilter, phoneFilter]);
+  }, [canManageLeadActions, leads, leadFilter, tableSearch, jobTitleFilter, hasEmailOnly, domainFilter, phoneFilter]);
 
   const selectableFilteredLeads = useMemo(
     () =>
-      filteredLeads.filter((lead) => {
+      canManageLeadActions
+        ? filteredLeads.filter((lead) => {
         const blocked =
           lead.sendable === false ||
           lead.contactReadOnly ||
@@ -986,8 +991,9 @@ export default function CampaignDetailPage() {
           Boolean(lead.suppression?.active) ||
           Boolean(leadOptOutById.get(lead.id));
         return !blocked;
-      }),
-    [filteredLeads, leadOptOutById]
+      })
+        : [],
+    [canManageLeadActions, filteredLeads, leadOptOutById]
   );
   const leadById = useMemo(() => {
     const map = new Map<string, Lead>();
@@ -1006,7 +1012,9 @@ export default function CampaignDetailPage() {
     if (!lead || isLeadOutreachBlocked(lead)) return count;
     return count + 1;
   }, 0);
-  const selectableCurrentPageLeads = paginatedLeads.filter((lead) => !isLeadOutreachBlocked(lead));
+  const selectableCurrentPageLeads = canManageLeadActions
+    ? paginatedLeads.filter((lead) => !isLeadOutreachBlocked(lead))
+    : [];
   const isCurrentPageAllSelected =
     selectableCurrentPageLeads.length > 0 &&
     selectableCurrentPageLeads.every((lead) => selectedBulkLeadIds.has(lead.id));
@@ -1020,8 +1028,8 @@ export default function CampaignDetailPage() {
   }, [currentPage, totalPages]);
 
   const activeFilterLabel = useMemo(
-    () => leadFilterTabs.find((tab) => tab.key === leadFilter)?.label || "New",
-    [leadFilterTabs, leadFilter]
+    () => (canManageLeadActions ? leadFilterTabs.find((tab) => tab.key === leadFilter)?.label || "New" : "All"),
+    [canManageLeadActions, leadFilterTabs, leadFilter]
   );
   const categoryChipLabel = useMemo(
     () => (campaignCategory || campaign?.category || "").trim(),
@@ -1409,6 +1417,7 @@ export default function CampaignDetailPage() {
   };
 
   const handleSendLeadAction = async (lead: Lead, action: LeadSendAction) => {
+    if (!canManageLeadActions) return;
     const disabledReason = getLeadSendActionDisabledReason(lead, action);
     if (disabledReason) {
       toast.warning("Action blocked", { description: disabledReason });
@@ -1443,6 +1452,14 @@ export default function CampaignDetailPage() {
       setPendingWhatsappUploads([]);
     }
   }, [selectedLead]);
+
+  useEffect(() => {
+    if (canManageLeadActions) return;
+    setBulkSelectMode(false);
+    setSelectedBulkLeadIds(new Set());
+    setSelectedLead(null);
+    setDisableTargetLead(null);
+  }, [canManageLeadActions]);
 
   useEffect(() => {
     setSelectedBulkLeadIds((prev) => {
@@ -1503,6 +1520,7 @@ export default function CampaignDetailPage() {
   };
 
   const handleToggleBulkSelectMode = () => {
+    if (!canManageLeadActions) return;
     setBulkSelectMode((prev) => {
       if (prev) {
         setSelectedBulkLeadIds(new Set());
@@ -1512,6 +1530,7 @@ export default function CampaignDetailPage() {
   };
 
   const handlePickUniversalAttachment = () => {
+    if (!canManageLeadActions) return;
     universalAttachmentRef.current?.click();
   };
 
@@ -1524,6 +1543,7 @@ export default function CampaignDetailPage() {
   };
 
   const handleDeleteUniversalAttachment = async () => {
+    if (!canManageLeadActions) return;
     if (!commonAttachmentId) {
       setUniversalAttachment(null);
       return;
@@ -1543,6 +1563,7 @@ export default function CampaignDetailPage() {
   };
 
   const handleUniversalAttachmentChange = async (files: FileList | null) => {
+    if (!canManageLeadActions) return;
     const picked = files?.[0];
     if (!picked) return;
 
@@ -1616,6 +1637,7 @@ export default function CampaignDetailPage() {
   };
 
   const handleBulkSendRequest = () => {
+    if (!canManageLeadActions) return;
     if (selectedBulkCount === 0) {
       toast.error("Select at least one lead");
       return;
@@ -1628,7 +1650,7 @@ export default function CampaignDetailPage() {
   };
 
   const handleConfirmBulkSend = async () => {
-    if (selectedBulkCount === 0 || isBulkSending) return;
+    if (!canManageLeadActions || selectedBulkCount === 0 || isBulkSending) return;
     setIsBulkSending(true);
 
     try {
@@ -1717,6 +1739,7 @@ export default function CampaignDetailPage() {
   };
 
   const handleReject = async (leadId: string) => {
+    if (!canManageLeadActions) return;
     const lead = leadById.get(leadId);
     if (lead && isLeadMarketingOptedOut(lead)) {
       toast.warning("Action blocked", {
@@ -1735,6 +1758,7 @@ export default function CampaignDetailPage() {
   };
 
   const handleApprove = async (leadId: string, action: LeadSendAction = "both") => {
+    if (!canManageLeadActions) return;
     const lead = leadById.get(leadId);
     if (!lead) return;
 
@@ -1831,6 +1855,7 @@ export default function CampaignDetailPage() {
   };
 
   const openDisableWhatsappConfirm = (lead: Lead) => {
+    if (!canManageLeadActions) return;
     if (!hasText(lead.phone) && !hasText(lead.email)) {
       toast.error("Lead has no phone or email");
       return;
@@ -1852,7 +1877,7 @@ export default function CampaignDetailPage() {
   };
 
   const handleConfirmDisableWhatsapp = async () => {
-    if (!disableTargetLead || isDisablingWhatsapp) return;
+    if (!canManageLeadActions || !disableTargetLead || isDisablingWhatsapp) return;
 
     try {
       setIsDisablingWhatsapp(true);
@@ -2023,7 +2048,7 @@ export default function CampaignDetailPage() {
   // Save only (content updates only)
   // -----------------------------
   const handleSave = async () => {
-    if (!selectedLead) return;
+    if (!canManageLeadActions || !selectedLead) return;
 
     setSaving(true);
     const leadId = selectedLead.id;
@@ -2120,28 +2145,30 @@ export default function CampaignDetailPage() {
           </div>
         </div>
 
-        <div className="relative z-[1] mt-3 grid gap-3 border-t border-zinc-100/80 pt-3 sm:grid-cols-2 xl:grid-cols-6">
-          {[
-            { label: "Total Leads", value: totalLeadCount, valueClass: "text-zinc-900" },
-            { label: "Pending", value: pendingMetricCount, valueClass: "text-zinc-900" },
-            { label: "Approved", value: approvedMetricCount, valueClass: "text-sidebar-primary" },
-            { label: "Sendable Approved", value: sendableApprovedCount, valueClass: "text-emerald-700" },
-            { label: "Suppressed", value: suppressedMetricCount, valueClass: "text-rose-700" },
-            { label: "Rejected", value: rejectedMetricCount, valueClass: "text-zinc-500" },
-          ].map((metric) => (
-            <Card key={metric.label} className="rounded-2xl border border-zinc-200 bg-white p-3">
-              <div className="flex h-full flex-col">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500/90">{metric.label}</span>
-                <div className="mt-auto flex items-end">
-                  <span className={`text-xl font-semibold tracking-tight ${metric.valueClass}`}>{metric.value}</span>
+        {canManageLeadActions ? (
+          <div className="relative z-[1] mt-3 grid gap-3 border-t border-zinc-100/80 pt-3 sm:grid-cols-2 xl:grid-cols-6">
+            {[
+              { label: "Total Leads", value: totalLeadCount, valueClass: "text-zinc-900" },
+              { label: "Pending", value: pendingMetricCount, valueClass: "text-zinc-900" },
+              { label: "Approved", value: approvedMetricCount, valueClass: "text-sidebar-primary" },
+              { label: "Sendable Approved", value: sendableApprovedCount, valueClass: "text-emerald-700" },
+              { label: "Suppressed", value: suppressedMetricCount, valueClass: "text-rose-700" },
+              { label: "Rejected", value: rejectedMetricCount, valueClass: "text-zinc-500" },
+            ].map((metric) => (
+              <Card key={metric.label} className="rounded-2xl border border-zinc-200 bg-white p-3">
+                <div className="flex h-full flex-col">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500/90">{metric.label}</span>
+                  <div className="mt-auto flex items-end">
+                    <span className={`text-xl font-semibold tracking-tight ${metric.valueClass}`}>{metric.value}</span>
+                  </div>
                 </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+              </Card>
+            ))}
+          </div>
+        ) : null}
       </div>
 
-      {uploadImportSummary ? (
+      {canManageLeadActions && uploadImportSummary ? (
         <Card className="relative mt-3 overflow-hidden rounded-2xl border border-emerald-200/80 bg-[linear-gradient(160deg,rgba(236,253,245,0.92)_0%,rgba(255,255,255,0.92)_60%,rgba(240,253,250,0.84)_100%)] p-5 shadow-[0_16px_28px_-24px_rgba(5,150,105,0.68)]">
           <div className="pointer-events-none absolute -right-12 -top-12 h-28 w-28 rounded-full bg-emerald-200/45 blur-3xl" />
           <div className="relative z-[1]">
@@ -2194,46 +2221,48 @@ export default function CampaignDetailPage() {
         <div className="pointer-events-none absolute -left-24 -bottom-20 h-56 w-56 rounded-full bg-gradient-to-tr from-blue-300/20 via-sky-200/10 to-transparent blur-3xl" />
 
         <div className="relative z-[6] flex flex-col gap-2 px-6 pt-0.5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="inline-flex flex-wrap items-center rounded-xl border border-zinc-200/90 bg-white/60 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_8px_-10px_rgba(2,10,27,0.34)] backdrop-blur-[6px]">
-            {leadFilterTabs.map((tab) => (
+          {canManageLeadActions ? (
+            <div className="inline-flex flex-wrap items-center rounded-xl border border-zinc-200/90 bg-white/60 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_8px_-10px_rgba(2,10,27,0.34)] backdrop-blur-[6px]">
+              {leadFilterTabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setLeadFilter(tab.key)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    leadFilter === tab.key
+                      ? "bg-zinc-900 text-white shadow-[0_6px_10px_-12px_rgba(2,10,27,0.42)]"
+                      : "text-zinc-600 hover:bg-white hover:text-zinc-900"
+                  }`}
+                >
+                  {tab.label}
+                  <span className={`ml-1.5 text-[10px] ${leadFilter === tab.key ? "text-white/80" : "text-zinc-400"}`}>
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+
+              <span className="mx-1.5 h-4 w-px bg-zinc-300/80" aria-hidden="true" />
+
               <button
-                key={tab.key}
                 type="button"
-                onClick={() => setLeadFilter(tab.key)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  leadFilter === tab.key
-                    ? "bg-zinc-900 text-white shadow-[0_6px_10px_-12px_rgba(2,10,27,0.42)]"
-                    : "text-zinc-600 hover:bg-white hover:text-zinc-900"
+                onClick={handleToggleBulkSelectMode}
+                className={`px-2 py-1 text-[11px] font-semibold transition-colors ${
+                  bulkSelectMode ? "text-zinc-900" : "text-zinc-500 hover:text-zinc-800"
                 }`}
               >
-                {tab.label}
-                <span className={`ml-1.5 text-[10px] ${leadFilter === tab.key ? "text-white/80" : "text-zinc-400"}`}>
-                  {tab.count}
-                </span>
+                Select
               </button>
-            ))}
 
-            <span className="mx-1.5 h-4 w-px bg-zinc-300/80" aria-hidden="true" />
-
-            <button
-              type="button"
-              onClick={handleToggleBulkSelectMode}
-              className={`px-2 py-1 text-[11px] font-semibold transition-colors ${
-                bulkSelectMode ? "text-zinc-900" : "text-zinc-500 hover:text-zinc-800"
-              }`}
-            >
-              Select
-            </button>
-
-            <button
-              type="button"
-              onClick={handleBulkSendRequest}
-              disabled={selectedBulkCount === 0 || isCommonAttachmentUploading || isBulkSending}
-              className="px-2 py-1 text-[11px] font-semibold text-sidebar-primary transition-colors hover:text-sidebar-primary/85 disabled:cursor-not-allowed disabled:text-zinc-300"
-            >
-              Send Selected
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={handleBulkSendRequest}
+                disabled={selectedBulkCount === 0 || isCommonAttachmentUploading || isBulkSending}
+                className="px-2 py-1 text-[11px] font-semibold text-sidebar-primary transition-colors hover:text-sidebar-primary/85 disabled:cursor-not-allowed disabled:text-zinc-300"
+              >
+                Send Selected
+              </button>
+            </div>
+          ) : null}
 
           <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:flex-nowrap">
             <div className="relative min-w-0 flex-1 sm:w-72 sm:flex-none">
@@ -2247,46 +2276,50 @@ export default function CampaignDetailPage() {
             </div>
 
             <div className="flex items-center gap-1.5">
-              <Button
-                type="button"
-                onClick={handlePickUniversalAttachment}
-                disabled={isCommonAttachmentUploading}
-                aria-label={isCommonAttachmentUploading ? "Uploading attachment" : "Add attachment"}
-                title={isCommonAttachmentUploading ? "Uploading attachment" : "Add attachment"}
-                className={`h-8 w-8 rounded-md border p-0 shadow-none disabled:cursor-not-allowed disabled:opacity-50 ${
-                  commonAttachmentId && universalAttachment
-                    ? "border-emerald-200/90 bg-emerald-50/90 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50"
-                    : "border-zinc-200/80 bg-white/82 text-zinc-700 hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
-                }`}
-              >
-                {isCommonAttachmentUploading ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Paperclip className="h-3.5 w-3.5" />
-                )}
-              </Button>
+              {canManageLeadActions ? (
+                <>
+                  <Button
+                    type="button"
+                    onClick={handlePickUniversalAttachment}
+                    disabled={isCommonAttachmentUploading}
+                    aria-label={isCommonAttachmentUploading ? "Uploading attachment" : "Add attachment"}
+                    title={isCommonAttachmentUploading ? "Uploading attachment" : "Add attachment"}
+                    className={`h-8 w-8 rounded-md border p-0 shadow-none disabled:cursor-not-allowed disabled:opacity-50 ${
+                      commonAttachmentId && universalAttachment
+                        ? "border-emerald-200/90 bg-emerald-50/90 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50"
+                        : "border-zinc-200/80 bg-white/82 text-zinc-700 hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+                    }`}
+                  >
+                    {isCommonAttachmentUploading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Paperclip className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
 
-              <Button
-                type="button"
-                onClick={handleViewUniversalAttachment}
-                disabled={!commonAttachmentId || !universalAttachment?.url || isCommonAttachmentUploading}
-                aria-label="View attachment"
-                title="View attachment"
-                className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 p-0 text-zinc-700 shadow-none hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Eye className="h-3.5 w-3.5" />
-              </Button>
+                  <Button
+                    type="button"
+                    onClick={handleViewUniversalAttachment}
+                    disabled={!commonAttachmentId || !universalAttachment?.url || isCommonAttachmentUploading}
+                    aria-label="View attachment"
+                    title="View attachment"
+                    className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 p-0 text-zinc-700 shadow-none hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                  </Button>
 
-              <Button
-                type="button"
-                onClick={handleDeleteUniversalAttachment}
-                disabled={!commonAttachmentId || isCommonAttachmentUploading || isBulkSending}
-                aria-label="Delete attachment"
-                title="Delete attachment"
-                className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 p-0 text-zinc-700 shadow-none hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
+                  <Button
+                    type="button"
+                    onClick={handleDeleteUniversalAttachment}
+                    disabled={!commonAttachmentId || isCommonAttachmentUploading || isBulkSending}
+                    aria-label="Delete attachment"
+                    title="Delete attachment"
+                    className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 p-0 text-zinc-700 shadow-none hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </>
+              ) : null}
 
               <div ref={tableFilterRef} className="relative">
                 <Button
@@ -2391,7 +2424,7 @@ export default function CampaignDetailPage() {
           </div>
         </div>
 
-        {bulkSelectMode && (
+        {canManageLeadActions && bulkSelectMode && (
           <div className="relative z-[5] flex flex-wrap items-center gap-2 px-6 pt-1 text-[11px] text-zinc-500">
             <span>Select leads for bulk outreach.</span>
             <span>{selectedBulkCount} selected.</span>
@@ -2417,10 +2450,10 @@ export default function CampaignDetailPage() {
 
         <div className="relative z-[2] px-4 pb-2 pt-3">
           <div>
-            <table className="min-w-[960px] w-full">
+            <table className={canManageLeadActions ? "min-w-[960px] w-full" : "min-w-[520px] w-full"}>
             <thead className="border-b border-zinc-100/85 bg-white/70">
               <tr>
-                {bulkSelectMode && (
+                {canManageLeadActions && bulkSelectMode && (
                   <th className="w-10 px-3 py-3 text-center">
                     <input
                       type="checkbox"
@@ -2434,17 +2467,21 @@ export default function CampaignDetailPage() {
                 )}
                 <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Profile</th>
                 <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Contact Info</th>
-                <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Content</th>
-                <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Status</th>
-                <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-zinc-400">Sent</th>
-                <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-zinc-400">Quick Actions</th>
+                {canManageLeadActions ? (
+                  <>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Content</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Status</th>
+                    <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-zinc-400">Sent</th>
+                    <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-zinc-400">Quick Actions</th>
+                  </>
+                ) : null}
               </tr>
             </thead>
 
             <tbody className="divide-y divide-zinc-100/70">
               {paginatedLeads.length === 0 && (
                 <tr>
-                  <td colSpan={bulkSelectMode ? 7 : 6} className="px-6 py-10 text-center text-sm text-zinc-500">
+                  <td colSpan={canManageLeadActions ? (bulkSelectMode ? 7 : 6) : 2} className="px-6 py-10 text-center text-sm text-zinc-500">
                     No {activeFilterLabel.toLowerCase()} leads found.
                   </td>
                 </tr>
@@ -2495,10 +2532,10 @@ export default function CampaignDetailPage() {
                   <tr
                     key={item.id}
                     className={`group transition-colors ${
-                      isLeadReadOnly ? "bg-rose-50/35 hover:bg-rose-50/50" : "hover:bg-white/46"
+                      canManageLeadActions && isLeadReadOnly ? "bg-rose-50/35 hover:bg-rose-50/50" : "hover:bg-white/46"
                     }`}
                   >
-                    {bulkSelectMode && (
+                    {canManageLeadActions && bulkSelectMode && (
                       <td className="px-3 py-3.5 text-center align-top">
                         <input
                           type="checkbox"
@@ -2533,12 +2570,12 @@ export default function CampaignDetailPage() {
                       <div className="flex flex-col gap-1">
                         <span className="font-mono text-xs text-zinc-600">{item.email}</span>
                         <span className="text-xs text-zinc-400">{item.phone}</span>
-                        {isLeadReadOnly ? (
+                        {canManageLeadActions && isLeadReadOnly ? (
                           <span className="w-fit rounded border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-700">
                             Suppressed
                           </span>
                         ) : null}
-                        {isLeadReadOnly ? (
+                        {canManageLeadActions && isLeadReadOnly ? (
                           <div className="rounded border border-rose-100 bg-rose-50/60 px-2 py-1 text-[10px] leading-relaxed text-rose-700">
                             {suppressionSource ? <p>Source: {suppressionSource}</p> : null}
                             {suppressionReason ? <p>Reason: {suppressionReason}</p> : null}
@@ -2560,47 +2597,49 @@ export default function CampaignDetailPage() {
                       </div>
                     </td>
 
-                    <td className="px-4 py-3.5">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 rounded-md border border-zinc-200/80 bg-white/82 text-xs font-semibold text-zinc-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
-                        onClick={() => setSelectedLead(item)}
-                        disabled={isLeadReadOnly}
-                      >
-                        <Eye className="mr-2 h-3.5 w-3.5 text-zinc-400" />
-                        Review Content
-                      </Button>
-                    </td>
+                    {canManageLeadActions ? (
+                      <>
+                        <td className="px-4 py-3.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 rounded-md border border-zinc-200/80 bg-white/82 text-xs font-semibold text-zinc-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+                            onClick={() => setSelectedLead(item)}
+                            disabled={isLeadReadOnly}
+                          >
+                            <Eye className="mr-2 h-3.5 w-3.5 text-zinc-400" />
+                            Review Content
+                          </Button>
+                        </td>
 
-                    <td className="px-4 py-3.5">
-                      <div className="flex flex-col gap-1">
-                        <Badge className={`w-fit rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide shadow-none ${status.bg}`}>
-                          <StatusIcon className="mr-1.5 h-3 w-3" />
-                          {item.approvalStatus}
-                        </Badge>
-                        {isLeadReadOnly ? (
-                          <span className="w-fit rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-700">
-                            Blocked
-                          </span>
-                        ) : null}
-                        {!isLeadReadOnly && item.sendable === false ? (
-                          <span className="w-fit rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                            Not Sendable
-                          </span>
-                        ) : null}
-                        {item.reviewStatus ? (
-                          <span className="text-[10px] text-zinc-500">Review: {item.reviewStatus}</span>
-                        ) : null}
-                      </div>
-                    </td>
+                        <td className="px-4 py-3.5">
+                          <div className="flex flex-col gap-1">
+                            <Badge className={`w-fit rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide shadow-none ${status.bg}`}>
+                              <StatusIcon className="mr-1.5 h-3 w-3" />
+                              {item.approvalStatus}
+                            </Badge>
+                            {isLeadReadOnly ? (
+                              <span className="w-fit rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-700">
+                                Blocked
+                              </span>
+                            ) : null}
+                            {!isLeadReadOnly && item.sendable === false ? (
+                              <span className="w-fit rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                                Not Sendable
+                              </span>
+                            ) : null}
+                            {item.reviewStatus ? (
+                              <span className="text-[10px] text-zinc-500">Review: {item.reviewStatus}</span>
+                            ) : null}
+                          </div>
+                        </td>
 
-                    <td className="px-4 py-3.5">
-                      <OutreachStatusIcons status={buildOutreachStatus(item)} />
-                    </td>
+                        <td className="px-4 py-3.5">
+                          <OutreachStatusIcons status={buildOutreachStatus(item)} />
+                        </td>
 
-                    <td className="px-4 py-3.5 text-right">
-                      <div className="flex min-w-[250px] justify-end gap-2">
+                        <td className="px-4 py-3.5 text-right">
+                          <div className="flex min-w-[250px] justify-end gap-2">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -2712,8 +2751,10 @@ export default function CampaignDetailPage() {
                         ) : item.approvalStatus === "rejected" ? (
                           <span className="text-xs italic text-zinc-400">Rejected</span>
                         ) : null}
-                      </div>
-                    </td>
+                          </div>
+                        </td>
+                      </>
+                    ) : null}
                   </tr>
                 );
               })}
@@ -2828,7 +2869,7 @@ export default function CampaignDetailPage() {
         }}
       />
       <AnimatePresence>
-        {showBulkSendConfirm && (
+        {canManageLeadActions && showBulkSendConfirm && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -2882,7 +2923,7 @@ export default function CampaignDetailPage() {
           </motion.div>
         )}
 
-        {disableTargetLead && (
+        {canManageLeadActions && disableTargetLead && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -2948,7 +2989,7 @@ export default function CampaignDetailPage() {
           </motion.div>
         )}
 
-        {selectedLead && (
+        {canManageLeadActions && selectedLead && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -3092,4 +3133,19 @@ export default function CampaignDetailPage() {
       </AnimatePresence>
     </div>
   );
+}
+
+function NormalUserCampaignDetailRedirect() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/campaigns");
+  }, [router]);
+
+  return null;
+}
+
+export default function CampaignDetailPage() {
+  const { isSuperAdmin } = useAuth();
+  return isSuperAdmin ? <SuperAdminCampaignDetailPage /> : <NormalUserCampaignDetailRedirect />;
 }
