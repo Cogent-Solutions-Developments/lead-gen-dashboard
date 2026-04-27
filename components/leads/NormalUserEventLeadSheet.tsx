@@ -583,7 +583,7 @@ export function NormalUserEventLeadSheet() {
                 {selectedEvent?.canonicalEventName || "Lead Sheet"}
               </h1>
               <p className="mt-1 text-sm text-zinc-500">
-                Combined event view with personal workflow statuses across all related campaign runs.
+                Combined event view with personal workflow statuses across the full event bucket.
               </p>
             </div>
 
@@ -664,21 +664,15 @@ export function NormalUserEventLeadSheet() {
           {selectedEvent ? (
             <div className="rounded-xl border border-zinc-200/80 bg-white/55 px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                Related Campaigns
+                Event Bucket
               </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {selectedEvent.relatedCampaignNames.length > 0 ? (
-                  selectedEvent.relatedCampaignNames.map((name) => (
-                    <Badge
-                      key={name}
-                      className="rounded-full border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-600 shadow-none"
-                    >
-                      {name}
-                    </Badge>
-                  ))
-                ) : (
-                  <span className="text-sm text-zinc-500">No related campaigns recorded.</span>
-                )}
+              <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                This lead sheet combines all clustered runs for this event in one bucket.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Badge className="rounded-full border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-600 shadow-none">
+                  {selectedEvent.campaignCount} campaign runs
+                </Badge>
               </div>
             </div>
           ) : null}

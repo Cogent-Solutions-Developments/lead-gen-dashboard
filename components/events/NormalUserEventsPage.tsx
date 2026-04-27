@@ -15,12 +15,6 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong.";
 }
 
-function renderRelatedCampaigns(names: string[]) {
-  if (names.length === 0) return "-";
-  if (names.length <= 2) return names.join(", ");
-  return `${names.slice(0, 2).join(", ")} +${names.length - 2} more`;
-}
-
 export function NormalUserEventsPage() {
   const { persona } = usePersona();
   const personaLabel =
@@ -66,7 +60,6 @@ export function NormalUserEventsPage() {
       const haystack = [
         item.canonicalEventName,
         item.canonicalEventKey,
-        ...item.relatedCampaignNames,
       ]
         .join(" ")
         .toLowerCase();
@@ -89,7 +82,7 @@ export function NormalUserEventsPage() {
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-900">Events</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Open an event to review one combined lead sheet across all related campaign runs.
+            Open an event to review one combined lead sheet for the whole event bucket.
           </p>
         </div>
 
@@ -107,12 +100,12 @@ export function NormalUserEventsPage() {
         <div className="flex shrink-0 flex-col gap-3 border-b border-zinc-200/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative w-full sm:max-w-sm">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-            <Input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search event or related campaign"
-              className="h-9 border-zinc-200/80 bg-white/85 pl-9 text-sm"
-            />
+              <Input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search event"
+                className="h-9 border-zinc-200/80 bg-white/85 pl-9 text-sm"
+              />
           </div>
 
           <Button
@@ -133,14 +126,11 @@ export function NormalUserEventsPage() {
               {searchQuery.trim() ? "No events match the current search." : "No events found."}
             </div>
           ) : (
-            <table className="min-w-[900px] w-full">
+            <table className="min-w-[760px] w-full">
               <thead className="border-b border-zinc-100/85 bg-white/70">
                 <tr>
                   <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
                     Event
-                  </th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                    Related Campaigns
                   </th>
                   <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
                     Campaigns
@@ -170,12 +160,6 @@ export function NormalUserEventsPage() {
                         </p>
                         <p className="mt-1 text-xs text-zinc-400">{item.canonicalEventKey}</p>
                       </div>
-                    </td>
-
-                    <td className="px-4 py-4 align-top">
-                      <p className="text-sm text-zinc-700" title={item.relatedCampaignNames.join(", ")}>
-                        {renderRelatedCampaigns(item.relatedCampaignNames)}
-                      </p>
                     </td>
 
                     <td className="px-4 py-4 align-top">

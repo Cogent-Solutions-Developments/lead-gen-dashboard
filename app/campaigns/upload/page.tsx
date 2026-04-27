@@ -28,7 +28,7 @@ import {
 import { createCampaignFromUpload } from "@/lib/apiRouter";
 import { persistCampaignUploadSummary } from "@/lib/campaignUploadSummary";
 import { useAuth } from "@/hooks/useAuth";
-import { listAdminEvents, updateAdminEvent, type AdminEventItem } from "@/lib/auth";
+import { listAdminEvents, type AdminEventItem } from "@/lib/auth";
 
 const preferredHeaders = [
   "employeeName",
@@ -101,7 +101,7 @@ export default function UploadCampaignPage() {
     const loadEvents = async () => {
       setEventsLoading(true);
       try {
-        const rows = await listAdminEvents(true);
+        const rows = await listAdminEvents(false);
         if (!active) return;
         setEvents(rows);
       } catch (error: unknown) {
@@ -182,18 +182,12 @@ export default function UploadCampaignPage() {
 
     setIsSubmitting(true);
     try {
-      let activeEvent = selectedEvent;
-      if (isSuperAdmin && activeEvent && !activeEvent.isActive) {
-        activeEvent = await updateAdminEvent(activeEvent.id, { isActive: true });
-        setEvents((prev) => prev.map((item) => (item.id === activeEvent?.id ? activeEvent : item)));
-      }
-
       const response = await createCampaignFromUpload({
-        name: isSuperAdmin ? activeEvent?.eventName || "" : name.trim(),
-        location: isSuperAdmin ? activeEvent?.location || "" : location.trim(),
+        name: isSuperAdmin ? selectedEvent?.eventName || "" : name.trim(),
+        location: isSuperAdmin ? selectedEvent?.location || "" : location.trim(),
         category: category.trim(),
-        date: isSuperAdmin ? activeEvent?.date || "" : date,
-        eventRegistryId: isSuperAdmin ? activeEvent?.id || "" : undefined,
+        date: isSuperAdmin ? selectedEvent?.date || "" : date,
+        eventRegistryId: isSuperAdmin ? selectedEvent?.id || "" : undefined,
         icp: notes.trim(),
         leadSheet,
       });
@@ -266,16 +260,16 @@ export default function UploadCampaignPage() {
                     <SelectContent>
                       {events.map((item) => (
                         <SelectItem key={item.id} value={item.id}>
-                          {item.eventName}{item.isActive ? "" : " (Inactive)"}
+                          {item.eventName}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   {events.length === 0 && !eventsLoading ? (
                     <p className="text-xs text-zinc-500">
-                      No events are registered yet.{" "}
+                      No active events are available.{" "}
                       <Link href="/admin/events" className="font-semibold text-zinc-700 hover:text-zinc-900">
-                        Create an event first
+                        Activate an event first
                       </Link>
                       .
                     </p>
@@ -385,7 +379,7 @@ export default function UploadCampaignPage() {
 
           {isSuperAdmin ? (
             <div className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50/70 p-4 text-xs leading-relaxed text-zinc-500">
-              Event name, location, and date come directly from the selected registry entry and cannot be edited here. Category and notes remain campaign-specific.
+              Event name, location, and date come directly from the selected active registry entry and cannot be edited here. Category and notes remain campaign-specific.
             </div>
           ) : null}
 

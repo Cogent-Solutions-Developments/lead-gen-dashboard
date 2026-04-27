@@ -69,6 +69,7 @@ export type AdminEventUpdateInput = {
   location?: string;
   date?: string;
   isActive?: boolean;
+  syncLinkedCampaigns?: boolean;
 };
 
 type AuthError = Error & {

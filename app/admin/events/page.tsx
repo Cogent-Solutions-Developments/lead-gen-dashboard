@@ -1,25 +1,39 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
+  AlertTriangle,
   ArrowLeft,
   CalendarDays,
   Loader2,
-  MapPin,
+  PencilLine,
   Plus,
   RefreshCw,
   ShieldCheck,
   Tags,
   UsersRound,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { createAdminEvent, listAdminEvents, type AdminEventItem } from "@/lib/auth";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  createAdminEvent,
+  listAdminEvents,
+  updateAdminEvent,
+  type AdminEventItem,
+  type AdminEventUpdateInput,
+} from "@/lib/auth";
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Please try again.";
@@ -44,6 +58,167 @@ function formatDate(value?: string | null) {
   return parsed.toLocaleDateString();
 }
 
+type EventStatusValue = "active" | "inactive";
+
+function sortEvents(rows: AdminEventItem[]) {
+  return [...rows].sort((a, b) => a.eventName.localeCompare(b.eventName));
+}
+
+function eventStatusValue(isActive: boolean): EventStatusValue {
+  return isActive ? "active" : "inactive";
+}
+
+type TableStatusTarget = {
+  event: AdminEventItem;
+  nextStatus: EventStatusValue;
+};
+
+function AdminEventDialog({
+  open,
+  title,
+  description,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  title: string;
+  description: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label="Close dialog"
+        className="absolute inset-0 bg-zinc-950/35 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
+
+      <div className="relative z-[1] w-full max-w-xl overflow-hidden rounded-2xl border border-zinc-200/85 bg-white/96 shadow-[0_0_0_1px_rgba(255,255,255,0.9),0_24px_40px_-24px_rgba(2,10,27,0.6),0_12px_22px_-16px_rgba(15,23,42,0.34)] backdrop-blur-[10px]">
+        <div className="pointer-events-none absolute -right-14 -top-16 h-44 w-44 rounded-full bg-gradient-to-br from-sky-200/50 via-blue-300/25 to-transparent blur-3xl" />
+        <div className="pointer-events-none absolute -left-14 bottom-0 h-32 w-32 rounded-full bg-gradient-to-tr from-zinc-100/70 to-transparent blur-2xl" />
+
+        <div className="relative space-y-5 p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                Event Registry
+              </p>
+              <h2 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900">{title}</h2>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-600">{description}</p>
+            </div>
+
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-9 w-9 shrink-0 rounded-full p-0 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+              onClick={onClose}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StateChangeConfirmDialog({
+  open,
+  eventName,
+  nextStatus,
+  isBusy,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  eventName: string;
+  nextStatus: EventStatusValue;
+  isBusy: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  if (!open) return null;
+
+  const nextLabel = nextStatus === "active" ? "Active" : "Inactive";
+  const detail =
+    nextStatus === "active"
+      ? "This event will become active and available in the active registry state."
+      : "This event will move to inactive mode until an admin activates it again or uses it in the first related campaign flow.";
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label="Close confirmation"
+        className="absolute inset-0 bg-zinc-950/35 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
+
+      <div className="relative z-[1] w-full max-w-md overflow-hidden rounded-2xl border border-zinc-200/85 bg-white/96 shadow-[0_0_0_1px_rgba(255,255,255,0.9),0_24px_40px_-24px_rgba(2,10,27,0.6),0_12px_22px_-16px_rgba(15,23,42,0.34)] backdrop-blur-[10px]">
+        <div className="pointer-events-none absolute -right-14 -top-16 h-44 w-44 rounded-full bg-gradient-to-br from-sky-200/50 via-blue-300/25 to-transparent blur-3xl" />
+        <div className="pointer-events-none absolute -left-14 bottom-0 h-32 w-32 rounded-full bg-gradient-to-tr from-zinc-100/70 to-transparent blur-2xl" />
+
+        <div className="relative space-y-5 p-6">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-amber-200 bg-amber-50 text-amber-700">
+              <AlertTriangle className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                Confirm Status Change
+              </p>
+              <h2 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900">
+                Switch to {nextLabel}?
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                <span className="font-semibold text-zinc-800">{eventName}</span> will be saved with
+                status set to <span className="font-semibold text-zinc-800">{nextLabel}</span>.
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50/80 p-4 text-sm leading-relaxed text-zinc-600">
+            {detail}
+          </div>
+
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={isBusy}
+              onClick={onClose}
+              className="h-9 rounded-md border border-zinc-200/80 bg-white/90 px-3 text-xs font-semibold text-zinc-700 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:opacity-60"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={isBusy}
+              onClick={onConfirm}
+              className="h-9 rounded-md bg-sidebar px-3.5 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-70"
+            >
+              {isBusy ? (
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>Confirm Change</>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminEventsPage() {
   const [events, setEvents] = useState<AdminEventItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,16 +226,25 @@ export default function AdminEventsPage() {
   const [eventName, setEventName] = useState("");
   const [location, setLocation] = useState("");
   const [date, setDate] = useState("");
+  const [editingEvent, setEditingEvent] = useState<AdminEventItem | null>(null);
+  const [editEventName, setEditEventName] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editStatus, setEditStatus] = useState<EventStatusValue>("inactive");
+  const [editSaving, setEditSaving] = useState(false);
+  const [tableStatusTarget, setTableStatusTarget] = useState<TableStatusTarget | null>(null);
+  const [tableStatusSavingId, setTableStatusSavingId] = useState<string | null>(null);
 
   const generatedEventKey = useMemo(
     () => slugifyEventKey(eventName, location, date),
     [eventName, location, date]
   );
+  const isBusy = saving || editSaving || Boolean(tableStatusSavingId);
 
   const loadEvents = async () => {
     setLoading(true);
     try {
-      setEvents(await listAdminEvents(true));
+      setEvents(sortEvents(await listAdminEvents(true)));
     } catch (error: unknown) {
       toast.error("Failed to load events", {
         description: getErrorMessage(error),
@@ -85,6 +269,122 @@ export default function AdminEventsPage() {
     setEventName("");
     setLocation("");
     setDate("");
+  };
+
+  const closeEditDialog = (force = false) => {
+    if (editSaving && !force) return;
+    setEditingEvent(null);
+  };
+
+  const openEditDialog = (item: AdminEventItem) => {
+    setEditingEvent(item);
+    setEditEventName(item.eventName);
+    setEditLocation(item.location ?? "");
+    setEditDate(item.date ?? "");
+    setEditStatus(eventStatusValue(item.isActive));
+  };
+
+  const hasDetailChanges = useMemo(() => {
+    if (!editingEvent) return false;
+    return (
+      editEventName.trim() !== editingEvent.eventName ||
+      editLocation.trim() !== (editingEvent.location ?? "") ||
+      editDate.trim() !== (editingEvent.date ?? "")
+    );
+  }, [editDate, editEventName, editLocation, editingEvent]);
+
+  const hasStatusChange = useMemo(() => {
+    if (!editingEvent) return false;
+    return editingEvent.isActive !== (editStatus === "active");
+  }, [editStatus, editingEvent]);
+
+  const saveEditedEvent = async () => {
+    if (!editingEvent) return;
+
+    const nextEventName = editEventName.trim();
+    const nextLocation = editLocation.trim();
+    const nextDate = editDate.trim();
+
+    if (!nextEventName) {
+      toast.error("Event name is required");
+      return;
+    }
+
+    const payload: AdminEventUpdateInput = {};
+
+    if (nextEventName !== editingEvent.eventName) payload.eventName = nextEventName;
+    if (nextLocation !== (editingEvent.location ?? "")) payload.location = nextLocation;
+    if (nextDate !== (editingEvent.date ?? "")) payload.date = nextDate;
+    if ((editStatus === "active") !== editingEvent.isActive) payload.isActive = editStatus === "active";
+    if (hasDetailChanges) payload.syncLinkedCampaigns = true;
+
+    if (Object.keys(payload).length === 0) {
+      toast.info("No changes to save");
+      closeEditDialog();
+      return;
+    }
+
+    setEditSaving(true);
+    try {
+      const updated = await updateAdminEvent(editingEvent.id, payload);
+      setEvents((prev) => sortEvents(prev.map((item) => (item.id === updated.id ? updated : item))));
+      toast.success("Event updated", {
+        description:
+          hasDetailChanges
+            ? `${updated.eventName} and its linked campaign snapshot details were updated.`
+            : hasStatusChange
+              ? `${updated.eventName} is now ${updated.isActive ? "active" : "inactive"}.`
+              : `${updated.eventName} details were saved.`,
+      });
+      closeEditDialog(true);
+    } catch (error: unknown) {
+      toast.error("Failed to update event", {
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editingEvent) return;
+    if (!editEventName.trim()) {
+      toast.error("Event name is required");
+      return;
+    }
+    if (!hasDetailChanges && !hasStatusChange) {
+      toast.info("No changes to save");
+      closeEditDialog();
+      return;
+    }
+    await saveEditedEvent();
+  };
+
+  const handleTableStatusSelection = (item: AdminEventItem, value: string) => {
+    const nextStatus = value as EventStatusValue;
+    if (nextStatus === eventStatusValue(item.isActive)) return;
+    setTableStatusTarget({ event: item, nextStatus });
+  };
+
+  const confirmTableStatusChange = async () => {
+    if (!tableStatusTarget) return;
+
+    const { event, nextStatus } = tableStatusTarget;
+    setTableStatusSavingId(event.id);
+    try {
+      const updated = await updateAdminEvent(event.id, { isActive: nextStatus === "active" });
+      setEvents((prev) => sortEvents(prev.map((item) => (item.id === updated.id ? updated : item))));
+      toast.success("Event status updated", {
+        description: `${updated.eventName} is now ${updated.isActive ? "active" : "inactive"}.`,
+      });
+      setTableStatusTarget(null);
+    } catch (error: unknown) {
+      toast.error("Failed to update event status", {
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setTableStatusSavingId(null);
+    }
   };
 
   const handleSubmit = async () => {
@@ -114,9 +414,7 @@ export default function AdminEventsPage() {
         date,
         isActive: false,
       });
-      setEvents((prev) =>
-        [...prev, created].sort((a, b) => a.eventName.localeCompare(b.eventName))
-      );
+      setEvents((prev) => sortEvents([...prev, created]));
       toast.success("Event created", {
         description: `${created.eventName} is saved and waiting for its first campaign.`,
       });
@@ -141,7 +439,7 @@ export default function AdminEventsPage() {
           <p className="text-lg font-normal text-zinc-900">Admin Control</p>
           <h1 className="mt-0 text-2xl font-semibold tracking-tight text-zinc-900">Event Registry</h1>
           <p className="mt-1 max-w-2xl text-sm text-zinc-500">
-            Create events once, keep their base details in the registry, and let the first related campaign activate them automatically.
+            Create events once, keep their base details in the registry, and switch them to active when they are ready for campaign create or upload.
           </p>
         </div>
 
@@ -171,7 +469,7 @@ export default function AdminEventsPage() {
           <Button
             type="button"
             onClick={() => void loadEvents()}
-            disabled={loading || saving}
+            disabled={loading || isBusy}
             className="analytics-frost-btn h-10 px-4"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
@@ -207,13 +505,13 @@ export default function AdminEventsPage() {
               <div>
                 <h2 className="text-base font-semibold text-zinc-900">Registered Events</h2>
                 <p className="text-sm text-zinc-500">
-                  Inactive events are ready for their first campaign. Once a campaign is launched with that event, the frontend will activate it before create.
+                  Only active events appear in campaign create and upload selectors. Keep inactive events hidden until they are ready to use.
                 </p>
               </div>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[860px]">
+              <table className="w-full min-w-[980px]">
                 <thead className="border-b border-zinc-100 bg-zinc-50/70 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
                   <tr>
                     <th className="px-5 py-3">Event</th>
@@ -221,18 +519,19 @@ export default function AdminEventsPage() {
                     <th className="px-5 py-3">Date</th>
                     <th className="px-5 py-3">Status</th>
                     <th className="px-5 py-3">Key</th>
+                    <th className="px-5 py-3 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
                   {loading ? (
                     <tr>
-                      <td colSpan={5} className="px-5 py-10 text-center text-sm text-zinc-500">
+                      <td colSpan={6} className="px-5 py-10 text-center text-sm text-zinc-500">
                         Loading events...
                       </td>
                     </tr>
                   ) : events.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-5 py-10 text-center text-sm text-zinc-500">
+                      <td colSpan={6} className="px-5 py-10 text-center text-sm text-zinc-500">
                         No events found.
                       </td>
                     </tr>
@@ -248,20 +547,42 @@ export default function AdminEventsPage() {
                         <td className="px-5 py-4 text-sm text-zinc-700">{item.location || "-"}</td>
                         <td className="px-5 py-4 text-sm text-zinc-700">{formatDate(item.date)}</td>
                         <td className="px-5 py-4">
-                          <Badge
-                            className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide shadow-none ${
-                              item.isActive
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                : "border-amber-200 bg-amber-50 text-amber-700"
-                            }`}
+                          <Select
+                            value={eventStatusValue(item.isActive)}
+                            onValueChange={(value) => handleTableStatusSelection(item, value)}
+                            disabled={isBusy}
                           >
-                            {item.isActive ? "Active" : "Inactive"}
-                          </Badge>
+                            <SelectTrigger
+                              className={`h-9 w-[8.75rem] border text-xs font-semibold capitalize shadow-none ${
+                                item.isActive
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  : "border-amber-200 bg-amber-50 text-amber-700"
+                              }`}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="border-zinc-200 bg-white">
+                              <SelectItem value="active">Active</SelectItem>
+                              <SelectItem value="inactive">Inactive</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </td>
                         <td className="px-5 py-4">
                           <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-medium text-zinc-600">
                             {item.eventKey}
                           </span>
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => openEditDialog(item)}
+                            disabled={isBusy}
+                            className="h-8 border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                          >
+                            <PencilLine className="mr-1.5 h-3.5 w-3.5" />
+                            Edit
+                          </Button>
                         </td>
                       </tr>
                     ))
@@ -322,7 +643,7 @@ export default function AdminEventsPage() {
                 {generatedEventKey || "Event key preview will appear here"}
               </p>
               <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-                This event will be created as inactive. The first campaign or upload that uses it will activate it automatically.
+                This event will be created as inactive. Switch it to active from the table when you are ready to use it in campaign create or upload.
               </p>
             </div>
 
@@ -333,7 +654,7 @@ export default function AdminEventsPage() {
             <Button
               type="button"
               onClick={() => void handleSubmit()}
-              disabled={saving}
+              disabled={isBusy}
               className="h-10 w-full bg-sidebar text-white hover:bg-zinc-800 disabled:opacity-50"
             >
               {saving ? (
@@ -351,6 +672,112 @@ export default function AdminEventsPage() {
           </div>
         </Card>
       </div>
+
+      <AdminEventDialog
+        open={Boolean(editingEvent)}
+        title={editingEvent ? `Edit ${editingEvent.eventName}` : "Edit Event"}
+        description="Update the event registry details here. Name, location, and date can be refreshed without leaving this page."
+        onClose={closeEditDialog}
+      >
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5 sm:col-span-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Event Name</label>
+              <Input
+                value={editEventName}
+                onChange={(event) => setEditEventName(event.target.value)}
+                placeholder="AMICT Malaysia"
+                className="h-10 border-zinc-200 bg-white"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Location</label>
+              <Input
+                value={editLocation}
+                onChange={(event) => setEditLocation(event.target.value)}
+                placeholder="Kuala Lumpur, Malaysia"
+                className="h-10 border-zinc-200 bg-white"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Date</label>
+              <Input
+                type="date"
+                value={editDate}
+                onChange={(event) => setEditDate(event.target.value)}
+                className="h-10 border-zinc-200 bg-white"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Status</label>
+            <Select value={editStatus} onValueChange={(value) => setEditStatus(value as EventStatusValue)}>
+              <SelectTrigger className="h-10 border-zinc-200 bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="border-zinc-200 bg-white">
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-4 text-sm leading-relaxed text-zinc-600">
+            Updating name, location, or date here will also refresh the linked campaign snapshots automatically.
+            <span className="mt-1 block text-xs text-zinc-500">
+              Status changes still apply only to the registry record itself.
+            </span>
+          </div>
+
+          <div className="rounded-xl border border-zinc-200 bg-white/80 p-4 text-xs leading-relaxed text-zinc-500">
+            The event key stays stable here and is not edited from the UI, so event mapping remains consistent while details are updated.
+          </div>
+
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={editSaving}
+              onClick={() => closeEditDialog()}
+              className="h-10 border border-zinc-200 bg-white px-4 text-zinc-700 hover:bg-zinc-50"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleEditSubmit()}
+              disabled={editSaving}
+              className="h-10 bg-sidebar px-4 text-white hover:bg-zinc-800 disabled:opacity-50"
+            >
+              {editSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving Changes...
+                </>
+              ) : (
+                <>
+                  <PencilLine className="mr-2 h-4 w-4" />
+                  Save Changes
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </AdminEventDialog>
+
+      <StateChangeConfirmDialog
+        open={Boolean(tableStatusTarget)}
+        eventName={tableStatusTarget?.event.eventName || "This event"}
+        nextStatus={tableStatusTarget?.nextStatus || "inactive"}
+        isBusy={Boolean(tableStatusSavingId)}
+        onClose={() => {
+          if (!tableStatusSavingId) setTableStatusTarget(null);
+        }}
+        onConfirm={() => void confirmTableStatusChange()}
+      />
     </div>
   );
 }

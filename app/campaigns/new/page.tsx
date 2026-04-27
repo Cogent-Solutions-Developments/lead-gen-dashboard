@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createCampaign } from "@/lib/apiRouter";
-import { listAdminEvents, updateAdminEvent, type AdminEventItem } from "@/lib/auth";
+import { listAdminEvents, type AdminEventItem } from "@/lib/auth";
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "An unexpected error occurred.";
@@ -39,7 +39,7 @@ export default function NewCampaignPage() {
     const loadEvents = async () => {
       setEventsLoading(true);
       try {
-        const rows = await listAdminEvents(true);
+        const rows = await listAdminEvents(false);
         if (!active) return;
         setEvents(rows);
       } catch (error: unknown) {
@@ -87,19 +87,13 @@ export default function NewCampaignPage() {
 
     setIsSubmitting(true);
     try {
-      let activeEvent = selectedEvent;
-      if (!activeEvent.isActive) {
-        activeEvent = await updateAdminEvent(activeEvent.id, { isActive: true });
-        setEvents((prev) => prev.map((item) => (item.id === activeEvent.id ? activeEvent : item)));
-      }
-
       const response = await createCampaign({
-        name: activeEvent.eventName,
-        location: activeEvent.location || undefined,
-        date: activeEvent.date || undefined,
+        name: selectedEvent.eventName,
+        location: selectedEvent.location || undefined,
+        date: selectedEvent.date || undefined,
         category: category.trim(),
         icp: icp.trim(),
-        eventRegistryId: activeEvent.id,
+        eventRegistryId: selectedEvent.id,
       });
 
       toast.success("Campaign created", {
@@ -128,7 +122,7 @@ export default function NewCampaignPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900">New Campaign</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Select an event from the registry, then add campaign-specific details like category and ICP.
+          Select an active event from the registry, then add campaign-specific details like category and ICP.
         </p>
       </div>
 
@@ -152,16 +146,16 @@ export default function NewCampaignPage() {
                 <SelectContent>
                   {events.map((item) => (
                     <SelectItem key={item.id} value={item.id}>
-                      {item.eventName}{item.isActive ? "" : " (Inactive)"}
+                      {item.eventName}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               {events.length === 0 && !eventsLoading ? (
                 <p className="text-xs text-zinc-500">
-                  No events are registered yet.{" "}
+                  No active events are available.{" "}
                   <Link href="/admin/events" className="font-semibold text-zinc-700 hover:text-zinc-900">
-                    Create an event first
+                    Activate an event first
                   </Link>
                   .
                 </p>
