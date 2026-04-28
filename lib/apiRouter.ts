@@ -22,6 +22,8 @@ export type {
   EventLeadListItem,
   EventLeadListParams,
   EventLeadListResponse,
+  GlobalLeadSearchParams,
+  GlobalLeadSearchResponse,
   EventSummaryItem,
   EventSummaryResponse,
   ForceDeleteCampaignResponse,
@@ -97,6 +99,9 @@ export const getCampaignLeads: typeof sales.getCampaignLeads = (...args) =>
 
 export const listAllLeads: typeof sales.listAllLeads = (...args) =>
   pickModule().listAllLeads(...args);
+
+export const searchLeads: typeof sales.searchLeads = (...args) =>
+  pickModule().searchLeads(...args);
 
 export const listEvents: typeof sales.listEvents = (...args) =>
   pickModule().listEvents(...args);

@@ -27,13 +27,41 @@ import {
   PhoneOff,
 } from "lucide-react";
 import { toast } from "sonner";
-import { disableLeadWhatsApp, getApiKeyClient } from "@/lib/apiRouter";
+import {
+  disableLeadWhatsApp,
+  listEvents,
+  searchLeads,
+  type EventSummaryItem,
+  type LeadItem,
+} from "@/lib/apiRouter";
 import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
 import { NormalUserEventLeadSheet } from "@/components/leads/NormalUserEventLeadSheet";
 
-const GET_ALL_LEADS_ENDPOINT = "/api/all/leads";
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
+const POSITION_OPTIONS = [
+  "CEO",
+  "CTO",
+  "CIO",
+  "COO",
+  "CFO",
+  "CMO",
+  "CRO",
+  "CISO",
+  "CSO",
+  "CPO",
+  "CCO",
+  "CDO",
+  "CHRO",
+  "Chief",
+  "VP",
+  "Director",
+  "Head",
+  "Manager",
+  "Lead",
+  "Other",
+  "Unknown",
+] as const;
 
 type PresenceFilter = "all" | "yes" | "no";
 type SortBy =
@@ -47,7 +75,6 @@ type SortBy =
 type ContactState = "whatsapp" | "email" | "both" | "in_progress" | "not_contacted" | "unknown";
 type DeliverySignal = "sent" | "in_progress" | "not_contacted";
 type ApprovalStatus = "pending" | "approved" | "rejected" | "suppressed";
-type OutreachState = "pending" | "queued" | "sending" | "sent" | "failed";
 
 type SuppressionInfo = {
   active?: boolean;
@@ -61,6 +88,8 @@ type SuppressionInfo = {
 interface Lead {
   id: string;
   eventName: string;
+  canonicalEventKey: string;
+  canonicalEventName: string;
   employeeName: string;
   title: string;
   company: string;
@@ -96,44 +125,6 @@ function hasValue(value: string) {
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
-}
-
-function normalizeLookupText(value: string) {
-  return value.trim().toLowerCase().replaceAll(/\s+/g, " ");
-}
-
-function normalizeLookupPhone(value: string) {
-  return value.replaceAll(/\D+/g, "");
-}
-
-function buildLookupKeys(source: Record<string, unknown>) {
-  const id = asText(source.id).trim();
-  const name = normalizeLookupText(asText(source.employeeName) || asText(source.employee_name));
-  const company = normalizeLookupText(asText(source.company) || asText(source.companyName));
-  const email = normalizeLookupText(asText(source.email));
-  const phone = normalizeLookupPhone(asText(source.phone));
-  const keys = new Set<string>();
-
-  if (id) keys.add(`id:${id}`);
-  if (name && email) keys.add(`name_email:${name}|${email}`);
-  if (name && phone) keys.add(`name_phone:${name}|${phone}`);
-  if (name && company && email) keys.add(`name_company_email:${name}|${company}|${email}`);
-  if (name && company && phone) keys.add(`name_company_phone:${name}|${company}|${phone}`);
-
-  return Array.from(keys);
-}
-
-const CONTACT_STATE_SCORE: Record<ContactState, number> = {
-  unknown: 0,
-  not_contacted: 1,
-  in_progress: 2,
-  email: 3,
-  whatsapp: 3,
-  both: 4,
-};
-
-function pickBetterContactState(current: ContactState, next: ContactState) {
-  return CONTACT_STATE_SCORE[next] > CONTACT_STATE_SCORE[current] ? next : current;
 }
 
 function normalizeApprovalStatus(value: unknown): ApprovalStatus {
@@ -175,63 +166,6 @@ function isLeadSuppressed(lead: Lead): boolean {
     lead.approvalStatus === "suppressed" ||
     Boolean(lead.suppression?.active)
   );
-}
-
-function normalizeOutreachState(value: unknown): OutreachState {
-  const v = String(value || "").toLowerCase();
-  if (v === "pending" || v === "queued" || v === "sending" || v === "sent" || v === "failed") return v;
-  return "pending";
-}
-
-function extractOutreachStatus(source: Record<string, unknown>) {
-  const direct = asRecord(source.outreachStatus);
-  const fromDraftMeta =
-    asRecord(asRecord(asRecord(source.draft)?.meta)?.outreach) ??
-    asRecord(asRecord(source.draft_meta)?.outreach) ??
-    asRecord(asRecord(source.draftMeta)?.outreach);
-
-  const picked = direct ?? fromDraftMeta;
-  if (!picked) return null;
-
-  return {
-    email: normalizeOutreachState(picked.email),
-    linkedin: normalizeOutreachState(picked.linkedin),
-    whatsapp: normalizeOutreachState(picked.whatsapp),
-  };
-}
-
-function buildOutreachStatus(source: Record<string, unknown>) {
-  const extracted = extractOutreachStatus(source);
-  if (extracted) return extracted;
-
-  const draftStatus = String(source.draftStatus || source.draft_status || "").toLowerCase();
-  if (draftStatus === "sent") return { email: "sent", linkedin: "sent", whatsapp: "sent" } as const;
-  if (draftStatus === "queued") return { email: "queued", linkedin: "pending", whatsapp: "queued" } as const;
-  if (draftStatus === "sending") return { email: "sending", linkedin: "pending", whatsapp: "sending" } as const;
-  if (draftStatus === "failed") return { email: "failed", linkedin: "pending", whatsapp: "failed" } as const;
-  return { email: "pending", linkedin: "pending", whatsapp: "pending" } as const;
-}
-
-function deriveContactStateFromCampaignLead(source: Record<string, unknown>): ContactState {
-  const approval = normalizeApprovalStatus(source.approvalStatus);
-  const outreach = buildOutreachStatus(source);
-  const suppressed =
-    approval === "suppressed" ||
-    parseBoolean(source.isSuppressed) ||
-    parseBoolean(source.contactReadOnly) ||
-    parseBoolean(asRecord(source.suppression)?.active);
-
-  if (suppressed) return "not_contacted";
-
-  if (outreach.email === "sent" && outreach.whatsapp === "sent") return "both";
-  if (outreach.whatsapp === "sent") return "whatsapp";
-  if (outreach.email === "sent") return "email";
-  if (outreach.email === "queued" || outreach.email === "sending" || outreach.whatsapp === "queued" || outreach.whatsapp === "sending") {
-    return "in_progress";
-  }
-
-  if (approval === "approved" || approval === "rejected" || approval === "pending") return "not_contacted";
-  return "unknown";
 }
 
 function parseBooleanFlag(value: unknown): boolean | null {
@@ -501,12 +435,6 @@ function scoreLead(lead: Lead, query: string): number {
   return score;
 }
 
-function matchesPresence(value: string, filter: PresenceFilter) {
-  if (filter === "all") return true;
-  const present = hasValue(value);
-  return filter === "yes" ? present : !present;
-}
-
 function sortLeads(rows: Lead[], sortBy: SortBy) {
   const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
   const sorted = [...rows];
@@ -538,14 +466,75 @@ function sortLeads(rows: Lead[], sortBy: SortBy) {
   return sorted;
 }
 
+function presenceFilterToBoolean(filter: PresenceFilter): boolean | undefined {
+  if (filter === "yes") return true;
+  if (filter === "no") return false;
+  return undefined;
+}
+
+function resolveServerSort(sortBy: SortBy, hasSearch: boolean) {
+  switch (sortBy) {
+    case "name_asc":
+      return { sortBy: "employeeName", sortDir: "asc" as const };
+    case "name_desc":
+      return { sortBy: "employeeName", sortDir: "desc" as const };
+    case "company_asc":
+      return { sortBy: "company", sortDir: "asc" as const };
+    case "company_desc":
+      return { sortBy: "company", sortDir: "desc" as const };
+    case "event_asc":
+      return { sortBy: "eventName", sortDir: "asc" as const };
+    case "relevance":
+      return hasSearch
+        ? { sortBy: "createdAt", sortDir: "desc" as const }
+        : { sortBy: "employeeName", sortDir: "asc" as const };
+    case "position_asc":
+    default:
+      return { sortBy: "createdAt", sortDir: "desc" as const };
+  }
+}
+
+function mapLeadItemToAdminLead(item: LeadItem): Lead {
+  const normalizedEventName =
+    asText(item.canonicalEventName) ||
+    asText(item.eventName) ||
+    asText(item.batchId) ||
+    "Unknown Event";
+
+  return {
+    id: asText(item.id),
+    eventName: normalizedEventName,
+    canonicalEventKey: asText(item.canonicalEventKey),
+    canonicalEventName: asText(item.canonicalEventName) || normalizedEventName,
+    employeeName: asText(item.employeeName),
+    title: asText(item.title),
+    company: asText(item.company),
+    email: asText(item.email),
+    phone: asText(item.phone),
+    linkedinUrl: asText(item.linkedinUrl),
+    companyUrl: asText(item.companyUrl),
+    contactState: deriveContactState(item as Record<string, unknown>),
+    approvalStatus: normalizeApprovalStatus(item.approvalStatus),
+    isSuppressed: parseBoolean(item.isSuppressed),
+    contactReadOnly: parseBoolean(item.contactReadOnly),
+    suppression: normalizeSuppression(item.suppression),
+    isManualLead: parseBoolean(item.isManualLead),
+    manualLeadAddedByUsername: asText(item.manualLeadAddedByUsername),
+    manualLeadAddedAt: asText(item.manualLeadAddedAt),
+  };
+}
+
 function SuperAdminTotalLeads() {
   const { persona } = usePersona();
-  const api = useMemo(() => getApiKeyClient(persona), [persona]);
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [totalLeads, setTotalLeads] = useState(0);
+  const [events, setEvents] = useState<EventSummaryItem[]>([]);
 
   const [q, setQ] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [eventFilter, setEventFilter] = useState<string>("all");
   const [positionFilter, setPositionFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<SortBy>("relevance");
@@ -573,56 +562,7 @@ function SuperAdminTotalLeads() {
   const [disableReason, setDisableReason] = useState("");
   const [isDisablingLead, setIsDisablingLead] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const activeStatusSyncRef = useRef(0);
-
-  const fetchCampaignLeadStatusMap = useCallback(async () => {
-    const lookup = new Map<string, ContactState>();
-
-    const campaignIds: string[] = [];
-    let offset = 0;
-    let hasMore = true;
-    const limit = 100;
-
-    while (hasMore) {
-      const res = await api.get("/api/campaigns", { params: { status: "all", limit, offset } });
-      const rows = Array.isArray(res.data?.campaigns) ? (res.data.campaigns as Array<Record<string, unknown>>) : [];
-
-      for (const row of rows) {
-        const id = asText(row.id).trim();
-        if (id) campaignIds.push(id);
-      }
-
-      hasMore = Boolean(res.data?.hasMore) && rows.length > 0;
-      offset += limit;
-      if (offset >= 5000) break;
-    }
-
-    const uniqueCampaignIds = Array.from(new Set(campaignIds));
-    const chunkSize = 6;
-
-    for (let i = 0; i < uniqueCampaignIds.length; i += chunkSize) {
-      const chunk = uniqueCampaignIds.slice(i, i + chunkSize);
-      const chunkResponses = await Promise.all(
-        chunk.map((campaignId) =>
-          api.get(`/api/campaigns/${campaignId}/leads`, { params: { status: "all" } }).catch(() => null)
-        )
-      );
-
-      for (const response of chunkResponses) {
-        const rows = Array.isArray(response?.data?.leads) ? (response?.data?.leads as Array<Record<string, unknown>>) : [];
-        for (const row of rows) {
-          const state = deriveContactStateFromCampaignLead(row);
-          const keys = buildLookupKeys(row);
-          for (const key of keys) {
-            const prev = lookup.get(key) ?? "unknown";
-            lookup.set(key, pickBetterContactState(prev, state));
-          }
-        }
-      }
-    }
-
-    return lookup;
-  }, [api]);
+  const requestSequenceRef = useRef(0);
 
   const clearAdvancedFilters = useCallback(() => {
     setNameFilter("");
@@ -645,130 +585,102 @@ function SuperAdminTotalLeads() {
     clearAdvancedFilters();
   }, [clearAdvancedFilters]);
 
-  const fetchAllLeads = useCallback(async () => {
-    const syncRun = Date.now();
-    activeStatusSyncRef.current = syncRun;
-    setLoading(true);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(q.trim());
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [q]);
+
+  const serverSort = useMemo(
+    () => resolveServerSort(sortBy, debouncedQuery.length > 0),
+    [sortBy, debouncedQuery]
+  );
+
+  const fetchLeadPage = useCallback(
+    async (mode: "initial" | "refresh" = "refresh") => {
+      const requestId = ++requestSequenceRef.current;
+      if (mode === "initial") {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
+
+      try {
+        const response = await searchLeads({
+          limit: itemsPerPage,
+          offset: (currentPage - 1) * itemsPerPage,
+          search: debouncedQuery || undefined,
+          canonicalEventKey: eventFilter !== "all" ? eventFilter : undefined,
+          hasEmail: presenceFilterToBoolean(hasEmailFilter),
+          hasPhone: presenceFilterToBoolean(hasPhoneFilter),
+          hasLinkedin: presenceFilterToBoolean(hasLinkedinFilter),
+          hasWebsite: presenceFilterToBoolean(hasWebsiteFilter),
+          sortBy: serverSort.sortBy,
+          sortDir: serverSort.sortDir,
+        });
+
+        if (requestId !== requestSequenceRef.current) return;
+
+        setLeads((response.items || []).map((item) => mapLeadItemToAdminLead(item)));
+        setTotalLeads(Number(response.total || 0));
+      } catch (e: unknown) {
+        if (requestId !== requestSequenceRef.current) return;
+        toast.error("Failed to load leads", {
+          description: e instanceof Error ? e.message : "Could not fetch leads.",
+        });
+      } finally {
+        if (requestId !== requestSequenceRef.current) return;
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [
+      currentPage,
+      debouncedQuery,
+      eventFilter,
+      hasEmailFilter,
+      hasLinkedinFilter,
+      hasPhoneFilter,
+      hasWebsiteFilter,
+      itemsPerPage,
+      serverSort.sortBy,
+      serverSort.sortDir,
+    ]
+  );
+
+  const fetchEventOptions = useCallback(async () => {
     try {
-      const res = await api.get(GET_ALL_LEADS_ENDPOINT);
-      const raw = Array.isArray(res.data) ? res.data : Array.isArray(res.data?.leads) ? res.data.leads : [];
-
-      const mapped: Lead[] = raw.map((x: Record<string, unknown>) => ({
-        id: asText(x.id),
-        eventName:
-          asText(x.eventName) ||
-          asText(x.event) ||
-          asText(x.campaignName) ||
-          asText(x.icpName) ||
-          asText(x.icpPreview) ||
-          "Unknown Event",
-        employeeName: asText(x.employeeName) || asText(x.employee_name),
-        title: asText(x.title),
-        company: asText(x.company) || asText(x.companyName),
-        email: asText(x.email),
-        phone: asText(x.phone),
-        linkedinUrl: asText(x.linkedinUrl) || asText(x.linkedin_url),
-        companyUrl: asText(x.companyUrl) || asText(x.company_url),
-        contactState: deriveContactState(x),
-        approvalStatus: normalizeApprovalStatus(x.approvalStatus),
-        isSuppressed: parseBoolean(x.isSuppressed),
-        contactReadOnly: parseBoolean(x.contactReadOnly),
-        suppression: normalizeSuppression(x.suppression),
-        isManualLead: parseBoolean(x.isManualLead),
-        manualLeadAddedByUsername: asText(x.manualLeadAddedByUsername),
-        manualLeadAddedAt: asText(x.manualLeadAddedAt),
-      }));
-
-      setLeads(mapped);
-
-      void (async () => {
-        try {
-          const lookup = await fetchCampaignLeadStatusMap();
-          if (activeStatusSyncRef.current !== syncRun) return;
-          if (lookup.size === 0) return;
-
-          setLeads((prev) =>
-            prev.map((lead) => {
-              if (isLeadSuppressed(lead)) {
-                return lead.contactState === "not_contacted"
-                  ? lead
-                  : { ...lead, contactState: "not_contacted" };
-              }
-
-              const keys = buildLookupKeys({
-                id: lead.id,
-                employeeName: lead.employeeName,
-                company: lead.company,
-                email: lead.email,
-                phone: lead.phone,
-              });
-
-              let nextState = lead.contactState;
-              for (const key of keys) {
-                const mappedState = lookup.get(key);
-                if (!mappedState) continue;
-                nextState = pickBetterContactState(nextState, mappedState);
-              }
-
-              return nextState === lead.contactState ? lead : { ...lead, contactState: nextState };
-            })
-          );
-        } catch {
-          // Non-blocking: keep base rows even if status enrichment fails.
-        }
-      })();
-    } catch (e: unknown) {
-      toast.error("Failed to load leads", {
-        description: e instanceof Error ? e.message : "Could not fetch leads.",
-      });
-    } finally {
-      setLoading(false);
+      const response = await listEvents();
+      setEvents(Array.isArray(response.events) ? response.events : []);
+    } catch {
+      // Keep the current list if event summaries fail; lead browsing should still work.
     }
-  }, [api, fetchCampaignLeadStatusMap]);
+  }, []);
+
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([fetchEventOptions(), fetchLeadPage("refresh")]);
+  }, [fetchEventOptions, fetchLeadPage]);
 
   useEffect(() => {
-    void fetchAllLeads();
-  }, [persona, fetchAllLeads]);
+    void fetchEventOptions();
+  }, [persona, fetchEventOptions]);
+
+  useEffect(() => {
+    void fetchLeadPage(loading ? "initial" : "refresh");
+  }, [persona, fetchLeadPage]);
 
   const eventOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const l of leads) if (l.eventName.trim()) set.add(l.eventName.trim());
-    return Array.from(set)
-      .map((value) => ({ value, label: formatEventLabel(value) }))
+    return events
+      .filter((event) => event.canonicalEventKey?.trim())
+      .map((event) => ({
+        value: event.canonicalEventKey,
+        label: event.canonicalEventName?.trim() || formatEventLabel(event.canonicalEventKey),
+      }))
       .sort((a, b) => a.label.localeCompare(b.label));
-  }, [leads]);
+  }, [events]);
 
-  const positionOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const l of leads) set.add(positionBucket(l.title));
-    const arr = Array.from(set);
-
-    const preferred = [
-      "CEO",
-      "CTO",
-      "CIO",
-      "COO",
-      "CFO",
-      "CMO",
-      "CRO",
-      "CISO",
-      "CSO",
-      "CPO",
-      "CCO",
-      "CDO",
-      "CHRO",
-      "Chief",
-      "VP",
-      "Director",
-      "Head",
-      "Manager",
-      "Lead",
-      "Other",
-      "Unknown",
-    ];
-
-    return preferred.filter((p) => arr.includes(p)).concat(arr.filter((x) => !preferred.includes(x)).sort());
-  }, [leads]);
+  const positionOptions = useMemo(() => Array.from(POSITION_OPTIONS), []);
   const advancedFilterCount = useMemo(() => {
     let count = 0;
     if (nameFilter.trim()) count += 1;
@@ -813,7 +725,6 @@ function SuperAdminTotalLeads() {
       const phone = lead.phone.toLowerCase();
       const website = lead.companyUrl.toLowerCase();
 
-      if (eventFilter !== "all" && lead.eventName !== eventFilter) return false;
       if (positionFilter !== "all" && positionBucket(lead.title) !== positionFilter) return false;
 
       if (nameNeedle && !name.includes(nameNeedle)) return false;
@@ -823,33 +734,24 @@ function SuperAdminTotalLeads() {
 
       if (domainNeedle && !`${email} ${website}`.includes(domainNeedle)) return false;
       if (phoneNeedle && !normalizePhone(phone).includes(phoneNeedle)) return false;
-
-      if (!matchesPresence(lead.email, hasEmailFilter)) return false;
-      if (!matchesPresence(lead.phone, hasPhoneFilter)) return false;
-      if (!matchesPresence(lead.linkedinUrl, hasLinkedinFilter)) return false;
-      if (!matchesPresence(lead.companyUrl, hasWebsiteFilter)) return false;
-      if (!query) return true;
-
-      return scoreLead(lead, query) > 0;
+      return true;
     });
 
-    if (!query) {
-      if (sortBy === "relevance") return sortLeads(scoped, "name_asc");
+    if (sortBy === "position_asc") {
       return sortLeads(scoped, sortBy);
     }
 
-    if (sortBy === "relevance") {
+    if (sortBy === "relevance" && query) {
       return scoped
         .map((lead) => ({ lead, score: scoreLead(lead, query) }))
         .sort((a, b) => b.score - a.score)
         .map((entry) => entry.lead);
     }
 
-    return sortLeads(scoped, sortBy);
+    return scoped;
   }, [
     leads,
     q,
-    eventFilter,
     positionFilter,
     sortBy,
     nameFilter,
@@ -858,18 +760,10 @@ function SuperAdminTotalLeads() {
     eventTextFilter,
     domainFilter,
     phoneFilter,
-    hasEmailFilter,
-    hasPhoneFilter,
-    hasLinkedinFilter,
-    hasWebsiteFilter,
   ]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredLeads.length / itemsPerPage));
-
-  const paginatedLeads = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredLeads.slice(start, start + itemsPerPage);
-  }, [filteredLeads, currentPage, itemsPerPage]);
+  const totalPages = Math.max(1, Math.ceil(totalLeads / itemsPerPage));
+  const paginatedLeads = filteredLeads;
 
   const visiblePageNumbers = useMemo(() => {
     const windowSize = 5;
@@ -989,7 +883,7 @@ function SuperAdminTotalLeads() {
 
       setDisableTargetLead(null);
       setDisableReason("");
-      await fetchAllLeads();
+      await fetchLeadPage("refresh");
     } catch (error: unknown) {
       const err = error as { response?: { data?: { detail?: string } }; message?: string };
       toast.error("Failed to disable marketing", {
@@ -1040,8 +934,11 @@ function SuperAdminTotalLeads() {
     if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
   };
 
-  const showingFrom = filteredLeads.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
-  const showingTo = filteredLeads.length === 0 ? 0 : Math.min(currentPage * itemsPerPage, filteredLeads.length);
+  const showingFrom = paginatedLeads.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+  const showingTo =
+    paginatedLeads.length === 0
+      ? 0
+      : Math.min((currentPage - 1) * itemsPerPage + paginatedLeads.length, totalLeads);
 
   if (loading) {
     return (
@@ -1064,8 +961,8 @@ function SuperAdminTotalLeads() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => void fetchAllLeads()} className="h-10 border-zinc-200/90 bg-white/82 text-zinc-700 shadow-none hover:border-zinc-300 hover:bg-white">
-              <RefreshCcw className="mr-2 h-4 w-4" />
+            <Button variant="outline" onClick={() => void handleRefresh()} className="h-10 border-zinc-200/90 bg-white/82 text-zinc-700 shadow-none hover:border-zinc-300 hover:bg-white" disabled={refreshing}>
+              <RefreshCcw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
               Refresh
             </Button>
           </div>
@@ -1246,10 +1143,10 @@ function SuperAdminTotalLeads() {
           </div>
           <div className="flex items-center gap-1.5">
             <Badge className="rounded-md border border-zinc-200/80 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-zinc-500 shadow-none">
-              Total {leads.length}
+              Total {totalLeads}
             </Badge>
             <Badge className="rounded-md border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-zinc-500 shadow-none">
-              Filtered {filteredLeads.length}
+              On Page {filteredLeads.length}
             </Badge>
           </div>
         </div>
@@ -1274,7 +1171,9 @@ function SuperAdminTotalLeads() {
               {paginatedLeads.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-6 py-12 text-center text-sm text-zinc-500">
-                    No leads match the current filter combination.
+                    {totalLeads > 0
+                      ? "No leads on this page match the current filter combination."
+                      : "No leads match the current filter combination."}
                   </td>
                 </tr>
               ) : (
@@ -1291,7 +1190,7 @@ function SuperAdminTotalLeads() {
                     >
                     <td className="px-3 py-3 align-top">
                       <span className="line-clamp-2 text-sm text-zinc-700">
-                        {item.eventName ? formatEventLabel(item.eventName) : "-"}
+                        {item.canonicalEventName || item.eventName || "-"}
                       </span>
                     </td>
 
@@ -1433,9 +1332,9 @@ function SuperAdminTotalLeads() {
 
         {filteredLeads.length > 0 && (
           <div className="relative z-[1] flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100/85 bg-white/38 px-4 py-3">
-            <span className="text-xs text-zinc-500">
-              Showing {showingFrom}-{showingTo} of {filteredLeads.length} leads
-            </span>
+              <span className="text-xs text-zinc-500">
+               Showing {showingFrom}-{showingTo} of {totalLeads} leads
+              </span>
 
             <div className="flex flex-wrap items-center justify-end gap-2">
               <label className="inline-flex items-center gap-2 rounded-md border border-zinc-200/80 bg-white/82 px-2.5 py-1.5 text-[11px] font-medium text-zinc-600">
