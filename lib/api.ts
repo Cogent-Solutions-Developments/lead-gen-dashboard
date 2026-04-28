@@ -1151,6 +1151,11 @@ export function startWhatsAppPolling(
 
   const tick = async () => {
     tickCount += 1;
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+      waDebugLog("poll.skip_hidden", { personId, tickCount });
+      return;
+    }
+
     try {
       waDebugLog("poll.tick", { personId, tickCount, since: nextSince });
       const data = await fetchMessages({ personId, since: nextSince });
