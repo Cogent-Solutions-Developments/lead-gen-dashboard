@@ -15,6 +15,8 @@ import type {
   DeleteBlocker,
   EventLeadCreateRequest,
   EventLeadCreateResponse,
+  EventLeadListParams,
+  EventLeadListResponse,
   EventSummaryResponse,
   ForceDeleteCampaignResponse,
   LeadItem,
@@ -57,6 +59,8 @@ export type {
   DeleteBlocker,
   EventLeadCreateRequest,
   EventLeadCreateResponse,
+  EventLeadListParams,
+  EventLeadListResponse,
   EventSummaryResponse,
   ForceDeleteCampaignResponse,
   LeadItem,
@@ -213,6 +217,23 @@ export async function listAllLeads() {
 
 export async function listEvents() {
   const { data } = await apiClientDelegate.get<EventSummaryResponse>("/api/delegates/events");
+  return data;
+}
+
+export async function listEventLeads(canonicalEventKey: string, params?: EventLeadListParams) {
+  const { data } = await apiClientDelegate.get<EventLeadListResponse>(
+    `/api/delegates/events/${encodeURIComponent(canonicalEventKey)}/leads`,
+    {
+      params: {
+        limit: params?.limit,
+        offset: params?.offset,
+        search: params?.search,
+        workflowStatus: params?.workflowStatus,
+        includeManual: params?.includeManual,
+        sort: params?.sort,
+      },
+    }
+  );
   return data;
 }
 

@@ -451,6 +451,48 @@ export type EventSummaryResponse = {
   total: number;
 };
 
+export type EventLeadListItem = {
+  id: string;
+  eventName?: string | null;
+  canonicalEventKey: string;
+  canonicalEventName: string;
+  leadIdentityKey: string;
+  employeeName: string;
+  title?: string | null;
+  company?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  linkedinUrl?: string | null;
+  companyUrl?: string | null;
+  workflowStatus: WorkflowStatus;
+  workflowStatusLabel?: string | null;
+  isSuppressed?: boolean;
+  suppression?: SuppressionMeta | null;
+  contactReadOnly?: boolean;
+  isManualLead?: boolean | null;
+  manualLeadAddedByUserId?: string | null;
+  manualLeadAddedByUsername?: string | null;
+  manualLeadAddedAt?: string | null;
+};
+
+export type EventLeadListParams = {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  workflowStatus?: WorkflowStatus;
+  includeManual?: boolean;
+  sort?: string;
+};
+
+export type EventLeadListResponse = {
+  event: EventSummaryItem;
+  items: EventLeadListItem[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+};
+
 export type WorkflowStatusDefinitionItem = {
   id: string;
   ownerUserId?: string | null;
@@ -673,6 +715,23 @@ export async function listAllLeads() {
 
 export async function listEvents() {
   const { data } = await apiClient.get<EventSummaryResponse>("/api/events");
+  return data;
+}
+
+export async function listEventLeads(canonicalEventKey: string, params?: EventLeadListParams) {
+  const { data } = await apiClient.get<EventLeadListResponse>(
+    `/api/events/${encodeURIComponent(canonicalEventKey)}/leads`,
+    {
+      params: {
+        limit: params?.limit,
+        offset: params?.offset,
+        search: params?.search,
+        workflowStatus: params?.workflowStatus,
+        includeManual: params?.includeManual,
+        sort: params?.sort,
+      },
+    }
+  );
   return data;
 }
 
