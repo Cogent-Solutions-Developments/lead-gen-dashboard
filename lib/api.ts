@@ -493,6 +493,30 @@ export type EventLeadListResponse = {
   hasMore: boolean;
 };
 
+export type GlobalLeadSearchParams = {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  approvalStatus?: string;
+  workflowStatus?: WorkflowStatus;
+  canonicalEventKey?: string;
+  campaignId?: string;
+  hasEmail?: boolean;
+  hasPhone?: boolean;
+  hasLinkedin?: boolean;
+  hasWebsite?: boolean;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
+};
+
+export type GlobalLeadSearchResponse = {
+  items: LeadItem[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+};
+
 export type WorkflowStatusDefinitionItem = {
   id: string;
   ownerUserId?: string | null;
@@ -710,6 +734,27 @@ export async function getCampaignLeads(id: string, status: string = "all") {
 
 export async function listAllLeads() {
   const { data } = await apiClient.get<{ leads: LeadItem[]; total: number }>("/api/all/leads");
+  return data;
+}
+
+export async function searchLeads(params?: GlobalLeadSearchParams) {
+  const { data } = await apiClient.get<GlobalLeadSearchResponse>("/api/leads/search", {
+    params: {
+      limit: params?.limit,
+      offset: params?.offset,
+      search: params?.search,
+      approvalStatus: params?.approvalStatus,
+      workflowStatus: params?.workflowStatus,
+      canonicalEventKey: params?.canonicalEventKey,
+      campaignId: params?.campaignId,
+      hasEmail: params?.hasEmail,
+      hasPhone: params?.hasPhone,
+      hasLinkedin: params?.hasLinkedin,
+      hasWebsite: params?.hasWebsite,
+      sortBy: params?.sortBy,
+      sortDir: params?.sortDir,
+    },
+  });
   return data;
 }
 

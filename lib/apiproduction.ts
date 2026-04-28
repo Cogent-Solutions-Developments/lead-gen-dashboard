@@ -19,6 +19,8 @@ import type {
   EventLeadListResponse,
   EventSummaryResponse,
   ForceDeleteCampaignResponse,
+  GlobalLeadSearchParams,
+  GlobalLeadSearchResponse,
   LeadItem,
   MessageStatus,
   RecentCampaign,
@@ -63,6 +65,8 @@ export type {
   EventLeadListResponse,
   EventSummaryResponse,
   ForceDeleteCampaignResponse,
+  GlobalLeadSearchParams,
+  GlobalLeadSearchResponse,
   LeadItem,
   MessageStatus,
   RecentCampaign,
@@ -212,6 +216,27 @@ export async function listAllLeads() {
   const { data } = await apiClientProduction.get<{ leads: LeadItem[]; total: number }>(
     "/api/productions/all/leads"
   );
+  return data;
+}
+
+export async function searchLeads(params?: GlobalLeadSearchParams) {
+  const { data } = await apiClientProduction.get<GlobalLeadSearchResponse>("/api/productions/leads/search", {
+    params: {
+      limit: params?.limit,
+      offset: params?.offset,
+      search: params?.search,
+      approvalStatus: params?.approvalStatus,
+      workflowStatus: params?.workflowStatus,
+      canonicalEventKey: params?.canonicalEventKey,
+      campaignId: params?.campaignId,
+      hasEmail: params?.hasEmail,
+      hasPhone: params?.hasPhone,
+      hasLinkedin: params?.hasLinkedin,
+      hasWebsite: params?.hasWebsite,
+      sortBy: params?.sortBy,
+      sortDir: params?.sortDir,
+    },
+  });
   return data;
 }
 
