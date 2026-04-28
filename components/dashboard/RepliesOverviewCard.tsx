@@ -6,6 +6,8 @@ import { Card } from "@/components/ui/card";
 import { fetchWhatsAppNotifications, listReplyNotifications } from "@/lib/apiRouter";
 import { usePersona } from "@/hooks/usePersona";
 
+const REPLIES_OVERVIEW_POLL_MS = 30000;
+
 function formatCount(value: number) {
   return new Intl.NumberFormat("en-US").format(value);
 }
@@ -19,6 +21,10 @@ export function RepliesOverviewCard() {
     let alive = true;
 
     const load = async () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+        return;
+      }
+
       try {
         const [allNotifications, repliesMeta] = await Promise.allSettled([
           fetchWhatsAppNotifications({ limit: 200, unreadOnly: false }),
@@ -50,11 +56,19 @@ export function RepliesOverviewCard() {
     void load();
     const timer = setInterval(() => {
       void load();
-    }, 15000);
+    }, REPLIES_OVERVIEW_POLL_MS);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void load();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       alive = false;
       clearInterval(timer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [persona]);
 

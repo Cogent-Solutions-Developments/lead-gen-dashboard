@@ -16,13 +16,14 @@ import {
 import {
   addEventLead,
   createWorkflowStatus,
-  listAllLeads,
+  listEventLeads,
   listEvents,
   listWorkflowStatuses,
   updateLeadWorkflowStatus,
   type EventLeadCreateRequest,
+  type EventLeadListItem,
+  type EventLeadListResponse,
   type EventSummaryItem,
-  type LeadItem,
   type WorkflowStatus,
   type WorkflowStatusDefinitionItem,
 } from "@/lib/apiRouter";
@@ -65,7 +66,7 @@ type AddLeadFormState = {
   linkedinUrl: string;
 };
 
-const DEFAULT_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
+const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
   {
     id: "workflow-default-new",
     statusKey: "new",
@@ -75,24 +76,42 @@ const DEFAULT_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     isActive: true,
   },
   {
-    id: "workflow-default-pending",
-    statusKey: "pending",
-    label: "Pending",
+    id: "workflow-default-first-call",
+    statusKey: "first-call",
+    label: "First Call",
     isSystemDefault: true,
     sortOrder: 1,
     isActive: true,
   },
   {
-    id: "workflow-default-complete",
-    statusKey: "complete",
-    label: "Complete",
+    id: "workflow-default-follow-up",
+    statusKey: "follow-up",
+    label: "Follow Up",
     isSystemDefault: true,
     sortOrder: 2,
     isActive: true,
   },
+  {
+    id: "workflow-default-success",
+    statusKey: "success",
+    label: "Success",
+    isSystemDefault: true,
+    sortOrder: 3,
+    isActive: true,
+  },
+  {
+    id: "workflow-default-dead",
+    statusKey: "dead",
+    label: "Dead",
+    isSystemDefault: true,
+    sortOrder: 4,
+    isActive: true,
+  },
 ];
 
-const CREATE_STATUS_SENTINEL = "__create_custom_status__";
+const FIXED_WORKFLOW_STATUS_KEYS = new Set(FIXED_WORKFLOW_STATUSES.map((item) => item.statusKey));
+const PAGE_SIZE = 50;
+const SEARCH_DEBOUNCE_MS = 300;
 
 const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
   fullName: "",
@@ -142,38 +161,16 @@ function mergeWorkflowStatuses(items: WorkflowStatusDefinitionItem[]) {
   return sortWorkflowStatuses(Array.from(byKey.values()));
 }
 
-function filledScore(lead: Partial<LeadSheetRow>) {
-  return [
-    lead.employeeName,
-    lead.title,
-    lead.company,
-    lead.email,
-    lead.phone,
-    lead.linkedinUrl,
-    lead.companyUrl,
-  ].filter((value) => asText(value).length > 0).length;
+function buildFixedWorkflowStatuses(items: WorkflowStatusDefinitionItem[]) {
+  const merged = mergeWorkflowStatuses([...items, ...FIXED_WORKFLOW_STATUSES]);
+  const byKey = new Map<string, WorkflowStatusDefinitionItem>();
+  for (const item of merged) {
+    byKey.set(item.statusKey, item);
+  }
+  return FIXED_WORKFLOW_STATUSES.map((item) => byKey.get(item.statusKey) ?? item);
 }
 
-function mergeLeadRows(base: LeadSheetRow, next: LeadSheetRow) {
-  const preferred = filledScore(next) > filledScore(base) ? next : base;
-  const fallback = preferred === base ? next : base;
-
-  return {
-    ...preferred,
-    employeeName: preferred.employeeName || fallback.employeeName,
-    title: preferred.title || fallback.title,
-    company: preferred.company || fallback.company,
-    email: preferred.email || fallback.email,
-    phone: preferred.phone || fallback.phone,
-    linkedinUrl: preferred.linkedinUrl || fallback.linkedinUrl,
-    companyUrl: preferred.companyUrl || fallback.companyUrl,
-    workflowStatus: preferred.workflowStatus || fallback.workflowStatus,
-    workflowStatusLabel: preferred.workflowStatusLabel || fallback.workflowStatusLabel,
-    isManualLead: preferred.isManualLead || fallback.isManualLead,
-  };
-}
-
-function mapLeadItem(item: LeadItem, labelLookup: Map<string, string>): LeadSheetRow | null {
+function mapLeadItem(item: EventLeadListItem, labelLookup: Map<string, string>): LeadSheetRow | null {
   const canonicalEventKey = asText(item.canonicalEventKey);
   const leadIdentityKey = asText(item.leadIdentityKey);
   if (!canonicalEventKey || !leadIdentityKey) return null;
@@ -275,17 +272,16 @@ export function NormalUserEventLeadSheet() {
   const eventParam = searchParams.get("event") || "";
 
   const [events, setEvents] = useState<EventSummaryItem[]>([]);
-  const [allLeads, setAllLeads] = useState<LeadItem[]>([]);
+  const [leadPage, setLeadPage] = useState<EventLeadListResponse | null>(null);
   const [workflowStatuses, setWorkflowStatuses] = useState<WorkflowStatusDefinitionItem[]>(
-    DEFAULT_WORKFLOW_STATUSES
+    FIXED_WORKFLOW_STATUSES
   );
-  const [loading, setLoading] = useState(true);
+  const [loadingEvents, setLoadingEvents] = useState(true);
+  const [loadingLeads, setLoadingLeads] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [pageOffset, setPageOffset] = useState(0);
   const [updatingKeys, setUpdatingKeys] = useState<Record<string, boolean>>({});
-  const [createStatusOpen, setCreateStatusOpen] = useState(false);
-  const [statusDraftLabel, setStatusDraftLabel] = useState("");
-  const [statusTargetLead, setStatusTargetLead] = useState<LeadSheetRow | null>(null);
-  const [creatingStatus, setCreatingStatus] = useState(false);
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [addLeadForm, setAddLeadForm] = useState<AddLeadFormState>(EMPTY_ADD_LEAD_FORM);
   const [addingLead, setAddingLead] = useState(false);
@@ -299,37 +295,66 @@ export function NormalUserEventLeadSheet() {
   }, [workflowStatuses]);
 
   const statusOptions = useMemo(() => {
-    return workflowStatuses.length > 0 ? workflowStatuses : DEFAULT_WORKFLOW_STATUSES;
+    return workflowStatuses.length > 0 ? workflowStatuses : FIXED_WORKFLOW_STATUSES;
   }, [workflowStatuses]);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadInitialData = useCallback(async () => {
+    setLoadingEvents(true);
     try {
-      const [eventsResponse, leadsResponse, statusResponse] = await Promise.all([
+      const [eventsResponse, initialStatusResponse] = await Promise.all([
         listEvents(),
-        listAllLeads(),
         listWorkflowStatuses(),
       ]);
-      setEvents(eventsResponse.events || []);
-      setAllLeads(leadsResponse.leads || []);
-      setWorkflowStatuses(
-        mergeWorkflowStatuses([...(statusResponse.statuses || []), ...DEFAULT_WORKFLOW_STATUSES])
+      let finalStatuses = Array.isArray(initialStatusResponse.statuses)
+        ? initialStatusResponse.statuses
+        : [];
+      const missingFixedStatuses = FIXED_WORKFLOW_STATUSES.filter(
+        (item) => !finalStatuses.some((status) => status.statusKey === item.statusKey)
       );
+
+      if (missingFixedStatuses.length > 0) {
+        await Promise.all(
+          missingFixedStatuses.map(async (item) => {
+            try {
+              await createWorkflowStatus(item.label);
+            } catch {
+              return null;
+            }
+            return null;
+          })
+        );
+
+        const refreshedStatusResponse = await listWorkflowStatuses();
+        finalStatuses = Array.isArray(refreshedStatusResponse.statuses)
+          ? refreshedStatusResponse.statuses
+          : [];
+      }
+
+      setEvents(eventsResponse.events || []);
+      setWorkflowStatuses(buildFixedWorkflowStatuses(finalStatuses));
     } catch (error: unknown) {
       toast.error("Failed to load lead sheet", {
         description: getErrorMessage(error),
       });
       setEvents([]);
-      setAllLeads([]);
-      setWorkflowStatuses(DEFAULT_WORKFLOW_STATUSES);
+      setLeadPage(null);
+      setWorkflowStatuses(FIXED_WORKFLOW_STATUSES);
     } finally {
-      setLoading(false);
+      setLoadingEvents(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadData();
-  }, [loadData]);
+    void loadInitialData();
+  }, [loadInitialData]);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setPageOffset(0);
+      setSearchQuery(searchInput.trim());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(handle);
+  }, [searchInput]);
 
   const selectedEventKey = useMemo(() => {
     if (eventParam && events.some((item) => item.canonicalEventKey === eventParam)) {
@@ -345,49 +370,72 @@ export function NormalUserEventLeadSheet() {
     );
   }, [eventParam, events.length, pathname, router, searchParams, selectedEventKey]);
 
+  const loadEventPage = useCallback(async (canonicalEventKey: string, nextOffset: number, query: string) => {
+    setLoadingLeads(true);
+    try {
+      const response = await listEventLeads(canonicalEventKey, {
+        limit: PAGE_SIZE,
+        offset: nextOffset,
+        search: query || undefined,
+        includeManual: true,
+        sort: "createdAt:desc",
+      });
+      setLeadPage(response);
+      setEvents((prev) =>
+        prev.map((item) =>
+          item.canonicalEventKey === response.event.canonicalEventKey
+            ? { ...item, ...response.event }
+            : item
+        )
+      );
+    } catch (error: unknown) {
+      toast.error("Failed to load lead sheet", {
+        description: getErrorMessage(error),
+      });
+      setLeadPage((prev) => (prev?.event.canonicalEventKey === canonicalEventKey ? prev : null));
+    } finally {
+      setLoadingLeads(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!selectedEventKey) {
+      setLeadPage(null);
+      return;
+    }
+    setLeadPage((prev) => (prev?.event.canonicalEventKey === selectedEventKey ? prev : null));
+    void loadEventPage(selectedEventKey, pageOffset, searchQuery);
+  }, [loadEventPage, pageOffset, searchQuery, selectedEventKey]);
+
   const selectedEvent = useMemo(
-    () => events.find((item) => item.canonicalEventKey === selectedEventKey) ?? null,
-    [events, selectedEventKey]
+    () =>
+      leadPage?.event?.canonicalEventKey === selectedEventKey
+        ? leadPage.event
+        : events.find((item) => item.canonicalEventKey === selectedEventKey) ?? null,
+    [events, leadPage, selectedEventKey]
   );
 
   const eventLeads = useMemo(() => {
-    const buckets = new Map<string, LeadSheetRow>();
+    return (leadPage?.items || [])
+      .map((item) => mapLeadItem(item, workflowStatusLabelLookup))
+      .filter((item): item is LeadSheetRow => Boolean(item));
+  }, [leadPage, workflowStatusLabelLookup]);
 
-    for (const item of allLeads) {
-      const mapped = mapLeadItem(item, workflowStatusLabelLookup);
-      if (!mapped) continue;
-      if (selectedEventKey && mapped.canonicalEventKey !== selectedEventKey) continue;
+  const pageRangeStart = eventLeads.length > 0 ? pageOffset + 1 : 0;
+  const pageRangeEnd = pageOffset + eventLeads.length;
+  const pageTotal = leadPage?.total ?? 0;
+  const hasMore = Boolean(leadPage?.hasMore);
+  const isLoading = loadingEvents || (loadingLeads && !leadPage && Boolean(selectedEventKey));
 
-      const key = `${mapped.canonicalEventKey}::${mapped.leadIdentityKey}`;
-      const current = buckets.get(key);
-      buckets.set(key, current ? mergeLeadRows(current, mapped) : mapped);
+  const refreshData = useCallback(async () => {
+    await loadInitialData();
+    if (selectedEventKey) {
+      await loadEventPage(selectedEventKey, pageOffset, searchQuery);
     }
-
-    return Array.from(buckets.values());
-  }, [allLeads, selectedEventKey, workflowStatusLabelLookup]);
-
-  const filteredLeads = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return eventLeads;
-
-    return eventLeads.filter((item) =>
-      [
-        item.employeeName,
-        item.title,
-        item.company,
-        item.email,
-        item.phone,
-        item.linkedinUrl,
-        item.companyUrl,
-        item.workflowStatusLabel,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(query)
-    );
-  }, [eventLeads, searchQuery]);
+  }, [loadEventPage, loadInitialData, pageOffset, searchQuery, selectedEventKey]);
 
   const handleEventChange = (value: string) => {
+    setPageOffset(0);
     router.replace(updateSearchParam(pathname, new URLSearchParams(searchParams.toString()), "event", value));
   };
 
@@ -403,20 +451,25 @@ export function NormalUserEventLeadSheet() {
           workflowStatusLabelLookup.get(response.workflowStatus) ||
           humanizeStatusLabel(response.workflowStatus);
 
-        setAllLeads((prev) =>
-          prev.map((lead) => {
-            if (
-              asText(lead.canonicalEventKey) === response.canonicalEventKey &&
-              asText(lead.leadIdentityKey) === response.leadIdentityKey
-            ) {
-              return {
-                ...lead,
-                workflowStatus: response.workflowStatus,
-                workflowStatusLabel: nextLabel,
-              };
-            }
-            return lead;
-          })
+        setLeadPage((prev) =>
+          prev
+            ? {
+                ...prev,
+                items: prev.items.map((lead) => {
+                  if (
+                    asText(lead.canonicalEventKey) === response.canonicalEventKey &&
+                    asText(lead.leadIdentityKey) === response.leadIdentityKey
+                  ) {
+                    return {
+                      ...lead,
+                      workflowStatus: response.workflowStatus,
+                      workflowStatusLabel: nextLabel,
+                    };
+                  }
+                  return lead;
+                }),
+              }
+            : prev
         );
       } catch (error: unknown) {
         toast.error("Failed to update status", {
@@ -433,55 +486,8 @@ export function NormalUserEventLeadSheet() {
     [workflowStatusLabelLookup]
   );
 
-  const openCreateStatusDialog = (item: LeadSheetRow) => {
-    setStatusTargetLead(item);
-    setStatusDraftLabel("");
-    setCreateStatusOpen(true);
-  };
-
   const handleStatusSelection = (item: LeadSheetRow, value: string) => {
-    if (value === CREATE_STATUS_SENTINEL) {
-      openCreateStatusDialog(item);
-      return;
-    }
     void handleWorkflowStatusChange(item, value);
-  };
-
-  const closeCreateStatusDialog = (force = false) => {
-    if (creatingStatus && !force) return;
-    setCreateStatusOpen(false);
-    setStatusDraftLabel("");
-    setStatusTargetLead(null);
-  };
-
-  const submitCreateStatus = async () => {
-    const label = statusDraftLabel.trim();
-    if (!label) {
-      toast.error("Status label is required");
-      return;
-    }
-
-    setCreatingStatus(true);
-    try {
-      const created = await createWorkflowStatus(label);
-      setWorkflowStatuses((prev) => mergeWorkflowStatuses([...prev, created]));
-      toast.success("Custom status created", {
-        description: `${created.label} is now available in your workflow.`,
-      });
-
-      const target = statusTargetLead;
-      closeCreateStatusDialog(true);
-
-      if (target) {
-        await handleWorkflowStatusChange(target, created.statusKey);
-      }
-    } catch (error: unknown) {
-      toast.error("Failed to create status", {
-        description: getErrorMessage(error),
-      });
-    } finally {
-      setCreatingStatus(false);
-    }
   };
 
   const closeAddLeadDialog = (force = false) => {
@@ -518,49 +524,11 @@ export function NormalUserEventLeadSheet() {
     setAddingLead(true);
     try {
       const created = await addEventLead(selectedEvent.canonicalEventKey, payload);
-      const nextLead: LeadItem = {
-        id: created.id,
-        batchId: "",
-        employeeName: created.employeeName,
-        title: created.title || "",
-        company: created.company || "",
-        email: created.email || "",
-        phone: created.phone || "",
-        linkedinUrl: created.linkedinUrl || "",
-        companyUrl: created.companyUrl || "",
-        contentEmailSubject: null,
-        contentEmail: null,
-        contentLinkedin: null,
-        contentWhatsapp: null,
-        eventName: created.canonicalEventName,
-        canonicalEventKey: created.canonicalEventKey,
-        canonicalEventName: created.canonicalEventName,
-        leadIdentityKey: created.leadIdentityKey,
-        workflowStatus: created.workflowStatus,
-        workflowStatusLabel:
-          asText(created.workflowStatusLabel) ||
-          workflowStatusLabelLookup.get(created.workflowStatus) ||
-          humanizeStatusLabel(created.workflowStatus),
-        hostIcpRunId: created.hostIcpRunId,
-        isManualLead: Boolean(created.isManualLead),
-        manualLeadAddedByUserId: created.manualLeadAddedByUserId,
-        manualLeadAddedByUsername: created.manualLeadAddedByUsername,
-        manualLeadAddedAt: created.manualLeadAddedAt,
-        approvalStatus: "pending",
-      };
-
-      setAllLeads((prev) => [nextLead, ...prev]);
-      setEvents((prev) =>
-        prev.map((item) =>
-          item.canonicalEventKey === created.canonicalEventKey
-            ? { ...item, leadCount: Number(item.leadCount || 0) + 1 }
-            : item
-        )
-      );
       closeAddLeadDialog(true);
       toast.success("Lead added", {
         description: `${created.employeeName} is now part of ${created.canonicalEventName}.`,
       });
+      await loadEventPage(selectedEvent.canonicalEventKey, pageOffset, searchQuery);
     } catch (error: unknown) {
       toast.error("Failed to add lead", {
         description: getErrorMessage(error),
@@ -611,9 +579,14 @@ export function NormalUserEventLeadSheet() {
               <Button
                 variant="outline"
                 className="h-9 border-zinc-200/80 bg-white/85 px-3.5 text-xs font-semibold text-zinc-700 hover:bg-white"
-                onClick={() => void loadData()}
+                onClick={() => void refreshData()}
+                disabled={loadingEvents || loadingLeads}
               >
-                <RefreshCcw className="mr-1.5 h-3.5 w-3.5" />
+                {loadingEvents || loadingLeads ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCcw className="mr-1.5 h-3.5 w-3.5" />
+                )}
                 Refresh
               </Button>
             </div>
@@ -653,8 +626,8 @@ export function NormalUserEventLeadSheet() {
                 Search Leads
               </label>
               <Input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Name, company, email, phone, status"
                 className="h-10 border-zinc-200/80 bg-white/85 pl-9 text-sm"
               />
@@ -673,6 +646,9 @@ export function NormalUserEventLeadSheet() {
                 <Badge className="rounded-full border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-600 shadow-none">
                   {selectedEvent.campaignCount} campaign runs
                 </Badge>
+                <Badge className="rounded-full border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-600 shadow-none">
+                  {pageTotal} matching leads
+                </Badge>
               </div>
             </div>
           ) : null}
@@ -680,174 +656,149 @@ export function NormalUserEventLeadSheet() {
 
         <div className="mt-5 min-h-0 flex-1 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/32 backdrop-blur-[8px]">
           <div className="min-h-0 h-full overflow-auto px-4 py-3">
-            {loading ? (
+            {isLoading ? (
               <div className="px-5 py-10 text-sm text-zinc-500">Loading lead sheet...</div>
             ) : !selectedEvent ? (
               <div className="px-5 py-10 text-sm text-zinc-500">No events available for this pipeline.</div>
-            ) : filteredLeads.length === 0 ? (
+            ) : eventLeads.length === 0 ? (
               <div className="px-5 py-10 text-sm text-zinc-500">
-                {searchQuery.trim() ? "No leads match the current search." : "No leads found for this event."}
+                {searchQuery ? "No leads match the current search." : "No leads found for this event."}
               </div>
             ) : (
-              <table className="min-w-[980px] w-full">
-                <thead className="border-b border-zinc-100/85 bg-white/70">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                      Profile
-                    </th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                      Contact Info
-                    </th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
+              <div className="space-y-4">
+                <table className="min-w-[980px] w-full">
+                  <thead className="border-b border-zinc-100/85 bg-white/70">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                        Profile
+                      </th>
+                      <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                        Contact Info
+                      </th>
+                      <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
 
-                <tbody className="divide-y divide-zinc-100/70">
-                  {filteredLeads.map((item) => {
-                    const updateKey = `${item.canonicalEventKey}::${item.leadIdentityKey}`;
-                    const isUpdating = Boolean(updatingKeys[updateKey]);
+                  <tbody className="divide-y divide-zinc-100/70">
+                    {eventLeads.map((item) => {
+                      const updateKey = `${item.canonicalEventKey}::${item.leadIdentityKey}`;
+                      const isUpdating = Boolean(updatingKeys[updateKey]);
+                      const selectedStatusValue = FIXED_WORKFLOW_STATUS_KEYS.has(item.workflowStatus)
+                        ? item.workflowStatus
+                        : undefined;
 
-                    return (
-                      <tr key={updateKey} className="transition-colors hover:bg-white/46">
-                        <td className="px-4 py-4 align-top">
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="text-sm font-semibold text-zinc-900">
-                                {item.employeeName || "-"}
+                      return (
+                        <tr key={updateKey} className="transition-colors hover:bg-white/46">
+                          <td className="px-4 py-4 align-top">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-semibold text-zinc-900">
+                                  {item.employeeName || "-"}
+                                </p>
+                                {item.isManualLead ? (
+                                  <Badge className="rounded-full border border-zinc-200/80 bg-zinc-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 shadow-none">
+                                    Manual Lead
+                                  </Badge>
+                                ) : null}
+                              </div>
+                              <p className="mt-1 text-sm text-zinc-600">{item.title || "-"}</p>
+                              <p className="mt-1 text-xs font-medium uppercase tracking-wide text-zinc-400">
+                                {item.company || "-"}
                               </p>
-                              {item.isManualLead ? (
-                                <Badge className="rounded-full border border-zinc-200/80 bg-zinc-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 shadow-none">
-                                  Manual Lead
-                                </Badge>
-                              ) : null}
                             </div>
-                            <p className="mt-1 text-sm text-zinc-600">{item.title || "-"}</p>
-                            <p className="mt-1 text-xs font-medium uppercase tracking-wide text-zinc-400">
-                              {item.company || "-"}
-                            </p>
-                          </div>
-                        </td>
+                          </td>
 
-                        <td className="px-4 py-4 align-top">
-                          <div className="space-y-1.5 text-sm text-zinc-700">
-                            <p>{item.email || "-"}</p>
-                            <p>{item.phone || "-"}</p>
-                            <div className="flex flex-wrap gap-3 pt-1">
-                              {item.linkedinUrl ? (
-                                <a
-                                  href={item.linkedinUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-800"
-                                >
-                                  LinkedIn
-                                  <ExternalLink className="h-3 w-3" />
-                                </a>
-                              ) : null}
-                              {item.companyUrl ? (
-                                <a
-                                  href={item.companyUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-800"
-                                >
-                                  Website
-                                  <ExternalLink className="h-3 w-3" />
-                                </a>
-                              ) : null}
+                          <td className="px-4 py-4 align-top">
+                            <div className="space-y-1.5 text-sm text-zinc-700">
+                              <p>{item.email || "-"}</p>
+                              <p>{item.phone || "-"}</p>
+                              <div className="flex flex-wrap gap-3 pt-1">
+                                {item.linkedinUrl ? (
+                                  <a
+                                    href={item.linkedinUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-800"
+                                  >
+                                    LinkedIn
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                ) : null}
+                                {item.companyUrl ? (
+                                  <a
+                                    href={item.companyUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-800"
+                                  >
+                                    Website
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                ) : null}
+                              </div>
                             </div>
-                          </div>
-                        </td>
+                          </td>
 
-                        <td className="px-4 py-4 align-top">
-                          <div className="flex max-w-[12rem] items-center gap-2">
-                            <Select
-                              value={item.workflowStatus}
-                              onValueChange={(value) => handleStatusSelection(item, value)}
-                              disabled={isUpdating}
-                            >
-                              <SelectTrigger className="h-9 w-full border-zinc-200/80 bg-white/85 text-sm">
-                                <SelectValue placeholder={item.workflowStatusLabel} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {statusOptions.map((option) => (
-                                  <SelectItem key={option.statusKey} value={option.statusKey}>
-                                    {option.label}
-                                  </SelectItem>
-                                ))}
-                                <SelectItem value={CREATE_STATUS_SENTINEL}>
-                                  <span className="inline-flex items-center gap-2">
-                                    <Plus className="h-3.5 w-3.5" />
-                                    Add custom status
-                                  </span>
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                            {isUpdating ? <Loader2 className="h-4 w-4 animate-spin text-zinc-400" /> : null}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          <td className="px-4 py-4 align-top">
+                            <div className="flex max-w-[12rem] items-center gap-2">
+                              <Select
+                                value={selectedStatusValue}
+                                onValueChange={(value) => handleStatusSelection(item, value)}
+                                disabled={isUpdating}
+                              >
+                                <SelectTrigger className="h-9 w-full border-zinc-200/80 bg-white/85 text-sm">
+                                  <SelectValue placeholder={item.workflowStatusLabel} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {statusOptions.map((option) => (
+                                    <SelectItem key={option.statusKey} value={option.statusKey}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {isUpdating ? <Loader2 className="h-4 w-4 animate-spin text-zinc-400" /> : null}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+
+                <div className="flex flex-col gap-3 border-t border-zinc-100/80 px-1 pt-3 text-sm text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
+                  <p>
+                    Showing {pageRangeStart}-{pageRangeEnd} of {pageTotal} leads
+                    {searchQuery ? " for this search" : ""}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9 border-zinc-200/80 bg-white/85 px-3 text-xs font-semibold text-zinc-700 hover:bg-white"
+                      onClick={() => setPageOffset((prev) => Math.max(0, prev - PAGE_SIZE))}
+                      disabled={pageOffset === 0 || loadingLeads}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9 border-zinc-200/80 bg-white/85 px-3 text-xs font-semibold text-zinc-700 hover:bg-white"
+                      onClick={() => setPageOffset((prev) => prev + PAGE_SIZE)}
+                      disabled={!hasMore || loadingLeads}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>
       </div>
-
-      <LeadSheetDialog
-        open={createStatusOpen}
-        title="Create Custom Status"
-        description="This status will belong only to your account in the current pipeline."
-        onClose={closeCreateStatusDialog}
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-              Status Label
-            </label>
-            <Input
-              value={statusDraftLabel}
-              onChange={(event) => setStatusDraftLabel(event.target.value)}
-              placeholder="For example: Follow Up"
-              className="h-10 border-zinc-200/80 bg-white/90"
-            />
-          </div>
-
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-9 rounded-md border border-zinc-200/80 bg-white/90 px-3 text-xs font-semibold text-zinc-700 hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
-              onClick={() => closeCreateStatusDialog()}
-              disabled={creatingStatus}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              className="h-9 rounded-md border border-zinc-200/80 bg-white/82 px-3.5 text-xs font-semibold text-zinc-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
-              onClick={() => void submitCreateStatus()}
-              disabled={creatingStatus}
-            >
-              {creatingStatus ? (
-                <>
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  Create Status
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      </LeadSheetDialog>
 
       <LeadSheetDialog
         open={addLeadOpen}

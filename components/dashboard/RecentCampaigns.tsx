@@ -7,8 +7,7 @@ import { LayoutTemplate, ChevronRight, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
-  listCampaigns,
-  type CampaignListItem,
+  getRecentCampaigns,
   type RecentCampaign,
 } from "@/lib/apiRouter";
 import { toast } from "sonner";
@@ -62,48 +61,15 @@ export function RecentCampaigns() {
   const [campaigns, setCampaigns] = useState<RecentCampaign[]>([]);
   const [loading, setLoading] = useState(true);
   const { persona } = usePersona();
-
-  const asRecentCampaign = (campaign: CampaignListItem): RecentCampaign => ({
-    id: campaign.id,
-    name: campaign.name,
-    leadsCount: campaign.totalLeads,
-    status: campaign.status,
-    campaignType: campaign.campaignType,
-    manualUpload: campaign.manualUpload,
-    campaignSource: campaign.campaignSource,
-  });
-
-  const toTime = (value: string) => {
-    const timestamp = new Date(value).getTime();
-    return Number.isNaN(timestamp) ? 0 : timestamp;
-  };
+  const RECENT_CAMPAIGN_LIMIT = 20;
 
   useEffect(() => {
     let alive = true;
 
     (async () => {
       try {
-        const batchSize = 50;
-        const allCampaigns: CampaignListItem[] = [];
-        let offset = 0;
-        let hasMore = true;
-
-        while (hasMore) {
-          const res = await listCampaigns({ status: "all", limit: batchSize, offset });
-          const rows = res.campaigns || [];
-
-          allCampaigns.push(...rows);
-          hasMore = Boolean(res.hasMore) && rows.length > 0;
-          offset += batchSize;
-
-          // Safety guard in case backend keeps hasMore true unexpectedly.
-          if (offset >= 2000) break;
-        }
-
-        const mapped = allCampaigns
-          .slice()
-          .sort((a, b) => toTime(b.createdAt) - toTime(a.createdAt))
-          .map(asRecentCampaign);
+        const response = await getRecentCampaigns(RECENT_CAMPAIGN_LIMIT);
+        const mapped = Array.isArray(response.campaigns) ? response.campaigns : [];
 
         if (!alive) return;
         setCampaigns(mapped);

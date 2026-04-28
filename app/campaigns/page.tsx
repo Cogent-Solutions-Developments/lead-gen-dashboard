@@ -84,6 +84,8 @@ const filterOnlyStatuses = [
   "cancelled",
 ] as const;
 
+const CAMPAIGN_LIST_POLL_MS = 30000;
+
 function statusUI(status: string) {
   return statusConfig[status] || {
     label: status.replaceAll("_", " "),
@@ -246,7 +248,14 @@ function SuperAdminCampaignsPage() {
   const filterPanelRef = useRef<HTMLDivElement | null>(null);
   const listViewportRef = useRef<HTMLDivElement | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = async (options?: { silent?: boolean; showErrors?: boolean }) => {
+    const silent = Boolean(options?.silent);
+    const showErrors = options?.showErrors !== false;
+
+    if (!silent) {
+      setLoading(true);
+    }
+
     try {
       const batchSize = 100;
       let offset = 0;
@@ -273,9 +282,13 @@ function SuperAdminCampaignsPage() {
 
       setItems(uniqueById);
     } catch (err: unknown) {
-      toast.error("Failed to load campaigns", { description: getErrorMessage(err) });
+      if (showErrors) {
+        toast.error("Failed to load campaigns", { description: getErrorMessage(err) });
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -288,12 +301,20 @@ function SuperAdminCampaignsPage() {
 
     const t = setInterval(() => {
       if (!alive) return;
-      fetchData();
-    }, 5000);
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      void fetchData({ silent: true, showErrors: false });
+    }, CAMPAIGN_LIST_POLL_MS);
+
+    const handleVisibilityChange = () => {
+      if (!alive || document.visibilityState !== "visible") return;
+      void fetchData({ silent: true, showErrors: false });
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       alive = false;
       clearInterval(t);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [persona]);
 

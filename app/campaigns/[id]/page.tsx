@@ -1168,6 +1168,11 @@ function SuperAdminCampaignDetailPage() {
 
     const t = setInterval(async () => {
       tries++;
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+        if (tries >= maxTries) clearInterval(t);
+        return;
+      }
+
       try {
         const res = await api.get(`/api/campaigns/${campaignId}/leads`, { params: { status: "all" } });
         const latest = (res.data.leads || []).find((x: any) => x.id === leadId);

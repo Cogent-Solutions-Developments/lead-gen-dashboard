@@ -31,6 +31,9 @@ const waUiDebugEnabled =
   process.env.NEXT_PUBLIC_WA_DEBUG === "1" ||
   (process.env.NEXT_PUBLIC_WA_DEBUG || "").toLowerCase() === "true";
 
+const UNREAD_POLL_MS = 10000;
+const NOTIFICATIONS_POLL_MS = 10000;
+
 function waUiLog(event: string, payload?: unknown) {
   if (!waUiDebugEnabled) return;
   if (typeof payload === "undefined") {
@@ -131,6 +134,10 @@ export default function RepliesPage() {
   const beginUnreadPolling = useCallback((personId: string) => {
     waUiLog("beginUnreadPolling", { personId });
     const poll = async () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+        return;
+      }
+
       try {
         const data = await fetchUnreadCount(personId);
         waUiLog("unreadPolling.tick.success", { personId, unreadCount: data.unreadCount });
@@ -144,7 +151,7 @@ export default function RepliesPage() {
     void poll();
     unreadTimerRef.current = setInterval(() => {
       void poll();
-    }, 5000);
+    }, UNREAD_POLL_MS);
   }, []);
 
   const openConversation = useCallback(
@@ -284,6 +291,10 @@ export default function RepliesPage() {
     let cancelled = false;
 
     const load = async () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+        return;
+      }
+
       try {
         waUiLog("notifications.load.request");
         const data = await fetchWhatsAppNotifications({ limit: 50, unreadOnly: false });
@@ -299,11 +310,19 @@ export default function RepliesPage() {
     void load();
     timer = setInterval(() => {
       void load();
-    }, 5000);
+    }, NOTIFICATIONS_POLL_MS);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void load();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       cancelled = true;
       if (timer) clearInterval(timer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
