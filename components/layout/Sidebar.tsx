@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
+  Brain,
   LayoutDashboard, 
   Rocket, 
   Webhook, 
@@ -23,6 +24,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 const navItems = [
+  { name: "NizoAI", href: "/nizo-ai", icon: Brain, salesOnly: true },
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Campaigns", normalLabel: "Events", href: "/campaigns", icon: Rocket },
   { name: "New Campaign", href: "/campaigns/new", icon: Plus, superOnly: true },
@@ -118,7 +120,9 @@ export function Sidebar() {
 
       {/* 2. Navigation Items (Scrollable if needed) */}
       <nav className="flex-1  space-y-2 overflow-y-auto pr-1">
-        {navItems.filter((item) => isSuperAdmin || !item.superOnly).map((item, index) => {
+        {navItems
+          .filter((item) => (isSuperAdmin || !item.superOnly) && (!item.salesOnly || persona === "sales"))
+          .map((item, index) => {
           const isActive = pathname === item.href;
           return (
             <motion.div
