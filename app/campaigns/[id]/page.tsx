@@ -188,16 +188,6 @@ const EXPORT_HEADER_LABELS: Record<keyof LeadExportRow, string> = {
   linkedinUrl: "LinkedIn URL",
   companyUrl: "Company URL",
 };
-const GENERATED_DRAFT_STATUSES = new Set([
-  "content_generated",
-  "needs_review",
-  "approved",
-  "rejected",
-  "sent",
-  "sending",
-  "queued",
-]);
-
 const normalizeApprovalStatus = (s: unknown): ApprovalStatus => {
   if (s === "content_generated" || s === "needs_review") return "pending";
   return s === "approved" || s === "rejected" || s === "suppressed" || s === "pending" ? s : "pending";
@@ -372,19 +362,6 @@ function normalizeTitleBucket(titleRaw: string): string {
 
   if (!t.trim()) return "Unknown";
   return "Other";
-}
-
-function hasGeneratedContent(lead: Lead): boolean {
-  const draftStatus = String(lead.draftStatus || "").toLowerCase();
-
-  if (GENERATED_DRAFT_STATUSES.has(draftStatus)) return true;
-
-  return Boolean(
-    String(lead.contentEmailSubject || "").trim() ||
-      String(lead.contentEmail || "").trim() ||
-      String(lead.contentLinkedin || "").trim() ||
-      String(lead.contentWhatsapp || "").trim()
-  );
 }
 
 // -----------------------------
@@ -726,6 +703,7 @@ function SuperAdminCampaignDetailPage() {
   const [disableTargetLead, setDisableTargetLead] = useState<Lead | null>(null);
   const [disableReason, setDisableReason] = useState("");
   const [isDisablingWhatsapp, setIsDisablingWhatsapp] = useState(false);
+  const leadOrderRef = useRef<Map<string, number>>(new Map());
 
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [editForm, setEditForm] = useState<Partial<Lead>>({});
@@ -928,6 +906,19 @@ function SuperAdminCampaignDetailPage() {
     return null;
   }
 
+  const stabilizeLeadOrder = (items: Lead[]) => {
+    const order = leadOrderRef.current;
+    for (const item of items) {
+      if (!order.has(item.id)) order.set(item.id, order.size);
+    }
+
+    return [...items].sort((a, b) => {
+      const aOrder = order.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+      const bOrder = order.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+      return aOrder - bOrder;
+    });
+  };
+
   const filteredLeads = useMemo(() => {
     const statusFiltered = canManageLeadActions
       ? leadFilter === "new"
@@ -938,9 +929,6 @@ function SuperAdminCampaignDetailPage() {
               ? leads.filter((l) => l.approvalStatus === "rejected")
               : leads.filter((l) => l.approvalStatus === "suppressed")
       : leads;
-    const prioritized = [...statusFiltered].sort(
-      (a, b) => Number(hasGeneratedContent(b)) - Number(hasGeneratedContent(a))
-    );
 
     const asText = (value: unknown) => String(value ?? "").toLowerCase();
     const query = tableSearch.trim().toLowerCase();
@@ -948,7 +936,7 @@ function SuperAdminCampaignDetailPage() {
     const domainQuery = domainFilter.trim().toLowerCase();
     const phoneQuery = phoneFilter.trim().toLowerCase().replaceAll(" ", "");
 
-    return prioritized.filter((lead) => {
+    return statusFiltered.filter((lead) => {
       const leadTitle = asText(lead.title);
       const titleBucket = normalizeTitleBucket(leadTitle).toLowerCase();
 
@@ -1134,7 +1122,7 @@ function SuperAdminCampaignDetailPage() {
         whatsappOptOutPhoneE164: x.whatsappOptOutPhoneE164 ?? x.optOutPhoneE164 ?? null,
       }));
 
-      setLeads(mapped);
+      setLeads(stabilizeLeadOrder(mapped));
       applyLatestCommonAttachment(commonRes?.data ?? null);
       setOptOutItems(Array.isArray(optOutRes?.items) ? optOutRes.items : []);
     } catch (e: any) {
@@ -1434,7 +1422,8 @@ function SuperAdminCampaignDetailPage() {
 
   useEffect(() => {
     if (!campaignId) return;
-    fetchAll();
+    leadOrderRef.current = new Map();
+    void fetchAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaignId, persona]);
 
