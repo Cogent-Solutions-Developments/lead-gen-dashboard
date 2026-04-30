@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowUp,
@@ -14,9 +14,15 @@ import {
   UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   listEventLeads,
   listEvents,
@@ -27,8 +33,11 @@ import {
 } from "@/lib/api";
 import {
   parseNizoSearch,
+  findSimilarNizoLeads,
   searchNizoEvents,
   searchNizoLeads,
+  sortNizoScoredLeads,
+  type NizoSortMode,
   type NizoParsedSearch,
   type NizoScoredEvent,
   type NizoScoredLead,
@@ -41,6 +50,14 @@ const SCOPED_PROBE_LIMIT = 200;
 const SCOPED_PROBE_MAX_ROWS = 1000;
 const EVENT_KEY_SEARCH_LIMIT = 200;
 const EVENT_KEY_SEARCH_MAX_ROWS = 1500;
+const SEARCH_HISTORY_KEY = "nizo-ai-search-history";
+
+const sortLabels: Record<NizoSortMode, string> = {
+  best_match: "Best match",
+  easiest: "Easiest to reach",
+  seniority: "Seniority",
+  freshest: "Not contacted",
+};
 
 function text(value: unknown) {
   return String(value || "").trim();
@@ -164,40 +181,6 @@ function fallbackEventKeysByLocation(parsedSearch: NizoParsedSearch) {
   return uniqueValues(parsedSearch.intent.locations.flatMap((location) => map[location] || []));
 }
 
-function IntentChips({ parsed }: { parsed: NizoParsedSearch | null }) {
-  if (!parsed) return null;
-
-  const chips = [
-    ...parsed.intent.titles.map((value) => ({ label: value, tone: "blue" })),
-    ...parsed.intent.locations.map((value) => ({ label: value, tone: "green" })),
-    ...parsed.intent.industries.map((value) => ({ label: value, tone: "amber" })),
-    ...parsed.intent.companies.map((value) => ({ label: value, tone: "violet" })),
-  ];
-
-  if (!chips.length && !parsed.corrections.length) return null;
-
-  return (
-    <div className="mx-auto mt-4 flex max-w-3xl flex-wrap justify-center gap-2">
-      {parsed.corrections.map((correction) => (
-        <Badge
-          key={`${correction.type}-${correction.from}-${correction.to}`}
-          className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 shadow-none"
-        >
-          {correction.from} {"->"} {correction.to}
-        </Badge>
-      ))}
-      {chips.slice(0, 8).map((chip) => (
-        <Badge
-          key={`${chip.tone}-${chip.label}`}
-          className="rounded-full border border-white/70 bg-white/75 px-2.5 py-1 text-[11px] font-semibold text-zinc-600 shadow-none"
-        >
-          {chip.label}
-        </Badge>
-      ))}
-    </div>
-  );
-}
-
 export default function NizoAiPage() {
   const { persona, setPersona } = usePersona();
   const { isSuperAdmin } = useAuth();
@@ -207,10 +190,33 @@ export default function NizoAiPage() {
   const [candidateCount, setCandidateCount] = useState(0);
   const [results, setResults] = useState<NizoScoredLead[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [parsed, setParsed] = useState<NizoParsedSearch | null>(null);
+  const [sortMode, setSortMode] = useState<NizoSortMode>("best_match");
+  const [selectedLeadId, setSelectedLeadId] = useState("");
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [searchNote, setSearchNote] = useState("");
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(SEARCH_HISTORY_KEY);
+      if (saved) setRecentSearches(JSON.parse(saved).filter((item: unknown) => typeof item === "string").slice(0, 6));
+    } catch {
+      setRecentSearches([]);
+    }
+  }, []);
+
+  const rememberSearch = useCallback((value: string) => {
+    setRecentSearches((current) => {
+      const next = uniqueValues([value, ...current]).slice(0, 6);
+      try {
+        window.localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(next));
+      } catch {
+        // Search history is optional; ranking should not depend on storage availability.
+      }
+      return next;
+    });
+  }, []);
 
   const loadSalesEvents = useCallback(async () => {
     if (eventsCache.length) return eventsCache;
@@ -361,12 +367,13 @@ export default function NizoAiPage() {
       }
 
       setQuery(value);
-      setParsed(parsedSearch);
       setEventLeadCount(scopedEventLeadCount);
       setCandidateCount(rows.length);
       setResults(matches);
       setCurrentPage(1);
+      setSelectedLeadId(matches[0]?.lead.id || "");
       setSearched(true);
+      rememberSearch(value);
     } catch (error) {
       toast.error("Search failed", {
         description: error instanceof Error ? error.message : "Could not load sales leads.",
@@ -381,15 +388,19 @@ export default function NizoAiPage() {
     if (results.length === 0) return "No matching leads";
     return `${results.length} matching lead${results.length === 1 ? "" : "s"}`;
   }, [results.length, searched]);
+  const sortedResults = useMemo(
+    () => sortNizoScoredLeads(results, sortMode),
+    [results, sortMode]
+  );
   const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(results.length / RESULTS_PER_PAGE)),
-    [results.length]
+    () => Math.max(1, Math.ceil(sortedResults.length / RESULTS_PER_PAGE)),
+    [sortedResults.length]
   );
   const paginatedResults = useMemo(() => {
     const safePage = Math.min(currentPage, totalPages);
     const start = (safePage - 1) * RESULTS_PER_PAGE;
-    return results.slice(start, start + RESULTS_PER_PAGE);
-  }, [currentPage, results, totalPages]);
+    return sortedResults.slice(start, start + RESULTS_PER_PAGE);
+  }, [currentPage, sortedResults, totalPages]);
   const visiblePageNumbers = useMemo(() => {
     const windowSize = 5;
     let start = Math.max(1, currentPage - Math.floor(windowSize / 2));
@@ -397,16 +408,24 @@ export default function NizoAiPage() {
     start = Math.max(1, end - windowSize + 1);
     return Array.from({ length: end - start + 1 }, (_, index) => start + index);
   }, [currentPage, totalPages]);
-  const showingFrom = results.length === 0 ? 0 : (Math.min(currentPage, totalPages) - 1) * RESULTS_PER_PAGE + 1;
-  const showingTo = results.length === 0 ? 0 : Math.min(showingFrom + paginatedResults.length - 1, results.length);
+  const showingFrom = sortedResults.length === 0 ? 0 : (Math.min(currentPage, totalPages) - 1) * RESULTS_PER_PAGE + 1;
+  const showingTo = sortedResults.length === 0 ? 0 : Math.min(showingFrom + paginatedResults.length - 1, sortedResults.length);
+  const selectedLead = useMemo(
+    () => sortedResults.find((entry) => entry.lead.id === selectedLeadId) || sortedResults[0] || null,
+    [selectedLeadId, sortedResults]
+  );
+  const similarLeads = useMemo(
+    () => (selectedLead ? findSimilarNizoLeads(selectedLead, sortedResults, 4) : []),
+    [selectedLead, sortedResults]
+  );
   const resultMeta = useMemo(() => {
     if (!searched) return "";
     const parts = [];
     if (eventLeadCount) parts.push(`${eventLeadCount} event leads`);
     if (candidateCount) parts.push(`${candidateCount} candidates ranked`);
-    if (results.length) parts.push(`showing ${showingFrom}-${showingTo} of ${results.length}`);
+    if (sortedResults.length) parts.push(`showing ${showingFrom}-${showingTo} of ${sortedResults.length}`);
     return parts.join(" • ");
-  }, [candidateCount, eventLeadCount, results.length, searched, showingFrom, showingTo]);
+  }, [candidateCount, eventLeadCount, sortedResults.length, searched, showingFrom, showingTo]);
 
   if (persona !== "sales") {
     return (
@@ -477,14 +496,50 @@ export default function NizoAiPage() {
           </div>
         </div>
 
-        <IntentChips parsed={parsed} />
+        {recentSearches.length ? (
+          <div className="mt-4 flex max-w-3xl flex-wrap justify-center gap-2">
+            {recentSearches.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => void runSearch(item)}
+                className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-500 hover:border-zinc-300 hover:text-zinc-900"
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       {searched ? (
         <div className="mx-auto mt-3 w-full max-w-7xl">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold tracking-tight text-zinc-950">{resultTitle}</h2>
-            <span className="text-xs font-medium text-zinc-500">{resultMeta}</span>
+          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight text-zinc-950">{resultTitle}</h2>
+              <span className="text-xs font-medium text-zinc-500">{resultMeta}</span>
+            </div>
+
+            {results.length ? (
+              <Select
+                value={sortMode}
+                onValueChange={(value) => {
+                  setSortMode(value as NizoSortMode);
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="h-9 w-full border-zinc-200 bg-white text-xs font-semibold shadow-none sm:w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  {(Object.keys(sortLabels) as NizoSortMode[]).map((mode) => (
+                    <SelectItem key={mode} value={mode}>
+                      {sortLabels[mode]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
           </div>
           {searchNote ? (
             <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -497,6 +552,69 @@ export default function NizoAiPage() {
               No matches. Try fewer words or a broader title.
             </Card>
           ) : (
+            <>
+            {selectedLead ? (
+              <div className="mb-3 grid gap-3 lg:grid-cols-[1.4fr_1fr]">
+                <Card className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-950">{text(selectedLead.lead.employeeName) || "Selected lead"}</p>
+                      <p className="mt-1 text-sm text-zinc-600">{text(selectedLead.lead.title) || "No title"}</p>
+                      <p className="mt-1 text-xs text-zinc-500">{text(selectedLead.lead.company) || "No company"}</p>
+                    </div>
+                    <div className="min-w-32">
+                      <div className="flex items-center justify-between text-xs font-semibold text-zinc-600">
+                        <span>Relevance</span>
+                        <span>{selectedLead.score}/{selectedLead.maxScore}</span>
+                      </div>
+                      <div className="mt-2 h-2 rounded-full bg-zinc-100">
+                        <div
+                          className="h-2 rounded-full bg-zinc-900"
+                          style={{ width: `${Math.min(100, selectedLead.relevance)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    {selectedLead.breakdown.slice(0, 6).map((item) => (
+                      <div key={`${item.label}-${item.detail}`} className="rounded-lg border border-zinc-100 bg-zinc-50/70 px-3 py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold text-zinc-800">{item.label}</span>
+                          <span className="text-xs font-semibold text-zinc-500">+{item.points}</span>
+                        </div>
+                        <p className="mt-1 truncate text-xs text-zinc-500">{item.detail}</p>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+
+                <Card className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                  <p className="text-sm font-semibold text-zinc-950">Similar leads</p>
+                  <div className="mt-3 space-y-2">
+                    {similarLeads.length ? similarLeads.map(({ entry, similarity }) => (
+                      <button
+                        key={entry.lead.id}
+                        type="button"
+                        onClick={() => setSelectedLeadId(entry.lead.id)}
+                        className="block w-full rounded-lg border border-zinc-100 px-3 py-2 text-left hover:border-zinc-200 hover:bg-zinc-50"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-semibold text-zinc-900">{text(entry.lead.employeeName) || "Unnamed lead"}</p>
+                            <p className="mt-0.5 truncate text-xs text-zinc-500">{text(entry.lead.title) || "No title"}</p>
+                          </div>
+                          <span className="shrink-0 text-[11px] font-semibold text-zinc-400">{similarity}</span>
+                        </div>
+                      </button>
+                    )) : (
+                      <p className="text-xs text-zinc-500">No similar leads in this result set.</p>
+                    )}
+                  </div>
+                </Card>
+              </div>
+            ) : null}
+
             <Card className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
               <div className="w-full">
                 <table className="w-full table-fixed">
@@ -511,7 +629,13 @@ export default function NizoAiPage() {
 
                   <tbody className="divide-y divide-zinc-100">
                     {paginatedResults.map(({ lead }) => (
-                      <tr key={lead.id} className="align-top transition-colors hover:bg-zinc-50/70">
+                      <tr
+                        key={lead.id}
+                        className={`cursor-pointer align-top transition-colors hover:bg-zinc-50/70 ${
+                          selectedLead?.lead.id === lead.id ? "bg-zinc-50" : ""
+                        }`}
+                        onClick={() => setSelectedLeadId(lead.id)}
+                      >
                         <td className="px-4 py-4">
                           <div className="pr-4">
                             <p className="text-sm font-semibold text-zinc-950">{text(lead.employeeName) || "Unnamed lead"}</p>
@@ -620,6 +744,7 @@ export default function NizoAiPage() {
                 </div>
               </div>
             </Card>
+            </>
           )}
         </div>
       ) : null}
