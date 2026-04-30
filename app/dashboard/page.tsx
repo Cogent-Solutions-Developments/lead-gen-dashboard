@@ -11,6 +11,7 @@ import { RecentCampaigns } from "@/components/dashboard/RecentCampaigns";
 import { RecentEvents } from "@/components/dashboard/RecentEvents";
 import { LeadsBreakdown } from "@/components/dashboard/LeadsBreakdown";
 import { RepliesOverviewCard } from "@/components/dashboard/RepliesOverviewCard";
+import { DashboardSearch } from "@/components/dashboard/DashboardSearch";
 import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
 import { getCachedAuthUserDisplayName } from "@/lib/auth";
@@ -54,17 +55,21 @@ function TodayBadge() {
     : "...";
 
   return (
-    <div className="inline-flex h-11 max-w-full items-center gap-2.5 rounded-full border border-white/85 bg-[linear-gradient(135deg,rgba(255,255,255,0.96)_0%,rgba(248,251,255,0.88)_52%,rgba(239,246,255,0.82)_100%)] px-2.5 pr-3 text-sm font-semibold text-zinc-800 shadow-[0_18px_34px_-28px_rgba(15,23,42,0.72),0_3px_8px_-7px_rgba(37,99,235,0.48),inset_0_1px_0_rgba(255,255,255,1),inset_0_-1px_0_rgba(214,226,244,0.68)] backdrop-blur-[14px]">
+    <div className="inline-flex h-12 max-w-full items-center gap-2.5 rounded-full border border-white/85 bg-[linear-gradient(135deg,rgba(255,255,255,0.96)_0%,rgba(248,251,255,0.9)_52%,rgba(239,246,255,0.84)_100%)] px-2 text-sm font-semibold text-zinc-800 shadow-[0_18px_34px_-28px_rgba(15,23,42,0.72),0_3px_8px_-7px_rgba(37,99,235,0.48),inset_0_1px_0_rgba(255,255,255,1),inset_0_-1px_0_rgba(214,226,244,0.68)] backdrop-blur-[14px]">
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200/90 bg-white text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,1),0_6px_14px_-12px_rgba(15,23,42,0.8)]">
         <CalendarLineIcon className="h-4.5 w-4.5" />
       </span>
-      <span className="flex min-w-0 flex-col leading-none">
-        <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400">Today</span>
-        <span className="mt-1 truncate text-[13px] font-semibold text-slate-800">{date}</span>
+      <span className="flex min-w-[4.7rem] flex-col justify-center leading-none">
+        <span className="block text-[10px] font-semibold leading-[0.9rem] tracking-0 text-slate-400">
+          Today
+        </span>
+        <span className="block truncate text-[13px] font-semibold leading-[1.05rem] text-slate-800">
+          {date}
+        </span>
       </span>
-      <span className="ml-0.5 flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,#60a5fa_0%,#2563eb_52%,#174fc7_100%)] px-2.5 text-[11px] font-semibold text-white shadow-[0_8px_16px_-13px_rgba(37,99,235,0.72),inset_0_1px_0_rgba(255,255,255,0.24)]">
-        <Clock3 className="h-3 w-3 text-white/82" />
-        {time}
+      <span className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,#60a5fa_0%,#2563eb_52%,#174fc7_100%)] px-2.5 text-[11px] font-semibold leading-none text-white shadow-[0_8px_16px_-13px_rgba(37,99,235,0.72),inset_0_1px_0_rgba(255,255,255,0.24)]">
+        <Clock3 className="h-3.5 w-3.5 text-white/82" />
+        <span className="translate-y-px">{time}</span>
       </span>
     </div>
   );
@@ -109,13 +114,19 @@ export default function DashboardPage() {
         className="mb-5 flex shrink-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
       >
         <div>
-          <p className="text-lg font-normal text-zinc-900">Hi {displayName}!</p>
-          <h1 className="mt-0 text-2xl font-semibold tracking-tight text-zinc-900">
+          <p className="text-lg font-light text-zinc-900">Hi {displayName}!</p>
+          <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-zinc-900">
            Welcome to supernizo for {personaText}
           </h1>
         </div>
         
         <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
+          {isSalesDashboard ? (
+            <div className="w-full max-w-[28rem] sm:w-[24rem] xl:w-[28rem]">
+              <DashboardSearch />
+            </div>
+          ) : null}
+
           <TodayBadge />
 
           {isSuperAdmin ? (

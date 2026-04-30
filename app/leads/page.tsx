@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -526,6 +527,10 @@ function mapLeadItemToAdminLead(item: LeadItem): Lead {
 
 function SuperAdminTotalLeads() {
   const { persona } = usePersona();
+  const searchParams = useSearchParams();
+  const targetLeadId = searchParams.get("lead") || "";
+  const initialSearch = searchParams.get("search") || "";
+  const initialEventFilter = searchParams.get("event") || "all";
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -533,9 +538,9 @@ function SuperAdminTotalLeads() {
   const [totalLeads, setTotalLeads] = useState(0);
   const [events, setEvents] = useState<EventSummaryItem[]>([]);
 
-  const [q, setQ] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [eventFilter, setEventFilter] = useState<string>("all");
+  const [q, setQ] = useState(initialSearch);
+  const [debouncedQuery, setDebouncedQuery] = useState(initialSearch);
+  const [eventFilter, setEventFilter] = useState<string>(initialEventFilter);
   const [positionFilter, setPositionFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<SortBy>("relevance");
 
@@ -552,7 +557,7 @@ function SuperAdminTotalLeads() {
   const [hasWebsiteFilter, setHasWebsiteFilter] = useState<PresenceFilter>("all");
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState<number>(15);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(targetLeadId ? 100 : 15);
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -563,6 +568,8 @@ function SuperAdminTotalLeads() {
   const [isDisablingLead, setIsDisablingLead] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const requestSequenceRef = useRef(0);
+  const targetLeadRowRef = useRef<HTMLTableRowElement | null>(null);
+  const initialLeadLoadRef = useRef(true);
 
   const clearAdvancedFilters = useCallback(() => {
     setNameFilter("");
@@ -591,6 +598,21 @@ function SuperAdminTotalLeads() {
     }, 250);
     return () => window.clearTimeout(timer);
   }, [q]);
+
+  useEffect(() => {
+    const nextSearch = searchParams.get("search") || "";
+    if (!nextSearch || nextSearch === q) return;
+    setQ(nextSearch);
+    setDebouncedQuery(nextSearch);
+    setCurrentPage(1);
+  }, [q, searchParams]);
+
+  useEffect(() => {
+    const nextEvent = searchParams.get("event") || "all";
+    if (nextEvent === eventFilter) return;
+    setEventFilter(nextEvent);
+    setCurrentPage(1);
+  }, [eventFilter, searchParams]);
 
   const serverSort = useMemo(
     () => resolveServerSort(sortBy, debouncedQuery.length > 0),
@@ -667,7 +689,9 @@ function SuperAdminTotalLeads() {
   }, [persona, fetchEventOptions]);
 
   useEffect(() => {
-    void fetchLeadPage(loading ? "initial" : "refresh");
+    const mode = initialLeadLoadRef.current ? "initial" : "refresh";
+    initialLeadLoadRef.current = false;
+    void fetchLeadPage(mode);
   }, [persona, fetchLeadPage]);
 
   const eventOptions = useMemo(() => {
@@ -785,6 +809,18 @@ function SuperAdminTotalLeads() {
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    if (!targetLeadId) return;
+    const targetOnPage = paginatedLeads.some((lead) => lead.id === targetLeadId);
+    if (!targetOnPage) return;
+
+    const timer = window.setTimeout(() => {
+      targetLeadRowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, [paginatedLeads, targetLeadId]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -1179,6 +1215,7 @@ function SuperAdminTotalLeads() {
               ) : (
                 paginatedLeads.map((item) => {
                   const isReadOnly = isLeadSuppressed(item);
+                  const isTargetLead = targetLeadId === item.id;
                   const sentChannels = isReadOnly
                     ? { whatsapp: false, email: false }
                     : getSentChannelState(item.contactState);
@@ -1186,7 +1223,15 @@ function SuperAdminTotalLeads() {
                   return (
                     <tr
                       key={item.id}
-                      className={`group transition-colors ${isReadOnly ? "bg-rose-50/35 hover:bg-rose-50/45" : "hover:bg-white/46"}`}
+                      ref={isTargetLead ? targetLeadRowRef : undefined}
+                      id={`lead-${item.id}`}
+                      className={`group scroll-mt-24 transition-colors ${
+                        isTargetLead
+                          ? "bg-blue-50/85 ring-1 ring-inset ring-blue-200/90"
+                          : isReadOnly
+                            ? "bg-rose-50/35 hover:bg-rose-50/45"
+                            : "hover:bg-white/46"
+                      }`}
                     >
                     <td className="px-3 py-3 align-top">
                       <span className="line-clamp-2 text-sm text-zinc-700">

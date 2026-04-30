@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -270,6 +270,8 @@ export function NormalUserEventLeadSheet() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const eventParam = searchParams.get("event") || "";
+  const targetLeadId = searchParams.get("lead") || "";
+  const initialSearch = searchParams.get("search") || "";
 
   const [events, setEvents] = useState<EventSummaryItem[]>([]);
   const [leadPage, setLeadPage] = useState<EventLeadListResponse | null>(null);
@@ -278,13 +280,14 @@ export function NormalUserEventLeadSheet() {
   );
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [loadingLeads, setLoadingLeads] = useState(false);
-  const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState(initialSearch);
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [pageOffset, setPageOffset] = useState(0);
   const [updatingKeys, setUpdatingKeys] = useState<Record<string, boolean>>({});
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [addLeadForm, setAddLeadForm] = useState<AddLeadFormState>(EMPTY_ADD_LEAD_FORM);
   const [addingLead, setAddingLead] = useState(false);
+  const targetLeadRowRef = useRef<HTMLTableRowElement | null>(null);
 
   const workflowStatusLabelLookup = useMemo(() => {
     const lookup = new Map<string, string>();
@@ -356,6 +359,14 @@ export function NormalUserEventLeadSheet() {
     return () => window.clearTimeout(handle);
   }, [searchInput]);
 
+  useEffect(() => {
+    const nextSearch = searchParams.get("search") || "";
+    if (!nextSearch || nextSearch === searchInput) return;
+    setSearchInput(nextSearch);
+    setSearchQuery(nextSearch);
+    setPageOffset(0);
+  }, [searchInput, searchParams]);
+
   const selectedEventKey = useMemo(() => {
     if (eventParam && events.some((item) => item.canonicalEventKey === eventParam)) {
       return eventParam;
@@ -420,6 +431,18 @@ export function NormalUserEventLeadSheet() {
       .map((item) => mapLeadItem(item, workflowStatusLabelLookup))
       .filter((item): item is LeadSheetRow => Boolean(item));
   }, [leadPage, workflowStatusLabelLookup]);
+
+  useEffect(() => {
+    if (!targetLeadId) return;
+    const targetOnPage = eventLeads.some((lead) => lead.id === targetLeadId);
+    if (!targetOnPage) return;
+
+    const timer = window.setTimeout(() => {
+      targetLeadRowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, [eventLeads, targetLeadId]);
 
   const pageRangeStart = eventLeads.length > 0 ? pageOffset + 1 : 0;
   const pageRangeEnd = pageOffset + eventLeads.length;
@@ -684,13 +707,23 @@ export function NormalUserEventLeadSheet() {
                   <tbody className="divide-y divide-zinc-100/70">
                     {eventLeads.map((item) => {
                       const updateKey = `${item.canonicalEventKey}::${item.leadIdentityKey}`;
+                      const isTargetLead = targetLeadId === item.id;
                       const isUpdating = Boolean(updatingKeys[updateKey]);
                       const selectedStatusValue = FIXED_WORKFLOW_STATUS_KEYS.has(item.workflowStatus)
                         ? item.workflowStatus
                         : undefined;
 
                       return (
-                        <tr key={updateKey} className="transition-colors hover:bg-white/46">
+                        <tr
+                          key={updateKey}
+                          ref={isTargetLead ? targetLeadRowRef : undefined}
+                          id={`lead-${item.id}`}
+                          className={`scroll-mt-24 transition-colors ${
+                            isTargetLead
+                              ? "bg-blue-50/85 ring-1 ring-inset ring-blue-200/90"
+                              : "hover:bg-white/46"
+                          }`}
+                        >
                           <td className="px-4 py-4 align-top">
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
