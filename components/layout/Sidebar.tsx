@@ -149,50 +149,8 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* 3. Bottom Section: Analytics Card + Settings */}
+      {/* 3. Bottom Section */}
       <div className="mt-auto pt-6 flex flex-col gap-2">
-        
-        {/* --- Nizo Analytics Card --- */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="relative mb-4 overflow-hidden rounded-2xl border border-white/25 bg-[linear-gradient(150deg,rgba(255,255,255,0.34)_0%,rgba(255,255,255,0.06)_45%,rgba(0,0,0,0.16)_100%)] p-5 text-white shadow-[0_20px_34px_-20px_rgba(0,0,0,0.85)] backdrop-blur-md"
-        >
-          {/* 1. THE WATERMARK IMAGE */}
-          <div className="absolute -bottom-45 h-[500px] w-[500px] -right-45 z-0 opacity-40 pointer-events-none">
-             <img 
-               src="analytics.png" 
-               alt="" 
-               className="h-[550px] w-[550px] object-contain rotate-12"
-             />
-          </div>
-
-          {/* 2. Subtle Glow Effect */}
-          <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/5 blur-2xl z-0" />
-          
-          {/* 3. The Content */}
-          <div className="relative z-10 flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <span className="font-medium text-lg tracking-tight">Nizo Analyzer</span>
-            </div>
-            
-            <p className="text-xs font-regular text-white-700 leading-relaxed">
-              Unlock deep insights into your campaign performance and ROI.
-            </p>
-
-            <Link href="/analytics">
-              <Button 
-                size="sm"
-                variant="ghost"
-                className="analytics-frost-btn mt-1 w-full font-medium"
-              >
-                View Analytics
-              </Button>
-            </Link>
-          </div>
-        </motion.div>
-
         {isSuperAdmin ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}

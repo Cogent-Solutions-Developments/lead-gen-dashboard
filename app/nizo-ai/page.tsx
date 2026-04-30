@@ -7,22 +7,14 @@ import {
   Brain,
   ChevronLeft,
   ChevronRight,
-  Globe,
+  Copy,
+  Download,
   Loader2,
-  Mail,
   Search,
-  UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   listEventLeads,
   listEvents,
@@ -33,11 +25,9 @@ import {
 } from "@/lib/api";
 import {
   parseNizoSearch,
-  findSimilarNizoLeads,
   searchNizoEvents,
   searchNizoLeads,
-  sortNizoScoredLeads,
-  type NizoSortMode,
+  suggestNizoSearchTerms,
   type NizoParsedSearch,
   type NizoScoredEvent,
   type NizoScoredLead,
@@ -52,12 +42,20 @@ const EVENT_KEY_SEARCH_LIMIT = 200;
 const EVENT_KEY_SEARCH_MAX_ROWS = 1500;
 const SEARCH_HISTORY_KEY = "nizo-ai-search-history";
 
-const sortLabels: Record<NizoSortMode, string> = {
-  best_match: "Best match",
-  easiest: "Easiest to reach",
-  seniority: "Seniority",
-  freshest: "Not contacted",
-};
+const countryAliases: Array<[string, string]> = [
+  ["qatar", "Qatar"],
+  ["malaysia", "Malaysia"],
+  ["angola", "Angola"],
+  ["nigeria", "Nigeria"],
+  ["saudi arabia", "Saudi Arabia"],
+  ["ksa", "Saudi Arabia"],
+  ["riyadh", "Saudi Arabia"],
+  ["jeddah", "Saudi Arabia"],
+  ["uae", "UAE"],
+  ["dubai", "UAE"],
+  ["abu dhabi", "UAE"],
+  ["oman", "Oman"],
+];
 
 function text(value: unknown) {
   return String(value || "").trim();
@@ -65,6 +63,50 @@ function text(value: unknown) {
 
 function eventName(lead: LeadItem) {
   return text(lead.canonicalEventName) || text(lead.eventName) || text(lead.canonicalEventKey) || "Unknown event";
+}
+
+function leadSearchContext(lead: LeadItem) {
+  return [
+    lead.company,
+    lead.title,
+    lead.eventName,
+    lead.canonicalEventName,
+    lead.canonicalEventKey,
+    lead.companyUrl,
+  ]
+    .map((value) => text(value).toLowerCase())
+    .join(" ");
+}
+
+function leadCountry(lead: LeadItem) {
+  const context = leadSearchContext(lead);
+  const match = countryAliases.find(([signal]) => context.includes(signal));
+  return match?.[1] || "";
+}
+
+function buildLeadShareText(lead: LeadItem, score?: number) {
+  return [
+    text(lead.employeeName) || "Unnamed lead",
+    text(lead.title) || text(lead.company)
+      ? `${text(lead.title) || "No title"}${text(lead.company) ? ` · ${text(lead.company)}` : ""}`
+      : "",
+    lead.email ? `Email: ${lead.email}` : "",
+    lead.phone ? `Mobile: ${lead.phone}` : "",
+    lead.linkedinUrl ? `LinkedIn: ${lead.linkedinUrl}` : "",
+    lead.companyUrl ? `Company website: ${lead.companyUrl}` : "",
+    `Event: ${eventName(lead)}`,
+    typeof score === "number" ? `NizoAI score: ${score}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function LinkedinIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M0 1.146C0 .513.526 0 1.175 0h13.65C15.474 0 16 .513 16 1.146v13.708c0 .633-.526 1.146-1.175 1.146H1.175C.526 16 0 15.487 0 14.854zm4.943 12.248V6.169H2.542v7.225zm-1.2-8.212c.837 0 1.358-.554 1.358-1.248-.015-.709-.52-1.248-1.342-1.248S2.4 3.226 2.4 3.934c0 .694.521 1.248 1.327 1.248zm4.908 8.212V9.359c0-.216.016-.432.08-.586.173-.431.568-.878 1.232-.878.869 0 1.216.662 1.216 1.634v3.865h2.401V9.25c0-2.22-1.184-3.252-2.764-3.252-1.274 0-1.845.7-2.165 1.193v.025h-.016l.016-.025V6.169h-2.4c.03.678 0 7.225 0 7.225z" />
+    </svg>
+  );
 }
 
 function mapEventLeadToLead(item: EventLeadListItem): LeadItem {
@@ -190,7 +232,6 @@ export default function NizoAiPage() {
   const [candidateCount, setCandidateCount] = useState(0);
   const [results, setResults] = useState<NizoScoredLead[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortMode, setSortMode] = useState<NizoSortMode>("best_match");
   const [selectedLeadId, setSelectedLeadId] = useState("");
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -383,15 +424,40 @@ export default function NizoAiPage() {
     }
   };
 
+  const copyLeadDetails = async (lead: LeadItem, score: number) => {
+    try {
+      await navigator.clipboard.writeText(buildLeadShareText(lead, score));
+      toast.success("Lead details copied");
+    } catch {
+      toast.error("Could not copy lead details");
+    }
+  };
+
+  const downloadLeadDetails = (lead: LeadItem, score: number) => {
+    try {
+      const blob = new Blob([buildLeadShareText(lead, score)], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const filenameBase = text(lead.employeeName).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+      link.href = url;
+      link.download = `${filenameBase || "nizo-lead"}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Lead details downloaded");
+    } catch {
+      toast.error("Could not download lead details");
+    }
+  };
+
   const resultTitle = useMemo(() => {
     if (!searched) return "";
     if (results.length === 0) return "No matching leads";
     return `${results.length} matching lead${results.length === 1 ? "" : "s"}`;
   }, [results.length, searched]);
-  const sortedResults = useMemo(
-    () => sortNizoScoredLeads(results, sortMode),
-    [results, sortMode]
-  );
+  const sortedResults = results;
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(sortedResults.length / RESULTS_PER_PAGE)),
     [sortedResults.length]
@@ -401,6 +467,16 @@ export default function NizoAiPage() {
     const start = (safePage - 1) * RESULTS_PER_PAGE;
     return sortedResults.slice(start, start + RESULTS_PER_PAGE);
   }, [currentPage, sortedResults, totalPages]);
+  const searchSuggestions = useMemo(
+    () =>
+      suggestNizoSearchTerms(query, {
+        recent: recentSearches,
+        leads: sortedResults.slice(0, 50).map((entry) => entry.lead),
+        events: eventsCache,
+        limit: 6,
+      }),
+    [eventsCache, query, recentSearches, sortedResults]
+  );
   const visiblePageNumbers = useMemo(() => {
     const windowSize = 5;
     let start = Math.max(1, currentPage - Math.floor(windowSize / 2));
@@ -410,14 +486,6 @@ export default function NizoAiPage() {
   }, [currentPage, totalPages]);
   const showingFrom = sortedResults.length === 0 ? 0 : (Math.min(currentPage, totalPages) - 1) * RESULTS_PER_PAGE + 1;
   const showingTo = sortedResults.length === 0 ? 0 : Math.min(showingFrom + paginatedResults.length - 1, sortedResults.length);
-  const selectedLead = useMemo(
-    () => sortedResults.find((entry) => entry.lead.id === selectedLeadId) || sortedResults[0] || null,
-    [selectedLeadId, sortedResults]
-  );
-  const similarLeads = useMemo(
-    () => (selectedLead ? findSimilarNizoLeads(selectedLead, sortedResults, 4) : []),
-    [selectedLead, sortedResults]
-  );
   const resultMeta = useMemo(() => {
     if (!searched) return "";
     const parts = [];
@@ -448,7 +516,7 @@ export default function NizoAiPage() {
   }
 
   return (
-    <div className="min-h-[calc(100dvh-3rem)] overflow-y-auto bg-transparent px-4 py-8 font-sans">
+    <div className="min-h-[calc(100dvh-3rem)] bg-transparent px-4 py-8 font-sans">
       <div className="mx-auto flex min-h-[52vh] max-w-4xl flex-col items-center justify-center">
         <div className="mb-4 flex h-14 w-14 items-center justify-center text-zinc-950">
           <Brain className="h-8 w-8" />
@@ -471,6 +539,21 @@ export default function NizoAiPage() {
             placeholder="Search sales leads..."
             className="min-h-24 w-full resize-none rounded-2xl border-0 bg-transparent px-3 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
           />
+
+          {searchSuggestions.length ? (
+            <div className="mb-3 flex flex-wrap gap-2 px-1">
+              {searchSuggestions.map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  onClick={() => void runSearch(suggestion)}
+                  className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-sidebar hover:border-blue-200 hover:bg-blue-100"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           <div className="flex items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -514,32 +597,11 @@ export default function NizoAiPage() {
 
       {searched ? (
         <div className="mx-auto mt-3 w-full max-w-7xl">
-          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mb-3">
             <div>
               <h2 className="text-lg font-semibold tracking-tight text-zinc-950">{resultTitle}</h2>
               <span className="text-xs font-medium text-zinc-500">{resultMeta}</span>
             </div>
-
-            {results.length ? (
-              <Select
-                value={sortMode}
-                onValueChange={(value) => {
-                  setSortMode(value as NizoSortMode);
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="h-9 w-full border-zinc-200 bg-white text-xs font-semibold shadow-none sm:w-44">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent align="end">
-                  {(Object.keys(sortLabels) as NizoSortMode[]).map((mode) => (
-                    <SelectItem key={mode} value={mode}>
-                      {sortLabels[mode]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : null}
           </div>
           {searchNote ? (
             <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -552,149 +614,136 @@ export default function NizoAiPage() {
               No matches. Try fewer words or a broader title.
             </Card>
           ) : (
-            <>
-            {selectedLead ? (
-              <div className="mb-3 grid gap-3 lg:grid-cols-[1.4fr_1fr]">
-                <Card className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-zinc-950">{text(selectedLead.lead.employeeName) || "Selected lead"}</p>
-                      <p className="mt-1 text-sm text-zinc-600">{text(selectedLead.lead.title) || "No title"}</p>
-                      <p className="mt-1 text-xs text-zinc-500">{text(selectedLead.lead.company) || "No company"}</p>
-                    </div>
-                    <div className="min-w-32">
-                      <div className="flex items-center justify-between text-xs font-semibold text-zinc-600">
-                        <span>Relevance</span>
-                        <span>{selectedLead.score}/{selectedLead.maxScore}</span>
-                      </div>
-                      <div className="mt-2 h-2 rounded-full bg-zinc-100">
-                        <div
-                          className="h-2 rounded-full bg-zinc-900"
-                          style={{ width: `${Math.min(100, selectedLead.relevance)}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                    {selectedLead.breakdown.slice(0, 6).map((item) => (
-                      <div key={`${item.label}-${item.detail}`} className="rounded-lg border border-zinc-100 bg-zinc-50/70 px-3 py-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-semibold text-zinc-800">{item.label}</span>
-                          <span className="text-xs font-semibold text-zinc-500">+{item.points}</span>
-                        </div>
-                        <p className="mt-1 truncate text-xs text-zinc-500">{item.detail}</p>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-
-                <Card className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-                  <p className="text-sm font-semibold text-zinc-950">Similar leads</p>
-                  <div className="mt-3 space-y-2">
-                    {similarLeads.length ? similarLeads.map(({ entry, similarity }) => (
-                      <button
-                        key={entry.lead.id}
-                        type="button"
-                        onClick={() => setSelectedLeadId(entry.lead.id)}
-                        className="block w-full rounded-lg border border-zinc-100 px-3 py-2 text-left hover:border-zinc-200 hover:bg-zinc-50"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-xs font-semibold text-zinc-900">{text(entry.lead.employeeName) || "Unnamed lead"}</p>
-                            <p className="mt-0.5 truncate text-xs text-zinc-500">{text(entry.lead.title) || "No title"}</p>
-                          </div>
-                          <span className="shrink-0 text-[11px] font-semibold text-zinc-400">{similarity}</span>
-                        </div>
-                      </button>
-                    )) : (
-                      <p className="text-xs text-zinc-500">No similar leads in this result set.</p>
-                    )}
-                  </div>
-                </Card>
-              </div>
-            ) : null}
-
             <Card className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-              <div className="w-full">
-                <table className="w-full table-fixed">
-                  <thead className="border-b border-zinc-100 bg-zinc-50/80">
+              <div className="w-full overflow-x-auto">
+                <table className="min-w-[920px] w-full">
+                  <thead className="border-b border-zinc-200 bg-slate-50">
                     <tr>
-                      <th className="w-[36%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-500">Lead</th>
-                      <th className="w-[28%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-500">Event</th>
-                      <th className="w-[20%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-500">Contact</th>
-                      <th className="w-[16%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-500">Actions</th>
+                      <th className="w-[33%] px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Lead</th>
+                      <th className="w-[24%] px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Country / Status</th>
+                      <th className="w-[24%] px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Contact</th>
+                      <th className="w-[11%] px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Score</th>
+                      <th className="w-[8%] px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Actions</th>
                     </tr>
                   </thead>
 
-                  <tbody className="divide-y divide-zinc-100">
-                    {paginatedResults.map(({ lead }) => (
+                  <tbody className="divide-y divide-slate-100">
+                    {paginatedResults.map(({ lead, score, relevance }) => {
+                      const country = leadCountry(lead);
+
+                      return (
                       <tr
                         key={lead.id}
-                        className={`cursor-pointer align-top transition-colors hover:bg-zinc-50/70 ${
-                          selectedLead?.lead.id === lead.id ? "bg-zinc-50" : ""
+                        className={`cursor-pointer align-middle transition-colors hover:bg-slate-50/80 ${
+                          selectedLeadId === lead.id ? "bg-blue-50/45" : ""
                         }`}
                         onClick={() => setSelectedLeadId(lead.id)}
                       >
-                        <td className="px-4 py-4">
-                          <div className="pr-4">
-                            <p className="text-sm font-semibold text-zinc-950">{text(lead.employeeName) || "Unnamed lead"}</p>
-                            <p className="mt-1 text-sm text-zinc-600">{text(lead.title) || "No title"}</p>
-                            <p className="mt-1 truncate text-xs text-zinc-500">{text(lead.company) || "No company"}</p>
+                        <td className="px-4 py-3">
+                          <div className="min-w-0 pr-4">
+                            <p className="truncate text-sm font-semibold leading-5 text-zinc-950">{text(lead.employeeName) || "Unnamed lead"}</p>
+                            <p className="line-clamp-2 max-w-[24rem] text-xs leading-5 text-slate-500">
+                              {text(lead.title) || "No title"}
+                              {text(lead.company) ? <span> · {text(lead.company)}</span> : null}
+                            </p>
                           </div>
                         </td>
 
-                        <td className="px-4 py-4">
-                          <div className="pr-4 text-sm leading-6 text-zinc-700">{eventName(lead)}</div>
-                        </td>
-
-                        <td className="px-4 py-4">
-                          <div className="space-y-1 text-xs text-zinc-600">
-                            <p className="truncate">{lead.email || "No email"}</p>
-                            <p>{lead.phone || "No phone"}</p>
+                        <td className="px-4 py-3">
+                          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                            {country ? (
+                              <span className="inline-flex h-5 items-center rounded-full bg-emerald-50 px-2 text-[11px] font-semibold leading-none text-emerald-700">
+                                {country}
+                              </span>
+                            ) : null}
+                            <span className="inline-flex h-5 items-center rounded-full bg-slate-100 px-2 text-[11px] font-semibold leading-none text-slate-600">
+                              New
+                            </span>
                           </div>
+                          <p className="mt-1 line-clamp-2 max-w-[22rem] text-[11px] leading-4 text-slate-400">
+                            {eventName(lead)}
+                          </p>
                         </td>
 
-                        <td className="px-4 py-4">
-                          <div className="flex min-w-[8.5rem] flex-nowrap items-center gap-2.5">
+                        <td className="px-4 py-3">
+                          <div className="min-w-0 text-xs leading-4">
+                            <p className={`truncate ${lead.email ? "text-zinc-800" : "text-slate-300"}`}>{lead.email || "No email"}</p>
+                            <p className={`mt-0.5 truncate ${lead.phone ? "text-zinc-700" : "text-slate-300"}`}>
+                              {lead.phone ? `Mobile: ${lead.phone}` : "No mobile"}
+                            </p>
                             {lead.linkedinUrl ? (
                               <a
                                 href={lead.linkedinUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 hover:text-zinc-900"
-                                aria-label="Open LinkedIn"
-                                title="Open LinkedIn"
+                                onClick={(event) => event.stopPropagation()}
+                                className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-sky-600 hover:text-sky-700"
                               >
-                                <UserRound className="h-3.5 w-3.5" />
+                                <LinkedinIcon className="h-3 w-3" />
+                                LinkedIn
                               </a>
-                            ) : null}
+                            ) : (
+                              <p className="mt-0.5 text-[11px] text-slate-300">No LinkedIn</p>
+                            )}
                             {lead.companyUrl ? (
                               <a
                                 href={lead.companyUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 hover:text-zinc-900"
-                                aria-label="Open website"
-                                title="Open website"
+                                onClick={(event) => event.stopPropagation()}
+                                className="mt-0.5 block truncate text-[11px] font-medium text-slate-500 hover:text-sidebar"
                               >
-                                <Globe className="h-3.5 w-3.5" />
+                                Website: {lead.companyUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}
                               </a>
-                            ) : null}
-                            {lead.email ? (
-                              <a
-                                href={`mailto:${lead.email}`}
-                                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 hover:text-zinc-900"
-                                aria-label="Send email"
-                                title="Send email"
-                              >
-                                <Mail className="h-3.5 w-3.5" />
-                              </a>
-                            ) : null}
+                            ) : (
+                              <p className="mt-0.5 text-[11px] text-slate-300">No website</p>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-3">
+                          <div className="flex min-w-[5.5rem] items-center gap-3">
+                            <div className="h-1 w-9 overflow-hidden rounded-full bg-slate-100">
+                              <div
+                                className="h-full rounded-full bg-sidebar"
+                                style={{ width: `${Math.max(8, Math.min(100, relevance))}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-bold text-sidebar">{score}</span>
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-3">
+                          <div className="flex justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void copyLeadDetails(lead, score);
+                              }}
+                              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-sidebar"
+                              aria-label="Copy lead details"
+                              title="Copy lead details"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                downloadLeadDetails(lead, score);
+                              }}
+                              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-sidebar"
+                              aria-label="Download lead details"
+                              title="Download lead details"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                            </button>
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -744,7 +793,6 @@ export default function NizoAiPage() {
                 </div>
               </div>
             </Card>
-            </>
           )}
         </div>
       ) : null}
