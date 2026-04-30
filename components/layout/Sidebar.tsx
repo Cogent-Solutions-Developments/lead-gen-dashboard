@@ -24,7 +24,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 const navItems = [
-  { name: "NizoAI", href: "/nizo-ai", icon: Brain, salesOnly: true },
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Campaigns", normalLabel: "Events", href: "/campaigns", icon: Rocket },
   { name: "New Campaign", href: "/campaigns/new", icon: Plus, superOnly: true },
@@ -32,6 +31,7 @@ const navItems = [
   // { name: "Completed", href: "/completed", icon: CheckCircle },
   { name: "Nizo Finder", normalLabel: "Lead Sheet", href: "/leads", icon: TrainFront },
   { name: "Admin Panel", href: "/admin", icon: ShieldCheck, superOnly: true },
+  { name: "NizoAI", href: "/nizo-ai", icon: Brain, salesOnly: true },
 ];
 
 export function Sidebar() {

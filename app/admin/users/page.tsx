@@ -33,6 +33,7 @@ import {
   listAuthUsers,
   updateAuthUser,
   updateAuthUserPassword,
+  updateStoredAuthUser,
   type AuthRole,
   type AuthUser,
 } from "@/lib/auth";
@@ -155,6 +156,7 @@ export default function AdminUsersPage() {
           isActive: isSelf ? undefined : form.isActive,
         });
         setUsers((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+        if (isSelf) updateStoredAuthUser(updated);
         toast.success("User updated", { description: updated.username });
       } else {
         const created = await createAuthUser({

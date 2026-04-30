@@ -307,6 +307,7 @@ type AuthError = Error & {
 
 const STORAGE_KEY = "leadgen.auth.session";
 const AUTH_CHANGE_EVENT = "leadgen-auth-change";
+const USER_DISPLAY_CACHE_KEY = "leadgen.auth.user-display-names";
 
 const ROLE_ALIASES: Record<string, AuthRole> = {
   super_admin_user: "super_admin_user",
@@ -375,22 +376,83 @@ function getBaseUrl() {
 
 function normalizeUser(raw: unknown): AuthUser {
   const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const fullName = source.fullName ?? source.full_name;
+  const isActive = source.isActive ?? source.is_active;
+  const authType = source.authType ?? source.auth_type;
+  const createdAt = source.createdAt ?? source.created_at;
+  const updatedAt = source.updatedAt ?? source.updated_at;
+  const lastLoginAt = source.lastLoginAt ?? source.last_login_at;
+
   return {
     id: String(source.id || ""),
     username: String(source.username || ""),
     role: normalizeAuthRole(source.role),
-    fullName: source.fullName == null ? "" : String(source.fullName),
-    isActive: typeof source.isActive === "boolean" ? source.isActive : undefined,
-    authType: source.authType == null ? undefined : String(source.authType),
-    createdAt: source.createdAt == null ? undefined : String(source.createdAt),
-    updatedAt: source.updatedAt == null ? undefined : String(source.updatedAt),
-    lastLoginAt: source.lastLoginAt == null ? null : String(source.lastLoginAt),
+    fullName: fullName == null ? "" : String(fullName),
+    isActive: typeof isActive === "boolean" ? isActive : undefined,
+    authType: authType == null ? undefined : String(authType),
+    createdAt: createdAt == null ? undefined : String(createdAt),
+    updatedAt: updatedAt == null ? undefined : String(updatedAt),
+    lastLoginAt: lastLoginAt == null ? null : String(lastLoginAt),
   };
 }
 
 function emitAuthChange() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(AUTH_CHANGE_EVENT));
+}
+
+function readUserDisplayCache(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+
+  try {
+    const raw = window.localStorage.getItem(USER_DISPLAY_CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeUserDisplayCache(cache: Record<string, string>) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(USER_DISPLAY_CACHE_KEY, JSON.stringify(cache));
+}
+
+function userDisplayCacheKeys(user: Pick<AuthUser, "id" | "username">) {
+  return [user.id, user.username ? `username:${user.username.toLowerCase()}` : ""].filter(Boolean);
+}
+
+export function cacheAuthUserDisplayName(user: AuthUser) {
+  const fullName = user.fullName?.trim();
+  if (!fullName) return;
+
+  const cache = readUserDisplayCache();
+  userDisplayCacheKeys(user).forEach((key) => {
+    cache[key] = fullName;
+  });
+  writeUserDisplayCache(cache);
+}
+
+export function cacheAuthUsersDisplayNames(users: AuthUser[]) {
+  const cache = readUserDisplayCache();
+  users.forEach((user) => {
+    const fullName = user.fullName?.trim();
+    if (!fullName) return;
+
+    userDisplayCacheKeys(user).forEach((key) => {
+      cache[key] = fullName;
+    });
+  });
+  writeUserDisplayCache(cache);
+}
+
+export function getCachedAuthUserDisplayName(user: Pick<AuthUser, "id" | "username"> | null | undefined) {
+  if (!user) return "";
+
+  const cache = readUserDisplayCache();
+  return userDisplayCacheKeys(user)
+    .map((key) => cache[key]?.trim())
+    .find(Boolean) || "";
 }
 
 export function getStoredAuthSession(): AuthSession | null {
@@ -405,9 +467,15 @@ export function getStoredAuthSession(): AuthSession | null {
       clearAuthSession();
       return null;
     }
+    const user = normalizeUser(parsed.user);
+    const cachedFullName = getCachedAuthUserDisplayName(user);
+
     return {
       ...parsed,
-      user: normalizeUser(parsed.user),
+      user: {
+        ...user,
+        fullName: user.fullName?.trim() || cachedFullName,
+      },
     };
   } catch {
     clearAuthSession();
@@ -417,11 +485,14 @@ export function getStoredAuthSession(): AuthSession | null {
 
 export function setAuthSession(session: AuthSession) {
   if (typeof window === "undefined") return;
+  const user = normalizeUser(session.user);
+  cacheAuthUserDisplayName(user);
+
   window.localStorage.setItem(
     STORAGE_KEY,
     JSON.stringify({
       ...session,
-      user: normalizeUser(session.user),
+      user,
     })
   );
   emitAuthChange();
@@ -430,7 +501,21 @@ export function setAuthSession(session: AuthSession) {
 export function updateStoredAuthUser(user: AuthUser) {
   const session = getStoredAuthSession();
   if (!session) return;
-  setAuthSession({ ...session, user: normalizeUser(user) });
+
+  const nextUser = normalizeUser(user);
+  const existingFullName = session.user.fullName?.trim() || "";
+  const cachedFullName =
+    getCachedAuthUserDisplayName(nextUser) ||
+    getCachedAuthUserDisplayName(session.user);
+
+  setAuthSession({
+    ...session,
+    user: {
+      ...session.user,
+      ...nextUser,
+      fullName: nextUser.fullName?.trim() || existingFullName || cachedFullName,
+    },
+  });
 }
 
 export function clearAuthSession() {
@@ -543,7 +628,9 @@ export async function fetchCurrentAuthUser() {
 
 export async function listAuthUsers() {
   const data = await authRequest<{ users: AuthUser[] }>("/api/auth/users");
-  return Array.isArray(data.users) ? data.users.map(normalizeUser) : [];
+  const users = Array.isArray(data.users) ? data.users.map(normalizeUser) : [];
+  cacheAuthUsersDisplayNames(users);
+  return users;
 }
 
 export async function createAuthUser(payload: AuthUserCreateInput) {
@@ -551,7 +638,9 @@ export async function createAuthUser(payload: AuthUserCreateInput) {
     method: "POST",
     body: JSON.stringify(payload),
   });
-  return normalizeUser(data.user);
+  const user = normalizeUser(data.user);
+  cacheAuthUserDisplayName(user);
+  return user;
 }
 
 export async function updateAuthUser(userId: string, payload: AuthUserUpdateInput) {
@@ -559,7 +648,9 @@ export async function updateAuthUser(userId: string, payload: AuthUserUpdateInpu
     method: "PUT",
     body: JSON.stringify(payload),
   });
-  return normalizeUser(data.user);
+  const user = normalizeUser(data.user);
+  cacheAuthUserDisplayName(user);
+  return user;
 }
 
 export async function updateAuthUserPassword(userId: string, password: string) {
