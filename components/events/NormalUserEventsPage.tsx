@@ -3,13 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { listEvents, type EventSummaryItem } from "@/lib/apiRouter";
 import {
   ArrowLeft,
-  CalendarDays,
-  ChevronRight,
   RefreshCcw,
   Search,
 } from "lucide-react";
@@ -76,69 +72,68 @@ export function NormalUserEventsPage() {
 
   return (
     <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
-      <header className="shrink-0 border-b border-zinc-200/70 pb-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+      <header className="shrink-0 border-b border-zinc-200 pb-12">
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <Link
               href="/dashboard"
-              className="inline-flex items-center text-sm font-medium text-zinc-500 transition-colors hover:text-zinc-900"
+              className="inline-flex items-center text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-950"
             >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Home
+              <ArrowLeft className="mr-2 h-3 w-3" />
+              Return to dashboard
             </Link>
 
-            <div className="mt-5">
-              <h1 className="text-4xl font-semibold leading-none tracking-tight text-zinc-950">
+            <div className="mt-8">
+              <h1 className="text-5xl font-light leading-none tracking-tighter text-zinc-950 sm:text-6xl">
                 Events
               </h1>
-              <p className="mt-3 max-w-xl text-base text-zinc-500">
-                Pick an event and open its lead sheet.
+              <p className="mt-4 max-w-xl text-lg font-light leading-relaxed text-zinc-500">
+                Browse our curated event registry and access real-time prospect intelligence.
               </p>
             </div>
           </div>
 
-          <div className="grid max-w-md grid-cols-2 gap-8 border-t border-zinc-200/70 pt-4 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
-            <div>
-              <p className="text-sm font-medium text-zinc-400">Events</p>
-              <p className="mt-1 text-3xl font-semibold tracking-tight text-zinc-950">
+          <div className="flex gap-16 border-zinc-200 lg:border-l lg:pl-16">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-zinc-400">Active events</p>
+              <p className="text-4xl font-light tabular-nums tracking-tighter text-zinc-950">
                 {items.length}
               </p>
             </div>
-            <div>
-              <p className="text-sm font-medium text-zinc-400">Leads</p>
-              <p className="mt-1 text-3xl font-semibold tracking-tight text-zinc-950">
-                {totalLeadCount}
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-zinc-400">Total prospect reach</p>
+              <p className="text-4xl font-light tabular-nums tracking-tighter text-zinc-950">
+                {totalLeadCount.toLocaleString()}
               </p>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col pt-7">
+      <div className="flex min-h-0 flex-1 flex-col pt-12">
         <main className="flex min-h-0 flex-col">
-          <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:px-3">
-            <div className="relative w-full sm:max-w-md">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-              <Input
+          <div className="flex shrink-0 flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
+            <div className="relative w-full sm:max-w-xl">
+              <Search className="absolute bottom-4 left-0 h-4 w-4 text-zinc-400" />
+              <input
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search events"
-                className="h-12 rounded-md border-zinc-200 bg-white/45 pl-11 text-base shadow-[0_8px_18px_-18px_rgba(2,10,27,0.58),inset_0_1px_0_rgba(255,255,255,0.9)] placeholder:text-zinc-400 focus-visible:ring-blue-500/15 md:text-sm"
+                placeholder="Search index"
+                className="h-12 w-full border-b border-zinc-200 bg-transparent pl-8 text-lg font-light tracking-tight text-zinc-950 placeholder:text-zinc-400 focus:border-blue-600 focus:outline-none md:text-xl"
               />
             </div>
 
-            <Button
+            <button
               type="button"
-              variant="outline"
-              className="h-12 rounded-md border-zinc-200 bg-white/45 px-4 text-sm font-semibold text-zinc-700 shadow-[0_8px_18px_-18px_rgba(2,10,27,0.58),inset_0_1px_0_rgba(255,255,255,0.9)] hover:bg-white/70 hover:text-zinc-950"
+              className="flex items-center gap-2 border-b border-transparent pb-4 text-sm font-medium text-zinc-500 transition-all hover:border-zinc-900 hover:text-zinc-900"
               onClick={() => setRefreshTick((value) => value + 1)}
             >
-              <RefreshCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCcw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
               Refresh
-            </Button>
+            </button>
           </div>
 
-          <div className="mt-7 min-h-0 flex-1 overflow-y-auto border-t border-zinc-200/70">
+          <div className="mt-16 min-h-0 flex-1 overflow-y-auto">
             {loading ? (
               <div className="py-12 text-sm text-zinc-500">Loading events...</div>
             ) : filteredItems.length === 0 ? (
@@ -146,53 +141,43 @@ export function NormalUserEventsPage() {
                 {searchQuery.trim() ? "No events match this search." : "No events found."}
               </div>
             ) : (
-              <div className="divide-y divide-zinc-200/70">
+              <div className="grid border-t border-zinc-200 lg:grid-cols-2">
                 {filteredItems.map((item, index) => (
                   <motion.div
                     key={item.canonicalEventKey}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.025 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: index * 0.02 }}
+                    className={`group border-zinc-200 transition-colors hover:bg-zinc-50/50 ${
+                      index % 2 === 0 ? "border-b lg:border-r" : "border-b"
+                    }`}
                   >
                     <Link
                       href={`/leads?event=${encodeURIComponent(item.canonicalEventKey)}`}
-                      className="group grid gap-5 py-6 transition-colors hover:bg-white/28 sm:grid-cols-[minmax(0,1fr)_7rem_7rem_auto] sm:items-center sm:px-3"
+                      className="flex h-full flex-col p-8"
                     >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-white/25 bg-[linear-gradient(148deg,#2d71df_0%,#145acc_54%,#0f4697_100%)] text-white shadow-[0_14px_24px_-15px_rgba(8,28,70,0.9),inset_0_1px_0_rgba(255,255,255,0.28)]">
-                            <CalendarDays className="h-5 w-5" />
-                          </span>
-                          <div className="min-w-0">
-                            <h2 className="truncate text-lg font-semibold tracking-tight text-zinc-950">
-                              {item.canonicalEventName}
-                            </h2>
-                            <p className="mt-1 truncate text-sm text-zinc-400">
-                              {item.canonicalEventKey}
-                            </p>
+                      <div className="flex flex-1 flex-col justify-between gap-10">
+                        <div className="space-y-4">
+                          <h2 className="text-2xl font-light leading-[1.2] tracking-tight text-zinc-950 group-hover:text-blue-700 sm:text-3xl">
+                            {item.canonicalEventName}
+                          </h2>
+                        </div>
+
+                        <div className="flex items-end justify-between">
+                          <div className="space-y-1">
+                            <span className="text-xs font-medium text-zinc-400">Total prospects</span>
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-4xl font-medium tabular-nums tracking-tighter text-zinc-900">
+                                {Number(item.leadCount).toLocaleString()}
+                              </span>
+                              <span className="text-sm font-medium text-zinc-500">leads</span>
+                            </div>
+                          </div>
+
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-all group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white">
+                            <ArrowLeft className="h-5 w-5 rotate-180" />
                           </div>
                         </div>
-                      </div>
-
-                      <div className="text-right">
-                        <p className="text-sm font-medium text-zinc-400">Lists</p>
-                        <p className="mt-1 text-xl font-semibold tracking-tight text-zinc-900">
-                          {item.campaignCount}
-                        </p>
-                      </div>
-
-                      <div className="text-right">
-                        <p className="text-sm font-medium text-zinc-400">Leads</p>
-                        <p className="mt-1 text-xl font-semibold tracking-tight text-zinc-900">
-                          {item.leadCount}
-                        </p>
-                      </div>
-
-                      <div className="flex justify-end">
-                        <span className="inline-flex h-12 items-center justify-center rounded-md border border-zinc-200 bg-white/45 px-4 text-sm font-semibold text-zinc-800 shadow-[0_10px_18px_-18px_rgba(2,10,27,0.58),inset_0_1px_0_rgba(255,255,255,0.9)] transition-colors group-hover:border-blue-200 group-hover:bg-blue-50/70 group-hover:text-blue-700">
-                          Open leads
-                          <ChevronRight className="ml-1.5 h-4 w-4" />
-                        </span>
                       </div>
                     </Link>
                   </motion.div>
