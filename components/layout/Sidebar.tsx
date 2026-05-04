@@ -27,7 +27,7 @@ const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Campaigns", normalLabel: "Events", href: "/campaigns", icon: Rocket },
   { name: "New Campaign", href: "/campaigns/new", icon: Plus, superOnly: true },
-  { name: "Upload Campaign", href: "/campaigns/upload", icon: Upload },
+  { name: "Upload Leads", href: "/campaigns/upload", icon: Upload },
   // { name: "Completed", href: "/completed", icon: CheckCircle },
   { name: "Nizo Finder", normalLabel: "Lead Sheet", href: "/leads", icon: TrainFront },
   { name: "Admin Panel", href: "/admin", icon: ShieldCheck, superOnly: true },
@@ -134,7 +134,7 @@ export function Sidebar() {
               <Link href={item.href}>
                 <Button
                   variant="ghost"
-                  className={`w-full justify-start gap-3 rounded-lg border px-4 py-6 text-[15px] font-medium transition-all duration-200 ${
+                  className={`w-full justify-start gap-3 rounded-md border px-4 py-6 text-[15px] font-medium transition-all duration-200 ${
                     isActive
                       ? "sidebar-chip-active"
                       : "border-transparent bg-transparent text-sidebar-foreground/90 shadow-none hover:border-white/25 hover:bg-white/12 hover:text-sidebar-accent-foreground hover:shadow-[0_8px_18px_-16px_rgba(0,0,0,0.55)]"
@@ -160,7 +160,7 @@ export function Sidebar() {
             <Link href="/">
               <Button
                 variant="ghost"
-                className="w-full justify-start gap-3 rounded-full bg-transparent px-4 py-2 text-[15px] text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-accent-foreground"
+                className="w-full justify-start gap-3 rounded-md bg-transparent px-4 py-2 text-[15px] text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-accent-foreground"
               >
                 <UserRound className="h-5 w-5" />
                 <span>{`Current User - ${personaLabel}`}</span>
@@ -177,7 +177,7 @@ export function Sidebar() {
           <Button
             variant="ghost"
             onClick={handleSignOut}
-            className="w-full justify-start gap-3 rounded-full bg-transparent px-4 py-2 text-[15px] text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-accent-foreground"
+            className="w-full justify-start gap-3 rounded-md bg-transparent px-4 py-2 text-[15px] text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-accent-foreground"
           >
             <LogOut className="h-5 w-5" />
             Sign out
