@@ -74,7 +74,7 @@ export function Sidebar() {
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="sidebar-modern fixed left-0 top-0 z-40 flex h-screen w-72 flex-col p-5 font-sans text-sidebar-foreground"
+      className="sidebar-modern fixed left-0 top-0 z-40 flex h-screen w-72 flex-col p-10 font-sans text-white"
     >
       <div className="pointer-events-none !absolute -right-40 top-[50%] !z-0 -translate-y-1/2 opacity-40 rotate-12">
         <svg
@@ -96,7 +96,7 @@ export function Sidebar() {
       </div>
 
       {/* 1. Logo Section */}
-      <div className="mb-10 flex items-center gap-3 px-2 flex-shrink-0">
+      <div className="mb-16 flex items-center gap-4 px-1 flex-shrink-0">
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1, rotate: rotation }}
@@ -104,22 +104,22 @@ export function Sidebar() {
             scale: { type: "spring", stiffness: 260, damping: 20 },
             rotate: { duration: 2, ease: "easeInOut" }
           }}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-sidebar-secondary text-sidebar-primary-foreground"
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-xl ring-1 ring-white/10 shadow-lg"
         >
-          <Webhook className="h-5 w-5" />
+          <Webhook className="h-6 w-6" />
         </motion.div>
         <motion.span
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3 }}
-          className="text-2xl font-medium tracking-wide text-sidebar-foreground drop-shadow-sm "
+          className="text-2xl font-normal tracking-wide text-white"
         >
           supernizo
         </motion.span>
       </div>
 
       {/* 2. Navigation Items (Scrollable if needed) */}
-      <nav className="flex-1  space-y-2 overflow-y-auto pr-1">
+      <nav className="flex-1 -mx-10 overflow-y-auto">
         {navItems
           .filter((item) => (isSuperAdmin || !item.superOnly) && (!item.salesOnly || persona === "sales"))
           .map((item, index) => {
@@ -131,18 +131,33 @@ export function Sidebar() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 * index }}
             >
-              <Link href={item.href}>
-                <Button
-                  variant="ghost"
-                  className={`w-full justify-start gap-3 rounded-md border px-4 py-6 text-[15px] font-medium transition-all duration-200 ${
+              <Link href={item.href} className="block group">
+                <div
+                  className={`relative flex items-center gap-5 px-10 py-5 transition-all duration-300 ${
                     isActive
-                      ? "sidebar-chip-active"
-                      : "border-transparent bg-transparent text-sidebar-foreground/90 shadow-none hover:border-white/25 hover:bg-white/12 hover:text-sidebar-accent-foreground hover:shadow-[0_8px_18px_-16px_rgba(0,0,0,0.55)]"
+                      ? "bg-white/10 text-white"
+                      : "text-white/40 hover:bg-white/5 hover:text-white/80"
                   }`}
-                  >
-                  <item.icon className="h-5 w-5" />
-                  {isSuperAdmin ? item.name : item.normalLabel ?? item.name}
-                </Button>
+                >
+                  {/* Active Indicator Bar */}
+                  {isActive && (
+                    <motion.div
+                      layoutId="sidebar-active-bar"
+                      className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1.5 bg-white rounded-r-full shadow-[0_0_15px_rgba(255,255,255,0.5)]"
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    />
+                  )}
+                  
+                  <item.icon className={`h-6 w-6 transition-all duration-300 ${
+                    isActive ? "text-white scale-110" : "text-white/30 group-hover:text-white/60"
+                  }`} />
+                  
+                  <span className={`text-xl tracking-tight transition-all ${
+                    isActive ? "font-medium" : "font-light"
+                  }`}>
+                    {isSuperAdmin ? item.name : item.normalLabel ?? item.name}
+                  </span>
+                </div>
               </Link>
             </motion.div>
           );
@@ -150,7 +165,7 @@ export function Sidebar() {
       </nav>
 
       {/* 3. Bottom Section */}
-      <div className="mt-auto pt-6 flex flex-col gap-2">
+      <div className="mt-auto pt-8 flex flex-col gap-4 border-t border-white/10">
         {isSuperAdmin ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -158,13 +173,14 @@ export function Sidebar() {
             transition={{ delay: 0.5 }}
           >
             <Link href="/">
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-3 rounded-md bg-transparent px-4 py-2 text-[15px] text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-accent-foreground"
+              <button
+                className="flex items-center gap-3 px-2 text-sm font-light tracking-tight text-white/40 hover:text-white transition-all group"
               >
-                <UserRound className="h-5 w-5" />
-                <span>{`Current User - ${personaLabel}`}</span>
-              </Button>
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 group-hover:bg-white/10 transition-colors">
+                  <UserRound className="h-4 w-4 opacity-50" />
+                </div>
+                <span>{`Account - ${personaLabel}`}</span>
+              </button>
             </Link>
           </motion.div>
         ) : null}
@@ -174,14 +190,15 @@ export function Sidebar() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
         >
-          <Button
-            variant="ghost"
+          <button
             onClick={handleSignOut}
-            className="w-full justify-start gap-3 rounded-md bg-transparent px-4 py-2 text-[15px] text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-accent-foreground"
+            className="flex items-center gap-3 px-2 text-sm font-light tracking-tight text-white/40 hover:text-white transition-all group"
           >
-            <LogOut className="h-5 w-5" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 group-hover:bg-white/10 transition-colors">
+              <LogOut className="h-4 w-4 opacity-50" />
+            </div>
             Sign out
-          </Button>
+          </button>
         </motion.div>
       </div>
     </motion.aside>
