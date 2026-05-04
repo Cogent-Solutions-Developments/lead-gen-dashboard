@@ -77,6 +77,34 @@ const WebsiteIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const PhoneIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2z" />
+    <path
+      fill="white"
+      transform="translate(6, 6) scale(0.5)"
+      d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"
+    />
+  </svg>
+);
+
+const EmailIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2z" />
+    <g transform="translate(6, 6) scale(0.5)">
+      <rect x="2" y="4" width="20" height="16" rx="2" fill="white" />
+      <path
+        d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </g>
+  </svg>
+);
+
 const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
   {
     id: "workflow-default-new",
@@ -782,8 +810,26 @@ export function NormalUserEventLeadSheet() {
 
                           <div className="pr-8">
                             <div className="flex flex-col gap-2">
-                              <span className="text-sm font-light tracking-tight text-zinc-700">{item.email || "-"}</span>
-                              <span className="text-sm font-light text-zinc-500">{item.phone || "-"}</span>
+                              <div className="flex items-center gap-2">
+                                {item.email ? (
+                                  <>
+                                    <EmailIcon className="h-3.5 w-3.5 text-[#EF4444]" />
+                                    <span className="text-sm font-light tracking-tight text-zinc-700">{item.email}</span>
+                                  </>
+                                ) : (
+                                  <span className="text-sm font-light tracking-tight text-zinc-700">-</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {item.phone ? (
+                                  <>
+                                    <PhoneIcon className="h-3.5 w-3.5 text-[#22C55E]" />
+                                    <span className="text-sm font-light text-zinc-500">{item.phone}</span>
+                                  </>
+                                ) : (
+                                  <span className="text-sm font-light text-zinc-500">-</span>
+                                )}
+                              </div>
                               <div className="flex items-center gap-6 pt-3">
                                 {item.linkedinUrl && (
                                   <a href={item.linkedinUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950">
