@@ -5,17 +5,16 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Brain,
-  LayoutDashboard, 
-  Rocket, 
-  Webhook, 
-  Plus, 
+  LayoutDashboard,
+  Rocket,
+  Webhook,
+  Plus,
   Upload,
   TrainFront,
   UserRound,
   LogOut,
   ShieldCheck
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { clearPersona } from "@/lib/persona";
 import { usePersona } from "@/hooks/usePersona";
@@ -34,7 +33,14 @@ const navItems = [
   { name: "NizoAI", href: "/nizo-ai", icon: Brain, salesOnly: true },
 ];
 
-export function Sidebar() {
+type SidebarProps = {
+  isExpanded: boolean;
+  isPinned: boolean;
+  onHoverChange: (next: boolean) => void;
+  onPinnedChange: (next: boolean) => void;
+};
+
+export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { persona } = usePersona();
@@ -74,9 +80,17 @@ export function Sidebar() {
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="sidebar-modern fixed left-0 top-0 z-40 flex h-screen w-72 flex-col p-10 font-sans text-white"
+      onMouseEnter={() => onHoverChange(true)}
+      onMouseLeave={() => onHoverChange(false)}
+      className={`sidebar-modern fixed left-0 top-0 z-40 flex h-screen flex-col font-sans text-white shadow-[22px_0_45px_-34px_rgba(2,10,27,0.65)] transition-[width,padding] duration-300 ease-out ${
+        isExpanded ? "w-72 p-10" : "w-24 p-6"
+      }`}
     >
-      <div className="pointer-events-none !absolute -right-40 top-[50%] !z-0 -translate-y-1/2 opacity-40 rotate-12">
+      <div
+        className={`pointer-events-none !absolute top-[50%] !z-0 -translate-y-1/2 rotate-12 opacity-40 transition-all duration-300 ${
+          isExpanded ? "-right-40" : "-right-72"
+        }`}
+      >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="24"
@@ -96,7 +110,14 @@ export function Sidebar() {
       </div>
 
       {/* 1. Logo Section */}
-      <div className="mb-16 flex items-center gap-4 px-1 flex-shrink-0">
+      <button
+        type="button"
+        aria-label={isPinned ? "Collapse sidebar" : "Pin expanded sidebar"}
+        onClick={() => onPinnedChange(!isPinned)}
+        className={`mb-16 grid w-full flex-shrink-0 items-center text-left transition-all ${
+          isExpanded ? "grid-cols-[2.75rem_minmax(0,1fr)] gap-4 px-1" : "grid-cols-1 justify-items-center px-0"
+        }`}
+      >
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1, rotate: rotation }}
@@ -104,22 +125,24 @@ export function Sidebar() {
             scale: { type: "spring", stiffness: 260, damping: 20 },
             rotate: { duration: 2, ease: "easeInOut" }
           }}
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-xl ring-1 ring-white/10 shadow-lg"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-xl ring-1 ring-white/10 shadow-lg"
         >
           <Webhook className="h-6 w-6" />
         </motion.div>
         <motion.span
           initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
+          animate={{ opacity: isExpanded ? 1 : 0, x: isExpanded ? 0 : -8 }}
           transition={{ delay: 0.3 }}
-          className="text-2xl font-normal tracking-wide text-white"
+          className={`whitespace-nowrap text-2xl font-normal tracking-wide text-white transition-[width] duration-300 ${
+            isExpanded ? "w-auto" : "w-0 overflow-hidden"
+          }`}
         >
           supernizo
         </motion.span>
-      </div>
+      </button>
 
       {/* 2. Navigation Items (Scrollable if needed) */}
-      <nav className="flex-1 -mx-10 overflow-y-auto">
+      <nav className={`flex-1 overflow-y-auto transition-[margin] duration-300 ${isExpanded ? "-mx-10" : "-mx-6"}`}>
         {navItems
           .filter((item) => (isSuperAdmin || !item.superOnly) && (!item.salesOnly || persona === "sales"))
           .map((item, index) => {
@@ -133,11 +156,11 @@ export function Sidebar() {
             >
               <Link href={item.href} className="block group">
                 <div
-                  className={`relative flex items-center gap-5 px-10 py-5 transition-all duration-300 ${
+                  className={`relative flex items-center py-5 transition-all duration-300 ${
                     isActive
                       ? "bg-white/10 text-white"
                       : "text-white/40 hover:bg-white/5 hover:text-white/80"
-                  }`}
+                  } ${isExpanded ? "gap-5 px-10" : "justify-center px-0"}`}
                 >
                   {/* Active Indicator Bar */}
                   {isActive && (
@@ -152,8 +175,9 @@ export function Sidebar() {
                     isActive ? "text-white scale-110" : "text-white/30 group-hover:text-white/60"
                   }`} />
                   
-                  <span className={`text-xl tracking-tight transition-all ${
+                  <span className={`whitespace-nowrap text-xl tracking-tight transition-all duration-200 ${
                     isActive ? "font-medium" : "font-light"
+                  } ${isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"
                   }`}>
                     {isSuperAdmin ? item.name : item.normalLabel ?? item.name}
                   </span>
@@ -174,12 +198,16 @@ export function Sidebar() {
           >
             <Link href="/">
               <button
-                className="flex items-center gap-3 px-2 text-sm font-light tracking-tight text-white/40 hover:text-white transition-all group"
+                className={`flex items-center text-sm font-light tracking-tight text-white/40 transition-all hover:text-white group ${
+                  isExpanded ? "gap-3 px-2" : "justify-center px-0"
+                }`}
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 group-hover:bg-white/10 transition-colors">
                   <UserRound className="h-4 w-4 opacity-50" />
                 </div>
-                <span>{`Account - ${personaLabel}`}</span>
+                <span className={`whitespace-nowrap transition-all duration-200 ${isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"}`}>
+                  {`Account - ${personaLabel}`}
+                </span>
               </button>
             </Link>
           </motion.div>
@@ -192,12 +220,16 @@ export function Sidebar() {
         >
           <button
             onClick={handleSignOut}
-            className="flex items-center gap-3 px-2 text-sm font-light tracking-tight text-white/40 hover:text-white transition-all group"
+            className={`flex items-center text-sm font-light tracking-tight text-white/40 transition-all hover:text-white group ${
+              isExpanded ? "gap-3 px-2" : "justify-center px-0"
+            }`}
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 group-hover:bg-white/10 transition-colors">
               <LogOut className="h-4 w-4 opacity-50" />
             </div>
-            Sign out
+            <span className={`whitespace-nowrap transition-all duration-200 ${isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"}`}>
+              Sign out
+            </span>
           </button>
         </motion.div>
       </div>

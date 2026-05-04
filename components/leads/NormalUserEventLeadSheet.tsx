@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -30,7 +29,7 @@ import {
 import { usePersona } from "@/hooks/usePersona";
 import {
   ChevronLeft,
-  ExternalLink,
+  ChevronRight,
   Loader2,
   Plus,
   RefreshCcw,
@@ -66,6 +65,18 @@ type AddLeadFormState = {
   linkedinUrl: string;
 };
 
+const LinkedInIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.22-.44-2.12-1.54-2.12a1.6 1.6 0 00-1.58 1.14 2.17 2.17 0 00-.1 1.08V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.95 0 3.52 1.27 3.52 4z" />
+  </svg>
+);
+
+const WebsiteIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418" />
+  </svg>
+);
+
 const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
   {
     id: "workflow-default-new",
@@ -76,11 +87,19 @@ const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     isActive: true,
   },
   {
+    id: "workflow-default-contacted",
+    statusKey: "contacted",
+    label: "Contacted",
+    isSystemDefault: true,
+    sortOrder: 1,
+    isActive: true,
+  },
+  {
     id: "workflow-default-first-call",
     statusKey: "first-call",
     label: "First Call",
     isSystemDefault: true,
-    sortOrder: 1,
+    sortOrder: 2,
     isActive: true,
   },
   {
@@ -88,29 +107,38 @@ const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     statusKey: "follow-up",
     label: "Follow Up",
     isSystemDefault: true,
-    sortOrder: 2,
-    isActive: true,
-  },
-  {
-    id: "workflow-default-success",
-    statusKey: "success",
-    label: "Success",
-    isSystemDefault: true,
     sortOrder: 3,
     isActive: true,
   },
   {
-    id: "workflow-default-dead",
-    statusKey: "dead",
-    label: "Dead",
+    id: "workflow-default-qualified",
+    statusKey: "qualified",
+    label: "Qualified",
     isSystemDefault: true,
     sortOrder: 4,
+    isActive: true,
+  },
+  {
+    id: "workflow-default-converted",
+    statusKey: "converted",
+    label: "Converted",
+    isSystemDefault: true,
+    sortOrder: 5,
+    isActive: true,
+  },
+  {
+    id: "workflow-default-not-interested",
+    statusKey: "not-interested",
+    label: "Not Interested",
+    isSystemDefault: true,
+    sortOrder: 6,
     isActive: true,
   },
 ];
 
 const FIXED_WORKFLOW_STATUS_KEYS = new Set(FIXED_WORKFLOW_STATUSES.map((item) => item.statusKey));
-const PAGE_SIZE = 50;
+const DEFAULT_PAGE_SIZE = 50;
+const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 const SEARCH_DEBOUNCE_MS = 300;
 
 const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
@@ -223,39 +251,38 @@ function LeadSheetDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-6">
       <button
         type="button"
         aria-label="Close dialog"
-        className="absolute inset-0 bg-zinc-950/35 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-zinc-950/30 backdrop-blur-[3px]"
         onClick={onClose}
       />
 
-      <div className="relative z-[1] w-full max-w-lg overflow-hidden rounded-2xl border border-zinc-200/85 bg-white/96 shadow-[0_0_0_1px_rgba(255,255,255,0.9),0_24px_40px_-24px_rgba(2,10,27,0.6),0_12px_22px_-16px_rgba(15,23,42,0.34)] backdrop-blur-[10px]">
-        <div className="pointer-events-none absolute -right-14 -top-16 h-44 w-44 rounded-full bg-gradient-to-br from-sky-200/50 via-blue-300/25 to-transparent blur-3xl" />
-        <div className="pointer-events-none absolute -left-14 bottom-0 h-32 w-32 rounded-full bg-gradient-to-tr from-zinc-100/70 to-transparent blur-2xl" />
-
-        <div className="relative space-y-5 p-6">
-          <div className="flex items-start justify-between gap-4">
+      <div className="relative z-[1] w-full max-w-3xl overflow-hidden border border-zinc-200 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
+        <div className="relative grid min-h-[34rem] md:grid-cols-[17rem_minmax(0,1fr)]">
+          <aside className="border-b border-zinc-200 bg-zinc-50/70 p-8 md:border-b-0 md:border-r">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                Lead Sheet
-              </p>
-              <h2 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900">{title}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600">{description}</p>
+              <p className="text-sm font-medium text-zinc-400">Lead Sheet Updates</p>
+              <h2 className="mt-8 text-4xl font-light leading-none tracking-tighter text-zinc-950">
+                {title}
+              </h2>
+              <p className="mt-5 text-sm font-light leading-relaxed text-zinc-500">{description}</p>
             </div>
 
             <Button
               type="button"
               variant="ghost"
-              className="h-9 w-9 shrink-0 rounded-full p-0 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+              className="absolute right-5 top-5 h-10 w-10 rounded-full border border-zinc-200 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
               onClick={onClose}
             >
               <X className="h-4 w-4" />
             </Button>
-          </div>
+          </aside>
 
-          {children}
+          <div className="min-h-0 overflow-y-auto p-8">
+            {children}
+          </div>
         </div>
       </div>
     </div>
@@ -283,11 +310,12 @@ export function NormalUserEventLeadSheet() {
   const [searchInput, setSearchInput] = useState(initialSearch);
   const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [pageOffset, setPageOffset] = useState(0);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [updatingKeys, setUpdatingKeys] = useState<Record<string, boolean>>({});
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [addLeadForm, setAddLeadForm] = useState<AddLeadFormState>(EMPTY_ADD_LEAD_FORM);
   const [addingLead, setAddingLead] = useState(false);
-  const targetLeadRowRef = useRef<HTMLTableRowElement | null>(null);
+  const targetLeadRowRef = useRef<HTMLDivElement | null>(null);
 
   const workflowStatusLabelLookup = useMemo(() => {
     const lookup = new Map<string, string>();
@@ -385,7 +413,7 @@ export function NormalUserEventLeadSheet() {
     setLoadingLeads(true);
     try {
       const response = await listEventLeads(canonicalEventKey, {
-        limit: PAGE_SIZE,
+        limit: pageSize,
         offset: nextOffset,
         search: query || undefined,
         includeManual: true,
@@ -407,7 +435,7 @@ export function NormalUserEventLeadSheet() {
     } finally {
       setLoadingLeads(false);
     }
-  }, []);
+  }, [pageSize]);
 
   useEffect(() => {
     if (!selectedEventKey) {
@@ -460,6 +488,11 @@ export function NormalUserEventLeadSheet() {
   const handleEventChange = (value: string) => {
     setPageOffset(0);
     router.replace(updateSearchParam(pathname, new URLSearchParams(searchParams.toString()), "event", value));
+  };
+
+  const handlePageSizeChange = (value: number) => {
+    setPageOffset(0);
+    setPageSize(value);
   };
 
   const handleWorkflowStatusChange = useCallback(
@@ -563,148 +596,160 @@ export function NormalUserEventLeadSheet() {
 
   return (
     <>
-      <div className="font-sans flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1">
-        <div className="relative z-10 flex shrink-0 flex-col gap-4 border-b border-zinc-100/90 bg-transparent pb-6 backdrop-blur-[8px]">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
+        <header className="shrink-0 border-b border-zinc-200 pb-12">
+          <div className="flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-sm font-medium uppercase tracking-[0.18em] text-zinc-400">
-                {personaLabel} Lead Sheet
-              </p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-900">
-                {selectedEvent?.canonicalEventName || "Lead Sheet"}
-              </h1>
-              <p className="mt-1 text-sm text-zinc-500">
-                Combined event view with personal workflow statuses across the full event bucket.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Link href="/campaigns">
-                <Button
-                  variant="outline"
-                  className="h-9 border-zinc-200/80 bg-white/85 px-3.5 text-xs font-semibold text-zinc-700 hover:bg-white"
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/campaigns"
+                  className="inline-flex items-center text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-950"
                 >
-                  <ChevronLeft className="mr-1.5 h-3.5 w-3.5" />
-                  Back to Events
-                </Button>
-              </Link>
+                  <ChevronLeft className="mr-1 h-3 w-3" />
+                  Events
+                </Link>
+                <span className="h-4 w-[1px] bg-zinc-200" />
+                <span className="text-xs font-medium text-zinc-400">{personaLabel} Workspace</span>
+              </div>
 
-              <Button
-                variant="outline"
-                className="h-9 border-zinc-200/80 bg-white/85 px-3.5 text-xs font-semibold text-zinc-700 hover:bg-white"
-                onClick={() => setAddLeadOpen(true)}
-                disabled={!selectedEvent}
-              >
-                <Plus className="mr-1.5 h-3.5 w-3.5" />
-                Add Lead
-              </Button>
-
-              <Button
-                variant="outline"
-                className="h-9 border-zinc-200/80 bg-white/85 px-3.5 text-xs font-semibold text-zinc-700 hover:bg-white"
-                onClick={() => void refreshData()}
-                disabled={loadingEvents || loadingLeads}
-              >
-                {loadingEvents || loadingLeads ? (
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <RefreshCcw className="mr-1.5 h-3.5 w-3.5" />
-                )}
-                Refresh
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge className="rounded-md border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-zinc-500 shadow-none">
-              {selectedEvent ? `${selectedEvent.leadCount} leads` : "0 leads"}
-            </Badge>
-            <Badge className="rounded-md border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-zinc-500 shadow-none">
-              {statusOptions.length} statuses
-            </Badge>
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="w-full sm:max-w-xs">
-              <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                Event
-              </label>
-              <Select value={selectedEventKey} onValueChange={handleEventChange}>
-                <SelectTrigger className="h-10 w-full border-zinc-200/80 bg-white/85 text-sm">
-                  <SelectValue placeholder="Select event" />
-                </SelectTrigger>
-                <SelectContent>
-                  {events.map((item) => (
-                    <SelectItem key={item.canonicalEventKey} value={item.canonicalEventKey}>
-                      {item.canonicalEventName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="relative w-full sm:max-w-sm">
-              <Search className="pointer-events-none absolute left-3 top-[calc(50%+0.625rem)] h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-              <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                Search Leads
-              </label>
-              <Input
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Name, company, email, phone, status"
-                className="h-10 border-zinc-200/80 bg-white/85 pl-9 text-sm"
-              />
-            </div>
-          </div>
-
-          {selectedEvent ? (
-            <div className="rounded-xl border border-zinc-200/80 bg-white/55 px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                Event Bucket
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-                This lead sheet combines all clustered runs for this event in one bucket.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Badge className="rounded-full border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-600 shadow-none">
-                  {selectedEvent.campaignCount} campaign runs
-                </Badge>
-                <Badge className="rounded-full border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-600 shadow-none">
-                  {pageTotal} matching leads
-                </Badge>
+              <div className="mt-8">
+                <h1 className="max-w-5xl text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
+                  {selectedEvent?.canonicalEventName || "Intelligence Registry"}
+                </h1>
+                <p className="mt-4 max-w-2xl text-lg font-light leading-relaxed text-zinc-500">
+                  Review, search, and progress event prospects through a clean lead sheet.
+                </p>
               </div>
             </div>
-          ) : null}
-        </div>
 
-        <div className="mt-5 min-h-0 flex-1 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/32 backdrop-blur-[8px]">
-          <div className="min-h-0 h-full overflow-auto px-4 py-3">
-            {isLoading ? (
-              <div className="px-5 py-10 text-sm text-zinc-500">Loading lead sheet...</div>
-            ) : !selectedEvent ? (
-              <div className="px-5 py-10 text-sm text-zinc-500">No events available for this pipeline.</div>
-            ) : eventLeads.length === 0 ? (
-              <div className="px-5 py-10 text-sm text-zinc-500">
-                {searchQuery ? "No leads match the current search." : "No leads found for this event."}
+            <div className="flex flex-col gap-5 lg:min-w-[19rem] lg:items-stretch">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-zinc-400">Total records</p>
+                  <p className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
+                    {pageTotal.toLocaleString()}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-zinc-400">Visible now</p>
+                  <p className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
+                    {eventLeads.length.toLocaleString()}
+                  </p>
+                </div>
               </div>
-            ) : (
+
+              <div className="grid grid-cols-2 gap-6 border-t border-zinc-200 pt-4">
+                <button
+                  type="button"
+                  className="inline-flex h-10 w-fit items-center justify-start gap-2 border-b border-transparent text-sm font-medium text-zinc-500 transition-all hover:border-zinc-900 hover:text-zinc-950 active:scale-[0.98] disabled:opacity-50"
+                  onClick={() => void refreshData()}
+                  disabled={loadingEvents || loadingLeads}
+                >
+                  {loadingEvents || loadingLeads ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCcw className="h-3.5 w-3.5" />
+                  )}
+                  Refresh
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAddLeadOpen(true)}
+                  disabled={!selectedEvent}
+                  className="inline-flex h-10 w-fit items-center justify-center gap-2 rounded-full bg-zinc-950 px-5 text-sm font-semibold text-white transition-all hover:bg-blue-600 active:scale-[0.98] disabled:opacity-50"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add entry
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="mt-12 grid min-h-0 flex-1 gap-12 overflow-hidden xl:grid-cols-[19rem_minmax(0,1fr)]">
+          <aside className="shrink-0 space-y-10 overflow-y-auto pr-2 scrollbar-hide">
+            <div className="space-y-10">
               <div className="space-y-4">
-                <table className="min-w-[980px] w-full">
-                  <thead className="border-b border-zinc-100/85 bg-white/70">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                        Profile
-                      </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                        Contact Info
-                      </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                        Status
-                      </th>
-                    </tr>
-                  </thead>
+                <label className="text-xs font-medium text-zinc-400">Context registry</label>
+                <Select value={selectedEventKey} onValueChange={handleEventChange}>
+                  <SelectTrigger className="!h-14 w-full rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-lg font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
+                    <SelectValue placeholder="Select context" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-none border-zinc-200 shadow-xl">
+                    {events.map((item) => (
+                      <SelectItem key={item.canonicalEventKey} value={item.canonicalEventKey}>
+                        {item.canonicalEventName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-                  <tbody className="divide-y divide-zinc-100/70">
+              <div className="space-y-4">
+                <label className="text-xs font-medium text-zinc-400">Search intelligence</label>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute bottom-4 left-0 h-4 w-4 text-zinc-400" />
+                  <input
+                    value={searchInput}
+                    onChange={(event) => setSearchInput(event.target.value)}
+                    placeholder="Find in sheet..."
+                    className="h-12 w-full border-b border-zinc-200 bg-transparent pl-8 text-lg font-light tracking-tight text-zinc-950 placeholder:text-zinc-400 focus:border-blue-600 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {selectedEvent && (
+                <div className="space-y-4 border-t border-zinc-100 pt-10">
+                  <label className="text-xs font-medium text-zinc-400">Data coverage</label>
+                  <div className="space-y-0">
+                    <div className="flex items-center justify-between border-b border-zinc-100 py-4">
+                      <span className="text-sm font-light text-zinc-500">Total profile count</span>
+                      <span className="text-xl font-light tabular-nums tracking-tight text-zinc-950">
+                        {pageTotal.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between border-b border-zinc-100 py-4">
+                      <span className="text-sm font-light text-zinc-500">Visible range</span>
+                      <Select value={String(pageSize)} onValueChange={(value) => handlePageSizeChange(Number(value))}>
+                        <SelectTrigger className="h-9 w-16 justify-end gap-1 rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-xl font-light tabular-nums tracking-tight text-zinc-950 shadow-none transition-colors focus:border-blue-600 focus:ring-0 [&>svg]:ml-0">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent align="end" className="rounded-none border-zinc-200 shadow-xl">
+                          {PAGE_SIZE_OPTIONS.map((option) => (
+                            <SelectItem key={option} value={String(option)} className="py-2.5 text-sm">
+                              {option}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </aside>
+
+          <main className="flex min-h-0 flex-col overflow-hidden xl:border-l xl:border-zinc-200 xl:pl-16">
+            <div className="min-h-0 flex-1 overflow-auto pr-4 scrollbar-modern">
+              {isLoading ? (
+                <div className="flex h-40 items-center justify-center text-zinc-400 font-light">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Accessing Intelligence...
+                </div>
+              ) : eventLeads.length === 0 ? (
+                <div className="flex h-40 items-center justify-center border-y border-zinc-100 text-zinc-400 font-light">
+                  {searchQuery ? "No matching records found." : "Workspace is currently empty."}
+                </div>
+              ) : (
+                <div className="min-w-[56rem] border-t border-zinc-200">
+                  <div className="grid grid-cols-[minmax(24rem,1fr)_minmax(18rem,0.85fr)_12rem] border-b border-zinc-200 py-3 text-sm font-light text-zinc-500">
+                    <div>Identity details</div>
+                    <div>Contact channels</div>
+                    <div>Workflow</div>
+                  </div>
+
+                  <div>
                     {eventLeads.map((item) => {
                       const updateKey = `${item.canonicalEventKey}::${item.leadIdentityKey}`;
                       const isTargetLead = targetLeadId === item.id;
@@ -714,122 +759,110 @@ export function NormalUserEventLeadSheet() {
                         : undefined;
 
                       return (
-                        <tr
+                        <div
                           key={updateKey}
                           ref={isTargetLead ? targetLeadRowRef : undefined}
                           id={`lead-${item.id}`}
-                          className={`scroll-mt-24 transition-colors ${
-                            isTargetLead
-                              ? "bg-blue-50/85 ring-1 ring-inset ring-blue-200/90"
-                              : "hover:bg-white/46"
+                          className={`group grid grid-cols-[minmax(24rem,1fr)_minmax(18rem,0.85fr)_12rem] border-b border-zinc-100 py-10 transition-all duration-300 ${
+                            isTargetLead ? "bg-blue-50/35" : "hover:bg-zinc-50/60"
                           }`}
                         >
-                          <td className="px-4 py-4 align-top">
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-semibold text-zinc-900">
-                                  {item.employeeName || "-"}
-                                </p>
-                                {item.isManualLead ? (
-                                  <Badge className="rounded-full border border-zinc-200/80 bg-zinc-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 shadow-none">
-                                    Manual Lead
-                                  </Badge>
-                                ) : null}
+                          <div className="pr-8">
+                            <div className="flex flex-col gap-3">
+                              <div className="flex items-center gap-3">
+                                <span className="text-xl font-light tracking-tight text-zinc-950">{item.employeeName || "-"}</span>
+                                {item.isManualLead && (
+                                  <span className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-xs font-medium text-zinc-500">Manual</span>
+                                )}
                               </div>
-                              <p className="mt-1 text-sm text-zinc-600">{item.title || "-"}</p>
-                              <p className="mt-1 text-xs font-medium uppercase tracking-wide text-zinc-400">
-                                {item.company || "-"}
-                              </p>
+                              <span className="max-w-sm text-base font-light leading-relaxed text-zinc-700">{item.title || "-"}</span>
+                              <span className="text-xs font-medium text-zinc-400">{item.company || "-"}</span>
                             </div>
-                          </td>
+                          </div>
 
-                          <td className="px-4 py-4 align-top">
-                            <div className="space-y-1.5 text-sm text-zinc-700">
-                              <p>{item.email || "-"}</p>
-                              <p>{item.phone || "-"}</p>
-                              <div className="flex flex-wrap gap-3 pt-1">
-                                {item.linkedinUrl ? (
-                                  <a
-                                    href={item.linkedinUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-800"
-                                  >
-                                    LinkedIn
-                                    <ExternalLink className="h-3 w-3" />
+                          <div className="pr-8">
+                            <div className="flex flex-col gap-2">
+                              <span className="text-sm font-light tracking-tight text-zinc-700">{item.email || "-"}</span>
+                              <span className="text-sm font-light text-zinc-500">{item.phone || "-"}</span>
+                              <div className="flex items-center gap-6 pt-3">
+                                {item.linkedinUrl && (
+                                  <a href={item.linkedinUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950">
+                                    <LinkedInIcon className="h-3.5 w-3.5 text-[#0A66C2]" />
+                                    <span className="text-xs font-medium">LinkedIn</span>
                                   </a>
-                                ) : null}
-                                {item.companyUrl ? (
-                                  <a
-                                    href={item.companyUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-800"
-                                  >
-                                    Website
-                                    <ExternalLink className="h-3 w-3" />
+                                )}
+                                {item.companyUrl && (
+                                  <a href={item.companyUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950">
+                                    <WebsiteIcon className="h-3.5 w-3.5 text-zinc-950" />
+                                    <span className="text-xs font-medium">Website</span>
                                   </a>
-                                ) : null}
+                                )}
                               </div>
                             </div>
-                          </td>
+                          </div>
 
-                          <td className="px-4 py-4 align-top">
-                            <div className="flex max-w-[12rem] items-center gap-2">
-                              <Select
-                                value={selectedStatusValue}
-                                onValueChange={(value) => handleStatusSelection(item, value)}
-                                disabled={isUpdating}
-                              >
-                                <SelectTrigger className="h-9 w-full border-zinc-200/80 bg-white/85 text-sm">
-                                  <SelectValue placeholder={item.workflowStatusLabel} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {statusOptions.map((option) => (
-                                    <SelectItem key={option.statusKey} value={option.statusKey}>
-                                      {option.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              {isUpdating ? <Loader2 className="h-4 w-4 animate-spin text-zinc-400" /> : null}
+                          <div>
+                            <div className="flex items-center gap-4">
+                              <div className="relative w-full">
+                                <Select
+                                  value={selectedStatusValue}
+                                  onValueChange={(value) => handleStatusSelection(item, value)}
+                                  disabled={isUpdating}
+                                >
+                                  <SelectTrigger className="h-10 w-full rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-base font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
+                                    <SelectValue placeholder={item.workflowStatusLabel} />
+                                  </SelectTrigger>
+                                  <SelectContent className="rounded-none border-zinc-200 shadow-2xl">
+                                    {statusOptions.map((option) => (
+                                      <SelectItem key={option.statusKey} value={option.statusKey} className="text-xs py-2.5">
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              {isUpdating && <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />}
                             </div>
-                          </td>
-                        </tr>
+                          </div>
+                        </div>
                       );
                     })}
-                  </tbody>
-                </table>
-
-                <div className="flex flex-col gap-3 border-t border-zinc-100/80 px-1 pt-3 text-sm text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
-                  <p>
-                    Showing {pageRangeStart}-{pageRangeEnd} of {pageTotal} leads
-                    {searchQuery ? " for this search" : ""}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-9 border-zinc-200/80 bg-white/85 px-3 text-xs font-semibold text-zinc-700 hover:bg-white"
-                      onClick={() => setPageOffset((prev) => Math.max(0, prev - PAGE_SIZE))}
-                      disabled={pageOffset === 0 || loadingLeads}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-9 border-zinc-200/80 bg-white/85 px-3 text-xs font-semibold text-zinc-700 hover:bg-white"
-                      onClick={() => setPageOffset((prev) => prev + PAGE_SIZE)}
-                      disabled={!hasMore || loadingLeads}
-                    >
-                      Next
-                    </Button>
                   </div>
                 </div>
+              )}
+            </div>
+
+            <footer className="mt-6 flex shrink-0 flex-col gap-5 border-t border-zinc-100 pb-4 pt-8 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-zinc-400">Lead sheet range</p>
+                <p className="text-lg font-light tabular-nums tracking-tight text-zinc-950">
+                  {pageRangeStart}—{pageRangeEnd}
+                  <span className="ml-2 text-sm text-zinc-400">of {pageTotal.toLocaleString()} records</span>
+                </p>
               </div>
-            )}
-          </div>
+
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  aria-label="Previous page"
+                  className="h-11 w-11 rounded-full border border-zinc-200 bg-white p-0 text-zinc-500 shadow-none transition-all hover:border-zinc-900 hover:bg-white hover:text-zinc-950 disabled:opacity-30"
+                  onClick={() => setPageOffset((prev) => Math.max(0, prev - pageSize))}
+                  disabled={pageOffset === 0 || loadingLeads}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  aria-label="Next page"
+                  className="h-11 w-11 rounded-full border border-zinc-950 bg-transparent p-0 text-zinc-950 shadow-none transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white disabled:border-zinc-200 disabled:text-zinc-300 disabled:opacity-100"
+                  onClick={() => setPageOffset((prev) => prev + pageSize)}
+                  disabled={!hasMore || loadingLeads}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </footer>
+          </main>
         </div>
       </div>
 
@@ -838,106 +871,106 @@ export function NormalUserEventLeadSheet() {
         title="Add Lead"
         description={
           selectedEvent
-            ? `Add one lead directly into ${selectedEvent.canonicalEventName}.`
+            ? `Add a lead directly into ${selectedEvent.canonicalEventName}.`
             : "Select an event first before adding a lead."
         }
         onClose={closeAddLeadDialog}
       >
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-x-8 gap-y-8 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            <label className="mb-3 block text-xs font-medium text-zinc-400">
               Full Name
             </label>
             <Input
               value={addLeadForm.fullName}
               onChange={(event) => updateAddLeadField("fullName", event.target.value)}
               placeholder="Lead name"
-              className="h-10 border-zinc-200/80 bg-white/90"
+              className="h-12 rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
             />
           </div>
 
           <div className="sm:col-span-2">
-            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            <label className="mb-3 block text-xs font-medium text-zinc-400">
               Title
             </label>
             <Input
               value={addLeadForm.title}
               onChange={(event) => updateAddLeadField("title", event.target.value)}
               placeholder="Job title"
-              className="h-10 border-zinc-200/80 bg-white/90"
+              className="h-12 rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            <label className="mb-3 block text-xs font-medium text-zinc-400">
               Company Name
             </label>
             <Input
               value={addLeadForm.companyName}
               onChange={(event) => updateAddLeadField("companyName", event.target.value)}
               placeholder="Company"
-              className="h-10 border-zinc-200/80 bg-white/90"
+              className="h-12 rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            <label className="mb-3 block text-xs font-medium text-zinc-400">
               Company URL
             </label>
             <Input
               value={addLeadForm.companyUrl}
               onChange={(event) => updateAddLeadField("companyUrl", event.target.value)}
               placeholder="https://company.com"
-              className="h-10 border-zinc-200/80 bg-white/90"
+              className="h-12 rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            <label className="mb-3 block text-xs font-medium text-zinc-400">
               Email
             </label>
             <Input
               value={addLeadForm.email}
               onChange={(event) => updateAddLeadField("email", event.target.value)}
               placeholder="name@company.com"
-              className="h-10 border-zinc-200/80 bg-white/90"
+              className="h-12 rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            <label className="mb-3 block text-xs font-medium text-zinc-400">
               Phone
             </label>
             <Input
               value={addLeadForm.phone}
               onChange={(event) => updateAddLeadField("phone", event.target.value)}
               placeholder="+60 ..."
-              className="h-10 border-zinc-200/80 bg-white/90"
+              className="h-12 rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
             />
           </div>
 
           <div className="sm:col-span-2">
-            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            <label className="mb-3 block text-xs font-medium text-zinc-400">
               LinkedIn URL
             </label>
             <Input
               value={addLeadForm.linkedinUrl}
               onChange={(event) => updateAddLeadField("linkedinUrl", event.target.value)}
               placeholder="https://linkedin.com/in/..."
-              className="h-10 border-zinc-200/80 bg-white/90"
+              className="h-12 rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
             />
           </div>
         </div>
 
-        <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/80 px-4 py-3 text-xs leading-relaxed text-zinc-500">
-          Sales users need at least an email or phone. Delegate and production users can save a lead with just the basic profile details.
+        <div className="mt-8 border-y border-zinc-100 py-4 text-sm font-light leading-relaxed text-zinc-500">
+          Add the strongest details you have now. Contact information helps the team follow up faster, but the profile can be updated later.
         </div>
 
-        <div className="flex items-center justify-end gap-2">
+        <div className="mt-8 flex items-center justify-between">
           <Button
             type="button"
             variant="ghost"
-            className="h-9 rounded-md border border-zinc-200/80 bg-white/90 px-3 text-xs font-semibold text-zinc-700 hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+            className="h-11 rounded-none border-b border-transparent px-0 text-sm font-medium text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-transparent hover:text-zinc-950"
             onClick={() => closeAddLeadDialog()}
             disabled={addingLead}
           >
@@ -945,18 +978,18 @@ export function NormalUserEventLeadSheet() {
           </Button>
           <Button
             type="button"
-            className="h-9 rounded-md border border-zinc-200/80 bg-white/82 px-3.5 text-xs font-semibold text-zinc-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-zinc-950 px-7 text-sm font-semibold text-white shadow-none hover:bg-blue-600"
             onClick={() => void submitAddLead()}
             disabled={addingLead || !selectedEvent}
           >
             {addingLead ? (
               <>
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 Adding...
               </>
             ) : (
               <>
-                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                <Plus className="h-3.5 w-3.5" />
                 Add Lead
               </>
             )}

@@ -263,7 +263,7 @@ export default function UploadCampaignPage() {
             </Link>
 
             <div className="mt-8">
-              <h1 className="text-5xl font-light leading-none tracking-tighter text-zinc-950 sm:text-6xl">
+              <h1 className="text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
                 Campaign Upload
               </h1>
               <p className="mt-4 max-w-xl text-lg font-light leading-relaxed text-zinc-500">
@@ -277,7 +277,7 @@ export default function UploadCampaignPage() {
               <button
                 type="button"
                 onClick={() => setCurrentStep(currentStep === "csv" ? "details" : "event")}
-                className="inline-flex h-11 items-center justify-center px-6 text-sm font-medium text-zinc-500 transition-colors hover:text-zinc-950"
+                className="inline-flex h-10 items-center justify-center px-5 text-sm font-medium text-zinc-500 transition-colors hover:text-zinc-950"
               >
                 Go Back
               </button>
@@ -287,7 +287,7 @@ export default function UploadCampaignPage() {
               <button
                 type="button"
                 onClick={goNext}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-zinc-950 bg-transparent px-8 text-sm font-semibold text-zinc-950 transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white active:scale-[0.98]"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-zinc-950 bg-transparent px-6 text-sm font-semibold text-zinc-950 transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white active:scale-[0.98]"
               >
                 Continue
                 <ArrowRight className="h-4 w-4" />
@@ -297,7 +297,7 @@ export default function UploadCampaignPage() {
                 form="upload-campaign-form"
                 type="submit"
                 disabled={isSubmitting || eventsLoading}
-                className="inline-flex h-11 min-w-40 items-center justify-center gap-2 rounded-full border border-zinc-950 bg-transparent px-8 text-sm font-semibold text-zinc-950 transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white active:scale-[0.98] disabled:opacity-50"
+                className="inline-flex h-10 min-w-36 items-center justify-center gap-2 rounded-full border border-zinc-950 bg-transparent px-6 text-sm font-semibold text-zinc-950 transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white active:scale-[0.98] disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <>
