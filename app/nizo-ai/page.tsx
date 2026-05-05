@@ -577,6 +577,46 @@ export default function NizoAiPage() {
                 {results.length.toLocaleString()}
               </p>
             </div>
+
+            <AnimatePresence>
+              {searchSuggestions.length ? (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-5 flex flex-wrap justify-center gap-2.5"
+                >
+                  {searchSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => void runSearch(suggestion)}
+                      className="inline-flex h-9 items-center rounded-full border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-500 transition-colors hover:border-blue-600 hover:text-blue-600"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+
+            {recentSearches.length ? (
+              <div className="mx-auto mt-6 max-w-3xl">
+                <p className="mb-3 text-xs font-medium text-zinc-400">Recent searches</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {recentSearches.slice(0, 5).map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => void runSearch(item)}
+                      className="rounded-full border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-500 transition-colors hover:border-zinc-950 hover:text-zinc-950"
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         </header>
 
