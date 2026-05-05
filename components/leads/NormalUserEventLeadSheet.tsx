@@ -35,6 +35,7 @@ import {
   Plus,
   RefreshCcw,
   Search,
+  SlidersHorizontal,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -64,6 +65,12 @@ type AddLeadFormState = {
   email: string;
   phone: string;
   linkedinUrl: string;
+};
+
+type LeadFilterState = {
+  status: string;
+  contact: "all" | "email" | "phone" | "complete" | "missing-contact" | "linkedin" | "website";
+  source: "all" | "manual" | "imported";
 };
 
 const LinkedInIcon = ({ className }: { className?: string }) => (
@@ -148,24 +155,24 @@ const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     isActive: true,
   },
   {
-    id: "workflow-default-converted",
-    statusKey: "converted",
-    label: "Converted",
-    isSystemDefault: true,
-    sortOrder: 5,
-    isActive: true,
-  },
-  {
     id: "workflow-default-not-interested",
     statusKey: "not-interested",
     label: "Not Interested",
     isSystemDefault: true,
-    sortOrder: 6,
+    sortOrder: 5,
     isActive: true,
   },
 ];
 
 const FIXED_WORKFLOW_STATUS_KEYS = new Set(FIXED_WORKFLOW_STATUSES.map((item) => item.statusKey));
+const STATUS_DOT_CLASS: Record<string, string> = {
+  new: "bg-[#0aefff] shadow-[0_0_0_3px_rgba(10,239,255,0.20)]",
+  contacted: "bg-[#be0aff] shadow-[0_0_0_3px_rgba(190,10,255,0.18)]",
+  "first-call": "bg-[#147df5] shadow-[0_0_0_3px_rgba(20,125,245,0.20)]",
+  "follow-up": "bg-[#ff8700] shadow-[0_0_0_3px_rgba(255,135,0,0.20)]",
+  qualified: "bg-[#0aff99] shadow-[0_0_0_3px_rgba(10,255,153,0.20)]",
+  "not-interested": "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]",
+};
 const DEFAULT_PAGE_SIZE = 50;
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -178,6 +185,12 @@ const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
   email: "",
   phone: "",
   linkedinUrl: "",
+};
+
+const EMPTY_FILTERS: LeadFilterState = {
+  status: "all",
+  contact: "all",
+  source: "all",
 };
 
 function getErrorMessage(error: unknown) {
@@ -225,6 +238,10 @@ function buildFixedWorkflowStatuses(items: WorkflowStatusDefinitionItem[]) {
     byKey.set(item.statusKey, item);
   }
   return FIXED_WORKFLOW_STATUSES.map((item) => byKey.get(item.statusKey) ?? item);
+}
+
+function getStatusDotClass(status: string) {
+  return STATUS_DOT_CLASS[status] ?? "bg-zinc-400";
 }
 
 function mapLeadItem(item: EventLeadListItem, labelLookup: Map<string, string>): LeadSheetRow | null {
@@ -345,6 +362,8 @@ export function NormalUserEventLeadSheet() {
   const [addLeadForm, setAddLeadForm] = useState<AddLeadFormState>(EMPTY_ADD_LEAD_FORM);
   const [addingLead, setAddingLead] = useState(false);
   const [copiedLeadId, setCopiedLeadId] = useState<string | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filters, setFilters] = useState<LeadFilterState>(EMPTY_FILTERS);
   const targetLeadRowRef = useRef<HTMLDivElement | null>(null);
 
   const workflowStatusLabelLookup = useMemo(() => {
@@ -418,6 +437,10 @@ export function NormalUserEventLeadSheet() {
   }, [searchInput]);
 
   useEffect(() => {
+    setPageOffset(0);
+  }, [filters.status, filters.contact, filters.source]);
+
+  useEffect(() => {
     const nextSearch = searchParams.get("search") || "";
     if (!nextSearch || nextSearch === searchInput) return;
     setSearchInput(nextSearch);
@@ -446,6 +469,7 @@ export function NormalUserEventLeadSheet() {
         limit: pageSize,
         offset: nextOffset,
         search: query || undefined,
+        workflowStatus: filters.status === "all" ? undefined : filters.status,
         includeManual: true,
         sort: "createdAt:desc",
       });
@@ -465,7 +489,7 @@ export function NormalUserEventLeadSheet() {
     } finally {
       setLoadingLeads(false);
     }
-  }, [pageSize]);
+  }, [filters.status, pageSize]);
 
   useEffect(() => {
     if (!selectedEventKey) {
@@ -490,9 +514,33 @@ export function NormalUserEventLeadSheet() {
       .filter((item): item is LeadSheetRow => Boolean(item));
   }, [leadPage, workflowStatusLabelLookup]);
 
+  const visibleEventLeads = useMemo(() => {
+    return eventLeads.filter((item) => {
+      if (filters.source === "manual" && !item.isManualLead) return false;
+      if (filters.source === "imported" && item.isManualLead) return false;
+
+      if (filters.contact === "email" && !item.email) return false;
+      if (filters.contact === "phone" && !item.phone) return false;
+      if (filters.contact === "complete" && (!item.email || !item.phone)) return false;
+      if (filters.contact === "missing-contact" && (item.email || item.phone)) return false;
+      if (filters.contact === "linkedin" && !item.linkedinUrl) return false;
+      if (filters.contact === "website" && !item.companyUrl) return false;
+
+      return true;
+    });
+  }, [eventLeads, filters.contact, filters.source]);
+
+  const activeFilterCount = useMemo(() => {
+    return [
+      filters.status !== EMPTY_FILTERS.status,
+      filters.contact !== EMPTY_FILTERS.contact,
+      filters.source !== EMPTY_FILTERS.source,
+    ].filter(Boolean).length;
+  }, [filters]);
+
   useEffect(() => {
     if (!targetLeadId) return;
-    const targetOnPage = eventLeads.some((lead) => lead.id === targetLeadId);
+    const targetOnPage = visibleEventLeads.some((lead) => lead.id === targetLeadId);
     if (!targetOnPage) return;
 
     const timer = window.setTimeout(() => {
@@ -500,10 +548,10 @@ export function NormalUserEventLeadSheet() {
     }, 120);
 
     return () => window.clearTimeout(timer);
-  }, [eventLeads, targetLeadId]);
+  }, [visibleEventLeads, targetLeadId]);
 
-  const pageRangeStart = eventLeads.length > 0 ? pageOffset + 1 : 0;
-  const pageRangeEnd = pageOffset + eventLeads.length;
+  const pageRangeStart = visibleEventLeads.length > 0 ? pageOffset + 1 : 0;
+  const pageRangeEnd = pageOffset + visibleEventLeads.length;
   const pageTotal = leadPage?.total ?? 0;
   const hasMore = Boolean(leadPage?.hasMore);
   const isLoading = loadingEvents || (loadingLeads && !leadPage && Boolean(selectedEventKey));
@@ -693,7 +741,7 @@ export function NormalUserEventLeadSheet() {
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-zinc-400">Visible now</p>
                   <p className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
-                    {eventLeads.length.toLocaleString()}
+                    {visibleEventLeads.length.toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -759,6 +807,32 @@ export function NormalUserEventLeadSheet() {
                 </div>
               </div>
 
+              <div className="space-y-4 border-t border-zinc-100 pt-10">
+                <label className="text-xs font-medium text-zinc-400">Intelligent filters</label>
+                <button
+                  type="button"
+                  onClick={() => setFilterOpen(true)}
+                  className="flex w-full items-center justify-between border-b border-zinc-200 py-4 text-left transition-colors hover:border-zinc-900"
+                >
+                  <span className="inline-flex items-center gap-2 text-sm font-light text-zinc-500">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Advanced filter model
+                  </span>
+                  <span className="text-xl font-light tabular-nums tracking-tight text-zinc-950">
+                    {activeFilterCount}
+                  </span>
+                </button>
+                {activeFilterCount > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setFilters(EMPTY_FILTERS)}
+                    className="border-b border-transparent pb-1 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950"
+                  >
+                    Clear filter model
+                  </button>
+                ) : null}
+              </div>
+
               {selectedEvent && (
                 <div className="space-y-4 border-t border-zinc-100 pt-10">
                   <label className="text-xs font-medium text-zinc-400">Data coverage</label>
@@ -797,9 +871,9 @@ export function NormalUserEventLeadSheet() {
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Accessing Intelligence...
                 </div>
-              ) : eventLeads.length === 0 ? (
+              ) : visibleEventLeads.length === 0 ? (
                 <div className="flex h-40 items-center justify-center border-y border-zinc-100 text-zinc-400 font-light">
-                  {searchQuery ? "No matching records found." : "Workspace is currently empty."}
+                  {searchQuery || activeFilterCount > 0 ? "No matching records found." : "Workspace is currently empty."}
                 </div>
               ) : (
                 <div className="min-w-[56rem] border-t border-zinc-200">
@@ -810,7 +884,7 @@ export function NormalUserEventLeadSheet() {
                   </div>
 
                   <div>
-                    {eventLeads.map((item) => {
+                    {visibleEventLeads.map((item) => {
                       const updateKey = `${item.canonicalEventKey}::${item.leadIdentityKey}`;
                       const isTargetLead = targetLeadId === item.id;
                       const isUpdating = Boolean(updatingKeys[updateKey]);
@@ -895,18 +969,21 @@ export function NormalUserEventLeadSheet() {
                                 <Select
                                   value={selectedStatusValue}
                                   onValueChange={(value) => handleStatusSelection(item, value)}
-                                  disabled={isUpdating}
-                                >
-                                  <SelectTrigger className="h-10 w-full rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-base font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
-                                    <SelectValue placeholder={item.workflowStatusLabel} />
-                                  </SelectTrigger>
-                                  <SelectContent className="rounded-none border-zinc-200 shadow-2xl">
-                                    {statusOptions.map((option) => (
-                                      <SelectItem key={option.statusKey} value={option.statusKey} className="text-xs py-2.5">
-                                        {option.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
+                                    disabled={isUpdating}
+                                  >
+                                    <SelectTrigger className="h-10 w-full rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-base font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
+                                      <SelectValue placeholder={item.workflowStatusLabel} />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-none border-zinc-200 shadow-2xl">
+                                      {statusOptions.map((option) => (
+                                        <SelectItem key={option.statusKey} value={option.statusKey} className="text-xs py-2.5">
+                                          <span className="flex items-center gap-3">
+                                            <span className={`ml-1 h-2.5 w-2.5 shrink-0 rounded-full ${getStatusDotClass(option.statusKey)}`} />
+                                            {option.label}
+                                          </span>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
                                 </Select>
                               </div>
                               {isUpdating && <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />}
@@ -953,6 +1030,149 @@ export function NormalUserEventLeadSheet() {
           </main>
         </div>
       </div>
+
+      {filterOpen ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-6">
+          <button
+            type="button"
+            aria-label="Close filters"
+            className="absolute inset-0 bg-zinc-950/30 backdrop-blur-[3px]"
+            onClick={() => setFilterOpen(false)}
+          />
+
+          <div className="relative z-[1] grid w-full max-w-4xl overflow-hidden border border-zinc-200 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)] md:grid-cols-[18rem_minmax(0,1fr)]">
+            <aside className="border-b border-zinc-200 bg-white p-8 md:border-b-0 md:border-r">
+              <p className="text-sm font-medium text-zinc-400">Lead Sheet Updates</p>
+              <h2 className="mt-8 text-4xl font-light leading-none tracking-tighter text-zinc-950">
+                Intelligence Filters
+              </h2>
+              <p className="mt-5 max-w-[13rem] text-sm font-light leading-relaxed text-zinc-500">
+                Build a focused view using status, contact readiness, and source quality signals.
+              </p>
+            </aside>
+
+            <div className="relative min-h-[34rem] p-8">
+              <Button
+                type="button"
+                variant="ghost"
+                className="absolute right-5 top-5 h-10 w-10 rounded-full border border-zinc-200 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                onClick={() => setFilterOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+
+              <div className="max-w-xl space-y-10 pr-12">
+                <div>
+                  <label className="mb-3 block text-xs font-medium text-zinc-400">Status model</label>
+                  <Select
+                    value={filters.status}
+                    onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}
+                  >
+                    <SelectTrigger className="!h-12 w-full rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-lg font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent position="popper" className="z-[120] rounded-none border-zinc-200 bg-white shadow-2xl">
+                      <SelectItem value="all">
+                        <span className="flex items-center gap-3">
+                          <span className="ml-1 h-2.5 w-2.5 shrink-0 rounded-full bg-zinc-300" />
+                          All statuses
+                        </span>
+                      </SelectItem>
+                      {statusOptions.map((option) => (
+                        <SelectItem key={option.statusKey} value={option.statusKey}>
+                          <span className="flex items-center gap-3">
+                            <span className={`ml-1 h-2.5 w-2.5 shrink-0 rounded-full ${getStatusDotClass(option.statusKey)}`} />
+                            {option.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-4">
+                  <label className="block text-sm font-semibold text-zinc-950">By contact intelligence:</label>
+                  <div className="flex flex-wrap gap-2.5">
+                    {[
+                      { value: "all", label: "All profiles" },
+                      { value: "complete", label: "Email + phone" },
+                      { value: "email", label: "Has email" },
+                      { value: "phone", label: "Has phone" },
+                      { value: "linkedin", label: "Has LinkedIn" },
+                      { value: "website", label: "Has website" },
+                      { value: "missing-contact", label: "Needs contact data" },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            contact: option.value as LeadFilterState["contact"],
+                          }))
+                        }
+                        className={`inline-flex h-10 items-center rounded-full border px-4 text-sm font-semibold transition-all ${
+                          filters.contact === option.value
+                            ? "border-blue-600 bg-white text-blue-600 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.85)]"
+                            : "border-zinc-200 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <label className="block text-sm font-semibold text-zinc-950">By source quality:</label>
+                  <div className="flex flex-wrap gap-2.5">
+                    {[
+                      { value: "all", label: "All sources" },
+                      { value: "imported", label: "Imported" },
+                      { value: "manual", label: "Manual" },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            source: option.value as LeadFilterState["source"],
+                          }))
+                        }
+                        className={`inline-flex h-10 items-center rounded-full border px-4 text-sm font-semibold transition-all ${
+                          filters.source === option.value
+                            ? "border-blue-600 bg-white text-blue-600 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.85)]"
+                            : "border-zinc-200 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="absolute bottom-8 left-8 right-8 flex items-center justify-between border-t border-zinc-100 pt-6">
+                <button
+                  type="button"
+                  className="border-b border-transparent pb-1 text-sm font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950"
+                  onClick={() => setFilters(EMPTY_FILTERS)}
+                >
+                  Reset model
+                </button>
+                <Button
+                  type="button"
+                  className="h-11 rounded-full bg-zinc-950 px-7 text-sm font-semibold text-white shadow-none hover:bg-blue-600"
+                  onClick={() => setFilterOpen(false)}
+                >
+                  Apply filters
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <LeadSheetDialog
         open={addLeadOpen}
