@@ -273,7 +273,6 @@ export default function NizoAiPage() {
   const [candidateCount, setCandidateCount] = useState(0);
   const [results, setResults] = useState<NizoScoredLead[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedLeadId, setSelectedLeadId] = useState("");
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -453,7 +452,6 @@ export default function NizoAiPage() {
       setCandidateCount(rows.length);
       setResults(matches);
       setCurrentPage(1);
-      setSelectedLeadId(matches[0]?.lead.id || "");
       setSearched(true);
       rememberSearch(value);
     } catch (error) {
@@ -565,53 +563,60 @@ export default function NizoAiPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white font-sans text-zinc-950">
-      <div className="w-full">
-        <div className="flex items-center gap-3 px-6 pt-8 text-sm font-medium text-zinc-400 md:px-10 lg:px-12">
-          <Link href="/dashboard" className="inline-flex items-center gap-1 transition-colors hover:text-zinc-950">
-            <ChevronLeft className="h-4 w-4" />
-            Dashboard
-          </Link>
-          <span className="h-4 w-px bg-zinc-200" />
-          <span>Sales Workspace</span>
-        </div>
-
-        <section className="mt-8 grid gap-10 border-b border-zinc-200 px-6 pb-9 md:px-10 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start lg:px-12">
-          <div>
-            <div className="flex items-center gap-4">
-              <h1 className="text-[clamp(2.4rem,4.2vw,4.1rem)] font-light leading-[0.98] tracking-[-0.055em] text-zinc-950">
-                NizoAI
-              </h1>
-              <Brain
-                aria-hidden="true"
-                strokeWidth={1.45}
-                className="translate-y-[0.03em] h-[clamp(2.15rem,3.35vw,3.25rem)] w-[clamp(2.15rem,3.35vw,3.25rem)] text-zinc-950"
-              />
-            </div>
-            <p className="mt-5 max-w-xl text-lg font-light leading-relaxed tracking-[-0.02em] text-zinc-500">
-              Natural-language prospect intelligence for sales teams.
-            </p>
-          </div>
-
-          <div className="border-t border-zinc-200 pt-6 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
-            <div className="grid grid-cols-2 gap-8">
-              <div>
-                <p className="text-xs font-medium text-zinc-400">Candidates</p>
-                <p className="mt-2 text-3xl font-light tabular-nums tracking-tight text-zinc-950">
-                  {candidateCount.toLocaleString()}
-                </p>
+    <div className="min-h-[calc(100dvh-3rem)] bg-transparent p-1 font-sans text-zinc-950">
+      <div className="w-full p-1">
+        <header className="shrink-0 border-b border-zinc-200 pb-12">
+          <div className="flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-950"
+                >
+                  <ChevronLeft className="mr-1 h-3 w-3" />
+                  Dashboard
+                </Link>
+                <span className="h-4 w-[1px] bg-zinc-200" />
+                <span className="text-xs font-medium text-zinc-400">Sales Workspace</span>
               </div>
-              <div>
-                <p className="text-xs font-medium text-zinc-400">Matched</p>
-                <p className="mt-2 text-3xl font-light tabular-nums tracking-tight text-zinc-950">
-                  {results.length.toLocaleString()}
+
+              <div className="mt-8">
+                <div className="flex items-center gap-3.5">
+                  <h1 className="text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
+                    NizoAI
+                  </h1>
+                  <Brain
+                    aria-hidden="true"
+                    strokeWidth={1.45}
+                    className="-translate-y-[0.05em] h-9 w-9 text-zinc-950 sm:h-10 sm:w-10 2xl:h-12 2xl:w-12"
+                  />
+                </div>
+                <p className="mt-4 max-w-2xl text-lg font-light leading-relaxed text-zinc-500">
+                  Natural-language prospect intelligence for sales teams.
                 </p>
               </div>
             </div>
-          </div>
-        </section>
 
-        <section className="border-b border-zinc-200 px-6 py-9 md:px-10 lg:px-12">
+            <div className="flex flex-col gap-5 lg:min-w-[19rem] lg:items-stretch">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-zinc-400">Candidates</p>
+                  <p className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
+                    {candidateCount.toLocaleString()}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-zinc-400">Matched</p>
+                  <p className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
+                    {results.length.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <section className="py-9">
           <div className="mx-auto max-w-4xl text-center">
             <p className="text-xs font-medium text-zinc-400">Search model</p>
             <p className="mx-auto mt-2 max-w-xl text-base font-light leading-relaxed text-zinc-500">
@@ -687,7 +692,7 @@ export default function NizoAiPage() {
           </div>
         </section>
 
-      <div className="mb-20 mt-12 w-full px-6 md:px-10 lg:px-12">
+      <div className="mb-20 mt-12 w-full">
         {searched ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -700,7 +705,7 @@ export default function NizoAiPage() {
                 <div className="mt-2 flex items-center gap-3">
                   <span className="text-sm font-light text-zinc-400">{resultMeta}</span>
                   {searchNote ? (
-                    <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 ring-1 ring-amber-100">
+                    <span className="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-100">
                       Note
                     </span>
                   ) : null}
@@ -734,17 +739,14 @@ export default function NizoAiPage() {
                     </div>
                   </div>
 
-                  <div className="divide-y divide-zinc-100">
+                  <div className="divide-y divide-zinc-200">
                     {paginatedResults.map(({ lead, score, relevance }) => {
                       const country = leadCountry(lead);
 
                       return (
                         <div
                           key={lead.id}
-                          className={`group grid grid-cols-[minmax(24rem,1fr)_minmax(18rem,0.85fr)_12rem_8rem] items-center px-8 py-10 transition-colors ${
-                            selectedLeadId === lead.id ? "bg-blue-50/35" : "hover:bg-zinc-50/60"
-                          }`}
-                          onClick={() => setSelectedLeadId(lead.id)}
+                          className="group grid grid-cols-[minmax(24rem,1fr)_minmax(18rem,0.85fr)_12rem_8rem] items-center px-8 py-10 transition-colors hover:bg-zinc-50/60"
                         >
                           <div className="pr-8">
                             <div className="flex flex-col gap-3">
@@ -819,7 +821,7 @@ export default function NizoAiPage() {
                               </div>
                               <span className="text-sm font-bold text-zinc-900">{score}</span>
                             </div>
-                            <p className="mt-2 text-[10px] font-medium uppercase tracking-wider text-slate-400">{eventName(lead)}</p>
+                            <p className="mt-2 text-xs font-medium text-slate-400">{eventName(lead)}</p>
                           </div>
 
                           <div className="text-right">
@@ -830,7 +832,7 @@ export default function NizoAiPage() {
                                   event.stopPropagation();
                                   void copyLeadDetails(lead, score);
                                 }}
-                                className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-400 shadow-sm ring-1 ring-slate-200 transition-all hover:bg-zinc-900 hover:text-white hover:ring-zinc-900"
+                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-200 transition-all hover:bg-zinc-900 hover:text-white hover:ring-zinc-900"
                                 title="Copy Intelligence"
                               >
                                 <Copy className="h-4 w-4" />
@@ -841,7 +843,7 @@ export default function NizoAiPage() {
                                   event.stopPropagation();
                                   downloadLeadDetails(lead, score);
                                 }}
-                                className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-400 shadow-sm ring-1 ring-slate-200 transition-all hover:bg-zinc-900 hover:text-white hover:ring-zinc-900"
+                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-200 transition-all hover:bg-zinc-900 hover:text-white hover:ring-zinc-900"
                                 title="Download Report"
                               >
                                 <Download className="h-4 w-4" />
