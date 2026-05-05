@@ -131,6 +131,54 @@ export type UploadCampaignResponse = CreateCampaignResponse & {
   importSummary: CampaignImportSummary;
 };
 
+export type EmailTemplateContentSource = "template" | "generated" | "manual" | "empty" | "unknown";
+
+export type CampaignEmailTemplate = {
+  id: string;
+  campaignId: string;
+  emailSubject: string;
+  emailBody: string;
+  uploadedByUserId?: string | null;
+  isActive: boolean;
+  meta: Record<string, unknown>;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type CampaignEmailTemplatePayload = {
+  emailSubject: string;
+  emailBody: string;
+};
+
+export type CampaignEmailTemplateFallbackDrafts = {
+  created: number;
+  updated: number;
+  skipped: number;
+  templateId?: string | null;
+};
+
+export type CampaignEmailTemplateDeleteFallbackDrafts = {
+  deleted: number;
+  deletedQueueRows: number;
+};
+
+export type CampaignEmailTemplateResponse = {
+  ok: boolean;
+  campaignId: string;
+  template: CampaignEmailTemplate | null;
+};
+
+export type CampaignEmailTemplateSaveResponse = CampaignEmailTemplateResponse & {
+  fallbackDrafts: CampaignEmailTemplateFallbackDrafts;
+};
+
+export type CampaignEmailTemplateDeleteResponse = {
+  ok: boolean;
+  campaignId: string;
+  deleted: boolean;
+  fallbackDrafts?: CampaignEmailTemplateDeleteFallbackDrafts;
+};
+
 export type SendAllCampaignChannels = "email" | "whatsapp" | "both";
 export type OutreachRequestChannel = "email" | "whatsapp";
 export type RequestedOutreachChannels = OutreachRequestChannel[];
@@ -425,6 +473,8 @@ export type LeadItem = {
   channelCapabilities?: ChannelCapabilities | null;
   emailAttachments?: LeadAttachment[];
   whatsappAttachments?: LeadAttachment[];
+  contentSource?: EmailTemplateContentSource | string | null;
+  templateFallback?: boolean | null;
 };
 
 export type WorkflowStatusUpdateResponse = {
@@ -721,6 +771,24 @@ export async function getCampaign(id: string) {
 
 export async function getCampaignInfo(id: string) {
   const { data } = await apiClient.get<CampaignInfoResponse>(`/api/campaigns/${id}/info`);
+  return data;
+}
+
+export async function getCampaignEmailTemplate(id: string) {
+  const { data } = await apiClient.get<CampaignEmailTemplateResponse>(`/api/campaigns/${id}/email-template`);
+  return data;
+}
+
+export async function saveCampaignEmailTemplate(id: string, payload: CampaignEmailTemplatePayload) {
+  const { data } = await apiClient.post<CampaignEmailTemplateSaveResponse>(
+    `/api/campaigns/${id}/email-template`,
+    payload
+  );
+  return data;
+}
+
+export async function deleteCampaignEmailTemplate(id: string) {
+  const { data } = await apiClient.delete<CampaignEmailTemplateDeleteResponse>(`/api/campaigns/${id}/email-template`);
   return data;
 }
 

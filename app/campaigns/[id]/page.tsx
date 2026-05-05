@@ -36,11 +36,16 @@ import { toast } from "sonner";
 import { useParams, useRouter } from "next/navigation";
 import {
   approveSelectedCampaignLeads,
+  deleteCampaignEmailTemplate,
+  getCampaignEmailTemplate,
   type CampaignImportSummary,
+  type CampaignEmailTemplateDeleteFallbackDrafts,
+  type CampaignEmailTemplateFallbackDrafts,
   type ChannelCapabilities,
   disableLeadWhatsApp,
   getApiKeyClient,
   listWhatsAppOptOuts,
+  saveCampaignEmailTemplate,
   sendSelectedCampaignLeads,
   type SuppressionMeta,
   type WhatsAppOptOutItem,
@@ -70,6 +75,7 @@ type OutreachState = "pending" | "queued" | "sending" | "sent" | "failed";
 type AttachmentChannel = "email" | "whatsapp" | "common";
 type LeadFilterKey = "new" | "sent" | "rejected" | "suppressed";
 type LeadSendAction = "both" | "email" | "whatsapp";
+type LeadContentSource = "template" | "generated" | "manual" | "empty" | "unknown";
 
 type Attachment = {
   id: string;
@@ -116,6 +122,8 @@ interface Lead {
   contactReadOnly?: boolean;
   sendable?: boolean;
   channelCapabilities?: ChannelCapabilities | null;
+  contentSource?: LeadContentSource | string | null;
+  templateFallback?: boolean;
 
   outreachStatus?: {
     email: OutreachState;
@@ -217,6 +225,16 @@ function parseBoolean(value: unknown): boolean {
     return ["1", "true", "yes", "y"].includes(normalized);
   }
   return false;
+}
+
+function normalizeContentSource(value: unknown): LeadContentSource {
+  const source = String(value || "").trim().toLowerCase();
+  if (source === "template" || source === "generated" || source === "manual" || source === "empty") return source;
+  return "unknown";
+}
+
+function shouldShowTemplateFallback(lead: Pick<Lead, "contentSource" | "templateFallback">): boolean {
+  return Boolean(lead.templateFallback) && normalizeContentSource(lead.contentSource) !== "generated";
 }
 
 function normalizeSuppressionMeta(value: unknown): SuppressionMeta | null {
@@ -436,6 +454,27 @@ function formatDateOnly(value?: string) {
 
   const fallback = String(value).split("T")[0]?.split(" ")[0];
   return fallback || value;
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  return parsed.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatFallbackDraftSummary(summary: CampaignEmailTemplateFallbackDrafts) {
+  return `${summary.created} created, ${summary.updated} updated, ${summary.skipped} skipped`;
+}
+
+function formatFallbackDraftCleanup(summary: CampaignEmailTemplateDeleteFallbackDrafts) {
+  return `${summary.deleted} fallback draft(s), ${summary.deletedQueueRows} queue row(s) removed`;
 }
 
 function escapeCsv(value: unknown) {
@@ -703,6 +742,14 @@ function SuperAdminCampaignDetailPage() {
   const [disableTargetLead, setDisableTargetLead] = useState<Lead | null>(null);
   const [disableReason, setDisableReason] = useState("");
   const [isDisablingWhatsapp, setIsDisablingWhatsapp] = useState(false);
+  const [emailTemplateId, setEmailTemplateId] = useState<string | null>(null);
+  const [emailTemplateSubject, setEmailTemplateSubject] = useState("");
+  const [emailTemplateBody, setEmailTemplateBody] = useState("");
+  const [emailTemplateUpdatedAt, setEmailTemplateUpdatedAt] = useState<string | null>(null);
+  const [isEmailTemplateLoading, setIsEmailTemplateLoading] = useState(false);
+  const [isEmailTemplateSaving, setIsEmailTemplateSaving] = useState(false);
+  const [isEmailTemplateDeleting, setIsEmailTemplateDeleting] = useState(false);
+  const [fallbackDraftSummary, setFallbackDraftSummary] = useState<CampaignEmailTemplateFallbackDrafts | null>(null);
   const leadOrderRef = useRef<Map<string, number>>(new Map());
 
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -1073,17 +1120,24 @@ function SuperAdminCampaignDetailPage() {
     if (!options?.silent) {
       setLoading(true);
     }
+    setIsEmailTemplateLoading(true);
     try {
-      const [cRes, lRes, infoRes, commonRes, optOutRes] = await Promise.all([
+      const [cRes, lRes, infoRes, commonRes, optOutRes, templateRes] = await Promise.all([
         api.get(`/api/campaigns/${campaignId}`),
         api.get(`/api/campaigns/${campaignId}/leads`, { params: { status: "all" } }),
         api.get(`/api/campaigns/${campaignId}/info`).catch(() => null),
         api.get(`/api/campaigns/${campaignId}/common-attachments`).catch(() => null),
         listWhatsAppOptOuts({ limit: 1000, activeOnly: true }).catch(() => ({ ok: false, items: [] })),
+        getCampaignEmailTemplate(campaignId).catch(() => null),
       ]);
 
       setCampaign(cRes.data);
       setCampaignCategory(String(infoRes?.data?.info?.category || cRes.data?.category || "").trim());
+      const activeTemplate = templateRes?.template ?? null;
+      setEmailTemplateId(activeTemplate?.id ?? null);
+      setEmailTemplateSubject(activeTemplate?.emailSubject ?? "");
+      setEmailTemplateBody(activeTemplate?.emailBody ?? "");
+      setEmailTemplateUpdatedAt(activeTemplate?.updatedAt ?? null);
 
       const mapped: Lead[] = (lRes.data.leads || []).map((x: any) => ({
         id: x.id,
@@ -1108,6 +1162,8 @@ function SuperAdminCampaignDetailPage() {
         contactReadOnly: parseBoolean(x.contactReadOnly),
         sendable: typeof x.sendable === "boolean" ? x.sendable : undefined,
         channelCapabilities: normalizeChannelCapabilities(x.channelCapabilities),
+        contentSource: normalizeContentSource(x.contentSource),
+        templateFallback: parseBoolean(x.templateFallback),
 
         draftId: x.draftId ?? null,
         draftStatus: x.draftStatus ?? null,
@@ -1128,6 +1184,7 @@ function SuperAdminCampaignDetailPage() {
     } catch (e: any) {
       toast.error("Failed to load campaign", { description: e?.message });
     } finally {
+      setIsEmailTemplateLoading(false);
       if (!options?.silent) {
         setLoading(false);
       }
@@ -1179,6 +1236,9 @@ function SuperAdminCampaignDetailPage() {
                 contactReadOnly: parseBoolean(latest.contactReadOnly ?? l.contactReadOnly),
                 sendable: typeof latest.sendable === "boolean" ? latest.sendable : l.sendable,
                 channelCapabilities: normalizeChannelCapabilities(latest.channelCapabilities) ?? l.channelCapabilities ?? null,
+                contentSource: latest.contentSource == null ? l.contentSource : normalizeContentSource(latest.contentSource),
+                templateFallback:
+                  latest.templateFallback == null ? l.templateFallback : parseBoolean(latest.templateFallback),
                 draftStatus: latest.draftStatus ?? l.draftStatus,
                 outreachStatus: latestOutreachStatus ?? l.outreachStatus,
                 emailAttachments: Array.isArray(latest.emailAttachments)
@@ -1600,6 +1660,71 @@ function SuperAdminCampaignDetailPage() {
       });
     } finally {
       setIsCommonAttachmentUploading(false);
+    }
+  };
+
+  const handleSaveEmailTemplate = async () => {
+    if (!canManageLeadActions || isEmailTemplateSaving) return;
+    const emailSubject = emailTemplateSubject.trim();
+    const emailBody = emailTemplateBody.trim();
+
+    if (!emailSubject || !emailBody) {
+      toast.error("Template subject and body are required");
+      return;
+    }
+
+    try {
+      setIsEmailTemplateSaving(true);
+      const response = await saveCampaignEmailTemplate(campaignId, { emailSubject, emailBody });
+      const template = response.template;
+      setEmailTemplateId(template?.id ?? null);
+      setEmailTemplateSubject(template?.emailSubject ?? emailSubject);
+      setEmailTemplateBody(template?.emailBody ?? emailBody);
+      setEmailTemplateUpdatedAt(template?.updatedAt ?? null);
+      setFallbackDraftSummary(response.fallbackDrafts ?? null);
+      toast.success("Email template saved", {
+        description: response.fallbackDrafts ? formatFallbackDraftSummary(response.fallbackDrafts) : undefined,
+      });
+      await fetchAll({ silent: true });
+    } catch (error: any) {
+      toast.error("Template save failed", {
+        description: error?.response?.data?.detail || error?.message || "Please try again.",
+      });
+    } finally {
+      setIsEmailTemplateSaving(false);
+    }
+  };
+
+  const handleDeleteEmailTemplate = async () => {
+    if (!canManageLeadActions || isEmailTemplateDeleting) return;
+    if (!emailTemplateId && !emailTemplateSubject.trim() && !emailTemplateBody.trim()) return;
+
+    if (!emailTemplateId) {
+      setEmailTemplateSubject("");
+      setEmailTemplateBody("");
+      setEmailTemplateUpdatedAt(null);
+      setFallbackDraftSummary(null);
+      return;
+    }
+
+    try {
+      setIsEmailTemplateDeleting(true);
+      const response = await deleteCampaignEmailTemplate(campaignId);
+      setEmailTemplateId(null);
+      setEmailTemplateSubject("");
+      setEmailTemplateBody("");
+      setEmailTemplateUpdatedAt(null);
+      setFallbackDraftSummary(null);
+      toast.success("Email template disabled", {
+        description: response.fallbackDrafts ? formatFallbackDraftCleanup(response.fallbackDrafts) : undefined,
+      });
+      await fetchAll({ silent: true });
+    } catch (error: any) {
+      toast.error("Template delete failed", {
+        description: error?.response?.data?.detail || error?.message || "Please try again.",
+      });
+    } finally {
+      setIsEmailTemplateDeleting(false);
     }
   };
 
@@ -2070,6 +2195,9 @@ function SuperAdminCampaignDetailPage() {
               contentEmail: res.data.contentEmail ?? l.contentEmail,
               contentLinkedin: res.data.contentLinkedin ?? l.contentLinkedin,
               contentWhatsapp: res.data.contentWhatsapp ?? l.contentWhatsapp,
+              contentSource: res.data.contentSource == null ? "manual" : normalizeContentSource(res.data.contentSource),
+              templateFallback:
+                res.data.templateFallback == null ? false : parseBoolean(res.data.templateFallback),
               reviewStatus: res.data.reviewStatus ?? l.reviewStatus ?? null,
             }
             : l
@@ -2205,6 +2333,105 @@ function SuperAdminCampaignDetailPage() {
                   </p>
                 </div>
               ))}
+            </div>
+          </div>
+        </Card>
+      ) : null}
+
+      {canManageLeadActions ? (
+        <Card className="relative mt-3 overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.86)_0%,rgba(250,252,255,0.7)_58%,rgba(240,246,253,0.58)_100%)] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_12px_24px_-22px_rgba(2,10,27,0.55),inset_0_1px_0_rgba(255,255,255,1)] backdrop-blur-[14px] [backdrop-filter:saturate(168%)_blur(14px)]">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
+            <div className="min-w-0 xl:w-80">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white">
+                  <Mail className="h-4 w-4 text-zinc-900" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-sm font-semibold text-zinc-900">Email Template</h2>
+                    <Badge className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide shadow-none ${
+                      emailTemplateId
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-zinc-200 bg-white text-zinc-500"
+                    }`}>
+                      {emailTemplateId ? "Active" : "Not Set"}
+                    </Badge>
+                  </div>
+                  {emailTemplateUpdatedAt ? (
+                    <p className="mt-0.5 text-xs text-zinc-500">Updated {formatDateTime(emailTemplateUpdatedAt)}</p>
+                  ) : (
+                    <p className="mt-0.5 text-xs text-zinc-500">Campaign-level fallback email content</p>
+                  )}
+                </div>
+              </div>
+
+              {fallbackDraftSummary ? (
+                <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/70 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Fallback Drafts</p>
+                  <p className="mt-1 text-sm font-semibold text-zinc-900">
+                    {formatFallbackDraftSummary(fallbackDraftSummary)}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="grid min-w-0 flex-1 gap-3 xl:grid-cols-[minmax(16rem,24rem)_minmax(24rem,1fr)]">
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                  Email Subject
+                </label>
+                <Input
+                  value={emailTemplateSubject}
+                  onChange={(event) => setEmailTemplateSubject(event.target.value)}
+                  disabled={isEmailTemplateLoading || isEmailTemplateSaving || isEmailTemplateDeleting}
+                  placeholder="Subject"
+                  className="h-10 border-zinc-200/85 bg-white/90 text-sm text-zinc-900 placeholder:text-zinc-400"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                  Email Body
+                </label>
+                <textarea
+                  value={emailTemplateBody}
+                  onChange={(event) => setEmailTemplateBody(event.target.value)}
+                  disabled={isEmailTemplateLoading || isEmailTemplateSaving || isEmailTemplateDeleting}
+                  placeholder="Dear {{first_name}},"
+                  className="min-h-28 w-full resize-y rounded-md border border-zinc-200/85 bg-white/90 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+              </div>
+            </div>
+
+            <div className="flex shrink-0 flex-wrap gap-2 xl:w-44 xl:flex-col">
+              <Button
+                type="button"
+                onClick={handleSaveEmailTemplate}
+                disabled={isEmailTemplateLoading || isEmailTemplateSaving || isEmailTemplateDeleting}
+                className="btn-sidebar-noise h-9 px-3.5"
+              >
+                {isEmailTemplateSaving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
+                Save Template
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleDeleteEmailTemplate}
+                disabled={isEmailTemplateLoading || isEmailTemplateSaving || isEmailTemplateDeleting || (!emailTemplateId && !emailTemplateSubject && !emailTemplateBody)}
+                className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-zinc-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+              >
+                {isEmailTemplateDeleting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-2 h-4 w-4" />
+                )}
+                Delete
+              </Button>
             </div>
           </div>
         </Card>
@@ -2521,6 +2748,7 @@ function SuperAdminCampaignDetailPage() {
                 const suppressionMatchedBy = suppressionMeta?.matchedBy || optOutEntry?.identityType || null;
                 const suppressionPhone = suppressionMeta?.phoneE164 || optOutEntry?.phoneE164 || item.phone || null;
                 const suppressionEmail = suppressionMeta?.email || optOutEntry?.email || item.email || null;
+                const showTemplateFallback = shouldShowTemplateFallback(item);
 
                 return (
                   <tr
@@ -2594,16 +2822,23 @@ function SuperAdminCampaignDetailPage() {
                     {canManageLeadActions ? (
                       <>
                         <td className="px-4 py-3.5">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 rounded-md border border-zinc-200/80 bg-white/82 text-xs font-semibold text-zinc-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
-                            onClick={() => setSelectedLead(item)}
-                            disabled={isLeadReadOnly}
-                          >
-                            <Eye className="mr-2 h-3.5 w-3.5 text-zinc-400" />
-                            Review Content
-                          </Button>
+                          <div className="flex flex-col items-start gap-1.5">
+                            {showTemplateFallback ? (
+                              <span className="rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+                                Template fallback
+                              </span>
+                            ) : null}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 rounded-md border border-zinc-200/80 bg-white/82 text-xs font-semibold text-zinc-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+                              onClick={() => setSelectedLead(item)}
+                              disabled={isLeadReadOnly}
+                            >
+                              <Eye className="mr-2 h-3.5 w-3.5 text-zinc-400" />
+                              Review Content
+                            </Button>
+                          </div>
                         </td>
 
                         <td className="px-4 py-3.5">
@@ -3003,6 +3238,11 @@ function SuperAdminCampaignDetailPage() {
                   <p className="mt-1 text-xs text-zinc-500">
                     {selectedLead.employeeName} - {selectedLead.title}
                   </p>
+                  {shouldShowTemplateFallback(selectedLead) ? (
+                    <span className="mt-2 inline-flex rounded border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+                      Template fallback
+                    </span>
+                  ) : null}
                 </div>
 
                 <div className="flex items-center">
