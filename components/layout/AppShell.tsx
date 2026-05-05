@@ -41,6 +41,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isChooser = pathname === "/" || pathname === "/choose-persona";
   const isAuthRoute = pathname === "/sign-in";
   const isAdminAreaRoute = isAdminAreaPath(pathname);
+  const isFlushContentRoute = pathname === "/nizo-ai";
   const [selected, setSelected] = useState<boolean>(() => hasPersona());
   const [session, setSession] = useState<AuthSession | null>(() => getStoredAuthSession());
   const [authChecked, setAuthChecked] = useState(false);
@@ -177,9 +178,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         onPinnedChange={setSidebarPinned}
       />
       <main
-        className={`min-h-screen bg-transparent p-6 transition-[margin] duration-300 ease-out ${
+        className={`min-h-screen bg-transparent transition-[margin] duration-300 ease-out ${
           sidebarExpanded ? "ml-72" : "ml-24"
-        }`}
+        } ${isFlushContentRoute ? "p-0" : "p-6"}`}
       >
         {children}
       </main>

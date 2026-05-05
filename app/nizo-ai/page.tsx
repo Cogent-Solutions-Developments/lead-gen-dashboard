@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowUp,
   Brain,
@@ -101,10 +102,50 @@ function buildLeadShareText(lead: LeadItem, score?: number) {
     .join("\n");
 }
 
-function LinkedinIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
+function LinkedInIcon({ className }: { className?: string }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={className} aria-hidden="true">
-      <path d="M0 1.146C0 .513.526 0 1.175 0h13.65C15.474 0 16 .513 16 1.146v13.708c0 .633-.526 1.146-1.175 1.146H1.175C.526 16 0 15.487 0 14.854zm4.943 12.248V6.169H2.542v7.225zm-1.2-8.212c.837 0 1.358-.554 1.358-1.248-.015-.709-.52-1.248-1.342-1.248S2.4 3.226 2.4 3.934c0 .694.521 1.248 1.327 1.248zm4.908 8.212V9.359c0-.216.016-.432.08-.586.173-.431.568-.878 1.232-.878.869 0 1.216.662 1.216 1.634v3.865h2.401V9.25c0-2.22-1.184-3.252-2.764-3.252-1.274 0-1.845.7-2.165 1.193v.025h-.016l.016-.025V6.169h-2.4c.03.678 0 7.225 0 7.225z" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.22-.44-2.12-1.54-2.12a1.6 1.6 0 00-1.58 1.14 2.17 2.17 0 00-.1 1.08V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.95 0 3.52 1.27 3.52 4z" />
+    </svg>
+  );
+}
+
+function WebsiteIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418" />
+    </svg>
+  );
+}
+
+function PhoneIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2z" />
+      <path
+        fill="white"
+        transform="translate(6, 6) scale(0.5)"
+        d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"
+      />
+    </svg>
+  );
+}
+
+function EmailIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2z" />
+      <g transform="translate(6, 6) scale(0.5)">
+        <rect x="2" y="4" width="20" height="16" rx="2" fill="white" />
+        <path
+          d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
     </svg>
   );
 }
@@ -477,13 +518,6 @@ export default function NizoAiPage() {
       }),
     [eventsCache, query, recentSearches, sortedResults]
   );
-  const visiblePageNumbers = useMemo(() => {
-    const windowSize = 5;
-    let start = Math.max(1, currentPage - Math.floor(windowSize / 2));
-    const end = Math.min(totalPages, start + windowSize - 1);
-    start = Math.max(1, end - windowSize + 1);
-    return Array.from({ length: end - start + 1 }, (_, index) => start + index);
-  }, [currentPage, totalPages]);
   const showingFrom = sortedResults.length === 0 ? 0 : (Math.min(currentPage, totalPages) - 1) * RESULTS_PER_PAGE + 1;
   const showingTo = sortedResults.length === 0 ? 0 : Math.min(showingFrom + paginatedResults.length - 1, sortedResults.length);
   const resultMeta = useMemo(() => {
@@ -498,304 +532,364 @@ export default function NizoAiPage() {
   if (persona !== "sales") {
     return (
       <div className="flex min-h-[calc(100dvh-3rem)] items-center justify-center p-4">
-        <Card className="max-w-md rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-sm">
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">NizoAI is for Sales</h1>
-          <p className="mt-2 text-sm text-zinc-500">Switch to Sales to search all sales leads.</p>
-          {isSuperAdmin ? (
-            <Button className="mt-5 btn-sidebar-noise" onClick={() => setPersona("sales")}>
-              Switch to Sales
-            </Button>
-          ) : (
-            <Link href="/dashboard">
-              <Button className="mt-5 btn-sidebar-noise">Back</Button>
-            </Link>
-          )}
-        </Card>
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+        >
+          <Card className="max-w-md rounded-[2.5rem] border-0 bg-white p-10 text-center shadow-2xl ring-1 ring-black/5">
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-50 text-slate-400">
+              <Brain className="h-8 w-8" />
+            </div>
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Nizo AI for Sales</h1>
+            <p className="mt-4 text-zinc-500 font-light leading-relaxed">
+              This intelligence engine is reserved for the Sales persona. Switch your identity to begin searching.
+            </p>
+            {isSuperAdmin ? (
+              <Button 
+                className="mt-8 btn-sidebar-noise w-full h-12 rounded-2xl text-base" 
+                onClick={() => setPersona("sales")}
+              >
+                Switch to Sales
+              </Button>
+            ) : (
+              <Link href="/dashboard" className="block mt-8">
+                <Button className="w-full h-12 rounded-2xl border-slate-200 bg-white text-slate-600 hover:bg-slate-50 shadow-none">
+                  Return to Dashboard
+                </Button>
+              </Link>
+            )}
+          </Card>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-[calc(100dvh-3rem)] bg-transparent px-4 py-8 font-sans">
-      <div className="mx-auto flex min-h-[52vh] max-w-4xl flex-col items-center justify-center">
-        <div className="mb-4 flex h-14 w-14 items-center justify-center text-zinc-950">
-          <Brain className="h-8 w-8" />
+    <div className="min-h-screen bg-white font-sans text-zinc-950">
+      <div className="w-full">
+        <div className="flex items-center gap-3 px-6 pt-8 text-sm font-medium text-zinc-400 md:px-10 lg:px-12">
+          <Link href="/dashboard" className="inline-flex items-center gap-1 transition-colors hover:text-zinc-950">
+            <ChevronLeft className="h-4 w-4" />
+            Dashboard
+          </Link>
+          <span className="h-4 w-px bg-zinc-200" />
+          <span>Sales Workspace</span>
         </div>
 
-        <h1 className="text-center text-2xl font-semibold tracking-tight text-zinc-950 md:text-3xl">
-          Find Sales Leads Faster
-        </h1>
-
-        <div className="mt-7 w-full rounded-3xl border border-zinc-200 bg-white p-3 shadow-[0_22px_44px_-34px_rgba(2,10,27,0.55)]">
-          <textarea
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                void runSearch();
-              }
-            }}
-            placeholder="Search sales leads..."
-            className="min-h-24 w-full resize-none rounded-2xl border-0 bg-transparent px-3 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
-          />
-
-          {searchSuggestions.length ? (
-            <div className="mb-3 flex flex-wrap gap-2 px-1">
-              {searchSuggestions.map((suggestion) => (
-                <button
-                  key={suggestion}
-                  type="button"
-                  onClick={() => void runSearch(suggestion)}
-                  className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-sidebar hover:border-blue-200 hover:bg-blue-100"
-                >
-                  {suggestion}
-                </button>
-              ))}
+        <section className="mt-8 grid gap-10 border-b border-zinc-200 px-6 pb-9 md:px-10 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start lg:px-12">
+          <div>
+            <div className="flex items-center gap-4">
+              <h1 className="text-[clamp(2.4rem,4.2vw,4.1rem)] font-light leading-[0.98] tracking-[-0.055em] text-zinc-950">
+                NizoAI
+              </h1>
+              <Brain
+                aria-hidden="true"
+                strokeWidth={1.45}
+                className="translate-y-[0.03em] h-[clamp(2.15rem,3.35vw,3.25rem)] w-[clamp(2.15rem,3.35vw,3.25rem)] text-zinc-950"
+              />
             </div>
-          ) : null}
-
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-medium text-zinc-500">
-                <Search className="h-3 w-3" />
-                Fuzzy search
-              </span>
-              <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-medium text-zinc-500">
-                Sales leads
-              </span>
-            </div>
-
-            <Button
-              type="button"
-              size="icon"
-              className="h-9 w-9 rounded-full bg-sidebar text-white shadow-[0_12px_24px_-16px_rgba(20,90,204,0.9)] hover:bg-sidebar/90"
-              disabled={loading}
-              onClick={() => void runSearch()}
-              aria-label="Search"
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
-            </Button>
+            <p className="mt-5 max-w-xl text-lg font-light leading-relaxed tracking-[-0.02em] text-zinc-500">
+              Natural-language prospect intelligence for sales teams.
+            </p>
           </div>
-        </div>
 
-        {recentSearches.length ? (
-          <div className="mt-4 flex max-w-3xl flex-wrap justify-center gap-2">
-            {recentSearches.map((item) => (
-              <button
-                key={item}
+          <div className="border-t border-zinc-200 pt-6 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+            <div className="grid grid-cols-2 gap-8">
+              <div>
+                <p className="text-xs font-medium text-zinc-400">Candidates</p>
+                <p className="mt-2 text-3xl font-light tabular-nums tracking-tight text-zinc-950">
+                  {candidateCount.toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-zinc-400">Matched</p>
+                <p className="mt-2 text-3xl font-light tabular-nums tracking-tight text-zinc-950">
+                  {results.length.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-b border-zinc-200 px-6 py-9 md:px-10 lg:px-12">
+          <div className="mx-auto max-w-4xl text-center">
+            <p className="text-xs font-medium text-zinc-400">Search model</p>
+            <p className="mx-auto mt-2 max-w-xl text-base font-light leading-relaxed text-zinc-500">
+              Ask for a role, region, industry, or campaign.
+            </p>
+
+            <div className="relative mt-8 rounded-full border border-zinc-200 bg-white px-5 py-2 text-left shadow-[0_28px_80px_-60px_rgba(2,10,27,0.45)] transition-colors focus-within:border-zinc-400">
+              <Search className="absolute left-8 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
+              <textarea
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    void runSearch();
+                  }
+                }}
+                placeholder="Search sales leads, regions, titles, or campaign names..."
+                rows={1}
+                className="block min-h-14 w-full resize-none overflow-hidden border-0 bg-transparent py-3 pl-12 pr-16 text-center text-[clamp(1.35rem,2.2vw,2.35rem)] font-light leading-tight tracking-[-0.045em] text-zinc-950 outline-none placeholder:text-zinc-300"
+              />
+              <Button
                 type="button"
-                onClick={() => void runSearch(item)}
-                className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-500 hover:border-zinc-300 hover:text-zinc-900"
+                size="icon"
+                className="absolute right-5 top-1/2 h-11 w-11 -translate-y-1/2 rounded-full bg-zinc-950 text-white shadow-none transition-colors hover:bg-blue-600"
+                disabled={loading}
+                onClick={() => void runSearch()}
+                aria-label="Run AI Search"
               >
-                {item}
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      {searched ? (
-        <div className="mx-auto mt-3 w-full max-w-7xl">
-          <div className="mb-3">
-            <div>
-              <h2 className="text-lg font-semibold tracking-tight text-zinc-950">{resultTitle}</h2>
-              <span className="text-xs font-medium text-zinc-500">{resultMeta}</span>
+                {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowUp className="h-5 w-5" />}
+              </Button>
             </div>
+
+            <AnimatePresence>
+              {searchSuggestions.length ? (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-5 flex flex-wrap justify-center gap-2.5"
+                >
+                  {searchSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => void runSearch(suggestion)}
+                      className="inline-flex h-9 items-center rounded-full border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-500 transition-colors hover:border-blue-600 hover:text-blue-600"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+
+            {recentSearches.length ? (
+              <div className="mx-auto mt-6 max-w-3xl">
+                <p className="mb-3 text-xs font-medium text-zinc-400">Recent searches</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {recentSearches.slice(0, 5).map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => void runSearch(item)}
+                      className="rounded-full border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-500 transition-colors hover:border-zinc-950 hover:text-zinc-950"
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
-          {searchNote ? (
-            <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              {searchNote}
+        </section>
+
+      <div className="mb-20 mt-12 w-full px-6 md:px-10 lg:px-12">
+        {searched ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="mb-8 flex items-end justify-between">
+              <div>
+                <h2 className="text-3xl font-light tracking-[-0.04em] text-zinc-950">{resultTitle}</h2>
+                <div className="mt-2 flex items-center gap-3">
+                  <span className="text-sm font-light text-zinc-400">{resultMeta}</span>
+                  {searchNote ? (
+                    <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 ring-1 ring-amber-100">
+                      Note
+                    </span>
+                  ) : null}
+                </div>
+              </div>
             </div>
-          ) : null}
 
-          {results.length === 0 ? (
-            <Card className="rounded-2xl border border-zinc-200 bg-white p-10 text-center text-sm text-zinc-500 shadow-sm">
-              No matches. Try fewer words or a broader title.
-            </Card>
-          ) : (
-            <Card className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-              <div className="w-full overflow-x-auto">
-                <table className="min-w-[920px] w-full">
-                  <thead className="border-b border-zinc-200 bg-slate-50">
-                    <tr>
-                      <th className="w-[33%] px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Lead</th>
-                      <th className="w-[24%] px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Country / Status</th>
-                      <th className="w-[24%] px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Contact</th>
-                      <th className="w-[11%] px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Score</th>
-                      <th className="w-[8%] px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Actions</th>
-                    </tr>
-                  </thead>
+            {searchNote ? (
+              <div className="mb-8 rounded-2xl border border-amber-100 bg-amber-50/50 p-4 text-sm text-amber-800 backdrop-blur-sm">
+                <p className="font-medium">Search insight: <span className="font-normal opacity-80">{searchNote}</span></p>
+              </div>
+            ) : null}
 
-                  <tbody className="divide-y divide-slate-100">
+            {results.length === 0 ? (
+              <div className="border-y border-zinc-200 p-20 text-center">
+                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-300">
+                  <Search className="h-8 w-8" />
+                </div>
+                <h3 className="text-xl font-light tracking-[-0.03em] text-zinc-950">Refine your search</h3>
+                <p className="mt-2 font-light text-zinc-500">Try using fewer keywords or a broader industry title.</p>
+              </div>
+            ) : (
+              <div className="overflow-hidden border-y border-zinc-200">
+                <div className="w-full overflow-x-auto">
+                  <div className="min-w-[56rem] border-b border-zinc-200 px-8 py-5">
+                    <div className="grid grid-cols-[minmax(24rem,1fr)_minmax(18rem,0.85fr)_12rem_8rem] text-sm font-light text-zinc-500">
+                      <div>Identity details</div>
+                      <div>Contact channels</div>
+                      <div>Match Intelligence</div>
+                      <div className="text-right">Action</div>
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-zinc-100">
                     {paginatedResults.map(({ lead, score, relevance }) => {
                       const country = leadCountry(lead);
 
                       return (
-                      <tr
-                        key={lead.id}
-                        className={`cursor-pointer align-middle transition-colors hover:bg-slate-50/80 ${
-                          selectedLeadId === lead.id ? "bg-blue-50/45" : ""
-                        }`}
-                        onClick={() => setSelectedLeadId(lead.id)}
-                      >
-                        <td className="px-4 py-3">
-                          <div className="min-w-0 pr-4">
-                            <p className="truncate text-sm font-semibold leading-5 text-zinc-950">{text(lead.employeeName) || "Unnamed lead"}</p>
-                            <p className="line-clamp-2 max-w-[24rem] text-xs leading-5 text-slate-500">
-                              {text(lead.title) || "No title"}
-                              {text(lead.company) ? <span> · {text(lead.company)}</span> : null}
-                            </p>
-                          </div>
-                        </td>
-
-                        <td className="px-4 py-3">
-                          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                            {country ? (
-                              <span className="inline-flex h-5 items-center rounded-full bg-emerald-50 px-2 text-[11px] font-semibold leading-none text-emerald-700">
-                                {country}
-                              </span>
-                            ) : null}
-                            <span className="inline-flex h-5 items-center rounded-full bg-slate-100 px-2 text-[11px] font-semibold leading-none text-slate-600">
-                              New
-                            </span>
-                          </div>
-                          <p className="mt-1 line-clamp-2 max-w-[22rem] text-[11px] leading-4 text-slate-400">
-                            {eventName(lead)}
-                          </p>
-                        </td>
-
-                        <td className="px-4 py-3">
-                          <div className="min-w-0 text-xs leading-4">
-                            <p className={`truncate ${lead.email ? "text-zinc-800" : "text-slate-300"}`}>{lead.email || "No email"}</p>
-                            <p className={`mt-0.5 truncate ${lead.phone ? "text-zinc-700" : "text-slate-300"}`}>
-                              {lead.phone ? `Mobile: ${lead.phone}` : "No mobile"}
-                            </p>
-                            {lead.linkedinUrl ? (
-                              <a
-                                href={lead.linkedinUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                onClick={(event) => event.stopPropagation()}
-                                className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-sky-600 hover:text-sky-700"
-                              >
-                                <LinkedinIcon className="h-3 w-3" />
-                                LinkedIn
-                              </a>
-                            ) : (
-                              <p className="mt-0.5 text-[11px] text-slate-300">No LinkedIn</p>
-                            )}
-                            {lead.companyUrl ? (
-                              <a
-                                href={lead.companyUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                onClick={(event) => event.stopPropagation()}
-                                className="mt-0.5 block truncate text-[11px] font-medium text-slate-500 hover:text-sidebar"
-                              >
-                                Website: {lead.companyUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}
-                              </a>
-                            ) : (
-                              <p className="mt-0.5 text-[11px] text-slate-300">No website</p>
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="px-4 py-3">
-                          <div className="flex min-w-[5.5rem] items-center gap-3">
-                            <div className="h-1 w-9 overflow-hidden rounded-full bg-slate-100">
-                              <div
-                                className="h-full rounded-full bg-sidebar"
-                                style={{ width: `${Math.max(8, Math.min(100, relevance))}%` }}
-                              />
+                        <div
+                          key={lead.id}
+                          className={`group grid grid-cols-[minmax(24rem,1fr)_minmax(18rem,0.85fr)_12rem_8rem] items-center px-8 py-10 transition-colors ${
+                            selectedLeadId === lead.id ? "bg-blue-50/35" : "hover:bg-zinc-50/60"
+                          }`}
+                          onClick={() => setSelectedLeadId(lead.id)}
+                        >
+                          <div className="pr-8">
+                            <div className="flex flex-col gap-3">
+                              <div className="flex items-center gap-3">
+                                <span className="text-xl font-light tracking-tight text-zinc-950">{text(lead.employeeName) || "Unnamed Lead"}</span>
+                                {lead.isManualLead && (
+                                  <span className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-xs font-medium text-zinc-500">Manual</span>
+                                )}
+                              </div>
+                              <span className="max-w-sm text-base font-light leading-relaxed text-zinc-700">{text(lead.title) || "-"}</span>
+                              <div className="flex flex-wrap items-center gap-2">
+                                {text(lead.company) && (
+                                  <span className="text-xs font-medium text-zinc-400">{text(lead.company)}</span>
+                                )}
+                                {country && (
+                                  <>
+                                    <span className="h-1 w-1 rounded-full bg-zinc-300" />
+                                    <span className="text-xs font-medium text-emerald-600/70">{country}</span>
+                                  </>
+                                )}
+                              </div>
                             </div>
-                            <span className="text-xs font-bold text-sidebar">{score}</span>
                           </div>
-                        </td>
 
-                        <td className="px-4 py-3">
-                          <div className="flex justify-end gap-1.5">
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void copyLeadDetails(lead, score);
-                              }}
-                              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-sidebar"
-                              aria-label="Copy lead details"
-                              title="Copy lead details"
-                            >
-                              <Copy className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                downloadLeadDetails(lead, score);
-                              }}
-                              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-sidebar"
-                              aria-label="Download lead details"
-                              title="Download lead details"
-                            >
-                              <Download className="h-3.5 w-3.5" />
-                            </button>
+                          <div className="pr-8">
+                            <div className="flex flex-col gap-2">
+                              <div className="flex items-center gap-2">
+                                {lead.email ? (
+                                  <>
+                                    <EmailIcon className="h-3.5 w-3.5 text-[#EF4444]" />
+                                    <span className="text-sm font-light tracking-tight text-zinc-700">{lead.email}</span>
+                                  </>
+                                ) : (
+                                  <span className="text-sm font-light tracking-tight text-zinc-400">No email</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {lead.phone ? (
+                                  <>
+                                    <PhoneIcon className="h-3.5 w-3.5 text-[#22C55E]" />
+                                    <span className="text-sm font-light text-zinc-500">{lead.phone}</span>
+                                  </>
+                                ) : (
+                                  <span className="text-sm font-light text-zinc-400">No phone</span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-3">
+                                {lead.linkedinUrl && (
+                                  <a href={lead.linkedinUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950">
+                                    <LinkedInIcon className="h-3.5 w-3.5 text-[#0A66C2]" />
+                                    <span className="text-xs font-medium">LinkedIn</span>
+                                  </a>
+                                )}
+                                {lead.companyUrl && (
+                                  <a href={lead.companyUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950">
+                                    <WebsiteIcon className="h-3.5 w-3.5 text-zinc-950" />
+                                    <span className="text-xs font-medium">Website</span>
+                                  </a>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </td>
-                      </tr>
+
+                          <div>
+                            <div className="flex items-center gap-4">
+                              <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100 shadow-inner">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${Math.max(8, Math.min(100, relevance))}%` }}
+                                  className="h-full bg-zinc-900"
+                                />
+                              </div>
+                              <span className="text-sm font-bold text-zinc-900">{score}</span>
+                            </div>
+                            <p className="mt-2 text-[10px] font-medium uppercase tracking-wider text-slate-400">{eventName(lead)}</p>
+                          </div>
+
+                          <div className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void copyLeadDetails(lead, score);
+                                }}
+                                className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-400 shadow-sm ring-1 ring-slate-200 transition-all hover:bg-zinc-900 hover:text-white hover:ring-zinc-900"
+                                title="Copy Intelligence"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  downloadLeadDetails(lead, score);
+                                }}
+                                className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-400 shadow-sm ring-1 ring-slate-200 transition-all hover:bg-zinc-900 hover:text-white hover:ring-zinc-900"
+                                title="Download Report"
+                              >
+                                <Download className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
                       );
                     })}
-                  </tbody>
-                </table>
-              </div>
+                  </div>
+                </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 px-4 py-3">
-                <span className="text-xs text-zinc-500">
-                  Showing {showingFrom}-{showingTo} of {results.length} matches
-                </span>
+                <div className="flex items-center justify-between border-t border-zinc-200 px-8 py-8">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-zinc-400">Intelligence range</p>
+                    <p className="text-lg font-light tabular-nums tracking-tight text-zinc-950">
+                      {showingFrom}—{showingTo}
+                      <span className="ml-2 text-sm text-zinc-400 font-normal">of {results.length.toLocaleString()} records</span>
+                    </p>
+                  </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[11px] text-zinc-500">Page {Math.min(currentPage, totalPages)} / {totalPages}</span>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                    disabled={currentPage === 1}
-                    className="h-8 border-zinc-200 bg-white px-2 text-zinc-600 shadow-none disabled:opacity-40"
-                  >
-                    <ChevronLeft className="h-3.5 w-3.5" />
-                  </Button>
-
-                  {visiblePageNumbers.map((pageNum) => (
-                    <button
-                      key={pageNum}
-                      type="button"
-                      onClick={() => setCurrentPage(pageNum)}
-                      className={`h-8 min-w-8 rounded-md border px-2 text-xs font-semibold transition-colors ${
-                        pageNum === currentPage
-                          ? "border-zinc-300 bg-zinc-900 text-white"
-                          : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
-                      }`}
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="ghost"
+                      aria-label="Previous page"
+                      className="h-11 w-11 rounded-full border border-zinc-200 bg-white p-0 text-zinc-500 shadow-none transition-all hover:border-zinc-900 hover:bg-white hover:text-zinc-950 disabled:opacity-30"
+                      onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                      disabled={currentPage === 1}
                     >
-                      {pageNum}
-                    </button>
-                  ))}
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                    disabled={currentPage === totalPages}
-                    className="h-8 border-zinc-200 bg-white px-2 text-zinc-600 shadow-none disabled:opacity-40"
-                  >
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Button>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      aria-label="Next page"
+                      className="h-11 w-11 rounded-full border border-zinc-950 bg-transparent p-0 text-zinc-950 shadow-none transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white disabled:border-zinc-200 disabled:text-zinc-300 disabled:opacity-100"
+                      onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </Card>
-          )}
-        </div>
-      ) : null}
+            )}
+          </motion.div>
+        ) : null}
+      </div>
+    </div>
     </div>
   );
 }
