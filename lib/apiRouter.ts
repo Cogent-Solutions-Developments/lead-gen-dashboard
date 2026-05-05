@@ -5,6 +5,14 @@ import { getPersona, type Persona } from "@/lib/persona";
 
 export type {
   CampaignImportSummary,
+  CampaignEmailTemplate,
+  CampaignEmailTemplateDeleteResponse,
+  CampaignEmailTemplateDeleteFallbackDrafts,
+  CampaignEmailTemplateFallbackDrafts,
+  CampaignEmailTemplatePayload,
+  CampaignEmailTemplateResponse,
+  CampaignEmailTemplateSaveResponse,
+  EmailTemplateContentSource,
   CampaignInfo,
   CampaignInfoResponse,
   CampaignDetail,
@@ -93,6 +101,15 @@ export const getCampaign: typeof sales.getCampaign = (...args) =>
 
 export const getCampaignInfo: typeof sales.getCampaignInfo = (...args) =>
   pickModule().getCampaignInfo(...args);
+
+export const getCampaignEmailTemplate: typeof sales.getCampaignEmailTemplate = (...args) =>
+  pickModule().getCampaignEmailTemplate(...args);
+
+export const saveCampaignEmailTemplate: typeof sales.saveCampaignEmailTemplate = (...args) =>
+  pickModule().saveCampaignEmailTemplate(...args);
+
+export const deleteCampaignEmailTemplate: typeof sales.deleteCampaignEmailTemplate = (...args) =>
+  pickModule().deleteCampaignEmailTemplate(...args);
 
 export const getCampaignLeads: typeof sales.getCampaignLeads = (...args) =>
   pickModule().getCampaignLeads(...args);

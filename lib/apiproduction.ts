@@ -2,6 +2,11 @@ import axios from "axios";
 import { attachAuthToken } from "@/lib/auth";
 import type {
   CampaignImportSummary,
+  CampaignEmailTemplateDeleteResponse,
+  CampaignEmailTemplateDeleteFallbackDrafts,
+  CampaignEmailTemplatePayload,
+  CampaignEmailTemplateResponse,
+  CampaignEmailTemplateSaveResponse,
   CampaignInfo,
   CampaignInfoResponse,
   CampaignDetail,
@@ -48,6 +53,11 @@ import type {
 
 export type {
   CampaignImportSummary,
+  CampaignEmailTemplateDeleteResponse,
+  CampaignEmailTemplateDeleteFallbackDrafts,
+  CampaignEmailTemplatePayload,
+  CampaignEmailTemplateResponse,
+  CampaignEmailTemplateSaveResponse,
   CampaignInfo,
   CampaignInfoResponse,
   CampaignDetail,
@@ -200,6 +210,28 @@ export async function getCampaign(id: string) {
 export async function getCampaignInfo(id: string) {
   const { data } = await apiClientProduction.get<CampaignInfoResponse>(
     `/api/productions/campaigns/${id}/info`
+  );
+  return data;
+}
+
+export async function getCampaignEmailTemplate(id: string) {
+  const { data } = await apiClientProduction.get<CampaignEmailTemplateResponse>(
+    `/api/productions/campaigns/${id}/email-template`
+  );
+  return data;
+}
+
+export async function saveCampaignEmailTemplate(id: string, payload: CampaignEmailTemplatePayload) {
+  const { data } = await apiClientProduction.post<CampaignEmailTemplateSaveResponse>(
+    `/api/productions/campaigns/${id}/email-template`,
+    payload
+  );
+  return data;
+}
+
+export async function deleteCampaignEmailTemplate(id: string) {
+  const { data } = await apiClientProduction.delete<CampaignEmailTemplateDeleteResponse>(
+    `/api/productions/campaigns/${id}/email-template`
   );
   return data;
 }
