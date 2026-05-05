@@ -781,6 +781,10 @@ function SuperAdminCampaignDetailPage() {
   const approvedMetricCount = useMemo(() => Number(campaign?.stats?.approved ?? approvedCount), [campaign?.stats?.approved, approvedCount]);
   const rejectedMetricCount = useMemo(() => Number(campaign?.stats?.rejected ?? rejectedCount), [campaign?.stats?.rejected, rejectedCount]);
   const suppressedMetricCount = useMemo(() => Number(campaign?.stats?.suppressed ?? suppressedCount), [campaign?.stats?.suppressed, suppressedCount]);
+  const emailLeadCount = useMemo(() => leads.filter((lead) => hasText(lead.email)).length, [leads]);
+  const hasEmailLeads = emailLeadCount > 0;
+  const emailTemplateSaveDisabled =
+    !hasEmailLeads || isEmailTemplateLoading || isEmailTemplateSaving || isEmailTemplateDeleting;
 
   const leadFilterTabs = useMemo(
     () => [
@@ -1585,6 +1589,12 @@ function SuperAdminCampaignDetailPage() {
 
   const handlePickUniversalAttachment = () => {
     if (!canManageLeadActions) return;
+    if (!hasEmailLeads) {
+      toast.warning("Email attachment unavailable", {
+        description: "This campaign has no leads with email addresses.",
+      });
+      return;
+    }
     universalAttachmentRef.current?.click();
   };
 
@@ -1618,6 +1628,12 @@ function SuperAdminCampaignDetailPage() {
 
   const handleUniversalAttachmentChange = async (files: FileList | null) => {
     if (!canManageLeadActions) return;
+    if (!hasEmailLeads) {
+      toast.warning("Email attachment unavailable", {
+        description: "This campaign has no leads with email addresses.",
+      });
+      return;
+    }
     const picked = files?.[0];
     if (!picked) return;
 
@@ -1665,6 +1681,12 @@ function SuperAdminCampaignDetailPage() {
 
   const handleSaveEmailTemplate = async () => {
     if (!canManageLeadActions || isEmailTemplateSaving) return;
+    if (!hasEmailLeads) {
+      toast.warning("Email template unavailable", {
+        description: "Add at least one lead with an email address before saving an email template.",
+      });
+      return;
+    }
     const emailSubject = emailTemplateSubject.trim();
     const emailBody = emailTemplateBody.trim();
 
@@ -2362,6 +2384,11 @@ function SuperAdminCampaignDetailPage() {
                   ) : (
                     <p className="mt-0.5 text-xs text-zinc-500">Campaign-level fallback email content</p>
                   )}
+                  <p className={`mt-1 text-xs ${hasEmailLeads ? "text-zinc-500" : "font-medium text-amber-700"}`}>
+                    {hasEmailLeads
+                      ? `${emailLeadCount} lead${emailLeadCount === 1 ? "" : "s"} with email`
+                      : "No leads with email. Mail controls are disabled."}
+                  </p>
                 </div>
               </div>
 
@@ -2383,8 +2410,8 @@ function SuperAdminCampaignDetailPage() {
                 <Input
                   value={emailTemplateSubject}
                   onChange={(event) => setEmailTemplateSubject(event.target.value)}
-                  disabled={isEmailTemplateLoading || isEmailTemplateSaving || isEmailTemplateDeleting}
-                  placeholder="Subject"
+                  disabled={emailTemplateSaveDisabled}
+                  placeholder="e.g. Digital Stadium 2026"
                   className="h-10 border-zinc-200/85 bg-white/90 text-sm text-zinc-900 placeholder:text-zinc-400"
                 />
               </div>
@@ -2396,8 +2423,8 @@ function SuperAdminCampaignDetailPage() {
                 <textarea
                   value={emailTemplateBody}
                   onChange={(event) => setEmailTemplateBody(event.target.value)}
-                  disabled={isEmailTemplateLoading || isEmailTemplateSaving || isEmailTemplateDeleting}
-                  placeholder="Dear {{first_name}},"
+                  disabled={emailTemplateSaveDisabled}
+                  placeholder={"Dear {{first_name}},\n\nWrite the fallback email body for leads with email addresses."}
                   className="min-h-28 w-full resize-y rounded-md border border-zinc-200/85 bg-white/90 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
                 />
               </div>
@@ -2407,8 +2434,9 @@ function SuperAdminCampaignDetailPage() {
               <Button
                 type="button"
                 onClick={handleSaveEmailTemplate}
-                disabled={isEmailTemplateLoading || isEmailTemplateSaving || isEmailTemplateDeleting}
+                disabled={emailTemplateSaveDisabled}
                 className="btn-sidebar-noise h-9 px-3.5"
+                title={hasEmailLeads ? "Save email template" : "No leads with email addresses"}
               >
                 {isEmailTemplateSaving ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -2502,9 +2530,21 @@ function SuperAdminCampaignDetailPage() {
                   <Button
                     type="button"
                     onClick={handlePickUniversalAttachment}
-                    disabled={isCommonAttachmentUploading}
-                    aria-label={isCommonAttachmentUploading ? "Uploading attachment" : "Add attachment"}
-                    title={isCommonAttachmentUploading ? "Uploading attachment" : "Add attachment"}
+                    disabled={!hasEmailLeads || isCommonAttachmentUploading}
+                    aria-label={
+                      !hasEmailLeads
+                        ? "No leads with email addresses"
+                        : isCommonAttachmentUploading
+                          ? "Uploading attachment"
+                          : "Add email attachment"
+                    }
+                    title={
+                      !hasEmailLeads
+                        ? "No leads with email addresses"
+                        : isCommonAttachmentUploading
+                          ? "Uploading attachment"
+                          : "Add email attachment"
+                    }
                     className={`h-8 w-8 rounded-md border p-0 shadow-none disabled:cursor-not-allowed disabled:opacity-50 ${
                       commonAttachmentId && universalAttachment
                         ? "border-emerald-200/90 bg-emerald-50/90 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50"
@@ -2749,6 +2789,7 @@ function SuperAdminCampaignDetailPage() {
                 const suppressionPhone = suppressionMeta?.phoneE164 || optOutEntry?.phoneE164 || item.phone || null;
                 const suppressionEmail = suppressionMeta?.email || optOutEntry?.email || item.email || null;
                 const showTemplateFallback = shouldShowTemplateFallback(item);
+                const reviewContentDisabled = isLeadReadOnly || !canSendEmail;
 
                 return (
                   <tr
@@ -2833,7 +2874,14 @@ function SuperAdminCampaignDetailPage() {
                               size="sm"
                               className="h-8 rounded-md border border-zinc-200/80 bg-white/82 text-xs font-semibold text-zinc-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
                               onClick={() => setSelectedLead(item)}
-                              disabled={isLeadReadOnly}
+                              disabled={reviewContentDisabled}
+                              title={
+                                !canSendEmail
+                                  ? "Email content review is available only for leads with email addresses."
+                                  : isLeadReadOnly
+                                    ? "Lead actions are blocked"
+                                    : "Review email content"
+                              }
                             >
                               <Eye className="mr-2 h-3.5 w-3.5 text-zinc-400" />
                               Review Content
