@@ -5,7 +5,8 @@ import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { User, Key, ShieldOff, RefreshCw, UploadCloud } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ExternalLink, Key, Mail, RefreshCw, ShieldOff, Star, Trash2, UploadCloud, User } from "lucide-react";
 import { toast } from "sonner";
 import {
   createWhatsAppOptOut,
@@ -14,6 +15,14 @@ import {
   type UploadWhatsAppOptOutCsvResponse,
   type WhatsAppOptOutItem,
 } from "@/lib/apiRouter";
+import {
+  disconnectOutboundMailbox,
+  getMicrosoftMailboxConnectUrl,
+  listOutboundMailboxes,
+  setDefaultOutboundMailbox,
+  type ConnectedMailboxItem,
+} from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 
 function formatDateTime(value?: string) {
@@ -27,9 +36,13 @@ function getErrorMessage(error: unknown): string {
   if (typeof error === "string") return error;
   if (error && typeof error === "object") {
     const err = error as {
+      data?: { detail?: string; message?: string } | string;
       response?: { data?: { detail?: string } | string };
       message?: string;
     };
+    if (typeof err.data === "string") return err.data;
+    if (typeof err.data === "object" && err.data?.detail) return err.data.detail;
+    if (typeof err.data === "object" && err.data?.message) return err.data.message;
     if (typeof err.response?.data === "string") return err.response.data;
     if (typeof err.response?.data === "object" && err.response?.data?.detail) {
       return err.response.data.detail;
@@ -52,8 +65,31 @@ function displayIdentity(row: WhatsAppOptOutItem) {
   return "-";
 }
 
+function isActiveMailbox(row: ConnectedMailboxItem) {
+  return row.status.toLowerCase() === "active";
+}
+
+function formatProvider(provider: string) {
+  if (provider === "microsoft_graph_delegated") return "Microsoft Outlook";
+  return provider || "-";
+}
+
+function formatExpiry(value?: string | null) {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  const now = Date.now();
+  if (parsed.getTime() <= now) return `${parsed.toLocaleString()} (expired)`;
+  return parsed.toLocaleString();
+}
+
 export default function SettingsPage() {
   const { persona } = usePersona();
+  const { isSuperAdmin } = useAuth();
+  const [mailboxes, setMailboxes] = useState<ConnectedMailboxItem[]>([]);
+  const [mailboxesLoading, setMailboxesLoading] = useState(false);
+  const [connectingMailbox, setConnectingMailbox] = useState(false);
+  const [mailboxActionId, setMailboxActionId] = useState<string | null>(null);
   const [optOutRows, setOptOutRows] = useState<WhatsAppOptOutItem[]>([]);
   const [optOutLoading, setOptOutLoading] = useState(false);
   const [uploadingCsv, setUploadingCsv] = useState(false);
@@ -80,9 +116,113 @@ export default function SettingsPage() {
     }
   }, [activeOnly]);
 
+  const loadMailboxes = useCallback(async () => {
+    if (!isSuperAdmin) {
+      setMailboxes([]);
+      return;
+    }
+
+    setMailboxesLoading(true);
+    try {
+      setMailboxes(await listOutboundMailboxes());
+    } catch (error: unknown) {
+      toast.error("Failed to load outbound mailboxes", {
+        description: getErrorMessage(error),
+      });
+      setMailboxes([]);
+    } finally {
+      setMailboxesLoading(false);
+    }
+  }, [isSuperAdmin]);
+
+  useEffect(() => {
+    void loadMailboxes();
+  }, [loadMailboxes]);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+
+    const handleFocus = () => {
+      if (document.visibilityState === "hidden") return;
+      void loadMailboxes();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleFocus);
+    };
+  }, [isSuperAdmin, loadMailboxes]);
+
   useEffect(() => {
     void loadOptOutList();
   }, [loadOptOutList, persona]);
+
+  const handleConnectMailbox = async () => {
+    const tab = window.open("about:blank", "_blank");
+    if (tab) tab.opener = null;
+
+    try {
+      setConnectingMailbox(true);
+      const response = await getMicrosoftMailboxConnectUrl();
+      if (!response.url) {
+        tab?.close();
+        toast.error("Connect URL was not returned");
+        return;
+      }
+
+      if (tab) {
+        tab.location.href = response.url;
+      } else {
+        window.open(response.url, "_blank", "noopener,noreferrer");
+      }
+
+      toast.success("Microsoft sign-in opened", {
+        description: "After the connection succeeds, close the tab and return here.",
+      });
+    } catch (error: unknown) {
+      tab?.close();
+      toast.error("Failed to start Outlook connection", {
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setConnectingMailbox(false);
+    }
+  };
+
+  const handleSetDefaultMailbox = async (mailboxId: string) => {
+    try {
+      setMailboxActionId(mailboxId);
+      await setDefaultOutboundMailbox(mailboxId);
+      toast.success("Default outbound mailbox updated");
+      await loadMailboxes();
+    } catch (error: unknown) {
+      toast.error("Failed to set default mailbox", {
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setMailboxActionId(null);
+    }
+  };
+
+  const handleDisconnectMailbox = async (mailbox: ConnectedMailboxItem) => {
+    const label = mailbox.email || mailbox.displayName || "this mailbox";
+    if (!window.confirm(`Disconnect ${label}?`)) return;
+
+    try {
+      setMailboxActionId(mailbox.id);
+      await disconnectOutboundMailbox(mailbox.id);
+      toast.success("Mailbox disconnected");
+      await loadMailboxes();
+    } catch (error: unknown) {
+      toast.error("Failed to disconnect mailbox", {
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setMailboxActionId(null);
+    }
+  };
 
   const handleOptOutCsvUpload = async () => {
     if (!selectedCsv) {
@@ -231,11 +371,150 @@ export default function SettingsPage() {
           </Card>
         </motion.div>
 
-        {/* Marketing Opt-out */}
+        {/* Outbound Mailboxes */}
+        {isSuperAdmin ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+          >
+            <Card className="p-6">
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100">
+                    <Mail className="h-5 w-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h2 className="font-semibold text-slate-900">Outbound Mailboxes</h2>
+                    <p className="text-sm text-slate-500">Connect Microsoft Outlook accounts for delegated outbound email</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => void loadMailboxes()}
+                    disabled={mailboxesLoading || connectingMailbox || Boolean(mailboxActionId)}
+                    className="border-slate-200 text-slate-700"
+                  >
+                    <RefreshCw className={`mr-2 h-4 w-4 ${mailboxesLoading ? "animate-spin" : ""}`} />
+                    Refresh
+                  </Button>
+                  <Button
+                    onClick={() => void handleConnectMailbox()}
+                    disabled={connectingMailbox || mailboxesLoading || Boolean(mailboxActionId)}
+                    className="bg-slate-900 hover:bg-slate-800"
+                  >
+                    {connectingMailbox ? (
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                    )}
+                    Connect Outlook
+                  </Button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto rounded-lg border border-slate-200">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-slate-100/80 text-xs uppercase tracking-wide text-slate-600">
+                    <tr>
+                      <th className="px-3 py-2">Mailbox</th>
+                      <th className="px-3 py-2">Provider</th>
+                      <th className="px-3 py-2">Status</th>
+                      <th className="px-3 py-2">Last Connected</th>
+                      <th className="px-3 py-2">Last Used</th>
+                      <th className="px-3 py-2">Token Expiry</th>
+                      <th className="px-3 py-2 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {mailboxes.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-3 py-6 text-center text-slate-500">
+                          {mailboxesLoading ? "Loading connected mailboxes..." : "No Outlook mailboxes connected."}
+                        </td>
+                      </tr>
+                    ) : (
+                      mailboxes.map((mailbox) => {
+                        const isActive = isActiveMailbox(mailbox);
+                        const actionBusy = mailboxActionId === mailbox.id;
+                        return (
+                          <tr key={mailbox.id} className="bg-white align-top">
+                            <td className="px-3 py-3">
+                              <div className="flex flex-col gap-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="font-medium text-slate-900">{mailbox.email || "-"}</span>
+                                  {mailbox.isDefault ? (
+                                    <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                                      <Star className="h-3 w-3" />
+                                      Default
+                                    </Badge>
+                                  ) : null}
+                                </div>
+                                {mailbox.displayName ? (
+                                  <span className="text-xs text-slate-500">{mailbox.displayName}</span>
+                                ) : null}
+                                {mailbox.tenantId ? (
+                                  <span className="font-mono text-[11px] text-slate-400">Tenant: {mailbox.tenantId}</span>
+                                ) : null}
+                              </div>
+                            </td>
+                            <td className="px-3 py-3 text-slate-600">{formatProvider(mailbox.provider)}</td>
+                            <td className="px-3 py-3">
+                              <Badge
+                                className={
+                                  isActive
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : "border-slate-200 bg-slate-100 text-slate-600"
+                                }
+                              >
+                                {isActive ? "Active" : mailbox.status || "Inactive"}
+                              </Badge>
+                            </td>
+                            <td className="px-3 py-3 text-slate-500">{formatDateTime(mailbox.lastConnectedAt ?? undefined)}</td>
+                            <td className="px-3 py-3 text-slate-500">{formatDateTime(mailbox.lastUsedAt ?? undefined)}</td>
+                            <td className="px-3 py-3 text-slate-500">{formatExpiry(mailbox.tokenExpiresAt)}</td>
+                            <td className="px-3 py-3">
+                              <div className="flex flex-wrap justify-end gap-2">
+                                {!mailbox.isDefault && isActive ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => void handleSetDefaultMailbox(mailbox.id)}
+                                    disabled={actionBusy || connectingMailbox || mailboxesLoading}
+                                  >
+                                    {actionBusy ? <RefreshCw className="mr-1 h-3 w-3 animate-spin" /> : <Star className="mr-1 h-3 w-3" />}
+                                    Set default
+                                  </Button>
+                                ) : null}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => void handleDisconnectMailbox(mailbox)}
+                                  disabled={actionBusy || connectingMailbox || mailboxesLoading}
+                                  className="border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                                >
+                                  {actionBusy ? <RefreshCw className="mr-1 h-3 w-3 animate-spin" /> : <Trash2 className="mr-1 h-3 w-3" />}
+                                  Disconnect
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </motion.div>
+        ) : null}
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
+          transition={{ delay: 0.3 }}
         >
           <Card className="p-6">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -391,7 +670,7 @@ export default function SettingsPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.35 }}
           className="flex justify-end"
         >
           <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">

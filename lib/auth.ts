@@ -72,6 +72,29 @@ export type AdminEventUpdateInput = {
   syncLinkedCampaigns?: boolean;
 };
 
+export type ConnectedMailboxItem = {
+  id: string;
+  provider: string;
+  email: string;
+  displayName: string;
+  tenantId: string;
+  ownerUserId?: string | null;
+  status: string;
+  isDefault: boolean;
+  scopes: string;
+  createdAt: string;
+  updatedAt: string;
+  lastConnectedAt: string | null;
+  lastUsedAt: string | null;
+  tokenExpiresAt: string | null;
+  meta: Record<string, unknown>;
+};
+
+export type MicrosoftMailboxConnectUrlResponse = {
+  url: string;
+  expiresInSeconds: number;
+};
+
 type AuthError = Error & {
   status?: number;
   data?: unknown;
@@ -363,6 +386,31 @@ function normalizeAdminEvent(raw: unknown): AdminEventItem {
   };
 }
 
+function normalizeConnectedMailbox(raw: unknown): ConnectedMailboxItem {
+  const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const meta = source.meta && typeof source.meta === "object" && !Array.isArray(source.meta)
+    ? (source.meta as Record<string, unknown>)
+    : {};
+
+  return {
+    id: String(source.id || ""),
+    provider: String(source.provider || ""),
+    email: String(source.email || ""),
+    displayName: String(source.displayName || ""),
+    tenantId: String(source.tenantId || ""),
+    ownerUserId: source.ownerUserId == null ? null : String(source.ownerUserId),
+    status: String(source.status || ""),
+    isDefault: Boolean(source.isDefault),
+    scopes: String(source.scopes || ""),
+    createdAt: String(source.createdAt || ""),
+    updatedAt: String(source.updatedAt || ""),
+    lastConnectedAt: source.lastConnectedAt == null ? null : String(source.lastConnectedAt),
+    lastUsedAt: source.lastUsedAt == null ? null : String(source.lastUsedAt),
+    tokenExpiresAt: source.tokenExpiresAt == null ? null : String(source.tokenExpiresAt),
+    meta,
+  };
+}
+
 export async function listAdminEvents(includeInactive = true) {
   const params = new URLSearchParams();
   if (includeInactive) params.set("includeInactive", "true");
@@ -390,4 +438,26 @@ export async function updateAdminEvent(eventId: string, payload: AdminEventUpdat
     body: JSON.stringify(payload),
   });
   return normalizeAdminEvent(data.event);
+}
+
+export async function listOutboundMailboxes() {
+  const data = await authRequest<{ items: ConnectedMailboxItem[] }>("/api/mailboxes");
+  return Array.isArray(data.items) ? data.items.map(normalizeConnectedMailbox) : [];
+}
+
+export async function getMicrosoftMailboxConnectUrl() {
+  return authRequest<MicrosoftMailboxConnectUrlResponse>("/api/mailboxes/microsoft/connect-url");
+}
+
+export async function setDefaultOutboundMailbox(mailboxId: string) {
+  const data = await authRequest<{ item: ConnectedMailboxItem }>(`/api/mailboxes/${mailboxId}/default`, {
+    method: "POST",
+  });
+  return normalizeConnectedMailbox(data.item);
+}
+
+export async function disconnectOutboundMailbox(mailboxId: string) {
+  return authRequest<{ ok: boolean }>(`/api/mailboxes/${mailboxId}`, {
+    method: "DELETE",
+  });
 }
