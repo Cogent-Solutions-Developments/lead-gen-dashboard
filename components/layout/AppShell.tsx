@@ -19,6 +19,7 @@ import {
 function isSuperOnlyPath(pathname: string) {
   return (
     pathname === "/settings" ||
+    pathname.startsWith("/settings/") ||
     pathname === "/replies" ||
     pathname === "/campaigns/new" ||
     pathname.startsWith("/admin")

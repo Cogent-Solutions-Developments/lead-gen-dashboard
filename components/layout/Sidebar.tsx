@@ -14,7 +14,8 @@ import {
   Settings,
   UserRound,
   LogOut,
-  ShieldCheck
+  ShieldCheck,
+  Activity
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
@@ -33,6 +34,7 @@ const navItems = [
   { name: "Nizo Finder", normalLabel: "Lead Sheet", href: "/leads", icon: TrainFront },
   { name: "Replies", href: "/replies", icon: MessageSquare, superOnly: true },
   { name: "Settings", href: "/settings", icon: Settings, superOnly: true },
+  { name: "System Monitor", href: "/settings/system-monitor", icon: Activity, superOnly: true },
   { name: "Admin Users", href: "/admin/users", icon: ShieldCheck, superOnly: true },
 ];
 

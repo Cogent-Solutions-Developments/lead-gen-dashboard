@@ -1,11 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { User, Key, ShieldOff, RefreshCw, UploadCloud } from "lucide-react";
+import { User, Key, ShieldOff, RefreshCw, UploadCloud, Activity } from "lucide-react";
 import { toast } from "sonner";
 import {
   createWhatsAppOptOut,
@@ -157,9 +158,22 @@ export default function SettingsPage() {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
+        className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"
       >
-        <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
-        <p className="mb-6 text-slate-500">Manage your account settings</p>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
+          <p className="text-slate-500">Manage your account settings</p>
+        </div>
+        <Link href="/settings/system-monitor">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 border-slate-200 bg-white/90 text-slate-700 hover:bg-slate-50"
+          >
+            <Activity className="mr-2 h-4 w-4" />
+            System Monitor
+          </Button>
+        </Link>
       </motion.div>
 
       <div className="space-y-6">
