@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
+import { Genos } from "next/font/google";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowUp,
@@ -41,7 +42,11 @@ const SCOPED_PROBE_LIMIT = 200;
 const SCOPED_PROBE_MAX_ROWS = 1000;
 const EVENT_KEY_SEARCH_LIMIT = 200;
 const EVENT_KEY_SEARCH_MAX_ROWS = 1500;
-const SEARCH_HISTORY_KEY = "nizo-ai-search-history";
+
+const genos = Genos({
+  subsets: ["latin"],
+  weight: ["300", "400"],
+});
 
 const countryAliases: Array<[string, string]> = [
   ["qatar", "Qatar"],
@@ -273,31 +278,9 @@ export default function NizoAiPage() {
   const [candidateCount, setCandidateCount] = useState(0);
   const [results, setResults] = useState<NizoScoredLead[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [searchNote, setSearchNote] = useState("");
-
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(SEARCH_HISTORY_KEY);
-      if (saved) setRecentSearches(JSON.parse(saved).filter((item: unknown) => typeof item === "string").slice(0, 6));
-    } catch {
-      setRecentSearches([]);
-    }
-  }, []);
-
-  const rememberSearch = useCallback((value: string) => {
-    setRecentSearches((current) => {
-      const next = uniqueValues([value, ...current]).slice(0, 6);
-      try {
-        window.localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(next));
-      } catch {
-        // Search history is optional; ranking should not depend on storage availability.
-      }
-      return next;
-    });
-  }, []);
 
   const loadSalesEvents = useCallback(async () => {
     if (eventsCache.length) return eventsCache;
@@ -453,7 +436,6 @@ export default function NizoAiPage() {
       setResults(matches);
       setCurrentPage(1);
       setSearched(true);
-      rememberSearch(value);
     } catch (error) {
       toast.error("Search failed", {
         description: error instanceof Error ? error.message : "Could not load sales leads.",
@@ -509,12 +491,12 @@ export default function NizoAiPage() {
   const searchSuggestions = useMemo(
     () =>
       suggestNizoSearchTerms(query, {
-        recent: recentSearches,
+        recent: [],
         leads: sortedResults.slice(0, 50).map((entry) => entry.lead),
         events: eventsCache,
         limit: 6,
       }),
-    [eventsCache, query, recentSearches, sortedResults]
+    [eventsCache, query, sortedResults]
   );
   const showingFrom = sortedResults.length === 0 ? 0 : (Math.min(currentPage, totalPages) - 1) * RESULTS_PER_PAGE + 1;
   const showingTo = sortedResults.length === 0 ? 0 : Math.min(showingFrom + paginatedResults.length - 1, sortedResults.length);
@@ -563,68 +545,78 @@ export default function NizoAiPage() {
   }
 
   return (
-    <div className="min-h-[calc(100dvh-3rem)] bg-transparent p-1 font-sans text-zinc-950">
-      <div className="w-full p-1">
-        <header className="shrink-0 border-b border-zinc-200 pb-12">
-          <div className="flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
+    <div className="relative min-h-[calc(100dvh-3rem)] overflow-y-auto bg-[#f7f7f5] font-sans text-zinc-950">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute left-[10%] top-20 h-72 w-72 rounded-full bg-blue-500/6 blur-3xl" />
+        <div className="absolute right-[8%] top-1/3 h-80 w-80 rounded-full bg-zinc-950/5 blur-3xl" />
+      </div>
+
+      <div className="relative flex min-h-[calc(100dvh-3rem)] w-full flex-col px-8 py-7 2xl:px-12">
+        <header className="flex shrink-0 items-start justify-between gap-6">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-950"
+            >
+              <ChevronLeft className="mr-1 h-3 w-3" />
+              Dashboard
+            </Link>
+            <span className="h-4 w-[1px] bg-zinc-200" />
+            <span className="text-xs font-medium text-zinc-400">Sales Workspace</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-8 border-l border-zinc-200 pl-8">
             <div>
-              <div className="flex items-center gap-3">
-                <Link
-                  href="/dashboard"
-                  className="inline-flex items-center text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-950"
-                >
-                  <ChevronLeft className="mr-1 h-3 w-3" />
-                  Dashboard
-                </Link>
-                <span className="h-4 w-[1px] bg-zinc-200" />
-                <span className="text-xs font-medium text-zinc-400">Sales Workspace</span>
-              </div>
-
-              <div className="mt-8">
-                <div className="flex items-center gap-3.5">
-                  <h1 className="text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
-                    NizoAI
-                  </h1>
-                  <Brain
-                    aria-hidden="true"
-                    strokeWidth={1.45}
-                    className="-translate-y-[0.05em] h-9 w-9 text-zinc-950 sm:h-10 sm:w-10 2xl:h-12 2xl:w-12"
-                  />
-                </div>
-                <p className="mt-4 max-w-2xl text-lg font-light leading-relaxed text-zinc-500">
-                  Natural-language prospect intelligence for sales teams.
-                </p>
-              </div>
+              <p className="text-xs font-medium text-zinc-400">Candidates</p>
+              <p className="mt-1 text-2xl font-light tabular-nums tracking-tight text-zinc-950">
+                {candidateCount.toLocaleString()}
+              </p>
             </div>
-
-            <div className="flex flex-col gap-5 lg:min-w-[19rem] lg:items-stretch">
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-zinc-400">Candidates</p>
-                  <p className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
-                    {candidateCount.toLocaleString()}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-zinc-400">Matched</p>
-                  <p className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
-                    {results.length.toLocaleString()}
-                  </p>
-                </div>
-              </div>
+            <div>
+              <p className="text-xs font-medium text-zinc-400">Matched</p>
+              <p className="mt-1 text-2xl font-light tabular-nums tracking-tight text-zinc-950">
+                {results.length.toLocaleString()}
+              </p>
             </div>
           </div>
         </header>
 
-        <section className="py-7">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="text-xs font-medium text-zinc-400">Search model</p>
-            <p className="mx-auto mt-2 max-w-xl text-sm font-light leading-relaxed text-zinc-500">
-              Ask for a role, region, industry, or campaign.
-            </p>
+        <section className={`${searched ? "py-9" : "grid flex-1 place-items-center pb-20"} transition-all duration-500`}>
+          <motion.div
+            layout
+            transition={{ type: "spring", stiffness: 260, damping: 30 }}
+            className={`mx-auto w-full text-center ${searched ? "max-w-4xl" : "max-w-5xl"}`}
+          >
+            <AnimatePresence initial={false}>
+              {!searched ? (
+                <motion.div
+                  key="nizo-ai-intro"
+                  initial={{ opacity: 0, y: 18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -12 }}
+                  transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  className="mb-9"
+                >
+                  <div className="flex items-end justify-center gap-3">
+                    <h1 className={`${genos.className} text-6xl font-light leading-none tracking-[-0.055em] text-zinc-950 2xl:text-7xl`}>
+                      NizoAI
+                    </h1>
+                    <Brain strokeWidth={1.2} className="mb-1 h-11 w-11 text-zinc-950 2xl:h-13 2xl:w-13" />
+                  </div>
+                  <p className="mx-auto mt-5 max-w-xl text-lg font-light leading-relaxed text-zinc-500">
+                    Ask for the exact prospects you need. NizoAI ranks the sales workspace.
+                  </p>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
 
-            <div className="relative mt-6 rounded-full border border-zinc-200 bg-white px-5 py-1.5 text-left shadow-[0_28px_80px_-60px_rgba(2,10,27,0.45)] transition-colors focus-within:border-zinc-400">
-              <Search className="absolute left-7 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-zinc-400" />
+            <motion.div
+              layout
+              className={`relative mx-auto rounded-full border border-white/70 bg-white/72 px-4 py-1.5 text-left shadow-[0_34px_100px_-68px_rgba(2,10,27,0.62)] ring-1 ring-zinc-950/5 backdrop-blur-2xl transition-colors focus-within:border-zinc-300 ${
+                searched ? "max-w-2xl" : "max-w-[46rem]"
+              }`}
+            >
+              <Search className="absolute left-6 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-zinc-400" />
               <textarea
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
@@ -634,36 +626,36 @@ export default function NizoAiPage() {
                     void runSearch();
                   }
                 }}
-                placeholder="Search sales leads, regions, titles, or campaign names..."
+                placeholder="Search leads, regions, titles, or campaigns..."
                 rows={1}
-                className="block min-h-12 w-full resize-none overflow-hidden border-0 bg-transparent py-2.5 pl-11 pr-16 text-center text-[clamp(1.15rem,1.65vw,1.8rem)] font-light leading-tight tracking-[-0.035em] text-zinc-950 outline-none placeholder:text-zinc-300"
+                className="block min-h-10 w-full resize-none overflow-hidden border-0 bg-transparent py-2 pl-10 pr-14 text-center text-[clamp(1rem,1.28vw,1.45rem)] font-light leading-tight tracking-[-0.035em] text-zinc-950 outline-none placeholder:text-zinc-300"
               />
               <Button
                 type="button"
                 size="icon"
-                className="absolute right-4 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-zinc-950 text-white shadow-none transition-colors hover:bg-blue-600"
+                className="absolute right-3.5 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full bg-zinc-950 text-white shadow-none transition-colors hover:bg-blue-600"
                 disabled={loading}
                 onClick={() => void runSearch()}
                 aria-label="Run AI Search"
               >
                 {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowUp className="h-5 w-5" />}
               </Button>
-            </div>
+            </motion.div>
 
             <AnimatePresence>
               {searchSuggestions.length ? (
                 <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mt-4 flex flex-wrap justify-center gap-2"
+                  initial={{ opacity: 0, y: -4, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: "auto" }}
+                  exit={{ opacity: 0, y: -4, height: 0 }}
+                  className="mx-auto mt-5 flex max-w-3xl flex-wrap justify-center gap-2 overflow-hidden"
                 >
                   {searchSuggestions.map((suggestion) => (
                     <button
                       key={suggestion}
                       type="button"
                       onClick={() => void runSearch(suggestion)}
-                      className="inline-flex h-8 items-center rounded-full border border-zinc-200 bg-white px-3.5 text-xs font-medium text-zinc-500 transition-colors hover:border-blue-600 hover:text-blue-600"
+                      className="inline-flex h-8 items-center rounded-full border border-zinc-200 bg-white/70 px-3.5 text-xs font-medium text-zinc-500 backdrop-blur-xl transition-colors hover:border-blue-600 hover:text-blue-600"
                     >
                       {suggestion}
                     </button>
@@ -672,27 +664,10 @@ export default function NizoAiPage() {
               ) : null}
             </AnimatePresence>
 
-            {recentSearches.length ? (
-              <div className="mx-auto mt-5 max-w-3xl">
-                <p className="mb-2 text-xs font-medium text-zinc-400">Recent searches</p>
-                <div className="flex flex-wrap justify-center gap-1.5">
-                  {recentSearches.slice(0, 5).map((item) => (
-                    <button
-                      key={item}
-                      type="button"
-                      onClick={() => void runSearch(item)}
-                      className="rounded-full border border-zinc-200 bg-white px-3.5 py-1.5 text-xs font-medium text-zinc-500 transition-colors hover:border-zinc-950 hover:text-zinc-950"
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </div>
+          </motion.div>
         </section>
 
-      <div className="mb-20 mt-8 w-full">
+      <div className="mb-20 mt-0 w-full">
         {searched ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -816,12 +791,12 @@ export default function NizoAiPage() {
                                 <motion.div
                                   initial={{ width: 0 }}
                                   animate={{ width: `${Math.max(8, Math.min(100, relevance))}%` }}
-                                  className="h-full bg-zinc-900"
+                                  className="h-full bg-blue-600"
                                 />
                               </div>
                               <span className="text-sm font-bold text-zinc-900">{score}</span>
                             </div>
-                            <p className="mt-2 text-xs font-medium text-slate-400">{eventName(lead)}</p>
+                            <p className="mt-2 text-xs font-medium text-zinc-950">{eventName(lead)}</p>
                           </div>
 
                           <div className="text-right">
@@ -832,7 +807,7 @@ export default function NizoAiPage() {
                                   event.stopPropagation();
                                   void copyLeadDetails(lead, score);
                                 }}
-                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-200 transition-all hover:bg-zinc-900 hover:text-white hover:ring-zinc-900"
+                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-200 transition-all hover:bg-blue-600 hover:text-white hover:ring-blue-600"
                                 title="Copy Intelligence"
                               >
                                 <Copy className="h-4 w-4" />
@@ -843,7 +818,7 @@ export default function NizoAiPage() {
                                   event.stopPropagation();
                                   downloadLeadDetails(lead, score);
                                 }}
-                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-200 transition-all hover:bg-zinc-900 hover:text-white hover:ring-zinc-900"
+                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-200 transition-all hover:bg-blue-600 hover:text-white hover:ring-blue-600"
                                 title="Download Report"
                               >
                                 <Download className="h-4 w-4" />
