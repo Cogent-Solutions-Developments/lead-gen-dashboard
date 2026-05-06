@@ -1,6 +1,7 @@
 import axios, { type AxiosInstance } from "axios";
 import { apiClient } from "./apiClient";
 import { attachAuthToken, getAuthHeader } from "@/lib/auth";
+import { getLocalDevNgrokHeaders } from "@/lib/devNgrok";
 
 const waDebugEnabled =
   process.env.NODE_ENV !== "production" ||
@@ -707,6 +708,7 @@ function getWhatsAppHeaders() {
   const headers: Record<string, string> = {};
   if (apiKey) headers["x-api-key"] = apiKey;
   Object.assign(headers, getAuthHeader());
+  Object.assign(headers, getLocalDevNgrokHeaders());
   return headers;
 }
 
@@ -1379,6 +1381,7 @@ export const api = axios.create({
   headers: {
     "Content-Type": "application/json",
     "x-api-key": process.env.NEXT_PUBLIC_API_KEY || "",
+    ...getLocalDevNgrokHeaders(),
   },
 });
 
