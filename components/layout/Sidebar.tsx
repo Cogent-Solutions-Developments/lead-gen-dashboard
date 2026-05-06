@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   Brain,
   LayoutDashboard,
@@ -13,7 +13,8 @@ import {
   TrainFront,
   UserRound,
   LogOut,
-  ShieldCheck
+  ShieldCheck,
+  BellRing
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { clearPersona } from "@/lib/persona";
@@ -44,8 +45,9 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
   const pathname = usePathname();
   const router = useRouter();
   const { persona } = usePersona();
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, user } = useAuth();
   const [rotation, setRotation] = useState(0);
+  const [ringingBell, setRingingBell] = useState(false);
   const personaLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
 
   const handleSignOut = async () => {
@@ -59,6 +61,40 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
 
     clearPersona();
     router.replace("/sign-in");
+  };
+
+  const handleRingBell = async () => {
+    if (ringingBell) return;
+
+    const userName = user?.fullName?.trim() || user?.username?.trim() || "A sales user";
+    setRingingBell(true);
+    try {
+      const response = await fetch("/api/ring-bell", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userName,
+          userId: user?.id || "",
+          username: user?.username || "",
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const detail = typeof data?.detail === "string" ? data.detail : "Could not send the bell email.";
+        throw new Error(detail);
+      }
+
+      toast.success("Bell rung", {
+        description: `${userName} successfully closed a deal.`,
+      });
+    } catch (error) {
+      toast.error("Bell failed", {
+        description: error instanceof Error ? error.message : "Could not send the bell email.",
+      });
+    } finally {
+      setRingingBell(false);
+    }
   };
 
   // Logic for random rotation intervals
@@ -187,6 +223,54 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
           );
         })}
       </nav>
+
+      {persona === "sales" ? (
+        <div className={`${isExpanded ? "-mx-2" : "mx-0"} pb-6 transition-all duration-300`}>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 * navItems.length }}
+            className="flex justify-center"
+          >
+            <motion.button
+              type="button"
+              onClick={handleRingBell}
+              disabled={ringingBell}
+              initial={false}
+              animate={{
+                width: isExpanded ? 196 : 48,
+                height: isExpanded ? 56 : 48,
+              }}
+              transition={{ type: "spring", stiffness: 360, damping: 34, mass: 0.75 }}
+              className={`group relative overflow-hidden rounded-full border border-white/18 bg-white/12 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_18px_34px_-30px_rgba(2,10,27,0.72)] backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-300 hover:border-white/32 hover:bg-white/18 disabled:cursor-not-allowed disabled:opacity-60 ${
+                isExpanded
+                  ? "flex items-center gap-3 px-3.5 text-left"
+                  : "mx-auto flex items-center justify-center gap-0 px-0"
+              }`}
+            >
+              <span className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(circle_at_28%_18%,rgba(255,255,255,0.28),transparent_38%)] opacity-80" />
+              <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-blue-600 shadow-[0_12px_24px_-18px_rgba(255,255,255,0.85)]">
+                <BellRing className={`h-4 w-4 ${ringingBell ? "animate-pulse" : ""}`} />
+              </span>
+              <AnimatePresence initial={false}>
+                {isExpanded ? (
+                  <motion.span
+                    key="bell-label"
+                    initial={{ opacity: 0, x: -8, width: 0 }}
+                    animate={{ opacity: 1, x: 0, width: 124 }}
+                    exit={{ opacity: 0, x: -8, width: 0 }}
+                    transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+                    className="relative min-w-0 overflow-hidden whitespace-nowrap"
+                  >
+                    <span className="block text-sm font-medium tracking-tight">Ring the deal bell</span>
+                    <span className="mt-0.5 block text-[11px] font-light text-white/58">Let the team know</span>
+                  </motion.span>
+                ) : null}
+              </AnimatePresence>
+            </motion.button>
+          </motion.div>
+        </div>
+      ) : null}
 
       {/* 3. Bottom Section */}
       <div className="mt-auto pt-8 flex flex-col gap-4 border-t border-white/10">
