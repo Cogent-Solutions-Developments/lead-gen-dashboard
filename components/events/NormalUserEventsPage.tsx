@@ -181,7 +181,7 @@ export function NormalUserEventsPage() {
                     >
                       <div className="flex flex-1 flex-col justify-between gap-8 2xl:gap-10">
                         <div className="space-y-4">
-                          <h2 className="text-2xl font-light leading-[1.22] tracking-[-0.02em] text-zinc-950 group-hover:text-blue-700 2xl:text-3xl">
+                          <h2 className="text-xl font-normal leading-[1.25] tracking-[-0.018em] text-zinc-950 group-hover:text-blue-700 2xl:text-2xl">
                             {item.canonicalEventName}
                           </h2>
                         </div>
@@ -190,10 +190,10 @@ export function NormalUserEventsPage() {
                           <div className="space-y-1">
                             <span className="text-xs font-medium text-zinc-400">Total prospects</span>
                             <div className="flex items-baseline gap-2">
-                              <span className="text-3xl font-medium tabular-nums tracking-tight text-zinc-900 2xl:text-4xl">
+                              <span className="text-2xl font-light tabular-nums tracking-tight text-zinc-900 2xl:text-3xl">
                                 {Number(item.leadCount).toLocaleString()}
                               </span>
-                              <span className="text-sm font-medium text-zinc-500">leads</span>
+                              <span className="text-sm font-light text-zinc-500">leads</span>
                             </div>
                           </div>
 
