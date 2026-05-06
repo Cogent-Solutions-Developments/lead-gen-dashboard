@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/card";
 import { getDashboardStats, type DashboardStats } from "@/lib/apiRouter";
 import { toast } from "sonner";
 import { usePersona } from "@/hooks/usePersona";
-import { cn } from "@/lib/utils";
 
 type WatermarkStyle = {
   sizeClass: string;
@@ -74,6 +73,20 @@ function formatMetric(value?: number) {
   return new Intl.NumberFormat("en-US").format(value ?? 0);
 }
 
+function Sparkline({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 100 30" className={className}>
+      <path
+        d="M0 25 Q 15 5, 30 15 T 60 5 T 100 20"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export function StatsCards() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -108,58 +121,58 @@ export function StatsCards() {
       name: "Active Campaigns",
       value: loading ? "..." : formatMetric(stats?.activeCampaigns),
       label: "Running now",
-      accentClass: "from-sky-300/28 to-blue-600/8",
+      accentClass: "",
       icon: RocketFill,
       watermark: {
-        sizeClass: "h-[9rem] w-[9rem]",
-        rotationClass: "rotate-[40deg]",
-        positionClass: "-right-10 top-[4.6rem] -translate-y-1/2",
-        toneClass: "text-blue-300/20",
+        sizeClass: "",
+        rotationClass: "",
+        positionClass: "",
+        toneClass: "",
       },
     },
     {
       name: "Total Leads",
       value: loading ? "..." : formatMetric(stats?.totalLeads),
       label: "Scraped so far",
-      accentClass: "from-blue-300/28 to-indigo-600/9",
+      accentClass: "",
       icon: UsersFill,
       watermark: {
-        sizeClass: "h-[13rem] w-[13rem]",
-        rotationClass: "rotate-[10deg]",
-        positionClass: "-right-13 top-[70%] -translate-y-1/2",
-        toneClass: "text-blue-300/20",
+        sizeClass: "",
+        rotationClass: "",
+        positionClass: "",
+        toneClass: "",
       },
     },
     {
       name: "Pending Review",
       value: loading ? "..." : formatMetric(stats?.pendingReview),
       label: "Needs approval",
-      accentClass: "from-cyan-300/26 to-blue-700/9",
+      accentClass: "",
       icon: FileCheckFill,
       watermark: {
-        sizeClass: "h-[8.5rem] w-[8.5rem]",
-        rotationClass: "rotate-[18deg]",
-        positionClass: "-right-10 top-[60%] -translate-y-1/2",
-        toneClass: "text-blue-300/20",
+        sizeClass: "",
+        rotationClass: "",
+        positionClass: "",
+        toneClass: "",
       },
     },
     {
       name: "Leads Contacted",
       value: loading ? "..." : formatMetric(stats?.leadsContacted),
       label: "Outreach sent",
-      accentClass: "from-indigo-300/28 to-blue-700/9",
+      accentClass: "",
       icon: SendFill,
       watermark: {
-        sizeClass: "h-[9rem] w-[9rem]",
-        rotationClass: "rotate-[10deg]",
-        positionClass: "-right-6 top-[60%] -translate-y-1/2",
-        toneClass: "text-blue-300/20",
+        sizeClass: "",
+        rotationClass: "",
+        positionClass: "",
+        toneClass: "",
       },
     },
   ];
 
   return (
-    <div className="grid h-full grid-cols-4 gap-2.5">
+    <div className="grid h-full grid-cols-4 gap-6">
       {cards.map((stat, index) => (
         <motion.div
           key={stat.name}
@@ -168,30 +181,20 @@ export function StatsCards() {
           transition={{ delay: index * 0.1, duration: 0.4 }}
           className="h-full"
         >
-          <Card className="stats-premium-card group relative h-full overflow-hidden rounded-2xl p-2.5">
-            <div
-              className={`pointer-events-none absolute -right-10 -top-14 h-32 w-32 rounded-full bg-gradient-to-br blur-2xl ${stat.accentClass}`}
-            />
-            <div className={cn("pointer-events-none absolute", stat.watermark.positionClass)}>
-              <stat.icon
-                className={cn(
-                  stat.watermark.sizeClass,
-                  stat.watermark.rotationClass,
-                  stat.watermark.toneClass
-                )}
-              />
-            </div>
+          <Card className="group relative flex h-full flex-col justify-between overflow-hidden rounded-none border-0 border-b border-zinc-200 bg-transparent p-0 pb-6 shadow-none transition-colors hover:border-zinc-950">
+            <div className="relative z-10 flex h-full flex-col justify-between">
+              <div className="flex items-start justify-between">
+                <span className="block text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                  {stat.name}
+                </span>
+                <Sparkline className="h-4 w-12 text-emerald-500 opacity-40 transition-opacity group-hover:opacity-100" />
+              </div>
 
-            <div className="relative z-10 flex h-full flex-col">
-              <span className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500/90">
-                {stat.name}
-              </span>
-
-              <div className="mt-auto space-y-0.5">
-                <span className="block text-3xl font-semibold tracking-tight text-zinc-900 xl:text-4xl">
+              <div className="mt-6 space-y-1">
+                <span className="block text-4xl font-light tracking-tight text-zinc-950 xl:text-5xl">
                   {stat.value}
                 </span>
-                <p className="text-[11px] font-medium text-zinc-500">{stat.label}</p>
+                <p className="text-xs font-light text-zinc-500">{stat.label}</p>
               </div>
             </div>
           </Card>

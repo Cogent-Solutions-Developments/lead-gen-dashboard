@@ -151,7 +151,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
         aria-label={isPinned ? "Collapse sidebar" : "Pin expanded sidebar"}
         onClick={() => onPinnedChange(!isPinned)}
         className={`mb-16 grid w-full flex-shrink-0 items-center text-left transition-all ${
-          isExpanded ? "grid-cols-[2.75rem_minmax(0,1fr)] gap-4 px-1" : "grid-cols-1 justify-items-center px-0"
+          isExpanded ? "grid-cols-[2.75rem_minmax(0,1fr)] gap-6 px-1" : "grid-cols-1 justify-items-center px-0"
         }`}
       >
         <motion.div
@@ -196,7 +196,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
                     isActive
                       ? "bg-white/10 text-white"
                       : "text-white/40 hover:bg-white/5 hover:text-white/80"
-                  } ${isExpanded ? "gap-5 px-10" : "justify-center px-0"}`}
+                  } ${isExpanded ? "gap-8 px-10" : "justify-center px-0"}`}
                 >
                   {/* Active Indicator Bar */}
                   {isActive && (
@@ -244,7 +244,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
               transition={{ type: "spring", stiffness: 360, damping: 34, mass: 0.75 }}
               className={`group relative overflow-hidden rounded-full border border-white/18 bg-white/12 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_18px_34px_-30px_rgba(2,10,27,0.72)] backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-300 hover:border-white/32 hover:bg-white/18 disabled:cursor-not-allowed disabled:opacity-60 ${
                 isExpanded
-                  ? "flex items-center gap-3 px-3.5 text-left"
+                  ? "flex items-center gap-4 px-3.5 text-left"
                   : "mx-auto flex items-center justify-center gap-0 px-0"
               }`}
             >
@@ -283,7 +283,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
             <Link href="/">
               <button
                 className={`flex items-center text-sm font-light tracking-tight text-white/40 transition-all hover:text-white group ${
-                  isExpanded ? "gap-3 px-2" : "justify-center px-0"
+                  isExpanded ? "gap-5 px-2" : "justify-center px-0"
                 }`}
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 group-hover:bg-white/10 transition-colors">
@@ -301,11 +301,12 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
+          className={isExpanded ? "" : "flex justify-center"}
         >
           <button
             onClick={handleSignOut}
             className={`flex items-center text-sm font-light tracking-tight text-white/40 transition-all hover:text-white group ${
-              isExpanded ? "gap-3 px-2" : "justify-center px-0"
+              isExpanded ? "gap-5 px-2" : "h-8 w-8 justify-center px-0"
             }`}
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 group-hover:bg-white/10 transition-colors">

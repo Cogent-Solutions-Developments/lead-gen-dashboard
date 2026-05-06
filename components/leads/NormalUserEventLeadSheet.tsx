@@ -749,7 +749,7 @@ export function NormalUserEventLeadSheet() {
               <div className="grid grid-cols-2 gap-6 border-t border-zinc-200 pt-4">
                 <button
                   type="button"
-                  className="inline-flex h-10 w-fit items-center justify-start gap-2 border-b border-transparent text-sm font-medium text-zinc-500 transition-all hover:border-zinc-900 hover:text-zinc-950 active:scale-[0.98] disabled:opacity-50"
+                  className="inline-flex h-10 w-fit items-center justify-start gap-4 border-b border-transparent text-sm font-medium text-zinc-500 transition-all hover:border-zinc-900 hover:text-zinc-950 active:scale-[0.98] disabled:opacity-50"
                   onClick={() => void refreshData()}
                   disabled={loadingEvents || loadingLeads}
                 >
@@ -765,7 +765,7 @@ export function NormalUserEventLeadSheet() {
                   type="button"
                   onClick={() => setAddLeadOpen(true)}
                   disabled={!selectedEvent}
-                  className="inline-flex h-10 w-fit items-center justify-center gap-2 rounded-full bg-zinc-950 px-5 text-sm font-semibold text-white transition-all hover:bg-blue-600 active:scale-[0.98] disabled:opacity-50"
+                  className="inline-flex h-10 w-fit items-center justify-center gap-4 rounded-full bg-zinc-950 px-5 text-sm font-semibold text-white transition-all hover:bg-blue-600 active:scale-[0.98] disabled:opacity-50"
                 >
                   <Plus className="h-4 w-4" />
                   Add entry
@@ -814,7 +814,7 @@ export function NormalUserEventLeadSheet() {
                   onClick={() => setFilterOpen(true)}
                   className="flex h-11 w-full items-center justify-between rounded-full border border-zinc-200 bg-white px-4 text-left shadow-[0_18px_46px_-42px_rgba(2,10,27,0.42)] transition-colors hover:border-zinc-400"
                 >
-                  <span className="inline-flex items-center gap-2 text-sm font-light text-zinc-500">
+                  <span className="inline-flex items-center gap-4 text-sm font-light text-zinc-500">
                     <SlidersHorizontal className="h-4 w-4" />
                     Advanced filters
                   </span>
@@ -903,7 +903,7 @@ export function NormalUserEventLeadSheet() {
                         >
                           <div className="pr-8">
                             <div className="flex flex-col gap-3">
-                              <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-5">
                                 <span className="text-xl font-light tracking-tight text-zinc-950">{item.employeeName || "-"}</span>
                                 {item.isManualLead && (
                                   <span className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-xs font-medium text-zinc-500">Manual</span>
@@ -916,7 +916,7 @@ export function NormalUserEventLeadSheet() {
 
                           <div className="pr-8">
                             <div className="flex flex-col gap-2">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-4">
                                 {item.email ? (
                                   <>
                                     <EmailIcon className="h-3.5 w-3.5 text-[#EF4444]" />
@@ -926,7 +926,7 @@ export function NormalUserEventLeadSheet() {
                                   <span className="text-sm font-light tracking-tight text-zinc-700">-</span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-4">
                                 {item.phone ? (
                                   <>
                                     <PhoneIcon className="h-3.5 w-3.5 text-[#22C55E]" />

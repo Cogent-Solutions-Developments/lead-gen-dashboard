@@ -1,79 +1,33 @@
-﻿"use client";
+"use client";
 
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { Clock3, Plus, User } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
+import {
+  ArrowRight,
+  Brain,
+  CalendarDays,
+  ChevronRight,
+  Loader2,
+  Rocket,
+  TrainFront,
+  Upload,
+} from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-
-import { StatsCards } from "@/components/dashboard/StatsCards";
-import { RecentCampaigns } from "@/components/dashboard/RecentCampaigns";
-import { RecentEvents } from "@/components/dashboard/RecentEvents";
-import { LeadsBreakdown } from "@/components/dashboard/LeadsBreakdown";
-import { RepliesOverviewCard } from "@/components/dashboard/RepliesOverviewCard";
-import { DashboardSearch } from "@/components/dashboard/DashboardSearch";
-import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
+import { usePersona } from "@/hooks/usePersona";
 import { getCachedAuthUserDisplayName } from "@/lib/auth";
+import { listEventLeads, listEvents, type EventSummaryItem } from "@/lib/apiRouter";
 
-function CalendarLineIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth="1.5"
-      stroke="currentColor"
-      className={className}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M6.75 2.994v2.25m10.5-2.25v2.25m-14.252 13.5V7.491a2.25 2.25 0 0 1 2.25-2.25h13.5a2.25 2.25 0 0 1 2.25 2.25v11.251m-18 0a2.25 2.25 0 0 0 2.25 2.25h13.5a2.25 2.25 0 0 0 2.25-2.25m-18 0v-7.5a2.25 2.25 0 0 1 2.25-2.25h13.5a2.25 2.25 0 0 1 2.25 2.25v7.5m-6.75-6h2.25m-9 2.25h4.5m.002-2.25h.005v.006H12v-.006Zm-.001 4.5h.006v.006h-.006v-.005Zm-2.25.001h.005v.006H9.75v-.006Zm-2.25 0h.005v.005h-.006v-.005Zm6.75-2.247h.005v.005h-.005v-.005Zm0 2.247h.006v.006h-.006v-.006Zm2.25-2.248h.006V15H16.5v-.005Z"
-      />
-    </svg>
-  );
-}
-
-function TodayBadge() {
-  const [now, setNow] = useState<Date | null>(null);
-
-  useEffect(() => {
-    const update = () => setNow(new Date());
-
-    update();
-    const timer = window.setInterval(update, 60_000);
-
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const date = now
-    ? now.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
-    : "...";
-  const time = now
-    ? now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
-    : "...";
-
-  return (
-    <div className="inline-flex h-12 max-w-full items-center gap-2.5 rounded-full border border-white/85 bg-[linear-gradient(135deg,rgba(255,255,255,0.96)_0%,rgba(248,251,255,0.9)_52%,rgba(239,246,255,0.84)_100%)] px-2 text-sm font-semibold text-zinc-800 shadow-[0_18px_34px_-28px_rgba(15,23,42,0.72),0_3px_8px_-7px_rgba(37,99,235,0.48),inset_0_1px_0_rgba(255,255,255,1),inset_0_-1px_0_rgba(214,226,244,0.68)] backdrop-blur-[14px]">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200/90 bg-white text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,1),0_6px_14px_-12px_rgba(15,23,42,0.8)]">
-        <CalendarLineIcon className="h-4.5 w-4.5" />
-      </span>
-      <span className="flex min-w-[4.7rem] flex-col justify-center leading-none">
-        <span className="block text-[10px] font-semibold leading-[0.9rem] tracking-0 text-slate-400">
-          Today
-        </span>
-        <span className="block truncate text-[13px] font-semibold leading-[1.05rem] text-slate-800">
-          {date}
-        </span>
-      </span>
-      <span className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,#60a5fa_0%,#2563eb_52%,#174fc7_100%)] px-2.5 text-[11px] font-semibold leading-none text-white shadow-[0_8px_16px_-13px_rgba(37,99,235,0.72),inset_0_1px_0_rgba(255,255,255,0.24)]">
-        <Clock3 className="h-3.5 w-3.5 text-white/82" />
-        <span className="translate-y-px">{time}</span>
-      </span>
-    </div>
-  );
-}
+const STATUS_ORDER = [
+  { key: "new", label: "New", dot: "bg-[#0aefff] shadow-[0_0_0_3px_rgba(10,239,255,0.20)]", bar: "bg-[#0aefff]" },
+  { key: "contacted", label: "Contacted", dot: "bg-[#be0aff] shadow-[0_0_0_3px_rgba(190,10,255,0.18)]", bar: "bg-[#be0aff]" },
+  { key: "first-call", label: "First Call", dot: "bg-[#147df5] shadow-[0_0_0_3px_rgba(20,125,245,0.20)]", bar: "bg-[#147df5]" },
+  { key: "follow-up", label: "Follow Up", dot: "bg-[#ff8700] shadow-[0_0_0_3px_rgba(255,135,0,0.20)]", bar: "bg-[#ff8700]" },
+  { key: "qualified", label: "Qualified", dot: "bg-[#0aff99] shadow-[0_0_0_3px_rgba(10,255,153,0.20)]", bar: "bg-[#0aff99]" },
+  { key: "not-interested", label: "Not Interested", dot: "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]", bar: "bg-[#ff0000]" },
+];
 
 function getDisplayName(user: ReturnType<typeof useAuth>["user"]) {
   const values = [user?.fullName, getCachedAuthUserDisplayName(user), user?.username]
@@ -93,98 +47,369 @@ function getDisplayName(user: ReturnType<typeof useAuth>["user"]) {
   return values.find((value) => !rolePlaceholders.has(value.toLowerCase())) || "there";
 }
 
+function firstName(value: string) {
+  return value.split(/\s+/)[0] || value;
+}
+
+function getDateLabel() {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  }).format(new Date());
+}
+
+function eventHref(event: EventSummaryItem) {
+  return `/leads?event=${encodeURIComponent(event.canonicalEventKey)}`;
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Could not load dashboard data.";
+}
+
 export default function DashboardPage() {
   const { persona } = usePersona();
   const { isSuperAdmin, user } = useAuth();
-  const personaText = persona === "delegates" ? "delegates" : persona === "production" ? "production" : "sales";
-  const displayName = getDisplayName(user);
-  const isSalesDashboard = persona === "sales";
-  const mainGridClass = isSalesDashboard
-    ? isSuperAdmin
-      ? "mt-5 grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,2.8fr)_minmax(16rem,0.9fr)]"
-      : "mt-5 grid min-h-0 flex-1 gap-5 lg:grid-cols-1"
-    : "mt-5 grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,2.8fr)_minmax(0,1fr)]";
+  const [events, setEvents] = useState<EventSummaryItem[]>([]);
+  const [selectedEventKey, setSelectedEventKey] = useState("");
+  const [statusCounts, setStatusCounts] = useState<Map<string, number>>(new Map());
+  const [loading, setLoading] = useState(true);
+  const [loadingStatus, setLoadingStatus] = useState(false);
+  const displayName = firstName(getDisplayName(user));
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadDashboard() {
+      setLoading(true);
+      try {
+        const eventResponse = await listEvents();
+
+        if (!alive) return;
+        setEvents(eventResponse.events || []);
+      } catch (error) {
+        if (!alive) return;
+        toast.error("Dashboard sync failed", { description: getErrorMessage(error) });
+        setEvents([]);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    }
+
+    void loadDashboard();
+    return () => {
+      alive = false;
+    };
+  }, [persona]);
+
+  const totalProspects = useMemo(
+    () => events.reduce((sum, event) => sum + Number(event.leadCount || 0), 0),
+    [events]
+  );
+  const priorityEvents = useMemo(
+    () => [...events].sort((a, b) => Number(b.leadCount || 0) - Number(a.leadCount || 0)).slice(0, 4),
+    [events]
+  );
+  const topReach = Number(priorityEvents[0]?.leadCount || 1);
+  const selectedEvent = useMemo(
+    () => priorityEvents.find((event) => event.canonicalEventKey === selectedEventKey) || priorityEvents[0],
+    [priorityEvents, selectedEventKey]
+  );
+  const leadSheetEvent = selectedEvent?.canonicalEventKey || priorityEvents[0]?.canonicalEventKey || "";
+  const statusTotal = Number(selectedEvent?.leadCount || 0);
+  const visibleStatuses = useMemo(
+    () => STATUS_ORDER.filter((status) => (statusCounts.get(status.key) || 0) > 0),
+    [statusCounts]
+  );
+
+  useEffect(() => {
+    if (!priorityEvents.length) {
+      setSelectedEventKey("");
+      return;
+    }
+
+    if (!selectedEventKey || !priorityEvents.some((event) => event.canonicalEventKey === selectedEventKey)) {
+      setSelectedEventKey(priorityEvents[0].canonicalEventKey);
+    }
+  }, [priorityEvents, selectedEventKey]);
+
+  useEffect(() => {
+    if (!selectedEvent?.canonicalEventKey) {
+      setStatusCounts(new Map());
+      return;
+    }
+
+    let alive = true;
+
+    async function loadStatusCounts() {
+      setLoadingStatus(true);
+      try {
+        const results = await Promise.all(
+          STATUS_ORDER.map(async (status) => {
+            const response = await listEventLeads(selectedEvent.canonicalEventKey, {
+              limit: 1,
+              offset: 0,
+              workflowStatus: status.key,
+              includeManual: true,
+            });
+            return [status.key, Number(response.total || 0)] as const;
+          })
+        );
+
+        if (!alive) return;
+        setStatusCounts(new Map(results));
+      } catch (error) {
+        if (!alive) return;
+        toast.error("Status sync failed", { description: getErrorMessage(error) });
+        setStatusCounts(new Map());
+      } finally {
+        if (alive) setLoadingStatus(false);
+      }
+    }
+
+    void loadStatusCounts();
+    return () => {
+      alive = false;
+    };
+  }, [selectedEvent]);
+
+  const quickActions = [
+    {
+      title: "Open events",
+      href: "/campaigns",
+      icon: Rocket,
+    },
+    {
+      title: "Upload leads",
+      href: "/campaigns/upload",
+      icon: Upload,
+    },
+    {
+      title: "Lead sheet",
+      href: leadSheetEvent ? `/leads?event=${encodeURIComponent(leadSheetEvent)}` : "/leads",
+      icon: TrainFront,
+    },
+    {
+      title: "NizoAI",
+      href: "/nizo-ai",
+      icon: Brain,
+    },
+  ];
 
   return (
-    <div className="font-sans flex h-[calc(100dvh-3rem)] flex-col overflow-y-auto bg-transparent p-1 lg:overflow-hidden">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-5 flex shrink-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
-      >
-        <div>
-          <p className="text-lg font-light text-zinc-900">Hi {displayName}!</p>
-          <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-zinc-900">
-           Welcome to supernizo for {personaText}
-          </h1>
-        </div>
-        
-        <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
-          {isSalesDashboard ? (
-            <div className="w-full max-w-[28rem] sm:w-[24rem] xl:w-[28rem]">
-              <DashboardSearch />
+    <div className="scrollbar-hide flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-y-auto bg-[#f7f7f7] p-1 font-sans text-zinc-950">
+      <header className="shrink-0 border-b border-zinc-200 pb-10">
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="flex items-center gap-3 text-xs font-medium text-zinc-400">
+              <CalendarDays className="h-3.5 w-3.5" />
+              <span>{getDateLabel()}</span>
+              <span className="h-4 w-px bg-zinc-200" />
+              <span>Sales Workspace</span>
             </div>
-          ) : null}
+            <h1 className="mt-8 max-w-4xl text-3xl font-light leading-[1.1] tracking-[-0.035em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
+              Good to see you, {displayName}. Here is where sales work starts.
+            </h1>
+            <p className="mt-4 max-w-2xl text-lg font-light leading-relaxed text-zinc-500">
+              Choose an event, inspect fresh prospects, run NizoAI, or move directly into the lead sheet.
+            </p>
+          </motion.div>
 
-          <TodayBadge />
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="grid min-w-[18rem] grid-cols-2 gap-8 border-zinc-200 lg:border-l lg:pl-10"
+          >
+            <div>
+              <p className="text-xs font-medium text-zinc-400">Events</p>
+              <p className="mt-1 text-3xl font-light tabular-nums tracking-tight">{events.length}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-zinc-400">Prospects</p>
+              <p className="mt-1 text-3xl font-light tabular-nums tracking-tight">{totalProspects.toLocaleString()}</p>
+            </div>
+          </motion.div>
+        </div>
+      </header>
 
-          {isSuperAdmin ? (
-            <Link href="/">
-              <Button
-                aria-label="Change user role"
-                className="analytics-frost-btn h-10 w-10 p-0 shadow-[0_0_12px_-6px_rgba(2,10,27,0.62)] hover:shadow-[0_0_14px_-6px_rgba(2,10,27,0.72)]"
+      <main className="scrollbar-hide min-h-0 flex-1 overflow-y-auto pb-16 pt-7">
+        <section className="grid overflow-hidden border-y border-zinc-200 lg:grid-cols-4">
+          {quickActions.map((action, index) => (
+            <motion.div
+              key={action.title}
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.04 }}
+            >
+              <Link
+                href={action.href}
+                className="group grid min-h-32 grid-rows-[2.25rem_1fr] border-b border-zinc-200 bg-[#f7f7f7] p-6 transition-colors hover:bg-zinc-100/55 lg:border-b-0 lg:border-r last:lg:border-r-0"
               >
-                <User className="h-4 w-4" />
-              </Button>
-            </Link>
-          ) : null}
+                <div className="flex items-center justify-between">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-[#f7f7f7] text-zinc-500 transition-all group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white">
+                    <action.icon className="h-4 w-4" />
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-zinc-300 transition-transform group-hover:translate-x-1 group-hover:text-zinc-950" />
+                </div>
+                <div className="self-end">
+                  <h2 className="text-xl font-light tracking-[-0.035em] text-zinc-950">{action.title}</h2>
+                </div>
+              </Link>
+            </motion.div>
+          ))}
+        </section>
 
-          {isSuperAdmin ? (
-            <Link href="/campaigns/new">
-              <Button className="btn-sidebar-noise h-10">
-                <Plus className="h-4 w-4" />
-                New Campaign
-              </Button>
-            </Link>
-          ) : null}
-        </div>
-      </motion.div>
-
-      {/* Main layout */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className={mainGridClass}
-      >
-        {/* Left column: compact stats + recent campaigns */}
-        <div className="flex h-full min-h-0 flex-col gap-5">
-          {!isSalesDashboard ? (
-            <div className="shrink-0 lg:h-32">
-              <StatsCards />
+        <section className="mt-12 grid min-h-0 gap-14 xl:grid-cols-[minmax(0,1.15fr)_minmax(22rem,0.85fr)]">
+          <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <div className="mb-7 flex items-end justify-between gap-6">
+              <div>
+                <p className="text-sm font-medium text-zinc-400">Today&apos;s focus</p>
+                <h2 className="mt-2 text-3xl font-light tracking-[-0.04em] text-zinc-950">Primary event room</h2>
+              </div>
+              <Link
+                href="/campaigns"
+                className="hidden items-center gap-2 text-sm font-medium text-zinc-500 transition-colors hover:text-zinc-950 sm:inline-flex"
+              >
+                View events
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
-          ) : null}
-          <div className="min-h-0 flex-1">
-            {isSuperAdmin ? <RecentCampaigns /> : <RecentEvents />}
-          </div>
-        </div>
 
-        {isSuperAdmin || !isSalesDashboard ? (
-          <div className="flex h-full min-h-0 flex-col gap-5 lg:self-start">
+            <div className="border-y border-zinc-200">
+              {loading ? (
+                <div className="flex items-center gap-3 py-16 text-zinc-400">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm font-light">Syncing sales workspace...</span>
+                </div>
+              ) : priorityEvents.length ? (
+                <div className="divide-y divide-zinc-200">
+                  {priorityEvents.map((event, index) => {
+                    const progress = Math.max(8, Math.min(100, (Number(event.leadCount || 0) / topReach) * 100));
+                    const selected = event.canonicalEventKey === selectedEvent?.canonicalEventKey;
+
+                    return (
+                      <div
+                        key={event.canonicalEventKey}
+                        className={`group grid gap-8 py-8 transition-colors sm:grid-cols-[minmax(0,1fr)_15rem_3rem] ${
+                          selected ? "bg-zinc-100/70" : "hover:bg-zinc-100/55"
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setSelectedEventKey(event.canonicalEventKey)}
+                          className="min-w-0 text-left"
+                        >
+                          <p className="mb-4 text-xs font-medium text-zinc-400">
+                            {index === 0 ? "Nearest focus" : `Priority ${index + 1}`}
+                          </p>
+                          <h3 className="max-w-3xl text-2xl font-normal leading-tight tracking-[-0.035em] text-zinc-950">
+                            {event.canonicalEventName}
+                          </h3>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedEventKey(event.canonicalEventKey)}
+                          className="self-center text-left"
+                        >
+                          <div className="mb-3 flex items-end justify-between">
+                            <span className="text-xs font-medium text-zinc-400">Prospect reach</span>
+                            <span className="text-2xl font-light tabular-nums tracking-tight">
+                              {Number(event.leadCount || 0).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="h-1.5 overflow-hidden rounded-full bg-zinc-200">
+                            <div className="h-full rounded-full bg-blue-600" style={{ width: `${progress}%` }} />
+                          </div>
+                        </button>
+                        <Link
+                          href={eventHref(event)}
+                          className="flex h-11 w-11 items-center justify-center self-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-all hover:border-zinc-950 hover:text-zinc-950"
+                          aria-label={`Open ${event.canonicalEventName}`}
+                        >
+                          <ArrowRight className="h-4 w-4" />
+                        </Link>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="py-16 text-sm font-light text-zinc-400">No event rooms are indexed yet.</div>
+              )}
+            </div>
+          </motion.div>
+
+          <motion.aside initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14 }}>
+            <div className="mb-7 flex items-end justify-between gap-6">
+              <div>
+                <p className="text-sm font-medium text-zinc-400">Status command</p>
+                <h2 className="mt-2 text-3xl font-light tracking-[-0.04em] text-zinc-950">Pipeline movement</h2>
+              </div>
+              <Link
+                href={leadSheetEvent ? `/leads?event=${encodeURIComponent(leadSheetEvent)}` : "/leads"}
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white"
+                aria-label="Open Lead Sheet"
+              >
+                <TrainFront className="h-4 w-4" />
+              </Link>
+            </div>
+
+            <div className="border-y border-zinc-200">
+              {loading ? (
+                <div className="flex items-center gap-3 py-12 text-zinc-400">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm font-light">Reading lead status...</span>
+                </div>
+              ) : loadingStatus ? (
+                <div className="flex items-center gap-3 py-12 text-zinc-400">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm font-light">Reading selected event status...</span>
+                </div>
+              ) : statusTotal && visibleStatuses.length ? (
+                <div className="divide-y divide-zinc-200">
+                  {visibleStatuses.map((status) => {
+                    const count = statusCounts.get(status.key) || 0;
+                    const width = statusTotal ? Math.max(count > 0 ? 6 : 0, (count / statusTotal) * 100) : 0;
+
+                    return (
+                      <Link
+                        key={status.key}
+                        href={`/leads?status=${encodeURIComponent(status.key)}`}
+                        className="group block py-5 transition-colors hover:bg-zinc-100/55"
+                      >
+                        <div className="mb-3 flex items-center justify-between gap-6">
+                          <div className="flex items-center gap-3">
+                            <span className={`h-2.5 w-2.5 rounded-full ${status.dot}`} />
+                            <span className="text-base font-light tracking-tight text-zinc-950">{status.label}</span>
+                          </div>
+                          <span className="text-xl font-light tabular-nums tracking-tight text-zinc-950">
+                            {count.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="h-1 overflow-hidden rounded-full bg-zinc-200">
+                          <div className={`h-full rounded-full ${status.bar}`} style={{ width: `${width}%` }} />
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="py-12 text-sm font-light text-zinc-400">No status data available yet.</div>
+              )}
+            </div>
+
             {isSuperAdmin ? (
-              <div className={isSalesDashboard ? "shrink-0" : "shrink-0 lg:h-32"}>
-                <RepliesOverviewCard />
+              <div className="mt-8 rounded-full border border-zinc-200 bg-white/60 p-1">
+                <Link href="/campaigns/new">
+                  <Button className="h-11 w-full rounded-full bg-zinc-950 text-sm font-medium text-white shadow-none hover:bg-blue-600">
+                    Create campaign
+                  </Button>
+                </Link>
               </div>
             ) : null}
-            {!isSalesDashboard ? (
-              <div className="min-h-0 flex-1">
-                <LeadsBreakdown />
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </motion.div>
+          </motion.aside>
+        </section>
+      </main>
     </div>
   );
 }

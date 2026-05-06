@@ -115,7 +115,7 @@ export function NormalUserEventsPage() {
             <div className="grid grid-cols-2 gap-10 border-t border-zinc-200 pt-4">
               <button
                 type="button"
-                className={`inline-flex h-10 w-fit items-center gap-2 border-b border-transparent text-sm font-medium transition-all ${
+                className={`inline-flex h-10 w-fit items-center gap-4 border-b border-transparent text-sm font-medium transition-all ${
                   hasSearch
                     ? "border-zinc-950 text-zinc-950"
                     : "text-zinc-500 hover:border-zinc-900 hover:text-zinc-950"
@@ -128,7 +128,7 @@ export function NormalUserEventsPage() {
 
               <button
                 type="button"
-                className="inline-flex h-10 w-fit items-center gap-2 border-b border-transparent text-sm font-medium text-zinc-500 transition-all hover:border-zinc-900 hover:text-zinc-900"
+                className="inline-flex h-10 w-fit items-center gap-3 border-b border-transparent text-sm font-medium text-zinc-500 transition-all hover:border-zinc-900 hover:text-zinc-900"
                 onClick={() => setRefreshTick((value) => value + 1)}
               >
                 <RefreshCcw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
@@ -225,7 +225,7 @@ export function NormalUserEventsPage() {
             <div className="pointer-events-none absolute -left-20 -top-24 h-56 w-56 rounded-full bg-white/65 blur-3xl" />
             <div className="pointer-events-none absolute -right-24 bottom-0 h-56 w-56 rounded-full bg-blue-200/22 blur-3xl" />
 
-            <div className="relative flex items-center gap-4 px-6 py-4">
+            <div className="relative flex items-center gap-6 px-6 py-4">
               <Search className="h-5 w-5 shrink-0 text-zinc-400/90" />
               <input
                 autoFocus
