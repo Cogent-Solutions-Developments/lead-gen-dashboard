@@ -777,8 +777,8 @@ export function NormalUserEventLeadSheet() {
 
         <div className="mt-12 grid min-h-0 flex-1 gap-12 overflow-hidden xl:grid-cols-[19rem_minmax(0,1fr)]">
           <aside className="shrink-0 space-y-10 overflow-y-auto pr-2 scrollbar-hide">
-            <div className="space-y-10">
-              <div className="space-y-4">
+            <div className="space-y-8">
+              <div className="space-y-5">
                 <label className="text-xs font-medium text-zinc-400">Context registry</label>
                 <Select value={selectedEventKey} onValueChange={handleEventChange}>
                   <SelectTrigger className="!h-14 w-full rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-lg font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
@@ -794,31 +794,31 @@ export function NormalUserEventLeadSheet() {
                 </Select>
               </div>
 
-              <div className="space-y-4">
-                <label className="text-xs font-medium text-zinc-400">Search intelligence</label>
-                <div className="relative">
-                  <Search className="pointer-events-none absolute bottom-4 left-0 h-4 w-4 text-zinc-400" />
+              <div>
+                <label className="mb-6 block text-xs font-medium text-zinc-400">Search intelligence</label>
+                <div className="relative w-full rounded-full border border-zinc-200 bg-white px-4 py-2 shadow-[0_22px_60px_-52px_rgba(2,10,27,0.42)] transition-colors focus-within:border-zinc-400">
+                  <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                   <input
                     value={searchInput}
                     onChange={(event) => setSearchInput(event.target.value)}
                     placeholder="Find in sheet..."
-                    className="h-12 w-full border-b border-zinc-200 bg-transparent pl-8 text-lg font-light tracking-tight text-zinc-950 placeholder:text-zinc-400 focus:border-blue-600 focus:outline-none"
+                    className="h-9 w-full border-0 bg-transparent pl-7 pr-1 text-base font-light tracking-tight text-zinc-950 placeholder:text-zinc-400 focus:outline-none"
                   />
                 </div>
               </div>
 
-              <div className="space-y-4 border-t border-zinc-100 pt-10">
-                <label className="text-xs font-medium text-zinc-400">Intelligent filters</label>
+              <div className="border-t border-zinc-100 pt-8">
+                <label className="mb-6 block text-xs font-medium text-zinc-400">Intelligent filters</label>
                 <button
                   type="button"
                   onClick={() => setFilterOpen(true)}
-                  className="flex w-full items-center justify-between border-b border-zinc-200 py-4 text-left transition-colors hover:border-zinc-900"
+                  className="flex h-11 w-full items-center justify-between rounded-full border border-zinc-200 bg-white px-4 text-left shadow-[0_18px_46px_-42px_rgba(2,10,27,0.42)] transition-colors hover:border-zinc-400"
                 >
                   <span className="inline-flex items-center gap-2 text-sm font-light text-zinc-500">
                     <SlidersHorizontal className="h-4 w-4" />
-                    Advanced filter model
+                    Advanced filters
                   </span>
-                  <span className="text-xl font-light tabular-nums tracking-tight text-zinc-950">
+                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-zinc-100 px-1.5 text-xs font-medium tabular-nums text-zinc-500">
                     {activeFilterCount}
                   </span>
                 </button>
@@ -876,7 +876,7 @@ export function NormalUserEventLeadSheet() {
                   {searchQuery || activeFilterCount > 0 ? "No matching records found." : "Workspace is currently empty."}
                 </div>
               ) : (
-                <div className="min-w-[56rem] border-t border-zinc-200">
+                <div className="min-w-[56rem]">
                   <div className="grid grid-cols-[minmax(24rem,1fr)_minmax(18rem,0.85fr)_12rem] border-b border-zinc-200 py-3 text-sm font-light text-zinc-500">
                     <div>Identity details</div>
                     <div>Contact channels</div>
@@ -897,7 +897,7 @@ export function NormalUserEventLeadSheet() {
                           key={updateKey}
                           ref={isTargetLead ? targetLeadRowRef : undefined}
                           id={`lead-${item.id}`}
-                          className={`group grid grid-cols-[minmax(24rem,1fr)_minmax(18rem,0.85fr)_12rem] border-b border-zinc-100 py-10 transition-all duration-300 ${
+                          className={`group grid grid-cols-[minmax(24rem,1fr)_minmax(18rem,0.85fr)_12rem] border-b border-zinc-200 py-10 transition-all duration-300 ${
                             isTargetLead ? "bg-blue-50/35" : "hover:bg-zinc-50/60"
                           }`}
                         >
