@@ -238,8 +238,8 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
               disabled={ringingBell}
               initial={false}
               animate={{
-                width: isExpanded ? 196 : 48,
-                height: isExpanded ? 56 : 48,
+                width: isExpanded ? 196 : 44,
+                height: isExpanded ? 56 : 44,
               }}
               transition={{ type: "spring", stiffness: 360, damping: 34, mass: 0.75 }}
               className={`group relative overflow-hidden rounded-full border border-white/18 bg-white/12 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_18px_34px_-30px_rgba(2,10,27,0.72)] backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-300 hover:border-white/32 hover:bg-white/18 disabled:cursor-not-allowed disabled:opacity-60 ${
@@ -248,9 +248,9 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
                   : "mx-auto flex items-center justify-center gap-0 px-0"
               }`}
             >
-              <span className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(circle_at_28%_18%,rgba(255,255,255,0.28),transparent_38%)] opacity-80" />
-              <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-blue-600 shadow-[0_12px_24px_-18px_rgba(255,255,255,0.85)]">
-                <BellRing className={`h-4 w-4 ${ringingBell ? "animate-pulse" : ""}`} />
+              <span className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(circle_at_28%_18%,rgba(255,255,255,0.24),transparent_38%)] opacity-70" />
+              <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/28 bg-[#071f68]/92 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_16px_26px_-18px_rgba(1,10,45,0.95)] backdrop-blur-xl">
+                <BellRing className={`h-[18px] w-[18px] ${ringingBell ? "animate-pulse" : ""}`} />
               </span>
               <AnimatePresence initial={false}>
                 {isExpanded ? (
