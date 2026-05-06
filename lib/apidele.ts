@@ -1,5 +1,6 @@
 ﻿import axios from "axios";
 import { attachAuthToken } from "@/lib/auth";
+import { getLocalDevNgrokHeaders } from "@/lib/devNgrok";
 import type {
   CampaignImportSummary,
   CampaignEmailTemplateDeleteResponse,
@@ -107,6 +108,7 @@ const apiClientDelegate = axios.create({
   timeout: 60000,
   headers: {
     "x-api-key": process.env.NEXT_PUBLIC_API_KEY || "",
+    ...getLocalDevNgrokHeaders(),
   },
   withCredentials: true,
 });
@@ -620,6 +622,7 @@ export const api = axios.create({
   timeout: 60000,
   headers: {
     "x-api-key": process.env.NEXT_PUBLIC_API_KEY || "",
+    ...getLocalDevNgrokHeaders(),
   },
 });
 

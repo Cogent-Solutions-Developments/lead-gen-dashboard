@@ -1,5 +1,6 @@
 import axios from "axios";
 import { attachAuthToken } from "@/lib/auth";
+import { getLocalDevNgrokHeaders } from "@/lib/devNgrok";
 
 const apiKey = (process.env.NEXT_PUBLIC_API_KEY || "").trim();
 
@@ -8,6 +9,7 @@ export const apiClient = axios.create({
   timeout: 60000,
   headers: {
     ...(apiKey ? { "x-api-key": apiKey } : {}),
+    ...getLocalDevNgrokHeaders(),
   },
   withCredentials: true, // future-ready if you use cookies/session
 });

@@ -1,4 +1,5 @@
 import { AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
+import { getLocalDevNgrokHeaders } from "@/lib/devNgrok";
 import type { Persona } from "@/lib/persona";
 
 export type AuthRole =
@@ -272,6 +273,7 @@ async function authRequest<T>(
   const requestHeaders: Record<string, string> = {
     ...(rest.body ? { "Content-Type": "application/json" } : {}),
     ...(auth ? getAuthHeader() : {}),
+    ...getLocalDevNgrokHeaders(),
     ...(headers as Record<string, string> | undefined),
   };
 
