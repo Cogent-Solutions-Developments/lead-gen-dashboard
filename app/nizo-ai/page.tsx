@@ -616,15 +616,15 @@ export default function NizoAiPage() {
           </div>
         </header>
 
-        <section className="py-9">
-          <div className="mx-auto max-w-4xl text-center">
+        <section className="py-7">
+          <div className="mx-auto max-w-3xl text-center">
             <p className="text-xs font-medium text-zinc-400">Search model</p>
-            <p className="mx-auto mt-2 max-w-xl text-base font-light leading-relaxed text-zinc-500">
+            <p className="mx-auto mt-2 max-w-xl text-sm font-light leading-relaxed text-zinc-500">
               Ask for a role, region, industry, or campaign.
             </p>
 
-            <div className="relative mt-8 rounded-full border border-zinc-200 bg-white px-5 py-2 text-left shadow-[0_28px_80px_-60px_rgba(2,10,27,0.45)] transition-colors focus-within:border-zinc-400">
-              <Search className="absolute left-8 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
+            <div className="relative mt-6 rounded-full border border-zinc-200 bg-white px-5 py-1.5 text-left shadow-[0_28px_80px_-60px_rgba(2,10,27,0.45)] transition-colors focus-within:border-zinc-400">
+              <Search className="absolute left-7 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-zinc-400" />
               <textarea
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
@@ -636,12 +636,12 @@ export default function NizoAiPage() {
                 }}
                 placeholder="Search sales leads, regions, titles, or campaign names..."
                 rows={1}
-                className="block min-h-14 w-full resize-none overflow-hidden border-0 bg-transparent py-3 pl-12 pr-16 text-center text-[clamp(1.35rem,2.2vw,2.35rem)] font-light leading-tight tracking-[-0.045em] text-zinc-950 outline-none placeholder:text-zinc-300"
+                className="block min-h-12 w-full resize-none overflow-hidden border-0 bg-transparent py-2.5 pl-11 pr-16 text-center text-[clamp(1.15rem,1.65vw,1.8rem)] font-light leading-tight tracking-[-0.035em] text-zinc-950 outline-none placeholder:text-zinc-300"
               />
               <Button
                 type="button"
                 size="icon"
-                className="absolute right-5 top-1/2 h-11 w-11 -translate-y-1/2 rounded-full bg-zinc-950 text-white shadow-none transition-colors hover:bg-blue-600"
+                className="absolute right-4 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-zinc-950 text-white shadow-none transition-colors hover:bg-blue-600"
                 disabled={loading}
                 onClick={() => void runSearch()}
                 aria-label="Run AI Search"
@@ -656,14 +656,14 @@ export default function NizoAiPage() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="mt-5 flex flex-wrap justify-center gap-2.5"
+                  className="mt-4 flex flex-wrap justify-center gap-2"
                 >
                   {searchSuggestions.map((suggestion) => (
                     <button
                       key={suggestion}
                       type="button"
                       onClick={() => void runSearch(suggestion)}
-                      className="inline-flex h-9 items-center rounded-full border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-500 transition-colors hover:border-blue-600 hover:text-blue-600"
+                      className="inline-flex h-8 items-center rounded-full border border-zinc-200 bg-white px-3.5 text-xs font-medium text-zinc-500 transition-colors hover:border-blue-600 hover:text-blue-600"
                     >
                       {suggestion}
                     </button>
@@ -673,15 +673,15 @@ export default function NizoAiPage() {
             </AnimatePresence>
 
             {recentSearches.length ? (
-              <div className="mx-auto mt-6 max-w-3xl">
-                <p className="mb-3 text-xs font-medium text-zinc-400">Recent searches</p>
-                <div className="flex flex-wrap justify-center gap-2">
+              <div className="mx-auto mt-5 max-w-3xl">
+                <p className="mb-2 text-xs font-medium text-zinc-400">Recent searches</p>
+                <div className="flex flex-wrap justify-center gap-1.5">
                   {recentSearches.slice(0, 5).map((item) => (
                     <button
                       key={item}
                       type="button"
                       onClick={() => void runSearch(item)}
-                      className="rounded-full border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-500 transition-colors hover:border-zinc-950 hover:text-zinc-950"
+                      className="rounded-full border border-zinc-200 bg-white px-3.5 py-1.5 text-xs font-medium text-zinc-500 transition-colors hover:border-zinc-950 hover:text-zinc-950"
                     >
                       {item}
                     </button>
@@ -692,7 +692,7 @@ export default function NizoAiPage() {
           </div>
         </section>
 
-      <div className="mb-20 mt-12 w-full">
+      <div className="mb-20 mt-8 w-full">
         {searched ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
