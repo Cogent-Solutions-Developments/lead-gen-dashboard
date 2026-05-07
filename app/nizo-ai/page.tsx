@@ -282,6 +282,7 @@ export default function NizoAiPage() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [searchNote, setSearchNote] = useState("");
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   const loadSalesEvents = useCallback(async () => {
     if (eventsCache.length) return eventsCache;
@@ -437,6 +438,7 @@ export default function NizoAiPage() {
       setResults(matches);
       setCurrentPage(1);
       setSearched(true);
+      setRecentSearches((prev) => [value, ...prev.filter((item) => item !== value)].slice(0, 5));
     } catch (error) {
       toast.error("Search failed", {
         description: error instanceof Error ? error.message : "Could not load sales leads.",
@@ -492,12 +494,12 @@ export default function NizoAiPage() {
   const searchSuggestions = useMemo(
     () =>
       suggestNizoSearchTerms(query, {
-        recent: [],
+        recent: recentSearches,
         leads: sortedResults.slice(0, 50).map((entry) => entry.lead),
         events: eventsCache,
         limit: 6,
       }),
-    [eventsCache, query, sortedResults]
+    [eventsCache, query, recentSearches, sortedResults]
   );
   const showingFrom = sortedResults.length === 0 ? 0 : (Math.min(currentPage, totalPages) - 1) * RESULTS_PER_PAGE + 1;
   const showingTo = sortedResults.length === 0 ? 0 : Math.min(showingFrom + paginatedResults.length - 1, sortedResults.length);

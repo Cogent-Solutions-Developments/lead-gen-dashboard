@@ -1158,16 +1158,6 @@ export function NormalUserEventLeadSheet() {
                     ))}
                   </div>
                 </div>
-              )}
-            </div>
-
-            <footer className="mt-6 flex shrink-0 flex-col gap-5 border-t border-zinc-100 pb-4 pt-8 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-zinc-400">Lead sheet range</p>
-                <p className="text-lg font-light tabular-nums tracking-tight text-zinc-950">
-                  {pageRangeStart}—{pageRangeEnd}
-                  <span className="ml-2 text-sm text-zinc-400">of {pageTotal.toLocaleString()} records</span>
-                </p>
               </div>
 
               <div className="absolute bottom-8 left-8 right-8 flex items-center justify-between border-t border-zinc-100 pt-6">
