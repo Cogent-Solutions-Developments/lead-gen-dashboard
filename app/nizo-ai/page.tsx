@@ -523,7 +523,7 @@ export default function NizoAiPage() {
             </div>
             <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Nizo AI for Sales</h1>
             <p className="mt-4 text-zinc-500 font-light leading-relaxed">
-              This intelligence engine is reserved for the Sales persona. Switch your identity to begin searching.
+              This intelligence engine is reserved for Sales. Switch your identity to begin searching.
             </p>
             {isSuperAdmin ? (
               <Button 

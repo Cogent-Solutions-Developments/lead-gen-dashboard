@@ -164,7 +164,7 @@ export default function ChoosePersonaPage() {
                 </div>
 
                 <p className="mt-4 text-sm leading-6 text-zinc-600">
-                  Plan and launch revenue campaigns, prioritize high-intent accounts, and move qualified conversations into pipeline.
+                  Plan and launch sales campaigns, prioritize high-intent accounts, and move qualified conversations into pipeline.
                 </p>
 
                 <Button

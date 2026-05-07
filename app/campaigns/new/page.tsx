@@ -234,7 +234,7 @@ export default function NewCampaignPage() {
             <Textarea
               value={icp}
               onChange={(e) => setIcp(e.target.value)}
-              placeholder={`Example:\nEvent: AMICT Malaysia\nTarget companies: Asset integrity and inspection vendors\nTarget roles: Sales Director, Regional Business Development Manager\nExclusions: Non-commercial institutions`}
+              placeholder={`Example:\nEvent: AMICT Malaysia\nTarget companies: Asset integrity and inspection vendors\nTarget roles: Commercial Director, Regional Business Development Manager\nExclusions: Non-commercial institutions`}
               className="min-h-80 resize-y border-zinc-200 bg-white font-mono text-sm"
             />
             <p className="text-xs text-zinc-400">{icp.length} characters</p>
