@@ -593,8 +593,8 @@ function SuperAdminCampaignsPage() {
     <div className="font-sans flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1">
       <div className="relative z-10 flex shrink-0 flex-col gap-4 border-b border-zinc-100/90 bg-transparent pb-6 backdrop-blur-[8px] sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Campaigns</h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <h1 className="text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">Campaigns</h1>
+          <p className="mt-4 max-w-xl text-lg font-light leading-relaxed text-zinc-500">
             Manage and track your lead generation workflows
           </p>
         </div>

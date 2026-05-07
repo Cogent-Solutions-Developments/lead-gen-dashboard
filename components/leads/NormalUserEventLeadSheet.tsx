@@ -28,6 +28,7 @@ import {
 } from "@/lib/apiRouter";
 import { usePersona } from "@/hooks/usePersona";
 import {
+  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -155,11 +156,19 @@ const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     isActive: true,
   },
   {
+    id: "workflow-default-deal-closed",
+    statusKey: "deal-closed",
+    label: "Deal Closed",
+    isSystemDefault: true,
+    sortOrder: 5,
+    isActive: true,
+  },
+  {
     id: "workflow-default-not-interested",
     statusKey: "not-interested",
     label: "Not Interested",
     isSystemDefault: true,
-    sortOrder: 5,
+    sortOrder: 6,
     isActive: true,
   },
 ];
@@ -171,6 +180,7 @@ const STATUS_DOT_CLASS: Record<string, string> = {
   "first-call": "bg-[#147df5] shadow-[0_0_0_3px_rgba(20,125,245,0.20)]",
   "follow-up": "bg-[#ff8700] shadow-[0_0_0_3px_rgba(255,135,0,0.20)]",
   qualified: "bg-[#0aff99] shadow-[0_0_0_3px_rgba(10,255,153,0.20)]",
+  "deal-closed": "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
   "not-interested": "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]",
 };
 const DEFAULT_PAGE_SIZE = 50;
@@ -580,6 +590,7 @@ export function NormalUserEventLeadSheet() {
       setUpdatingKeys((prev) => ({ ...prev, [updateKey]: true }));
       try {
         const response = await updateLeadWorkflowStatus(item.id, nextStatus);
+
         const nextLabel =
           asText(response.workflowStatusLabel) ||
           workflowStatusLabelLookup.get(response.workflowStatus) ||
@@ -706,19 +717,15 @@ export function NormalUserEventLeadSheet() {
     <>
       <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
         <header className="shrink-0 border-b border-zinc-200 pb-12">
-          <div className="flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <div className="flex items-center gap-3">
-                <Link
-                  href="/campaigns"
-                  className="inline-flex items-center text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-950"
-                >
-                  <ChevronLeft className="mr-1 h-3 w-3" />
-                  Events
-                </Link>
-                <span className="h-4 w-[1px] bg-zinc-200" />
-                <span className="text-xs font-medium text-zinc-400">{personaLabel} Workspace</span>
-              </div>
+              <Link
+                href="/campaigns"
+                className="inline-flex items-center text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-950"
+              >
+                <ArrowLeft className="mr-2 h-3 w-3" />
+                Return to events
+              </Link>
 
               <div className="mt-8">
                 <h1 className="max-w-5xl text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
@@ -876,8 +883,8 @@ export function NormalUserEventLeadSheet() {
                   {searchQuery || activeFilterCount > 0 ? "No matching records found." : "Workspace is currently empty."}
                 </div>
               ) : (
-                <div className="min-w-[56rem]">
-                  <div className="grid grid-cols-[minmax(24rem,1fr)_minmax(18rem,0.85fr)_12rem] border-b border-zinc-200 py-3 text-sm font-light text-zinc-500">
+                <div className="w-full">
+                  <div className="grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-200 py-3 text-sm font-light text-zinc-500">
                     <div>Identity details</div>
                     <div>Contact channels</div>
                     <div>Status</div>
@@ -897,12 +904,12 @@ export function NormalUserEventLeadSheet() {
                           key={updateKey}
                           ref={isTargetLead ? targetLeadRowRef : undefined}
                           id={`lead-${item.id}`}
-                          className={`group grid grid-cols-[minmax(24rem,1fr)_minmax(18rem,0.85fr)_12rem] border-b border-zinc-200 py-10 transition-all duration-300 ${
+                          className={`group grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-200 py-6 transition-all duration-300 ${
                             isTargetLead ? "bg-blue-50/35" : "hover:bg-zinc-50/60"
                           }`}
                         >
                           <div className="pr-8">
-                            <div className="flex flex-col gap-3">
+                            <div className="flex flex-col gap-1.5">
                               <div className="flex items-center gap-5">
                                 <span className="text-xl font-light tracking-tight text-zinc-950">{item.employeeName || "-"}</span>
                                 {item.isManualLead && (

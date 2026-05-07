@@ -992,8 +992,8 @@ function SuperAdminTotalLeads() {
 
         <div className="relative z-[1] flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Nizo Finder</h1>
-            <p className="mt-1 text-sm text-zinc-500">Professional lead discovery with precision filtering and clean data views.</p>
+            <h1 className="text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">Nizo Finder</h1>
+            <p className="mt-4 max-w-xl text-lg font-light leading-relaxed text-zinc-500">Professional lead discovery with precision filtering and clean data views.</p>
           </div>
 
           <div className="flex items-center gap-2">

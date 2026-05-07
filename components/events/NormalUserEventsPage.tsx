@@ -99,14 +99,14 @@ export function NormalUserEventsPage() {
           <div className="flex flex-col gap-5 border-zinc-200 lg:min-w-[23rem] lg:border-l lg:pl-10">
             <div className="grid grid-cols-2 gap-10">
               <div className="space-y-1">
-                <p className="text-xs font-medium text-zinc-400">Active events</p>
-                <p className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
+                <p className="text-sm font-medium text-zinc-400">Active events</p>
+                <p className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
                   {items.length}
                 </p>
               </div>
               <div className="space-y-1">
-                <p className="text-xs font-medium text-zinc-400">Total prospect reach</p>
-                <p className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
+                <p className="text-sm font-medium text-zinc-400">Total prospect reach</p>
+                <p className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
                   {totalLeadCount.toLocaleString()}
                 </p>
               </div>
@@ -115,7 +115,7 @@ export function NormalUserEventsPage() {
             <div className="grid grid-cols-2 gap-10 border-t border-zinc-200 pt-4">
               <button
                 type="button"
-                className={`inline-flex h-10 w-fit items-center gap-4 border-b border-transparent text-sm font-medium transition-all ${
+                className={`inline-flex h-10 w-fit items-center gap-4 border-b border-transparent text-base font-medium transition-all ${
                   hasSearch
                     ? "border-zinc-950 text-zinc-950"
                     : "text-zinc-500 hover:border-zinc-900 hover:text-zinc-950"
@@ -128,7 +128,7 @@ export function NormalUserEventsPage() {
 
               <button
                 type="button"
-                className="inline-flex h-10 w-fit items-center gap-3 border-b border-transparent text-sm font-medium text-zinc-500 transition-all hover:border-zinc-900 hover:text-zinc-900"
+                className="inline-flex h-10 w-fit items-center gap-3 border-b border-transparent text-base font-medium text-zinc-500 transition-all hover:border-zinc-900 hover:text-zinc-900"
                 onClick={() => setRefreshTick((value) => value + 1)}
               >
                 <RefreshCcw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
@@ -143,12 +143,12 @@ export function NormalUserEventsPage() {
         <main className="flex min-h-0 flex-col">
           {hasSearch ? (
             <div className="mb-6 flex shrink-0 items-center justify-between border-y border-zinc-100 py-4">
-              <p className="text-sm font-light text-zinc-500">
+              <p className="text-base font-light text-zinc-500">
                 Searching for <span className="font-medium text-zinc-950">{searchQuery.trim()}</span>
               </p>
               <button
                 type="button"
-                className="text-sm font-medium text-zinc-400 transition-colors hover:text-zinc-950"
+                className="text-base font-medium text-zinc-400 transition-colors hover:text-zinc-950"
                 onClick={() => setSearchQuery("")}
               >
                 Clear
@@ -156,7 +156,7 @@ export function NormalUserEventsPage() {
             </div>
           ) : null}
 
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto scrollbar-modern">
             {loading ? (
               <div className="py-12 text-sm text-zinc-500">Loading events...</div>
             ) : filteredItems.length === 0 ? (
@@ -164,16 +164,14 @@ export function NormalUserEventsPage() {
                 {searchQuery.trim() ? "No events match this search." : "No events found."}
               </div>
             ) : (
-              <div className="grid lg:grid-cols-2">
+              <div className="grid grid-cols-1">
                 {filteredItems.map((item, index) => (
                   <motion.div
                     key={item.canonicalEventKey}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: index * 0.02 }}
-                    className={`group border-zinc-200 transition-colors hover:bg-zinc-50/50 ${
-                      index % 2 === 0 ? "border-b lg:border-r" : "border-b"
-                    }`}
+                    className="group border-b border-zinc-200 transition-colors hover:bg-zinc-50/50"
                   >
                     <Link
                       href={`/leads?event=${encodeURIComponent(item.canonicalEventKey)}`}
@@ -181,19 +179,19 @@ export function NormalUserEventsPage() {
                     >
                       <div className="flex flex-1 flex-col justify-between gap-8 2xl:gap-10">
                         <div className="space-y-4">
-                          <h2 className="text-xl font-normal leading-[1.25] tracking-[-0.018em] text-zinc-950 group-hover:text-blue-700 2xl:text-2xl">
+                          <h2 className="text-2xl font-normal leading-[1.25] tracking-[-0.018em] text-zinc-950 group-hover:text-blue-700 2xl:text-3xl">
                             {item.canonicalEventName}
                           </h2>
                         </div>
 
                         <div className="flex items-end justify-between">
                           <div className="space-y-1">
-                            <span className="text-xs font-medium text-zinc-400">Total prospects</span>
+                            <span className="text-sm font-medium text-zinc-400">Total prospects</span>
                             <div className="flex items-baseline gap-2">
-                              <span className="text-2xl font-light tabular-nums tracking-tight text-zinc-900 2xl:text-3xl">
+                              <span className="text-3xl font-light tabular-nums tracking-tight text-zinc-900 2xl:text-4xl">
                                 {Number(item.leadCount).toLocaleString()}
                               </span>
-                              <span className="text-sm font-light text-zinc-500">leads</span>
+                              <span className="text-base font-light text-zinc-500">leads</span>
                             </div>
                           </div>
 
@@ -236,7 +234,7 @@ export function NormalUserEventsPage() {
                   if (event.key === "Enter") setSearchOpen(false);
                 }}
                 placeholder="Search events, regions, or campaign names"
-                className="h-12 min-w-0 flex-1 bg-transparent text-2xl font-light tracking-[-0.03em] text-zinc-950 placeholder:text-zinc-400/86 focus:outline-none"
+                className="h-12 min-w-0 flex-1 bg-transparent text-3xl font-light tracking-[-0.03em] text-zinc-950 placeholder:text-zinc-400/86 focus:outline-none"
               />
               {hasSearch ? (
                 <button

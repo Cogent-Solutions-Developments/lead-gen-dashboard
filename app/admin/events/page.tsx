@@ -436,9 +436,8 @@ export default function AdminEventsPage() {
         className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
       >
         <div>
-          <p className="text-lg font-normal text-zinc-900">Admin Control</p>
-          <h1 className="mt-0 text-2xl font-semibold tracking-tight text-zinc-900">Event Registry</h1>
-          <p className="mt-1 max-w-2xl text-sm text-zinc-500">
+          <h1 className="text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">Event Registry</h1>
+          <p className="mt-4 max-w-xl text-lg font-light leading-relaxed text-zinc-500">
             Create events once, keep their base details in the registry, and switch them to active when they are ready for campaign create or upload.
           </p>
         </div>

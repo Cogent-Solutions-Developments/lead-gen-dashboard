@@ -5,9 +5,9 @@ import Link from "next/link";
 import { Genos } from "next/font/google";
 import { motion, AnimatePresence } from "framer-motion";
 import {
+  ArrowLeft,
   ArrowUp,
   Brain,
-  ChevronLeft,
   ChevronRight,
   Copy,
   Download,
@@ -551,18 +551,16 @@ export default function NizoAiPage() {
         <div className="absolute right-[8%] top-1/3 h-80 w-80 rounded-full bg-zinc-950/5 blur-3xl" />
       </div>
 
-      <div className="relative flex min-h-[calc(100dvh-3rem)] w-full flex-col px-8 py-7 2xl:px-12">
+      <div className="relative flex min-h-[calc(100dvh-3rem)] w-full flex-col p-1">
         <header className="flex shrink-0 items-start justify-between gap-6">
-          <div className="flex items-center gap-3">
+          <div>
             <Link
               href="/dashboard"
               className="inline-flex items-center text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-950"
             >
-              <ChevronLeft className="mr-1 h-3 w-3" />
-              Dashboard
+              <ArrowLeft className="mr-2 h-3 w-3" />
+              Return to dashboard
             </Link>
-            <span className="h-4 w-[1px] bg-zinc-200" />
-            <span className="text-xs font-medium text-zinc-400">Sales Workspace</span>
           </div>
 
           <div className="grid grid-cols-2 gap-8 border-l border-zinc-200 pl-8">
@@ -721,10 +719,10 @@ export default function NizoAiPage() {
                       return (
                         <div
                           key={lead.id}
-                          className="group grid grid-cols-[minmax(24rem,1fr)_minmax(18rem,0.85fr)_12rem_8rem] items-center px-8 py-10 transition-colors hover:bg-zinc-50/60"
+                          className="group grid grid-cols-[minmax(24rem,1fr)_minmax(18rem,0.85fr)_12rem_8rem] items-center px-8 py-6 transition-colors hover:bg-zinc-50/60"
                         >
                           <div className="pr-8">
-                            <div className="flex flex-col gap-3">
+                            <div className="flex flex-col gap-1.5">
                               <div className="flex items-center gap-3">
                                 <span className="text-xl font-light tracking-tight text-zinc-950">{text(lead.employeeName) || "Unnamed Lead"}</span>
                                 {lead.isManualLead && (

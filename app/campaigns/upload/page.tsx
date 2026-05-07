@@ -363,7 +363,7 @@ export default function UploadCampaignPage() {
         </nav>
 
         <div className="min-h-0 flex-1 flex flex-col lg:border-l lg:border-zinc-200 lg:pl-16 overflow-hidden">
-          <div className="flex-1 overflow-y-auto pb-12 pr-4">
+          <div className="flex-1 overflow-y-auto pb-12 pr-4 scrollbar-hide">
             {currentStep === "event" ? (
               <section className="max-w-4xl space-y-12">
                 <div className="space-y-2">
