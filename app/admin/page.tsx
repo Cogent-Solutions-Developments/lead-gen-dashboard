@@ -7,6 +7,7 @@ import {
   ArrowRight,
   CalendarDays,
   MessageSquare,
+  ServerCog,
   Settings,
   ShieldCheck,
   UsersRound,
@@ -49,6 +50,13 @@ const adminTasks = [
     href: "/settings/system-monitor",
     icon: Activity,
     metric: "Health",
+  },
+  {
+    title: "System Operations",
+    description: "Review live logs, incidents, recovery guide, and confirmed campaign recovery actions.",
+    href: "/admin/system-operations",
+    icon: ServerCog,
+    metric: "Recovery",
   },
 ];
 

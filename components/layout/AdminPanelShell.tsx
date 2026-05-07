@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   LogOut,
   MessageSquare,
+  ServerCog,
   Settings,
   ShieldCheck,
   UserRound,
@@ -56,6 +57,12 @@ const adminTabs = [
     href: "/settings/system-monitor",
     icon: Activity,
     match: (pathname: string) => pathname === "/settings/system-monitor",
+  },
+  {
+    name: "System Operations",
+    href: "/admin/system-operations",
+    icon: ServerCog,
+    match: (pathname: string) => pathname === "/admin/system-operations",
   },
 ];
 

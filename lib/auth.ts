@@ -218,6 +218,88 @@ export type SystemMonitorSnapshot = {
   warnings?: SystemMonitorWarning[];
 };
 
+export type SystemOperationLogService = {
+  service: string;
+  source?: "file" | "docker" | string;
+  path?: string;
+  exists: boolean;
+  sizeBytes?: number;
+  modifiedAt?: string | null;
+  containerId?: string | null;
+  containerName?: string | null;
+  status?: string | null;
+};
+
+export type SystemOperationLogServicesResponse = {
+  source?: "file" | "docker" | string;
+  enabled?: boolean;
+  reason?: string;
+  error?: string;
+  services: SystemOperationLogService[];
+};
+
+export type SystemOperationLogResponse = {
+  source?: "file" | "docker" | string;
+  enabled?: boolean;
+  service: string;
+  path?: string;
+  exists: boolean;
+  cursor?: number;
+  lines: string[];
+  reason?: string;
+  containerId?: string | null;
+  containerName?: string | null;
+  status?: string | null;
+};
+
+export type SystemOperationIncident = {
+  code: string;
+  severity: string;
+  message: string;
+  campaignId: string;
+  pipeline: string;
+  campaignStatus?: string | null;
+  eventCode?: string | null;
+  progressStatus?: string | null;
+  doneTotal: number;
+  targetTotal: number;
+  updatedAt?: string | null;
+  locks: {
+    contentInProgress?: boolean;
+    contentStartedAt?: string | null;
+    batchInProgress?: boolean;
+    batchStartedAt?: string | null;
+    batchHeartbeatAt?: string | null;
+  };
+  recommendedActions: string[];
+};
+
+export type SystemOperationIncidentsResponse = {
+  generatedAt?: string;
+  incidents: SystemOperationIncident[];
+};
+
+export type SystemOperationRecoveryGuideItem = {
+  code: string;
+  title: string;
+  resolution: string;
+};
+
+export type SystemOperationRecoveryGuideResponse = {
+  items: SystemOperationRecoveryGuideItem[];
+};
+
+export type SystemOperationRecoveryActionResponse = {
+  status: string;
+  action: string;
+  campaignId: string;
+  pipeline?: string;
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
+  changed?: Record<string, unknown>;
+  task?: Record<string, unknown> | null;
+};
+
 type AuthError = Error & {
   status?: number;
   data?: unknown;
@@ -541,4 +623,52 @@ export async function updateAdminEvent(eventId: string, payload: AdminEventUpdat
 
 export async function fetchSystemMonitorSnapshot() {
   return authRequest<SystemMonitorSnapshot>("/api/admin/system-monitor");
+}
+
+export async function listSystemOperationLogServices() {
+  return authRequest<SystemOperationLogServicesResponse>("/api/admin/system-operations/logs/services?source=docker");
+}
+
+export async function fetchSystemOperationLog(
+  service: string,
+  options: { tail?: number; after?: number | null; source?: "docker" | "file" } = {}
+) {
+  const params = new URLSearchParams();
+  params.set("source", options.source ?? "docker");
+  params.set("tail", String(options.tail ?? 200));
+  if (typeof options.after === "number") params.set("after", String(options.after));
+  return authRequest<SystemOperationLogResponse>(
+    `/api/admin/system-operations/logs/${encodeURIComponent(service)}?${params.toString()}`
+  );
+}
+
+export function buildSystemOperationDockerLogStreamUrl(service: string, tail = 200) {
+  const params = new URLSearchParams({
+    source: "docker",
+    tail: String(tail),
+  });
+  return `${getBaseUrl()}/api/admin/system-operations/logs/${encodeURIComponent(service)}/stream?${params.toString()}`;
+}
+
+export async function listSystemOperationIncidents(limit = 50) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return authRequest<SystemOperationIncidentsResponse>(`/api/admin/system-operations/incidents?${params.toString()}`);
+}
+
+export async function fetchSystemOperationRecoveryGuide() {
+  return authRequest<SystemOperationRecoveryGuideResponse>("/api/admin/system-operations/recovery-guide");
+}
+
+export async function runSystemOperationRecoveryAction(
+  campaignId: string,
+  action: string,
+  payload: { reason: string; dryRun: boolean }
+) {
+  return authRequest<SystemOperationRecoveryActionResponse>(
+    `/api/admin/system-operations/campaigns/${encodeURIComponent(campaignId)}/recovery/${encodeURIComponent(action)}`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
 }
