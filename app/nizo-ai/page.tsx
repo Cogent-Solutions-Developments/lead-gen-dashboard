@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   ArrowUp,
   Brain,
+  ChevronLeft,
   ChevronRight,
   Copy,
   Download,
