@@ -164,6 +164,11 @@ export type SystemMonitorSnapshot = {
   environment?: string;
   service?: string;
   actor?: string;
+  monitoringLinks?: {
+    grafana?: string | null;
+    prometheus?: string | null;
+    loki?: string | null;
+  };
   checks?: {
     database?: SystemMonitorCheck;
     redis?: SystemMonitorCheck;

@@ -17,6 +17,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AdminPanelShell } from "@/components/layout/AdminPanelShell";
 import {
   fetchWhatsAppNotifications,
   fetchUnreadCount,
@@ -327,6 +328,7 @@ export default function RepliesPage() {
   }, []);
 
   return (
+    <AdminPanelShell>
     <div className="font-sans flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -524,5 +526,6 @@ export default function RepliesPage() {
         </Card>
       </div>
     </div>
+    </AdminPanelShell>
   );
 }

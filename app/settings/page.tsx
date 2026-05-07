@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { AdminPanelShell } from "@/components/layout/AdminPanelShell";
 import { User, Key, ShieldOff, RefreshCw, UploadCloud, Activity } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -154,6 +155,7 @@ export default function SettingsPage() {
   };
 
   return (
+    <AdminPanelShell>
     <div>
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -414,5 +416,6 @@ export default function SettingsPage() {
         </motion.div>
       </div>
     </div>
+    </AdminPanelShell>
   );
 }

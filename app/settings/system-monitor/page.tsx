@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   Clock3,
   Database,
+  ExternalLink,
   Layers3,
   Loader2,
   RefreshCw,
@@ -21,6 +22,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { AdminPanelShell } from "@/components/layout/AdminPanelShell";
 import { useAuth } from "@/hooks/useAuth";
 import {
   fetchSystemMonitorSnapshot,
@@ -160,6 +162,35 @@ function MetricCard({
   );
 }
 
+function ExternalDashboardButton({ label, href }: { label: string; href?: string | null }) {
+  if (!href) {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        disabled
+        className="h-10 border-zinc-200 bg-white/70 px-4 text-zinc-400"
+      >
+        <ExternalLink className="mr-2 h-4 w-4" />
+        {label}
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      asChild
+      variant="outline"
+      className="h-10 border-zinc-200 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
+    >
+      <a href={href} target="_blank" rel="noreferrer">
+        <ExternalLink className="mr-2 h-4 w-4" />
+        {label}
+      </a>
+    </Button>
+  );
+}
+
 export default function SystemMonitorPage() {
   const { isSuperAdmin } = useAuth();
   const [snapshot, setSnapshot] = useState<SystemMonitorSnapshot | null>(null);
@@ -214,6 +245,7 @@ export default function SystemMonitorPage() {
   const providerExamples = runtime?.providers?.examples ?? [];
   const logFiles = runtime?.logs?.files ?? [];
   const missingServices = runtime?.logs?.missingServices ?? [];
+  const monitoringLinks = snapshot?.monitoringLinks ?? {};
 
   const overviewCards = useMemo(
     () => [
@@ -258,6 +290,7 @@ export default function SystemMonitorPage() {
 
   if (!isSuperAdmin) {
     return (
+      <AdminPanelShell>
       <div className="flex min-h-[calc(100dvh-3rem)] items-center justify-center p-4">
         <Card className="max-w-md rounded-2xl border border-zinc-200 bg-white/88 p-6 text-center">
           <ShieldAlert className="mx-auto h-9 w-9 text-amber-600" />
@@ -265,10 +298,12 @@ export default function SystemMonitorPage() {
           <p className="mt-2 text-sm text-zinc-500">System Monitor is restricted to super admin users.</p>
         </Card>
       </div>
+      </AdminPanelShell>
     );
   }
 
   return (
+    <AdminPanelShell>
     <div className="font-sans flex min-h-[calc(100dvh-3rem)] flex-col overflow-y-auto bg-transparent p-1">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -284,6 +319,8 @@ export default function SystemMonitorPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <ExternalDashboardButton label="Open Grafana" href={monitoringLinks.grafana} />
+
           <label className="flex h-10 items-center gap-2 rounded-md border border-zinc-200 bg-white/90 px-3 text-xs font-semibold text-zinc-700">
             <input
               type="checkbox"
@@ -643,5 +680,6 @@ export default function SystemMonitorPage() {
         </div>
       ) : null}
     </div>
+    </AdminPanelShell>
   );
 }
