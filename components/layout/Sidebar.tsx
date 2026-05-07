@@ -10,8 +10,6 @@ import {
   Plus, 
   Upload,
   TrainFront,
-  MessageSquare,
-  Settings,
   UserRound,
   LogOut,
   ShieldCheck
@@ -31,9 +29,7 @@ const navItems = [
   { name: "Upload Campaign", href: "/campaigns/upload", icon: Upload },
   // { name: "Completed", href: "/completed", icon: CheckCircle },
   { name: "Nizo Finder", normalLabel: "Lead Sheet", href: "/leads", icon: TrainFront },
-  { name: "Replies", href: "/replies", icon: MessageSquare, superOnly: true },
-  { name: "Settings", href: "/settings", icon: Settings, superOnly: true },
-  { name: "Admin Users", href: "/admin/users", icon: ShieldCheck, superOnly: true },
+  { name: "Admin Panel", href: "/admin", icon: ShieldCheck, superOnly: true },
 ];
 
 export function Sidebar() {

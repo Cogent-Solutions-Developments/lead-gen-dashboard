@@ -19,9 +19,19 @@ import {
 function isSuperOnlyPath(pathname: string) {
   return (
     pathname === "/settings" ||
+    pathname.startsWith("/settings/") ||
     pathname === "/replies" ||
     pathname === "/campaigns/new" ||
     pathname.startsWith("/admin")
+  );
+}
+
+function isAdminAreaPath(pathname: string) {
+  return (
+    pathname.startsWith("/admin") ||
+    pathname === "/replies" ||
+    pathname === "/settings" ||
+    pathname.startsWith("/settings/")
   );
 }
 
@@ -30,7 +40,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const isChooser = pathname === "/" || pathname === "/choose-persona";
   const isAuthRoute = pathname === "/sign-in";
-  const isStandaloneAdminRoute = pathname.startsWith("/admin");
+  const isAdminAreaRoute = isAdminAreaPath(pathname);
   const [selected, setSelected] = useState<boolean>(() => hasPersona());
   const [session, setSession] = useState<AuthSession | null>(() => getStoredAuthSession());
   const [authChecked, setAuthChecked] = useState(false);
@@ -121,7 +131,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (!isChooser && !isStandaloneAdminRoute && !selected) {
+    if (!isChooser && !isAdminAreaRoute && !selected) {
       router.replace("/");
       return;
     }
@@ -131,7 +141,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       clearPersona();
       router.replace(getAuthLandingPath(role));
     }
-  }, [authChecked, forcedPersona, isAuthRoute, isChooser, isStandaloneAdminRoute, isSuperAdmin, pathname, role, router, selected, session]);
+  }, [authChecked, forcedPersona, isAdminAreaRoute, isAuthRoute, isChooser, isSuperAdmin, pathname, role, router, selected, session]);
 
   if (!authChecked) return null;
 
@@ -149,8 +159,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <main className="min-h-screen bg-transparent">{children}</main>;
   }
 
-  if (isStandaloneAdminRoute) {
-    return <main className="min-h-screen bg-transparent p-6">{children}</main>;
+  if (isAdminAreaRoute) {
+    return <>{children}</>;
   }
 
   if (!selected) return null;

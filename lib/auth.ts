@@ -73,6 +73,233 @@ export type AdminEventUpdateInput = {
   syncLinkedCampaigns?: boolean;
 };
 
+export type SystemMonitorStatus = "ok" | "warning" | "critical" | string;
+
+export type SystemMonitorCheck = {
+  status: SystemMonitorStatus;
+  checkedAt?: string;
+  error?: string;
+};
+
+export type SystemMonitorCeleryCheck = SystemMonitorCheck & {
+  workerCount?: number;
+  queuesSeen?: string[];
+  missingQueues?: string[];
+};
+
+export type SystemMonitorCountRow = {
+  count: number;
+};
+
+export type SystemMonitorPipelineStatus = SystemMonitorCountRow & {
+  pipeline: string;
+  status: string;
+};
+
+export type SystemMonitorJobState = SystemMonitorCountRow & {
+  state: string;
+};
+
+export type SystemMonitorProgressStaleRow = {
+  campaignId: string;
+  eventCode?: string | null;
+  updatedAt?: string | null;
+  doneTotal: number;
+  targetTotal: number;
+};
+
+export type SystemMonitorQueueStatus = SystemMonitorCountRow & {
+  channel: string;
+  status: string;
+};
+
+export type SystemMonitorStuckChannel = SystemMonitorCountRow & {
+  channel: string;
+};
+
+export type SystemMonitorOldestQueueRow = {
+  id: string;
+  campaignId?: string | null;
+  leadId?: string | null;
+  draftId?: string | null;
+  channel?: string | null;
+  status?: string | null;
+  dueAt?: string | null;
+  updatedAt?: string | null;
+  attempts?: number;
+  lastError?: string | null;
+};
+
+export type SystemMonitorProviderFailure = SystemMonitorCountRow & {
+  provider: string;
+  channel: string;
+};
+
+export type SystemMonitorProviderExample = {
+  queueId: string;
+  channel?: string | null;
+  provider?: string | null;
+  error?: string | null;
+  updatedAt?: string | null;
+};
+
+export type SystemMonitorLogFile = {
+  service: string;
+  path: string;
+  sizeBytes?: number;
+  modifiedAt?: string | null;
+  ageSeconds?: number | null;
+};
+
+export type SystemMonitorWarning = {
+  code: string;
+  severity: string;
+  message: string;
+  context?: Record<string, unknown>;
+};
+
+export type SystemMonitorSnapshot = {
+  status: SystemMonitorStatus;
+  generatedAt?: string;
+  environment?: string;
+  service?: string;
+  actor?: string;
+  monitoringLinks?: {
+    grafana?: string | null;
+    prometheus?: string | null;
+    loki?: string | null;
+  };
+  checks?: {
+    database?: SystemMonitorCheck;
+    redis?: SystemMonitorCheck;
+    celery?: SystemMonitorCeleryCheck;
+  };
+  runtime?: {
+    pipelines?: {
+      activeTotal?: number;
+      byPipelineStatus?: SystemMonitorPipelineStatus[];
+      error?: string;
+    };
+    jobs?: {
+      activeTotal?: number;
+      failedRecent?: number;
+      byState?: SystemMonitorJobState[];
+      error?: string;
+    };
+    progress?: {
+      runningTotal?: number;
+      staleRunningTotal?: number;
+      batchInProgressTotal?: number;
+      contentInProgressTotal?: number;
+      staleRows?: SystemMonitorProgressStaleRow[];
+      error?: string;
+    };
+    sendQueue?: {
+      openTotal?: number;
+      failedTotal?: number;
+      stuckTotal?: number;
+      byChannelStatus?: SystemMonitorQueueStatus[];
+      stuckByChannel?: SystemMonitorStuckChannel[];
+      oldestOpen?: SystemMonitorOldestQueueRow | null;
+      error?: string;
+    };
+    providers?: {
+      failedLast24h?: number;
+      recentFailures?: SystemMonitorProviderFailure[];
+      examples?: SystemMonitorProviderExample[];
+      error?: string;
+    };
+    logs?: {
+      logRoot?: string;
+      files?: SystemMonitorLogFile[];
+      missingServices?: string[];
+    };
+  };
+  warnings?: SystemMonitorWarning[];
+};
+
+export type SystemOperationLogService = {
+  service: string;
+  source?: "file" | "docker" | string;
+  path?: string;
+  exists: boolean;
+  sizeBytes?: number;
+  modifiedAt?: string | null;
+  containerId?: string | null;
+  containerName?: string | null;
+  status?: string | null;
+};
+
+export type SystemOperationLogServicesResponse = {
+  source?: "file" | "docker" | string;
+  enabled?: boolean;
+  reason?: string;
+  error?: string;
+  services: SystemOperationLogService[];
+};
+
+export type SystemOperationLogResponse = {
+  source?: "file" | "docker" | string;
+  enabled?: boolean;
+  service: string;
+  path?: string;
+  exists: boolean;
+  cursor?: number;
+  lines: string[];
+  reason?: string;
+  containerId?: string | null;
+  containerName?: string | null;
+  status?: string | null;
+};
+
+export type SystemOperationIncident = {
+  code: string;
+  severity: string;
+  message: string;
+  campaignId: string;
+  pipeline: string;
+  campaignStatus?: string | null;
+  eventCode?: string | null;
+  progressStatus?: string | null;
+  doneTotal: number;
+  targetTotal: number;
+  updatedAt?: string | null;
+  locks: {
+    contentInProgress?: boolean;
+    contentStartedAt?: string | null;
+    batchInProgress?: boolean;
+    batchStartedAt?: string | null;
+    batchHeartbeatAt?: string | null;
+  };
+  recommendedActions: string[];
+};
+
+export type SystemOperationIncidentsResponse = {
+  generatedAt?: string;
+  incidents: SystemOperationIncident[];
+};
+
+export type SystemOperationRecoveryGuideItem = {
+  code: string;
+  title: string;
+  resolution: string;
+};
+
+export type SystemOperationRecoveryGuideResponse = {
+  items: SystemOperationRecoveryGuideItem[];
+};
+
+export type SystemOperationRecoveryActionResponse = {
+  status: string;
+  action: string;
+  campaignId: string;
+  pipeline?: string;
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
+  changed?: Record<string, unknown>;
+  task?: Record<string, unknown> | null;
+};
+
 type AuthError = Error & {
   status?: number;
   data?: unknown;
@@ -392,4 +619,56 @@ export async function updateAdminEvent(eventId: string, payload: AdminEventUpdat
     body: JSON.stringify(payload),
   });
   return normalizeAdminEvent(data.event);
+}
+
+export async function fetchSystemMonitorSnapshot() {
+  return authRequest<SystemMonitorSnapshot>("/api/admin/system-monitor");
+}
+
+export async function listSystemOperationLogServices() {
+  return authRequest<SystemOperationLogServicesResponse>("/api/admin/system-operations/logs/services?source=docker");
+}
+
+export async function fetchSystemOperationLog(
+  service: string,
+  options: { tail?: number; after?: number | null; source?: "docker" | "file" } = {}
+) {
+  const params = new URLSearchParams();
+  params.set("source", options.source ?? "docker");
+  params.set("tail", String(options.tail ?? 200));
+  if (typeof options.after === "number") params.set("after", String(options.after));
+  return authRequest<SystemOperationLogResponse>(
+    `/api/admin/system-operations/logs/${encodeURIComponent(service)}?${params.toString()}`
+  );
+}
+
+export function buildSystemOperationDockerLogStreamUrl(service: string, tail = 200) {
+  const params = new URLSearchParams({
+    source: "docker",
+    tail: String(tail),
+  });
+  return `${getBaseUrl()}/api/admin/system-operations/logs/${encodeURIComponent(service)}/stream?${params.toString()}`;
+}
+
+export async function listSystemOperationIncidents(limit = 50) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return authRequest<SystemOperationIncidentsResponse>(`/api/admin/system-operations/incidents?${params.toString()}`);
+}
+
+export async function fetchSystemOperationRecoveryGuide() {
+  return authRequest<SystemOperationRecoveryGuideResponse>("/api/admin/system-operations/recovery-guide");
+}
+
+export async function runSystemOperationRecoveryAction(
+  campaignId: string,
+  action: string,
+  payload: { reason: string; dryRun: boolean }
+) {
+  return authRequest<SystemOperationRecoveryActionResponse>(
+    `/api/admin/system-operations/campaigns/${encodeURIComponent(campaignId)}/recovery/${encodeURIComponent(action)}`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
 }
