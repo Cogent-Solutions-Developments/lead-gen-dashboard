@@ -222,6 +222,7 @@ export default function SystemOperationsPage() {
       setLogContainerName(data.containerName || null);
       setLogContainerStatus(data.status || null);
       setLogExists(Boolean(data.exists));
+      setLogLines(Array.isArray(data.lines) ? data.lines.slice(-MAX_LOG_LINES) : []);
     } catch (error: unknown) {
       const message = getErrorMessage(error);
       setLogsError(message);
