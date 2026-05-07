@@ -27,11 +27,11 @@ const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Campaigns", normalLabel: "Events", href: "/campaigns", icon: Rocket },
   { name: "New Campaign", href: "/campaigns/new", icon: Plus, superOnly: true },
-  { name: "Upload Leads", href: "/campaigns/upload", icon: Upload },
+  { name: "Upload Campaign", normalLabel: "Upload Leads", href: "/campaigns/upload", icon: Upload },
   // { name: "Completed", href: "/completed", icon: CheckCircle },
   { name: "Nizo Finder", normalLabel: "Lead Sheet", href: "/leads", icon: TrainFront },
-  { name: "Admin Panel", href: "/admin", icon: ShieldCheck, superOnly: true },
   { name: "NizoAI", href: "/nizo-ai", icon: Brain, salesOnly: true },
+  { name: "Admin Panel", href: "/admin", icon: ShieldCheck, superOnly: true },
 ];
 
 type SidebarProps = {
@@ -180,7 +180,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
       {/* 2. Navigation Items (Scrollable if needed) */}
       <nav className={`flex-1 overflow-y-auto transition-[margin] duration-300 ${isExpanded ? "-mx-10" : "-mx-6"}`}>
         {navItems
-          .filter((item) => (isSuperAdmin || !item.superOnly) && (!item.salesOnly || persona === "sales"))
+          .filter((item) => (isSuperAdmin || !item.superOnly) && (!item.salesOnly || (!isSuperAdmin && persona === "sales")))
           .map((item, index) => {
           const isActive = pathname === item.href;
           return (
@@ -224,7 +224,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
         })}
       </nav>
 
-      {persona === "sales" ? (
+      {!isSuperAdmin && persona === "sales" ? (
         <div className={`${isExpanded ? "-mx-2" : "mx-0"} pb-6 transition-all duration-300`}>
           <motion.div
             initial={{ opacity: 0, y: 16 }}
