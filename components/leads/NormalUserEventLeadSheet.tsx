@@ -315,9 +315,9 @@ function LeadSheetDialog({
         onClick={onClose}
       />
 
-      <div className="relative z-[1] w-full max-w-3xl overflow-hidden border border-zinc-200 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
+      <div className="relative z-[1] w-full max-w-3xl overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
         <div className="relative grid min-h-[34rem] md:grid-cols-[17rem_minmax(0,1fr)]">
-          <aside className="border-b border-zinc-200 bg-zinc-50/70 p-8 md:border-b-0 md:border-r">
+          <aside className="border-b border-zinc-300 bg-zinc-50/70 p-8 md:border-b-0 md:border-r">
             <div>
               <p className="text-sm font-medium text-zinc-400">Lead Sheet Updates</p>
               <h2 className="mt-8 text-4xl font-light leading-none tracking-tighter text-zinc-950">
@@ -329,7 +329,7 @@ function LeadSheetDialog({
             <Button
               type="button"
               variant="ghost"
-              className="absolute right-5 top-5 h-10 w-10 rounded-full border border-zinc-200 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+              className="absolute right-5 top-5 h-10 w-10 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
               onClick={onClose}
             >
               <X className="h-4 w-4" />
@@ -716,7 +716,7 @@ export function NormalUserEventLeadSheet() {
   return (
     <>
       <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
-        <header className="shrink-0 border-b border-zinc-200 pb-12">
+        <header className="shrink-0 border-b border-zinc-300 pb-12">
           <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <Link
@@ -753,7 +753,7 @@ export function NormalUserEventLeadSheet() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-6 border-t border-zinc-200 pt-4">
+              <div className="grid grid-cols-2 gap-6 border-t border-zinc-300 pt-4">
                 <button
                   type="button"
                   className="inline-flex h-10 w-fit items-center justify-start gap-4 border-b border-transparent text-sm font-medium text-zinc-500 transition-all hover:border-zinc-900 hover:text-zinc-950 active:scale-[0.98] disabled:opacity-50"
@@ -788,10 +788,10 @@ export function NormalUserEventLeadSheet() {
               <div className="space-y-5">
                 <label className="text-xs font-medium text-zinc-400">Context registry</label>
                 <Select value={selectedEventKey} onValueChange={handleEventChange}>
-                  <SelectTrigger className="!h-14 w-full rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-lg font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
+                  <SelectTrigger className="!h-14 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
                     <SelectValue placeholder="Select context" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-none border-zinc-200 shadow-xl">
+                  <SelectContent className="rounded-none border-zinc-300 shadow-xl">
                     {events.map((item) => (
                       <SelectItem key={item.canonicalEventKey} value={item.canonicalEventKey}>
                         {item.canonicalEventName}
@@ -803,7 +803,7 @@ export function NormalUserEventLeadSheet() {
 
               <div>
                 <label className="mb-6 block text-xs font-medium text-zinc-400">Search intelligence</label>
-                <div className="relative w-full rounded-full border border-zinc-200 bg-white px-4 py-2 shadow-[0_22px_60px_-52px_rgba(2,10,27,0.42)] transition-colors focus-within:border-zinc-400">
+                <div className="relative w-full rounded-full border border-zinc-300 bg-white px-4 py-2 shadow-[0_22px_60px_-52px_rgba(2,10,27,0.42)] transition-colors focus-within:border-zinc-400">
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                   <input
                     value={searchInput}
@@ -819,7 +819,7 @@ export function NormalUserEventLeadSheet() {
                 <button
                   type="button"
                   onClick={() => setFilterOpen(true)}
-                  className="flex h-11 w-full items-center justify-between rounded-full border border-zinc-200 bg-white px-4 text-left shadow-[0_18px_46px_-42px_rgba(2,10,27,0.42)] transition-colors hover:border-zinc-400"
+                  className="flex h-11 w-full items-center justify-between rounded-full border border-zinc-300 bg-white px-4 text-left shadow-[0_18px_46px_-42px_rgba(2,10,27,0.42)] transition-colors hover:border-zinc-400"
                 >
                   <span className="inline-flex items-center gap-4 text-sm font-light text-zinc-500">
                     <SlidersHorizontal className="h-4 w-4" />
@@ -853,10 +853,10 @@ export function NormalUserEventLeadSheet() {
                     <div className="flex items-center justify-between border-b border-zinc-100 py-4">
                       <span className="text-sm font-light text-zinc-500">Visible range</span>
                       <Select value={String(pageSize)} onValueChange={(value) => handlePageSizeChange(Number(value))}>
-                        <SelectTrigger className="h-9 w-16 justify-end gap-1 rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-xl font-light tabular-nums tracking-tight text-zinc-950 shadow-none transition-colors focus:border-blue-600 focus:ring-0 [&>svg]:ml-0">
+                        <SelectTrigger className="h-9 w-16 justify-end gap-1 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-xl font-light tabular-nums tracking-tight text-zinc-950 shadow-none transition-colors focus:border-blue-600 focus:ring-0 [&>svg]:ml-0">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent align="end" className="rounded-none border-zinc-200 shadow-xl">
+                        <SelectContent align="end" className="rounded-none border-zinc-300 shadow-xl">
                           {PAGE_SIZE_OPTIONS.map((option) => (
                             <SelectItem key={option} value={String(option)} className="py-2.5 text-sm">
                               {option}
@@ -871,7 +871,7 @@ export function NormalUserEventLeadSheet() {
             </div>
           </aside>
 
-          <main className="flex min-h-0 flex-col overflow-hidden xl:border-l xl:border-zinc-200 xl:pl-16">
+          <main className="flex min-h-0 flex-col overflow-hidden xl:border-l xl:border-zinc-300 xl:pl-16">
             <div className="min-h-0 flex-1 overflow-auto pr-4 scrollbar-modern">
               {isLoading ? (
                 <div className="flex h-40 items-center justify-center text-zinc-400 font-light">
@@ -884,7 +884,7 @@ export function NormalUserEventLeadSheet() {
                 </div>
               ) : (
                 <div className="w-full">
-                  <div className="grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-200 py-3 text-sm font-light text-zinc-500">
+                  <div className="grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-3 text-sm font-light text-zinc-500">
                     <div>Identity details</div>
                     <div>Contact channels</div>
                     <div>Status</div>
@@ -904,7 +904,7 @@ export function NormalUserEventLeadSheet() {
                           key={updateKey}
                           ref={isTargetLead ? targetLeadRowRef : undefined}
                           id={`lead-${item.id}`}
-                          className={`group grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-200 py-6 transition-all duration-300 ${
+                          className={`group grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-6 transition-all duration-300 ${
                             isTargetLead ? "bg-blue-50/35" : "hover:bg-zinc-50/60"
                           }`}
                         >
@@ -913,7 +913,7 @@ export function NormalUserEventLeadSheet() {
                               <div className="flex items-center gap-5">
                                 <span className="text-xl font-light tracking-tight text-zinc-950">{item.employeeName || "-"}</span>
                                 {item.isManualLead && (
-                                  <span className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-xs font-medium text-zinc-500">Manual</span>
+                                  <span className="rounded-full border border-zinc-300 bg-white px-2 py-0.5 text-xs font-medium text-zinc-500">Manual</span>
                                 )}
                               </div>
                               <span className="max-w-sm text-base font-light leading-relaxed text-zinc-700">{item.title || "-"}</span>
@@ -978,10 +978,10 @@ export function NormalUserEventLeadSheet() {
                                   onValueChange={(value) => handleStatusSelection(item, value)}
                                     disabled={isUpdating}
                                   >
-                                    <SelectTrigger className="h-10 w-full rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-base font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
+                                    <SelectTrigger className="h-10 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-base font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
                                       <SelectValue placeholder={item.workflowStatusLabel} />
                                     </SelectTrigger>
-                                    <SelectContent className="rounded-none border-zinc-200 shadow-2xl">
+                                    <SelectContent className="rounded-none border-zinc-300 shadow-2xl">
                                       {statusOptions.map((option) => (
                                         <SelectItem key={option.statusKey} value={option.statusKey} className="text-xs py-2.5">
                                           <span className="flex items-center gap-3">
@@ -1017,7 +1017,7 @@ export function NormalUserEventLeadSheet() {
                 <Button
                   variant="ghost"
                   aria-label="Previous page"
-                  className="h-11 w-11 rounded-full border border-zinc-200 bg-white p-0 text-zinc-500 shadow-none transition-all hover:border-zinc-900 hover:bg-white hover:text-zinc-950 disabled:opacity-30"
+                  className="h-11 w-11 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none transition-all hover:border-zinc-900 hover:bg-white hover:text-zinc-950 disabled:opacity-30"
                   onClick={() => setPageOffset((prev) => Math.max(0, prev - pageSize))}
                   disabled={pageOffset === 0 || loadingLeads}
                 >
@@ -1026,7 +1026,7 @@ export function NormalUserEventLeadSheet() {
                 <Button
                   variant="ghost"
                   aria-label="Next page"
-                  className="h-11 w-11 rounded-full border border-zinc-950 bg-transparent p-0 text-zinc-950 shadow-none transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white disabled:border-zinc-200 disabled:text-zinc-300 disabled:opacity-100"
+                  className="h-11 w-11 rounded-full border border-zinc-950 bg-transparent p-0 text-zinc-950 shadow-none transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white disabled:border-zinc-300 disabled:text-zinc-300 disabled:opacity-100"
                   onClick={() => setPageOffset((prev) => prev + pageSize)}
                   disabled={!hasMore || loadingLeads}
                 >
@@ -1047,8 +1047,8 @@ export function NormalUserEventLeadSheet() {
             onClick={() => setFilterOpen(false)}
           />
 
-          <div className="relative z-[1] grid w-full max-w-4xl overflow-hidden border border-zinc-200 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)] md:grid-cols-[18rem_minmax(0,1fr)]">
-            <aside className="border-b border-zinc-200 bg-white p-8 md:border-b-0 md:border-r">
+          <div className="relative z-[1] grid w-full max-w-4xl overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)] md:grid-cols-[18rem_minmax(0,1fr)]">
+            <aside className="border-b border-zinc-300 bg-white p-8 md:border-b-0 md:border-r">
               <p className="text-sm font-medium text-zinc-400">Lead Sheet Updates</p>
               <h2 className="mt-8 text-4xl font-light leading-none tracking-tighter text-zinc-950">
                 Intelligence Filters
@@ -1062,7 +1062,7 @@ export function NormalUserEventLeadSheet() {
               <Button
                 type="button"
                 variant="ghost"
-                className="absolute right-5 top-5 h-10 w-10 rounded-full border border-zinc-200 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                className="absolute right-5 top-5 h-10 w-10 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
                 onClick={() => setFilterOpen(false)}
               >
                 <X className="h-4 w-4" />
@@ -1075,10 +1075,10 @@ export function NormalUserEventLeadSheet() {
                     value={filters.status}
                     onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}
                   >
-                    <SelectTrigger className="!h-12 w-full rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-lg font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
+                    <SelectTrigger className="!h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
                       <SelectValue placeholder="All statuses" />
                     </SelectTrigger>
-                    <SelectContent position="popper" className="z-[120] rounded-none border-zinc-200 bg-white shadow-2xl">
+                    <SelectContent position="popper" className="z-[120] rounded-none border-zinc-300 bg-white shadow-2xl">
                       <SelectItem value="all">
                         <span className="flex items-center gap-3">
                           <span className="ml-1 h-2.5 w-2.5 shrink-0 rounded-full bg-zinc-300" />
@@ -1121,7 +1121,7 @@ export function NormalUserEventLeadSheet() {
                         className={`inline-flex h-10 items-center rounded-full border px-4 text-sm font-semibold transition-all ${
                           filters.contact === option.value
                             ? "border-blue-600 bg-white text-blue-600 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.85)]"
-                            : "border-zinc-200 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
+                            : "border-zinc-300 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
                         }`}
                       >
                         {option.label}
@@ -1150,7 +1150,7 @@ export function NormalUserEventLeadSheet() {
                         className={`inline-flex h-10 items-center rounded-full border px-4 text-sm font-semibold transition-all ${
                           filters.source === option.value
                             ? "border-blue-600 bg-white text-blue-600 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.85)]"
-                            : "border-zinc-200 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
+                            : "border-zinc-300 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
                         }`}
                       >
                         {option.label}
@@ -1200,7 +1200,7 @@ export function NormalUserEventLeadSheet() {
               value={addLeadForm.fullName}
               onChange={(event) => updateAddLeadField("fullName", event.target.value)}
               placeholder="Lead name"
-              className="h-12 rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
             />
           </div>
 
@@ -1212,7 +1212,7 @@ export function NormalUserEventLeadSheet() {
               value={addLeadForm.title}
               onChange={(event) => updateAddLeadField("title", event.target.value)}
               placeholder="Job title"
-              className="h-12 rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
             />
           </div>
 
@@ -1224,7 +1224,7 @@ export function NormalUserEventLeadSheet() {
               value={addLeadForm.companyName}
               onChange={(event) => updateAddLeadField("companyName", event.target.value)}
               placeholder="Company"
-              className="h-12 rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
             />
           </div>
 
@@ -1236,7 +1236,7 @@ export function NormalUserEventLeadSheet() {
               value={addLeadForm.companyUrl}
               onChange={(event) => updateAddLeadField("companyUrl", event.target.value)}
               placeholder="https://company.com"
-              className="h-12 rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
             />
           </div>
 
@@ -1248,7 +1248,7 @@ export function NormalUserEventLeadSheet() {
               value={addLeadForm.email}
               onChange={(event) => updateAddLeadField("email", event.target.value)}
               placeholder="name@company.com"
-              className="h-12 rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
             />
           </div>
 
@@ -1260,7 +1260,7 @@ export function NormalUserEventLeadSheet() {
               value={addLeadForm.phone}
               onChange={(event) => updateAddLeadField("phone", event.target.value)}
               placeholder="+60 ..."
-              className="h-12 rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
             />
           </div>
 
@@ -1272,7 +1272,7 @@ export function NormalUserEventLeadSheet() {
               value={addLeadForm.linkedinUrl}
               onChange={(event) => updateAddLeadField("linkedinUrl", event.target.value)}
               placeholder="https://linkedin.com/in/..."
-              className="h-12 rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
             />
           </div>
         </div>

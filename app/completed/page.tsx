@@ -51,7 +51,7 @@ export default function CompletedPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
           >
-            <Card className="group overflow-hidden rounded-xl border border-zinc-200 bg-white transition-all hover:border-zinc-300 hover:shadow-sm">
+            <Card className="group overflow-hidden rounded-xl border border-zinc-300 bg-white transition-all hover:border-zinc-300 hover:shadow-sm">
               
               {/* Main Body */}
               <div className="p-6">
@@ -66,7 +66,7 @@ export default function CompletedPage() {
                     <p className="text-sm text-zinc-500 mt-1">{campaign.event}</p>
                     
                     <div className="flex items-center gap-3 mt-3">
-                      <Badge className="bg-zinc-100 text-zinc-600 border-zinc-200 rounded-md px-2 py-0.5 text-[10px] uppercase tracking-wider shadow-none">
+                      <Badge className="bg-zinc-100 text-zinc-600 border-zinc-300 rounded-md px-2 py-0.5 text-[10px] uppercase tracking-wider shadow-none">
                         Completed
                       </Badge>
                       <span className="flex items-center gap-1.5 text-xs font-medium text-zinc-400">
@@ -83,7 +83,7 @@ export default function CompletedPage() {
                 
                 {/* Metric: Total Leads */}
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-white border border-zinc-200 rounded-lg text-zinc-400">
+                    <div className="p-2 bg-white border border-zinc-300 rounded-lg text-zinc-400">
                         <Users className="h-4 w-4" />
                     </div>
                     <div className="flex flex-col">
@@ -98,7 +98,7 @@ export default function CompletedPage() {
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="h-9 bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 hover:border-zinc-300"
+                      className="h-9 bg-white border-zinc-300 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 hover:border-zinc-300"
                     >
                       <Eye className="mr-2 h-3.5 w-3.5" />
                       View
@@ -107,7 +107,7 @@ export default function CompletedPage() {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="h-9 bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 hover:border-zinc-300"
+                    className="h-9 bg-white border-zinc-300 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 hover:border-zinc-300"
                   >
                     <Download className="mr-2 h-3.5 w-3.5" />
                     Export

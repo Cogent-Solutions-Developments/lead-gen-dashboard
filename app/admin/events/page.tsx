@@ -97,7 +97,7 @@ function AdminEventDialog({
         onClick={onClose}
       />
 
-      <div className="relative z-[1] w-full max-w-xl overflow-hidden rounded-2xl border border-zinc-200/85 bg-white/96 shadow-[0_0_0_1px_rgba(255,255,255,0.9),0_24px_40px_-24px_rgba(2,10,27,0.6),0_12px_22px_-16px_rgba(15,23,42,0.34)] backdrop-blur-[10px]">
+      <div className="relative z-[1] w-full max-w-xl overflow-hidden rounded-2xl border border-zinc-300/85 bg-white/96 shadow-[0_0_0_1px_rgba(255,255,255,0.9),0_24px_40px_-24px_rgba(2,10,27,0.6),0_12px_22px_-16px_rgba(15,23,42,0.34)] backdrop-blur-[10px]">
         <div className="pointer-events-none absolute -right-14 -top-16 h-44 w-44 rounded-full bg-gradient-to-br from-sky-200/50 via-blue-300/25 to-transparent blur-3xl" />
         <div className="pointer-events-none absolute -left-14 bottom-0 h-32 w-32 rounded-full bg-gradient-to-tr from-zinc-100/70 to-transparent blur-2xl" />
 
@@ -160,7 +160,7 @@ function StateChangeConfirmDialog({
         onClick={onClose}
       />
 
-      <div className="relative z-[1] w-full max-w-md overflow-hidden rounded-2xl border border-zinc-200/85 bg-white/96 shadow-[0_0_0_1px_rgba(255,255,255,0.9),0_24px_40px_-24px_rgba(2,10,27,0.6),0_12px_22px_-16px_rgba(15,23,42,0.34)] backdrop-blur-[10px]">
+      <div className="relative z-[1] w-full max-w-md overflow-hidden rounded-2xl border border-zinc-300/85 bg-white/96 shadow-[0_0_0_1px_rgba(255,255,255,0.9),0_24px_40px_-24px_rgba(2,10,27,0.6),0_12px_22px_-16px_rgba(15,23,42,0.34)] backdrop-blur-[10px]">
         <div className="pointer-events-none absolute -right-14 -top-16 h-44 w-44 rounded-full bg-gradient-to-br from-sky-200/50 via-blue-300/25 to-transparent blur-3xl" />
         <div className="pointer-events-none absolute -left-14 bottom-0 h-32 w-32 rounded-full bg-gradient-to-tr from-zinc-100/70 to-transparent blur-2xl" />
 
@@ -183,7 +183,7 @@ function StateChangeConfirmDialog({
             </div>
           </div>
 
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50/80 p-4 text-sm leading-relaxed text-zinc-600">
+          <div className="rounded-xl border border-zinc-300 bg-zinc-50/80 p-4 text-sm leading-relaxed text-zinc-600">
             {detail}
           </div>
 
@@ -193,7 +193,7 @@ function StateChangeConfirmDialog({
               variant="ghost"
               disabled={isBusy}
               onClick={onClose}
-              className="h-9 rounded-md border border-zinc-200/80 bg-white/90 px-3 text-xs font-semibold text-zinc-700 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:opacity-60"
+              className="h-9 rounded-md border border-zinc-300/80 bg-white/90 px-3 text-xs font-semibold text-zinc-700 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:opacity-60"
             >
               Cancel
             </Button>
@@ -447,7 +447,7 @@ export default function AdminEventsPage() {
             <Button
               type="button"
               variant="outline"
-              className="h-10 border-zinc-200 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
+              className="h-10 border-zinc-300 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
             >
               <UsersRound className="mr-2 h-4 w-4" />
               Users
@@ -458,7 +458,7 @@ export default function AdminEventsPage() {
             <Button
               type="button"
               variant="outline"
-              className="h-10 border-zinc-200 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
+              className="h-10 border-zinc-300 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Workspaces
@@ -485,13 +485,13 @@ export default function AdminEventsPage() {
               { label: "Active Events", value: stats.active, icon: ShieldCheck },
               { label: "Inactive Events", value: stats.inactive, icon: CalendarDays },
             ].map((item) => (
-              <Card key={item.label} className="rounded-2xl border border-zinc-200 bg-white/86 p-4">
+              <Card key={item.label} className="rounded-2xl border border-zinc-300 bg-white/86 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{item.label}</p>
                     <p className="mt-2 text-2xl font-semibold tracking-tight text-zinc-900">{item.value}</p>
                   </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-700">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-300 bg-zinc-50 text-zinc-700">
                     <item.icon className="h-5 w-5" />
                   </div>
                 </div>
@@ -499,7 +499,7 @@ export default function AdminEventsPage() {
             ))}
           </div>
 
-          <Card className="overflow-hidden rounded-2xl border border-zinc-200/85 bg-white/82">
+          <Card className="overflow-hidden rounded-2xl border border-zinc-300/85 bg-white/82">
             <div className="flex flex-col gap-3 border-b border-zinc-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-base font-semibold text-zinc-900">Registered Events</h2>
@@ -560,14 +560,14 @@ export default function AdminEventsPage() {
                             >
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="border-zinc-200 bg-white">
+                            <SelectContent className="border-zinc-300 bg-white">
                               <SelectItem value="active">Active</SelectItem>
                               <SelectItem value="inactive">Inactive</SelectItem>
                             </SelectContent>
                           </Select>
                         </td>
                         <td className="px-5 py-4">
-                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-medium text-zinc-600">
+                          <span className="rounded-full border border-zinc-300 bg-zinc-50 px-2.5 py-1 text-[11px] font-medium text-zinc-600">
                             {item.eventKey}
                           </span>
                         </td>
@@ -577,7 +577,7 @@ export default function AdminEventsPage() {
                             variant="outline"
                             onClick={() => openEditDialog(item)}
                             disabled={isBusy}
-                            className="h-8 border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                            className="h-8 border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
                           >
                             <PencilLine className="mr-1.5 h-3.5 w-3.5" />
                             Edit
@@ -592,7 +592,7 @@ export default function AdminEventsPage() {
           </Card>
         </div>
 
-        <Card className="h-fit rounded-2xl border border-zinc-200 bg-white/88 p-5">
+        <Card className="h-fit rounded-2xl border border-zinc-300 bg-white/88 p-5">
           <div className="mb-5 flex items-start justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold text-zinc-900">Create Event</h2>
@@ -612,7 +612,7 @@ export default function AdminEventsPage() {
                 value={eventName}
                 onChange={(event) => setEventName(event.target.value)}
                 placeholder="AMICT Malaysia"
-                className="h-10 border-zinc-200 bg-white"
+                className="h-10 border-zinc-300 bg-white"
               />
             </div>
 
@@ -622,7 +622,7 @@ export default function AdminEventsPage() {
                 value={location}
                 onChange={(event) => setLocation(event.target.value)}
                 placeholder="Kuala Lumpur, Malaysia"
-                className="h-10 border-zinc-200 bg-white"
+                className="h-10 border-zinc-300 bg-white"
               />
             </div>
 
@@ -632,11 +632,11 @@ export default function AdminEventsPage() {
                 type="date"
                 value={date}
                 onChange={(event) => setDate(event.target.value)}
-                className="h-10 border-zinc-200 bg-white"
+                className="h-10 border-zinc-300 bg-white"
               />
             </div>
 
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-4">
+            <div className="rounded-xl border border-zinc-300 bg-zinc-50/70 p-4">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Generated Event Key</p>
               <p className="mt-2 break-all text-sm font-medium text-zinc-700">
                 {generatedEventKey || "Event key preview will appear here"}
@@ -646,7 +646,7 @@ export default function AdminEventsPage() {
               </p>
             </div>
 
-            <div className="rounded-xl border border-zinc-200 bg-white/80 p-4 text-xs leading-relaxed text-zinc-500">
+            <div className="rounded-xl border border-zinc-300 bg-white/80 p-4 text-xs leading-relaxed text-zinc-500">
               Only event name, location, and date are stored here. Category stays campaign-specific and will be filled during campaign creation.
             </div>
 
@@ -686,7 +686,7 @@ export default function AdminEventsPage() {
                 value={editEventName}
                 onChange={(event) => setEditEventName(event.target.value)}
                 placeholder="AMICT Malaysia"
-                className="h-10 border-zinc-200 bg-white"
+                className="h-10 border-zinc-300 bg-white"
               />
             </div>
 
@@ -696,7 +696,7 @@ export default function AdminEventsPage() {
                 value={editLocation}
                 onChange={(event) => setEditLocation(event.target.value)}
                 placeholder="Kuala Lumpur, Malaysia"
-                className="h-10 border-zinc-200 bg-white"
+                className="h-10 border-zinc-300 bg-white"
               />
             </div>
 
@@ -706,7 +706,7 @@ export default function AdminEventsPage() {
                 type="date"
                 value={editDate}
                 onChange={(event) => setEditDate(event.target.value)}
-                className="h-10 border-zinc-200 bg-white"
+                className="h-10 border-zinc-300 bg-white"
               />
             </div>
           </div>
@@ -714,24 +714,24 @@ export default function AdminEventsPage() {
           <div className="space-y-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Status</label>
             <Select value={editStatus} onValueChange={(value) => setEditStatus(value as EventStatusValue)}>
-              <SelectTrigger className="h-10 border-zinc-200 bg-white">
+              <SelectTrigger className="h-10 border-zinc-300 bg-white">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="border-zinc-200 bg-white">
+              <SelectContent className="border-zinc-300 bg-white">
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-4 text-sm leading-relaxed text-zinc-600">
+          <div className="rounded-xl border border-zinc-300 bg-zinc-50/70 p-4 text-sm leading-relaxed text-zinc-600">
             Updating name, location, or date here will also refresh the linked campaign snapshots automatically.
             <span className="mt-1 block text-xs text-zinc-500">
               Status changes still apply only to the registry record itself.
             </span>
           </div>
 
-          <div className="rounded-xl border border-zinc-200 bg-white/80 p-4 text-xs leading-relaxed text-zinc-500">
+          <div className="rounded-xl border border-zinc-300 bg-white/80 p-4 text-xs leading-relaxed text-zinc-500">
             The event key stays stable here and is not edited from the UI, so event mapping remains consistent while details are updated.
           </div>
 
@@ -741,7 +741,7 @@ export default function AdminEventsPage() {
               variant="ghost"
               disabled={editSaving}
               onClick={() => closeEditDialog()}
-              className="h-10 border border-zinc-200 bg-white px-4 text-zinc-700 hover:bg-zinc-50"
+              className="h-10 border border-zinc-300 bg-white px-4 text-zinc-700 hover:bg-zinc-50"
             >
               Cancel
             </Button>

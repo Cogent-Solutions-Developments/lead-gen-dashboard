@@ -997,7 +997,7 @@ function SuperAdminTotalLeads() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => void handleRefresh()} className="h-10 border-zinc-200/90 bg-white/82 text-zinc-700 shadow-none hover:border-zinc-300 hover:bg-white" disabled={refreshing}>
+            <Button variant="outline" onClick={() => void handleRefresh()} className="h-10 border-zinc-300/90 bg-white/82 text-zinc-700 shadow-none hover:border-zinc-300 hover:bg-white" disabled={refreshing}>
               <RefreshCcw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
               Refresh
             </Button>
@@ -1017,15 +1017,15 @@ function SuperAdminTotalLeads() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search anything: name, title, company, event, email, phone, domain..."
-                className="h-9 border-zinc-200/85 bg-white/90 pl-8 text-sm"
+                className="h-9 border-zinc-300/85 bg-white/90 pl-8 text-sm"
               />
             </div>
 
             <Select value={eventFilter} onValueChange={setEventFilter}>
-              <SelectTrigger size="sm" className="h-9 min-w-[10rem] border-zinc-200/80 bg-white/90 text-xs font-semibold shadow-none">
+              <SelectTrigger size="sm" className="h-9 min-w-[10rem] border-zinc-300/80 bg-white/90 text-xs font-semibold shadow-none">
                 <SelectValue placeholder="All Events" />
               </SelectTrigger>
-              <SelectContent align="end" className="border-zinc-200 bg-white/96 backdrop-blur-[10px]">
+              <SelectContent align="end" className="border-zinc-300 bg-white/96 backdrop-blur-[10px]">
                 <SelectItem value="all">All Events</SelectItem>
                 {eventOptions.map((eventOption) => (
                   <SelectItem key={eventOption.value} value={eventOption.value}>
@@ -1036,10 +1036,10 @@ function SuperAdminTotalLeads() {
             </Select>
 
             <Select value={positionFilter} onValueChange={setPositionFilter}>
-              <SelectTrigger size="sm" className="h-9 min-w-[8rem] border-zinc-200/80 bg-white/90 text-xs font-semibold shadow-none">
+              <SelectTrigger size="sm" className="h-9 min-w-[8rem] border-zinc-300/80 bg-white/90 text-xs font-semibold shadow-none">
                 <SelectValue placeholder="All Positions" />
               </SelectTrigger>
-              <SelectContent align="end" className="border-zinc-200 bg-white/96 backdrop-blur-[10px]">
+              <SelectContent align="end" className="border-zinc-300 bg-white/96 backdrop-blur-[10px]">
                 <SelectItem value="all">All Positions</SelectItem>
                 {positionOptions.map((p) => (
                   <SelectItem key={p} value={p}>{p}</SelectItem>
@@ -1048,10 +1048,10 @@ function SuperAdminTotalLeads() {
             </Select>
 
             <Select value={sortBy} onValueChange={(value: SortBy) => setSortBy(value)}>
-              <SelectTrigger size="sm" className="h-9 min-w-[8.5rem] border-zinc-200/80 bg-white/90 text-xs font-semibold shadow-none">
+              <SelectTrigger size="sm" className="h-9 min-w-[8.5rem] border-zinc-300/80 bg-white/90 text-xs font-semibold shadow-none">
                 <SelectValue placeholder="Sort" />
               </SelectTrigger>
-              <SelectContent align="end" className="border-zinc-200 bg-white/96 backdrop-blur-[10px]">
+              <SelectContent align="end" className="border-zinc-300 bg-white/96 backdrop-blur-[10px]">
                 <SelectItem value="relevance">Relevance</SelectItem>
                 <SelectItem value="name_asc">Name A-Z</SelectItem>
                 <SelectItem value="name_desc">Name Z-A</SelectItem>
@@ -1062,20 +1062,20 @@ function SuperAdminTotalLeads() {
               </SelectContent>
             </Select>
 
-            <Button type="button" variant="outline" onClick={() => setIsAdvancedOpen((prev) => !prev)} className="h-9 border-zinc-200 text-zinc-700">
+            <Button type="button" variant="outline" onClick={() => setIsAdvancedOpen((prev) => !prev)} className="h-9 border-zinc-300 text-zinc-700">
               <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
               Filters
               {advancedFilterCount > 0 ? <span className="ml-1 text-[10px]">({advancedFilterCount})</span> : null}
             </Button>
 
-            <Button type="button" variant="outline" onClick={resetFilters} className="h-9 border-zinc-200 text-zinc-700">
+            <Button type="button" variant="outline" onClick={resetFilters} className="h-9 border-zinc-300 text-zinc-700">
               <X className="mr-1.5 h-3.5 w-3.5" />
               Reset
             </Button>
           </div>
 
           {isAdvancedOpen && (
-            <div className="mt-3 rounded-xl border border-zinc-200/85 bg-white/92 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_8px_16px_-14px_rgba(2,10,27,0.34)] backdrop-blur-[6px]">
+            <div className="mt-3 rounded-xl border border-zinc-300/85 bg-white/92 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_8px_16px_-14px_rgba(2,10,27,0.34)] backdrop-blur-[6px]">
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Name</label>
@@ -1150,7 +1150,7 @@ function SuperAdminTotalLeads() {
                 </div>
               </div>
 
-              <div className="mt-3 flex items-center justify-between border-t border-zinc-200/80 pt-2.5">
+              <div className="mt-3 flex items-center justify-between border-t border-zinc-300/80 pt-2.5">
                 <p className="text-[11px] text-zinc-500">
                   {advancedFilterCount > 0 ? `${advancedFilterCount} advanced filters active` : "No advanced filters active"}
                 </p>
@@ -1172,16 +1172,16 @@ function SuperAdminTotalLeads() {
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold text-zinc-900">Lead Explorer</h2>
             {activeFilterCount > 0 ? (
-              <Badge className="rounded-full border border-zinc-200/80 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600 shadow-none">
+              <Badge className="rounded-full border border-zinc-300/80 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600 shadow-none">
                 {activeFilterCount} active
               </Badge>
             ) : null}
           </div>
           <div className="flex items-center gap-1.5">
-            <Badge className="rounded-md border border-zinc-200/80 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-zinc-500 shadow-none">
+            <Badge className="rounded-md border border-zinc-300/80 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-zinc-500 shadow-none">
               Total {totalLeads}
             </Badge>
-            <Badge className="rounded-md border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-zinc-500 shadow-none">
+            <Badge className="rounded-md border border-zinc-300/80 bg-zinc-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-zinc-500 shadow-none">
               On Page {filteredLeads.length}
             </Badge>
           </div>
@@ -1243,7 +1243,7 @@ function SuperAdminTotalLeads() {
                       <span className="block text-sm font-semibold text-zinc-900">{item.employeeName || "-"}</span>
                       {item.isManualLead ? (
                         <div className="mt-1 space-y-1">
-                          <span className="inline-flex w-fit rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                          <span className="inline-flex w-fit rounded-full border border-zinc-300 bg-zinc-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                             Manual Lead
                           </span>
                           <span className="block text-[11px] text-zinc-400">
@@ -1342,7 +1342,7 @@ function SuperAdminTotalLeads() {
                           variant="ghost"
                           size="icon"
                           onClick={() => void handleCopyLeadDetails(item)}
-                          className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-500 shadow-none hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+                          className="h-8 w-8 rounded-md border border-zinc-300/80 bg-white/82 text-zinc-500 shadow-none hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
                           title={isReadOnly ? "Suppressed lead is read-only" : "Copy lead details"}
                           disabled={isReadOnly}
                         >
@@ -1353,7 +1353,7 @@ function SuperAdminTotalLeads() {
                           variant="ghost"
                           size="icon"
                           onClick={() => openDisableLeadConfirm(item)}
-                          className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-400 shadow-none hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 disabled:cursor-not-allowed disabled:opacity-45"
+                          className="h-8 w-8 rounded-md border border-zinc-300/80 bg-white/82 text-zinc-400 shadow-none hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 disabled:cursor-not-allowed disabled:opacity-45"
                           title={
                             !hasValue(item.phone) && !hasValue(item.email)
                               ? "Lead has no phone or email"
@@ -1382,7 +1382,7 @@ function SuperAdminTotalLeads() {
               </span>
 
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <label className="inline-flex items-center gap-2 rounded-md border border-zinc-200/80 bg-white/82 px-2.5 py-1.5 text-[11px] font-medium text-zinc-600">
+              <label className="inline-flex items-center gap-2 rounded-md border border-zinc-300/80 bg-white/82 px-2.5 py-1.5 text-[11px] font-medium text-zinc-600">
                 <span>Rows per page</span>
                 <Select
                   value={String(itemsPerPage)}
@@ -1391,10 +1391,10 @@ function SuperAdminTotalLeads() {
                     if (!Number.isNaN(next)) setItemsPerPage(next);
                   }}
                 >
-                  <SelectTrigger size="sm" className="h-7 min-w-[4.25rem] border-zinc-200/80 bg-white/95 px-2 text-[11px] font-semibold text-zinc-800 shadow-none">
+                  <SelectTrigger size="sm" className="h-7 min-w-[4.25rem] border-zinc-300/80 bg-white/95 px-2 text-[11px] font-semibold text-zinc-800 shadow-none">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent align="end" className="border-zinc-200 bg-white/96 backdrop-blur-[10px]">
+                  <SelectContent align="end" className="border-zinc-300 bg-white/96 backdrop-blur-[10px]">
                     {PAGE_SIZE_OPTIONS.map((size) => (
                       <SelectItem key={size} value={String(size)} className="text-xs">
                         {size}
@@ -1406,7 +1406,7 @@ function SuperAdminTotalLeads() {
 
               <span className="text-[11px] text-zinc-500">Page {currentPage} / {totalPages}</span>
 
-              <Button type="button" variant="outline" onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))} disabled={currentPage === 1} className="h-8 border-zinc-200/80 bg-white/82 px-2 text-zinc-600 shadow-none disabled:opacity-40">
+              <Button type="button" variant="outline" onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))} disabled={currentPage === 1} className="h-8 border-zinc-300/80 bg-white/82 px-2 text-zinc-600 shadow-none disabled:opacity-40">
                 <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
 
@@ -1418,14 +1418,14 @@ function SuperAdminTotalLeads() {
                   className={`h-8 min-w-8 rounded-md border px-2 text-xs font-semibold transition-colors ${
                     pageNum === currentPage
                       ? "border-zinc-300 bg-zinc-900 text-white"
-                      : "border-zinc-200/80 bg-white/82 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
+                      : "border-zinc-300/80 bg-white/82 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
                   }`}
                 >
                   {pageNum}
                 </button>
               ))}
 
-              <Button type="button" variant="outline" onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className="h-8 border-zinc-200/80 bg-white/82 px-2 text-zinc-600 shadow-none disabled:opacity-40">
+              <Button type="button" variant="outline" onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className="h-8 border-zinc-300/80 bg-white/82 px-2 text-zinc-600 shadow-none disabled:opacity-40">
                 <ChevronRight className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -1439,7 +1439,7 @@ function SuperAdminTotalLeads() {
           onMouseDown={closeDisableLeadConfirm}
         >
           <div
-            className="w-full max-w-md overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-2xl"
+            className="w-full max-w-md overflow-hidden rounded-xl border border-zinc-300 bg-white shadow-2xl"
             onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="border-b border-zinc-100 bg-zinc-50/60 px-6 py-4">
@@ -1463,7 +1463,7 @@ function SuperAdminTotalLeads() {
                   onChange={(event) => setDisableReason(event.target.value)}
                   placeholder="Optional note for why this lead is being opted out"
                   rows={4}
-                  className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 outline-none transition focus:border-zinc-300 focus:ring-1 focus:ring-zinc-200"
+                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 outline-none transition focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300"
                 />
               </div>
             </div>
@@ -1471,7 +1471,7 @@ function SuperAdminTotalLeads() {
             <div className="flex justify-end gap-2 border-t border-zinc-100 bg-zinc-50/50 px-6 py-4">
               <Button
                 variant="outline"
-                className="border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+                className="border-zinc-300 text-zinc-700 hover:bg-zinc-50"
                 onClick={closeDisableLeadConfirm}
                 disabled={isDisablingLead}
               >
@@ -1525,10 +1525,10 @@ function SuperAdminTotalLeads() {
                 onDrop={onDrop}
                 className={[
                   "rounded-xl border border-dashed p-6 text-center transition-colors",
-                  dragOver ? "border-zinc-900 bg-zinc-50" : "border-zinc-200 bg-white",
+                  dragOver ? "border-zinc-900 bg-zinc-50" : "border-zinc-300 bg-white",
                 ].join(" ")}
               >
-                <div className="mx-auto h-12 w-12 rounded-xl border border-zinc-200 bg-white flex items-center justify-center">
+                <div className="mx-auto h-12 w-12 rounded-xl border border-zinc-300 bg-white flex items-center justify-center">
                   <UploadCloud className="h-6 w-6 text-zinc-500" />
                 </div>
                 <p className="mt-3 text-sm font-semibold text-zinc-900">Drag and drop files here</p>
@@ -1547,7 +1547,7 @@ function SuperAdminTotalLeads() {
 
                 <Button
                   variant="outline"
-                  className="mt-4 border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+                  className="mt-4 border-zinc-300 text-zinc-700 hover:bg-zinc-50"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
                 >
@@ -1589,7 +1589,7 @@ function SuperAdminTotalLeads() {
             </div>
 
             <div className="px-6 py-4 border-t border-zinc-100 bg-zinc-50/50 flex justify-end gap-2">
-              <Button variant="outline" className="border-zinc-200 text-zinc-700 hover:bg-zinc-50" onClick={() => setUploadOpen(false)} disabled={uploading}>
+              <Button variant="outline" className="border-zinc-300 text-zinc-700 hover:bg-zinc-50" onClick={() => setUploadOpen(false)} disabled={uploading}>
                 Cancel
               </Button>
 

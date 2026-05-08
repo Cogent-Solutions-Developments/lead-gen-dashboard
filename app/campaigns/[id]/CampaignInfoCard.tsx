@@ -27,7 +27,7 @@ type InfoItemProps = {
 
 function InfoItem({ label, value, icon: Icon }: InfoItemProps) {
   return (
-    <div className="rounded-xl border border-zinc-200/90 bg-white/84 px-3 py-2.5">
+    <div className="rounded-xl border border-zinc-300/90 bg-white/84 px-3 py-2.5">
       <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
         <Icon className="h-3.5 w-3.5" />
         {label}

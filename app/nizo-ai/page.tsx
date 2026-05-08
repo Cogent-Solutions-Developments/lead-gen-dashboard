@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Genos } from "next/font/google";
 import { motion, AnimatePresence } from "framer-motion";
@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import {
   listEventLeads,
   listEvents,
@@ -25,7 +24,7 @@ import {
   type EventLeadListItem,
   type EventSummaryItem,
   type LeadItem,
-} from "@/lib/api";
+} from "@/lib/apiRouter";
 import {
   parseNizoSearch,
   searchNizoEvents,
@@ -35,7 +34,6 @@ import {
   type NizoScoredEvent,
   type NizoScoredLead,
 } from "@/lib/nizoAiSearch";
-import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 
 const RESULTS_PER_PAGE = 15;
@@ -271,8 +269,7 @@ function fallbackEventKeysByLocation(parsedSearch: NizoParsedSearch) {
 }
 
 export default function NizoAiPage() {
-  const { persona, setPersona } = usePersona();
-  const { isSuperAdmin } = useAuth();
+  const { persona } = usePersona();
   const [query, setQuery] = useState("");
   const [eventsCache, setEventsCache] = useState<EventSummaryItem[]>([]);
   const [eventLeadCount, setEventLeadCount] = useState(0);
@@ -284,7 +281,19 @@ export default function NizoAiPage() {
   const [searchNote, setSearchNote] = useState("");
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
-  const loadSalesEvents = useCallback(async () => {
+  const workspaceLabel = persona === "delegates" ? "delegates" : persona === "production" ? "production" : "sales";
+
+  useEffect(() => {
+    setEventsCache([]);
+    setEventLeadCount(0);
+    setCandidateCount(0);
+    setResults([]);
+    setCurrentPage(1);
+    setSearched(false);
+    setSearchNote("");
+  }, [persona]);
+
+  const loadWorkspaceEvents = useCallback(async () => {
     if (eventsCache.length) return eventsCache;
     const response = await listEvents();
     const rows = Array.isArray(response.events) ? response.events : [];
@@ -341,10 +350,10 @@ export default function NizoAiPage() {
     return { rows, total };
   }, []);
 
-  const loadCandidateSalesLeads = useCallback(async (value: string, parsedSearch: NizoParsedSearch) => {
+  const loadCandidateWorkspaceLeads = useCallback(async (value: string, parsedSearch: NizoParsedSearch) => {
     let events: EventSummaryItem[] = [];
     try {
-      events = await loadSalesEvents();
+      events = await loadWorkspaceEvents();
     } catch {
       events = [];
     }
@@ -412,7 +421,7 @@ export default function NizoAiPage() {
       eventScopeCount: eventKeys.filter(Boolean).length,
       eventLeadCount: loadedEventLeadCount,
     };
-  }, [buildLeadProbes, loadEventKeySearchLeads, loadSalesEvents]);
+  }, [buildLeadProbes, loadEventKeySearchLeads, loadWorkspaceEvents]);
 
   const runSearch = async (nextQuery?: string) => {
     const value = (nextQuery ?? query).trim();
@@ -425,7 +434,7 @@ export default function NizoAiPage() {
     setSearchNote("");
     try {
       const parsedSearch = parseNizoSearch(value);
-      const { rows, eventScopeCount, eventLeadCount: scopedEventLeadCount } = await loadCandidateSalesLeads(value, parsedSearch);
+      const { rows, eventScopeCount, eventLeadCount: scopedEventLeadCount } = await loadCandidateWorkspaceLeads(value, parsedSearch);
       const matches = searchNizoLeads(rows, parsedSearch, value);
 
       if (parsedSearch.intent.locations.length && eventScopeCount === 0) {
@@ -441,7 +450,7 @@ export default function NizoAiPage() {
       setRecentSearches((prev) => [value, ...prev.filter((item) => item !== value)].slice(0, 5));
     } catch (error) {
       toast.error("Search failed", {
-        description: error instanceof Error ? error.message : "Could not load sales leads.",
+        description: error instanceof Error ? error.message : `Could not load ${workspaceLabel} leads.`,
       });
     } finally {
       setLoading(false);
@@ -512,41 +521,6 @@ export default function NizoAiPage() {
     return parts.join(" • ");
   }, [candidateCount, eventLeadCount, sortedResults.length, searched, showingFrom, showingTo]);
 
-  if (persona !== "sales") {
-    return (
-      <div className="flex min-h-[calc(100dvh-3rem)] items-center justify-center p-4">
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-        >
-          <Card className="max-w-md rounded-[2.5rem] border-0 bg-white p-10 text-center shadow-2xl ring-1 ring-black/5">
-            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-50 text-slate-400">
-              <Brain className="h-8 w-8" />
-            </div>
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Nizo AI for Sales</h1>
-            <p className="mt-4 text-zinc-500 font-light leading-relaxed">
-              This intelligence engine is reserved for Sales. Switch your identity to begin searching.
-            </p>
-            {isSuperAdmin ? (
-              <Button 
-                className="mt-8 btn-sidebar-noise w-full h-12 rounded-2xl text-base" 
-                onClick={() => setPersona("sales")}
-              >
-                Switch to Sales
-              </Button>
-            ) : (
-              <Link href="/dashboard" className="block mt-8">
-                <Button className="w-full h-12 rounded-2xl border-slate-200 bg-white text-slate-600 hover:bg-slate-50 shadow-none">
-                  Return to Dashboard
-                </Button>
-              </Link>
-            )}
-          </Card>
-        </motion.div>
-      </div>
-    );
-  }
-
   return (
     <div className="relative min-h-[calc(100dvh-3rem)] overflow-y-auto bg-[#f7f7f5] font-sans text-zinc-950">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -566,7 +540,7 @@ export default function NizoAiPage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 border-l border-zinc-200 pl-8">
+          <div className="grid grid-cols-2 gap-8 border-l border-zinc-300 pl-8">
             <div>
               <p className="text-xs font-medium text-zinc-400">Candidates</p>
               <p className="mt-1 text-2xl font-light tabular-nums tracking-tight text-zinc-950">
@@ -579,46 +553,6 @@ export default function NizoAiPage() {
                 {results.length.toLocaleString()}
               </p>
             </div>
-
-            <AnimatePresence>
-              {searchSuggestions.length ? (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mt-5 flex flex-wrap justify-center gap-2.5"
-                >
-                  {searchSuggestions.map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      type="button"
-                      onClick={() => void runSearch(suggestion)}
-                      className="inline-flex h-9 items-center rounded-full border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-500 transition-colors hover:border-blue-600 hover:text-blue-600"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-
-            {recentSearches.length ? (
-              <div className="mx-auto mt-6 max-w-3xl">
-                <p className="mb-3 text-xs font-medium text-zinc-400">Recent searches</p>
-                <div className="flex flex-wrap justify-center gap-2">
-                  {recentSearches.slice(0, 5).map((item) => (
-                    <button
-                      key={item}
-                      type="button"
-                      onClick={() => void runSearch(item)}
-                      className="rounded-full border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-500 transition-colors hover:border-zinc-950 hover:text-zinc-950"
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
           </div>
         </header>
 
@@ -645,7 +579,7 @@ export default function NizoAiPage() {
                     <Brain strokeWidth={1.2} className="mb-1 h-11 w-11 text-zinc-950 2xl:h-13 2xl:w-13" />
                   </div>
                   <p className="mx-auto mt-5 max-w-xl text-lg font-light leading-relaxed text-zinc-500">
-                    Ask for the exact prospects you need. NizoAI ranks the sales workspace.
+                    Ask for the exact prospects you need. NizoAI ranks the {workspaceLabel} workspace.
                   </p>
                 </motion.div>
               ) : null}
@@ -653,7 +587,7 @@ export default function NizoAiPage() {
 
             <motion.div
               layout
-              className={`relative mx-auto rounded-full border border-white/70 bg-white/72 px-4 py-1.5 text-left shadow-[0_34px_100px_-68px_rgba(2,10,27,0.62)] ring-1 ring-zinc-950/5 backdrop-blur-2xl transition-colors focus-within:border-zinc-300 ${
+              className={`relative mx-auto rounded-full border border-zinc-300 bg-white/90 px-4 py-1.5 text-left shadow-[0_34px_100px_-68px_rgba(2,10,27,0.62)] ring-1 ring-zinc-950/10 backdrop-blur-2xl transition-colors focus-within:border-zinc-500 ${
                 searched ? "max-w-2xl" : "max-w-[46rem]"
               }`}
             >
@@ -696,7 +630,7 @@ export default function NizoAiPage() {
                       key={suggestion}
                       type="button"
                       onClick={() => void runSearch(suggestion)}
-                      className="inline-flex h-8 items-center rounded-full border border-zinc-200 bg-white/70 px-3.5 text-xs font-medium text-zinc-500 backdrop-blur-xl transition-colors hover:border-blue-600 hover:text-blue-600"
+                      className="inline-flex h-8 items-center rounded-full border border-zinc-300 bg-white/85 px-3.5 text-xs font-medium text-zinc-500 backdrop-blur-xl transition-colors hover:border-blue-600 hover:text-blue-600"
                     >
                       {suggestion}
                     </button>
@@ -736,17 +670,17 @@ export default function NizoAiPage() {
             ) : null}
 
             {results.length === 0 ? (
-              <div className="border-y border-zinc-200 p-20 text-center">
-                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-300">
+              <div className="border-y border-zinc-300 p-20 text-center">
+                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-300">
                   <Search className="h-8 w-8" />
                 </div>
                 <h3 className="text-xl font-light tracking-[-0.03em] text-zinc-950">Refine your search</h3>
                 <p className="mt-2 font-light text-zinc-500">Try using fewer keywords or a broader industry title.</p>
               </div>
             ) : (
-              <div className="overflow-hidden border-y border-zinc-200">
+              <div className="overflow-hidden border-y border-zinc-300">
                 <div className="w-full overflow-x-auto">
-                  <div className="min-w-[56rem] border-b border-zinc-200 px-8 py-5">
+                  <div className="min-w-[56rem] border-b border-zinc-300 px-8 py-5">
                     <div className="grid grid-cols-[minmax(24rem,1fr)_minmax(18rem,0.85fr)_12rem_8rem] text-sm font-light text-zinc-500">
                       <div>Identity details</div>
                       <div>Contact channels</div>
@@ -755,7 +689,7 @@ export default function NizoAiPage() {
                     </div>
                   </div>
 
-                  <div className="divide-y divide-zinc-200">
+                  <div className="divide-y divide-zinc-300">
                     {paginatedResults.map(({ lead, score, relevance }) => {
                       const country = leadCountry(lead);
 
@@ -769,7 +703,7 @@ export default function NizoAiPage() {
                               <div className="flex items-center gap-3">
                                 <span className="text-xl font-light tracking-tight text-zinc-950">{text(lead.employeeName) || "Unnamed Lead"}</span>
                                 {lead.isManualLead && (
-                                  <span className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-xs font-medium text-zinc-500">Manual</span>
+                                  <span className="rounded-full border border-zinc-300 bg-white px-2 py-0.5 text-xs font-medium text-zinc-500">Manual</span>
                                 )}
                               </div>
                               <span className="max-w-sm text-base font-light leading-relaxed text-zinc-700">{text(lead.title) || "-"}</span>
@@ -848,7 +782,7 @@ export default function NizoAiPage() {
                                   event.stopPropagation();
                                   void copyLeadDetails(lead, score);
                                 }}
-                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-200 transition-all hover:bg-blue-600 hover:text-white hover:ring-blue-600"
+                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-300 transition-all hover:bg-blue-600 hover:text-white hover:ring-blue-600"
                                 title="Copy Intelligence"
                               >
                                 <Copy className="h-4 w-4" />
@@ -859,7 +793,7 @@ export default function NizoAiPage() {
                                   event.stopPropagation();
                                   downloadLeadDetails(lead, score);
                                 }}
-                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-200 transition-all hover:bg-blue-600 hover:text-white hover:ring-blue-600"
+                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-300 transition-all hover:bg-blue-600 hover:text-white hover:ring-blue-600"
                                 title="Download Report"
                               >
                                 <Download className="h-4 w-4" />
@@ -872,7 +806,7 @@ export default function NizoAiPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between border-t border-zinc-200 px-8 py-8">
+                <div className="flex items-center justify-between border-t border-zinc-300 px-8 py-8">
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-zinc-400">Intelligence range</p>
                     <p className="text-lg font-light tabular-nums tracking-tight text-zinc-950">
@@ -885,7 +819,7 @@ export default function NizoAiPage() {
                     <Button
                       variant="ghost"
                       aria-label="Previous page"
-                      className="h-11 w-11 rounded-full border border-zinc-200 bg-white p-0 text-zinc-500 shadow-none transition-all hover:border-zinc-900 hover:bg-white hover:text-zinc-950 disabled:opacity-30"
+                      className="h-11 w-11 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none transition-all hover:border-zinc-900 hover:bg-white hover:text-zinc-950 disabled:opacity-30"
                       onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
                       disabled={currentPage === 1}
                     >
@@ -894,7 +828,7 @@ export default function NizoAiPage() {
                     <Button
                       variant="ghost"
                       aria-label="Next page"
-                      className="h-11 w-11 rounded-full border border-zinc-950 bg-transparent p-0 text-zinc-950 shadow-none transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white disabled:border-zinc-200 disabled:text-zinc-300 disabled:opacity-100"
+                      className="h-11 w-11 rounded-full border border-zinc-950 bg-transparent p-0 text-zinc-950 shadow-none transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white disabled:border-zinc-300 disabled:text-zinc-300 disabled:opacity-100"
                       onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
                       disabled={currentPage === totalPages}
                     >

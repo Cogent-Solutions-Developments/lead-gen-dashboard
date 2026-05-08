@@ -82,7 +82,7 @@ function statusTone(value?: string | null) {
   if (status === "ok" || status === "active" || status === "running" || status === "available") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (status === "warning" || status === "dry_run") return "border-amber-200 bg-amber-50 text-amber-700";
   if (status === "critical" || status === "failed" || status === "error") return "border-red-200 bg-red-50 text-red-700";
-  return "border-zinc-200 bg-zinc-50 text-zinc-600";
+  return "border-zinc-300 bg-zinc-50 text-zinc-600";
 }
 
 function StatusBadge({ value }: { value?: string | null }) {
@@ -95,7 +95,7 @@ function StatusBadge({ value }: { value?: string | null }) {
 
 function SectionCard({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
-    <Card className="overflow-hidden rounded-2xl border border-zinc-200/85 bg-white/84 py-0">
+    <Card className="overflow-hidden rounded-2xl border border-zinc-300/85 bg-white/84 py-0">
       <div className="border-b border-zinc-100 px-5 py-4">
         <h2 className="text-base font-semibold text-zinc-900">{title}</h2>
         {description ? <p className="mt-1 text-sm text-zinc-500">{description}</p> : null}
@@ -114,7 +114,7 @@ function LocksSummary({ incident }: { incident: SystemOperationIncident }) {
   return (
     <div className="grid gap-2 sm:grid-cols-2">
       {locks.map((lock) => (
-        <div key={lock.label} className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3">
+        <div key={lock.label} className="rounded-xl border border-zinc-300 bg-zinc-50/70 p-3">
           <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">{lock.label} Lock</p>
           <p className={`mt-1 text-sm font-semibold ${lock.value ? "text-amber-700" : "text-emerald-700"}`}>
             {lock.value ? "Locked" : "Clear"}
@@ -393,7 +393,7 @@ export default function SystemOperationsPage() {
   if (!isSuperAdmin) {
     return (
       <div className="flex min-h-[calc(100dvh-3rem)] items-center justify-center p-4">
-        <Card className="max-w-md rounded-2xl border border-zinc-200 bg-white/88 p-6 text-center">
+        <Card className="max-w-md rounded-2xl border border-zinc-300 bg-white/88 p-6 text-center">
           <ShieldAlert className="mx-auto h-9 w-9 text-amber-600" />
           <h1 className="mt-3 text-lg font-semibold text-zinc-900">Super Admin Only</h1>
           <p className="mt-2 text-sm text-zinc-500">System Operations is restricted to super admin users.</p>
@@ -452,7 +452,7 @@ export default function SystemOperationsPage() {
                     variant="outline"
                     disabled={dockerLogsEnabled === false}
                     onClick={() => openService(service)}
-                    className={`h-9 border-zinc-200 px-3 text-xs font-semibold ${
+                    className={`h-9 border-zinc-300 px-3 text-xs font-semibold ${
                       isActive ? "bg-zinc-900 text-white hover:bg-zinc-800" : "bg-white text-zinc-700 hover:bg-zinc-50"
                     }`}
                   >
@@ -473,7 +473,7 @@ export default function SystemOperationsPage() {
                     else closeLogs();
                   }}
                   disabled={dockerLogsEnabled === false}
-                  className="h-10 rounded-md border border-zinc-200 bg-white px-3 text-sm font-medium normal-case tracking-normal text-zinc-800 outline-none focus:border-zinc-400"
+                  className="h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium normal-case tracking-normal text-zinc-800 outline-none focus:border-zinc-400"
                 >
                   <option value="">Select service</option>
                   {LOG_SERVICES.map((service) => (
@@ -490,7 +490,7 @@ export default function SystemOperationsPage() {
                   variant="outline"
                   onClick={() => selectedService && void loadInitialLog(selectedService)}
                   disabled={!selectedService || logsLoading || dockerLogsEnabled === false}
-                  className="h-10 border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                  className="h-10 border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
                 >
                   <RefreshCw className={`mr-2 h-4 w-4 ${logsLoading ? "animate-spin" : ""}`} />
                   Refresh
@@ -500,7 +500,7 @@ export default function SystemOperationsPage() {
                   variant="outline"
                   onClick={() => setLogsPaused((prev) => !prev)}
                   disabled={!selectedService || dockerLogsEnabled === false}
-                  className="h-10 border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                  className="h-10 border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
                 >
                   {logsPaused ? <Play className="mr-2 h-4 w-4" /> : <Pause className="mr-2 h-4 w-4" />}
                   {logsPaused ? "Resume" : "Pause"}
@@ -510,7 +510,7 @@ export default function SystemOperationsPage() {
                   variant="outline"
                   onClick={clearScreen}
                   disabled={!selectedService}
-                  className="h-10 border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                  className="h-10 border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Clear
@@ -520,7 +520,7 @@ export default function SystemOperationsPage() {
                   variant="outline"
                   onClick={closeLogs}
                   disabled={!selectedService}
-                  className="h-10 border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                  className="h-10 border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
                 >
                   <X className="mr-2 h-4 w-4" />
                   Close
@@ -553,13 +553,13 @@ export default function SystemOperationsPage() {
                 </pre>
               </div>
             ) : (
-              <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-8 text-center text-sm text-zinc-500">
+              <div className="rounded-2xl border border-zinc-300 bg-zinc-50/70 p-8 text-center text-sm text-zinc-500">
                 Select a service tab to open the log window.
               </div>
             )}
 
             {services.length > 0 ? (
-              <div className="overflow-x-auto rounded-xl border border-zinc-200">
+              <div className="overflow-x-auto rounded-xl border border-zinc-300">
                 <table className="w-full min-w-[760px]">
                   <thead className="border-b border-zinc-100 bg-zinc-50/70 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
                     <tr>
@@ -598,7 +598,7 @@ export default function SystemOperationsPage() {
                 variant="outline"
                 onClick={() => void loadIncidents()}
                 disabled={incidentsLoading}
-                className="h-9 border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                className="h-9 border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
               >
                 <RefreshCw className={`mr-2 h-4 w-4 ${incidentsLoading ? "animate-spin" : ""}`} />
                 Refresh Incidents
@@ -613,15 +613,15 @@ export default function SystemOperationsPage() {
 
             <div className="grid gap-4">
               {incidents.map((incident) => (
-                <Card key={`${incident.campaignId}-${incident.code}`} className="rounded-2xl border border-zinc-200 bg-white/88 p-5">
+                <Card key={`${incident.campaignId}-${incident.code}`} className="rounded-2xl border border-zinc-300 bg-white/88 p-5">
                   <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                     <div className="min-w-0 space-y-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <StatusBadge value={incident.severity} />
-                        <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-semibold text-zinc-600">
+                        <span className="rounded-full border border-zinc-300 bg-zinc-50 px-2.5 py-1 text-[11px] font-semibold text-zinc-600">
                           {incident.pipeline}
                         </span>
-                        <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-semibold text-zinc-600">
+                        <span className="rounded-full border border-zinc-300 bg-zinc-50 px-2.5 py-1 text-[11px] font-semibold text-zinc-600">
                           {incident.code}
                         </span>
                       </div>
@@ -657,19 +657,19 @@ export default function SystemOperationsPage() {
                     <div className="w-full shrink-0 space-y-2 xl:w-72">
                       <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">Recommended Actions</p>
                       {incident.recommendedActions.length === 0 ? (
-                        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-500">
+                        <div className="rounded-xl border border-zinc-300 bg-zinc-50 p-3 text-sm text-zinc-500">
                           No action recommended.
                         </div>
                       ) : (
                         incident.recommendedActions.map((action) => (
-                          <div key={action} className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3">
+                          <div key={action} className="rounded-xl border border-zinc-300 bg-zinc-50/70 p-3">
                             <p className="text-sm font-semibold text-zinc-900">{actionLabel(action)}</p>
                             <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
                               <Button
                                 type="button"
                                 variant="outline"
                                 onClick={() => openActionConfirm(incident, action, true)}
-                                className="h-9 border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                                className="h-9 border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
                               >
                                 <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
                                 Dry Run
@@ -697,17 +697,17 @@ export default function SystemOperationsPage() {
         <SectionCard title="Recovery Guide" description="Short operational guidance for common warnings and errors.">
           <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-3">
             {guideLoading ? (
-              <div className="col-span-full flex items-center gap-2 rounded-2xl border border-zinc-200 bg-white p-5 text-sm text-zinc-500">
+              <div className="col-span-full flex items-center gap-2 rounded-2xl border border-zinc-300 bg-white p-5 text-sm text-zinc-500">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Loading recovery guide...
               </div>
             ) : guideItems.length === 0 ? (
-              <div className="col-span-full rounded-2xl border border-zinc-200 bg-zinc-50 p-5 text-sm text-zinc-500">
+              <div className="col-span-full rounded-2xl border border-zinc-300 bg-zinc-50 p-5 text-sm text-zinc-500">
                 No guide items found.
               </div>
             ) : (
               guideItems.map((item) => (
-                <div key={item.code} className="rounded-2xl border border-zinc-200 bg-white/88 p-4">
+                <div key={item.code} className="rounded-2xl border border-zinc-300 bg-white/88 p-4">
                   <div className="flex items-start gap-3">
                     <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700">
                       <FileText className="h-4 w-4" />
@@ -734,7 +734,7 @@ export default function SystemOperationsPage() {
             onClick={closeActionConfirm}
           />
 
-          <Card className="relative z-[1] w-full max-w-lg overflow-hidden rounded-2xl border border-zinc-200 bg-white p-0 shadow-[0_24px_40px_-24px_rgba(2,10,27,0.6)]">
+          <Card className="relative z-[1] w-full max-w-lg overflow-hidden rounded-2xl border border-zinc-300 bg-white p-0 shadow-[0_24px_40px_-24px_rgba(2,10,27,0.6)]">
             <div className="border-b border-zinc-100 px-5 py-4">
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700">
@@ -751,7 +751,7 @@ export default function SystemOperationsPage() {
             </div>
 
             <div className="space-y-4 px-5 py-4">
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50/80 p-4 text-sm leading-relaxed text-zinc-600">
+              <div className="rounded-xl border border-zinc-300 bg-zinc-50/80 p-4 text-sm leading-relaxed text-zinc-600">
                 This action is manual and campaign-scoped. It will not run Docker, SQL, delete, restart, or cleanup controls.
               </div>
               <label className="space-y-1.5">
@@ -760,7 +760,7 @@ export default function SystemOperationsPage() {
                   value={reason}
                   onChange={(event) => setReason(event.target.value)}
                   placeholder={pendingAction.dryRun ? "checking recovery" : "Why are you running this recovery action?"}
-                  className="min-h-24 border-zinc-200 bg-white"
+                  className="min-h-24 border-zinc-300 bg-white"
                 />
               </label>
             </div>
@@ -771,7 +771,7 @@ export default function SystemOperationsPage() {
                 variant="outline"
                 disabled={actionSaving}
                 onClick={closeActionConfirm}
-                className="h-9 border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                className="h-9 border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
               >
                 Cancel
               </Button>
@@ -779,7 +779,7 @@ export default function SystemOperationsPage() {
                 type="button"
                 disabled={actionSaving}
                 onClick={() => void confirmRecoveryAction()}
-                className={pendingAction.dryRun ? "h-9 border border-zinc-200 bg-white px-4 text-zinc-800 hover:bg-zinc-50" : "btn-sidebar-noise h-9 px-4"}
+                className={pendingAction.dryRun ? "h-9 border border-zinc-300 bg-white px-4 text-zinc-800 hover:bg-zinc-50" : "btn-sidebar-noise h-9 px-4"}
               >
                 {actionSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : pendingAction.dryRun ? <TerminalSquare className="mr-2 h-4 w-4" /> : <Wrench className="mr-2 h-4 w-4" />}
                 {pendingAction.dryRun ? "Run Dry Check" : "Run Recovery"}

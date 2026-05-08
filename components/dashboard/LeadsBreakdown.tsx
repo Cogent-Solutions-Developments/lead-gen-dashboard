@@ -68,7 +68,7 @@ export function LeadsBreakdown() {
 
   return (
     <Card className="relative flex h-full min-h-[20rem] flex-col gap-0 overflow-hidden rounded-none border-0 bg-transparent shadow-none lg:min-h-0">
-      <CardHeader className="relative z-[2] border-b border-zinc-200 pb-6 pt-0 px-0 items-start">
+      <CardHeader className="relative z-[2] border-b border-zinc-300 pb-6 pt-0 px-0 items-start">
         <CardTitle className="text-xl font-light tracking-tight text-zinc-950">Lead Distribution</CardTitle>
         <CardDescription className="text-sm font-light text-zinc-500">Current pipeline status</CardDescription>
       </CardHeader>

@@ -181,7 +181,7 @@ export function StatsCards() {
           transition={{ delay: index * 0.1, duration: 0.4 }}
           className="h-full"
         >
-          <Card className="group relative flex h-full flex-col justify-between overflow-hidden rounded-none border-0 border-b border-zinc-200 bg-transparent p-0 pb-6 shadow-none transition-colors hover:border-zinc-950">
+          <Card className="group relative flex h-full flex-col justify-between overflow-hidden rounded-none border-0 border-b border-zinc-300 bg-transparent p-0 pb-6 shadow-none transition-colors hover:border-zinc-950">
             <div className="relative z-10 flex h-full flex-col justify-between">
               <div className="flex items-start justify-between">
                 <span className="block text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">

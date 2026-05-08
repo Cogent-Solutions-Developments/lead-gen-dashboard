@@ -238,7 +238,7 @@ export default function AdminUsersPage() {
             <Button
               type="button"
               variant="outline"
-              className="h-10 border-zinc-200 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
+              className="h-10 border-zinc-300 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
             >
               <CalendarDays className="mr-2 h-4 w-4" />
               Events
@@ -249,7 +249,7 @@ export default function AdminUsersPage() {
             <Button
               type="button"
               variant="outline"
-              className="h-10 border-zinc-200 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
+              className="h-10 border-zinc-300 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Workspaces
@@ -276,13 +276,13 @@ export default function AdminUsersPage() {
               { label: "Active Users", value: stats.active, icon: ShieldCheck },
               { label: "Super Admins", value: stats.superAdmins, icon: KeyRound },
             ].map((item) => (
-              <Card key={item.label} className="rounded-2xl border border-zinc-200 bg-white/86 p-4">
+              <Card key={item.label} className="rounded-2xl border border-zinc-300 bg-white/86 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{item.label}</p>
                     <p className="mt-2 text-2xl font-semibold tracking-tight text-zinc-900">{item.value}</p>
                   </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-700">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-300 bg-zinc-50 text-zinc-700">
                     <item.icon className="h-5 w-5" />
                   </div>
                 </div>
@@ -290,7 +290,7 @@ export default function AdminUsersPage() {
             ))}
           </div>
 
-          <Card className="overflow-hidden rounded-2xl border border-zinc-200/85 bg-white/82">
+          <Card className="overflow-hidden rounded-2xl border border-zinc-300/85 bg-white/82">
             <div className="flex flex-col gap-3 border-b border-zinc-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-base font-semibold text-zinc-900">Users</h2>
@@ -302,7 +302,7 @@ export default function AdminUsersPage() {
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Search users"
-                  className="h-10 border-zinc-200 bg-white pl-9"
+                  className="h-10 border-zinc-300 bg-white pl-9"
                 />
               </div>
             </div>
@@ -362,7 +362,7 @@ export default function AdminUsersPage() {
                                 type="button"
                                 variant="ghost"
                                 onClick={() => startEdit(item)}
-                                className="h-8 rounded-md border border-zinc-200 bg-white px-3 text-xs text-zinc-700 hover:bg-zinc-50"
+                                className="h-8 rounded-md border border-zinc-300 bg-white px-3 text-xs text-zinc-700 hover:bg-zinc-50"
                               >
                                 Edit
                               </Button>
@@ -373,7 +373,7 @@ export default function AdminUsersPage() {
                                   setPasswordTarget(item);
                                   setNewPassword("");
                                 }}
-                                className="h-8 rounded-md border border-zinc-200 bg-white px-3 text-xs text-zinc-700 hover:bg-zinc-50"
+                                className="h-8 rounded-md border border-zinc-300 bg-white px-3 text-xs text-zinc-700 hover:bg-zinc-50"
                               >
                                 Password
                               </Button>
@@ -399,7 +399,7 @@ export default function AdminUsersPage() {
           </Card>
         </div>
 
-        <Card className="h-fit rounded-2xl border border-zinc-200 bg-white/88 p-5">
+        <Card className="h-fit rounded-2xl border border-zinc-300 bg-white/88 p-5">
           <div className="mb-5 flex items-start justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold text-zinc-900">{editingId ? "Edit User" : "Add User"}</h2>
@@ -412,7 +412,7 @@ export default function AdminUsersPage() {
                 type="button"
                 variant="ghost"
                 onClick={resetForm}
-                className="h-8 w-8 rounded-md border border-zinc-200 bg-white p-0 text-zinc-500 hover:bg-zinc-50"
+                className="h-8 w-8 rounded-md border border-zinc-300 bg-white p-0 text-zinc-500 hover:bg-zinc-50"
                 aria-label="Cancel edit"
               >
                 <X className="h-4 w-4" />
@@ -431,7 +431,7 @@ export default function AdminUsersPage() {
                 value={form.username}
                 onChange={(event) => setForm((prev) => ({ ...prev, username: event.target.value }))}
                 placeholder="sales.operator"
-                className="h-10 border-zinc-200 bg-white"
+                className="h-10 border-zinc-300 bg-white"
               />
             </div>
 
@@ -441,7 +441,7 @@ export default function AdminUsersPage() {
                 value={form.fullName}
                 onChange={(event) => setForm((prev) => ({ ...prev, fullName: event.target.value }))}
                 placeholder="Sales Operator"
-                className="h-10 border-zinc-200 bg-white"
+                className="h-10 border-zinc-300 bg-white"
               />
             </div>
 
@@ -453,7 +453,7 @@ export default function AdminUsersPage() {
                   value={form.password}
                   onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
                   placeholder="At least 8 characters"
-                  className="h-10 border-zinc-200 bg-white"
+                  className="h-10 border-zinc-300 bg-white"
                 />
               </div>
             ) : null}
@@ -465,10 +465,10 @@ export default function AdminUsersPage() {
                 disabled={editingSelf}
                 onValueChange={(value) => setForm((prev) => ({ ...prev, role: value as AuthRole }))}
               >
-                <SelectTrigger className="h-10 border-zinc-200 bg-white">
+                <SelectTrigger className="h-10 border-zinc-300 bg-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="border-zinc-200 bg-white">
+                <SelectContent className="border-zinc-300 bg-white">
                   {AUTH_ROLES.map((role) => (
                     <SelectItem key={role} value={role}>
                       {getRoleLabel(role)}
@@ -479,7 +479,7 @@ export default function AdminUsersPage() {
               {editingSelf ? <p className="text-xs text-zinc-400">Your own role is protected while editing.</p> : null}
             </div>
 
-            <label className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white/80 px-3 py-3">
+            <label className="flex items-center justify-between rounded-xl border border-zinc-300 bg-white/80 px-3 py-3">
               <span>
                 <span className="block text-sm font-semibold text-zinc-800">Active user</span>
                 <span className="text-xs text-zinc-500">Inactive users cannot sign in.</span>
@@ -508,7 +508,7 @@ export default function AdminUsersPage() {
 
       {passwordTarget ? (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-zinc-950/50 p-4 backdrop-blur-[3px]">
-          <Card className="w-full max-w-md overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+          <Card className="w-full max-w-md overflow-hidden rounded-2xl border border-zinc-300 bg-white">
             <div className="border-b border-zinc-100 px-5 py-4">
               <h3 className="text-base font-semibold text-zinc-900">Reset Password</h3>
               <p className="mt-1 text-sm text-zinc-500">Set a new password for {passwordTarget.username}.</p>
@@ -520,7 +520,7 @@ export default function AdminUsersPage() {
                 value={newPassword}
                 onChange={(event) => setNewPassword(event.target.value)}
                 placeholder="At least 8 characters"
-                className="h-10 border-zinc-200 bg-white"
+                className="h-10 border-zinc-300 bg-white"
               />
             </div>
             <div className="flex justify-end gap-2 border-t border-zinc-100 px-5 py-4">
@@ -529,7 +529,7 @@ export default function AdminUsersPage() {
                 variant="ghost"
                 disabled={saving}
                 onClick={() => setPasswordTarget(null)}
-                className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-zinc-700 hover:bg-zinc-50"
+                className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-700 hover:bg-zinc-50"
               >
                 Cancel
               </Button>
@@ -544,7 +544,7 @@ export default function AdminUsersPage() {
 
       {deleteTarget ? (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-zinc-950/50 p-4 backdrop-blur-[3px]">
-          <Card className="w-full max-w-md overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+          <Card className="w-full max-w-md overflow-hidden rounded-2xl border border-zinc-300 bg-white">
             <div className="border-b border-zinc-100 px-5 py-4">
               <h3 className="text-base font-semibold text-zinc-900">Delete User</h3>
               <p className="mt-1 text-sm text-zinc-500">
@@ -557,7 +557,7 @@ export default function AdminUsersPage() {
                 variant="ghost"
                 disabled={saving}
                 onClick={() => setDeleteTarget(null)}
-                className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-zinc-700 hover:bg-zinc-50"
+                className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-700 hover:bg-zinc-50"
               >
                 Cancel
               </Button>

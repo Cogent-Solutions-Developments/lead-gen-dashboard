@@ -101,7 +101,7 @@ export function PriorityQueue() {
                 {lead.email && (
                   <button
                     onClick={() => copyToClipboard(lead.email!, "Email")}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 hover:border-zinc-950 hover:text-zinc-950"
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-500 hover:border-zinc-950 hover:text-zinc-950"
                     title="Copy Email"
                   >
                     <Copy className="h-4 w-4" />
@@ -112,7 +112,7 @@ export function PriorityQueue() {
                     href={lead.linkedinUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 hover:border-zinc-950 hover:text-zinc-950"
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-500 hover:border-zinc-950 hover:text-zinc-950"
                     title="LinkedIn Profile"
                   >
                     <ExternalLink className="h-4 w-4" />

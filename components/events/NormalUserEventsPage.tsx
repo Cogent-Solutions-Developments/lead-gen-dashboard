@@ -75,7 +75,7 @@ export function NormalUserEventsPage() {
 
   return (
     <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
-      <header className="shrink-0 border-b border-zinc-200 pb-12">
+      <header className="shrink-0 border-b border-zinc-300 pb-12">
         <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <Link
@@ -96,7 +96,7 @@ export function NormalUserEventsPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-5 border-zinc-200 lg:min-w-[23rem] lg:border-l lg:pl-10">
+          <div className="flex flex-col gap-5 border-zinc-300 lg:min-w-[23rem] lg:border-l lg:pl-10">
             <div className="grid grid-cols-2 gap-10">
               <div className="space-y-1">
                 <p className="text-sm font-medium text-zinc-400">Active events</p>
@@ -112,7 +112,7 @@ export function NormalUserEventsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-10 border-t border-zinc-200 pt-4">
+            <div className="grid grid-cols-2 gap-10 border-t border-zinc-300 pt-4">
               <button
                 type="button"
                 className={`inline-flex h-10 w-fit items-center gap-4 border-b border-transparent text-base font-medium transition-all ${
@@ -171,7 +171,7 @@ export function NormalUserEventsPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: index * 0.02 }}
-                    className="group border-b border-zinc-200 transition-colors hover:bg-zinc-50/50"
+                    className="group border-b border-zinc-300 transition-colors hover:bg-zinc-50/50"
                   >
                     <Link
                       href={`/leads?event=${encodeURIComponent(item.canonicalEventKey)}`}
@@ -195,7 +195,7 @@ export function NormalUserEventsPage() {
                             </div>
                           </div>
 
-                          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-all group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white 2xl:h-12 2xl:w-12">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-400 transition-all group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white 2xl:h-12 2xl:w-12">
                             <ArrowLeft className="h-4 w-4 rotate-180 2xl:h-5 2xl:w-5" />
                           </div>
                         </div>
@@ -218,7 +218,7 @@ export function NormalUserEventsPage() {
             onClick={() => setSearchOpen(false)}
           />
 
-          <div className="relative z-[1] w-full max-w-2xl overflow-hidden rounded-full border border-white/70 bg-white/48 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(255,255,255,0.35),0_34px_100px_-48px_rgba(2,10,27,0.85),0_10px_32px_-24px_rgba(2,10,27,0.5)] ring-1 ring-white/45 backdrop-blur-[34px]">
+          <div className="relative z-[1] w-full max-w-2xl overflow-hidden rounded-full border border-zinc-300 bg-white/48 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(255,255,255,0.35),0_34px_100px_-48px_rgba(2,10,27,0.85),0_10px_32px_-24px_rgba(2,10,27,0.5)] ring-1 ring-white/45 backdrop-blur-[34px]">
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.88)_0%,rgba(255,255,255,0.34)_38%,rgba(255,255,255,0.18)_100%)]" />
             <div className="pointer-events-none absolute -left-20 -top-24 h-56 w-56 rounded-full bg-white/65 blur-3xl" />
             <div className="pointer-events-none absolute -right-24 bottom-0 h-56 w-56 rounded-full bg-blue-200/22 blur-3xl" />

@@ -252,7 +252,7 @@ export default function UploadCampaignPage() {
 
   return (
     <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
-      <header className="shrink-0 border-b border-zinc-200 pb-12">
+      <header className="shrink-0 border-b border-zinc-300 pb-12">
         <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <Link
@@ -320,7 +320,7 @@ export default function UploadCampaignPage() {
       <form
         id="upload-campaign-form"
         onSubmit={handleSubmit}
-        className="mt-16 grid min-h-0 flex-1 w-full gap-16 xl:grid-cols-[19rem_minmax(0,1fr)] overflow-hidden"
+        className="mt-12 grid min-h-0 flex-1 w-full gap-8 xl:grid-cols-[13rem_minmax(0,1fr)] overflow-hidden"
       >
         <nav className="shrink-0 space-y-2">
           {uploadSteps.map((step, index) => {
@@ -337,7 +337,7 @@ export default function UploadCampaignPage() {
                 key={step.id}
                 type="button"
                 onClick={() => goToStep(step.id)}
-                className={`group flex w-full items-center justify-between border-b border-zinc-100 py-6 text-left transition-colors ${
+                className={`group flex w-full items-center justify-between border-b border-zinc-300 py-4 text-left transition-colors ${
                   isActive ? "border-zinc-900" : "hover:border-zinc-300"
                 }`}
               >
@@ -347,7 +347,7 @@ export default function UploadCampaignPage() {
                   }`}>
                     Step 0{index + 1}
                   </span>
-                  <span className={`mt-1 text-xl font-light tracking-tight ${
+                  <span className={`mt-1 text-lg font-light tracking-tight ${
                     isActive ? "text-zinc-950" : "text-zinc-500"
                   }`}>
                     {step.label}
@@ -363,7 +363,7 @@ export default function UploadCampaignPage() {
           })}
         </nav>
 
-        <div className="min-h-0 flex-1 flex flex-col lg:border-l lg:border-zinc-200 lg:pl-16 overflow-hidden">
+        <div className="min-h-0 flex-1 flex flex-col lg:border-l lg:border-zinc-300 lg:pl-10 overflow-hidden">
           <div className="flex-1 overflow-y-auto pb-12 pr-4 scrollbar-hide">
             {currentStep === "event" ? (
               <section className="max-w-4xl space-y-12">
@@ -374,18 +374,17 @@ export default function UploadCampaignPage() {
                   </p>
                 </div>
 
-                <div className="space-y-10">
-                  <div className="space-y-4">
-                    <label className="text-xs font-medium text-zinc-400">Registry entry</label>
+                <div className="space-y-8">
+                  <div>
                     <Select
                       value={selectedEventId}
                       onValueChange={setSelectedEventId}
                       disabled={eventsLoading || isSubmitting}
                     >
-                      <SelectTrigger className="!h-14 w-full rounded-none border-0 border-b border-zinc-200 bg-transparent px-0 text-xl font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
+                      <SelectTrigger className="!h-14 w-full max-w-xl rounded-full border border-zinc-400 bg-white px-5 text-lg font-semibold text-zinc-700 shadow-none transition-colors hover:border-zinc-500 hover:text-zinc-950 focus:border-blue-600 focus:ring-0 [&>svg]:h-5 [&>svg]:w-5 [&>svg]:text-zinc-500">
                         <SelectValue placeholder={eventsLoading ? "Accessing registry..." : "Choose an event"} />
                       </SelectTrigger>
-                      <SelectContent className="rounded-none border-zinc-200 shadow-xl">
+                      <SelectContent className="rounded-xl border-zinc-300 bg-white shadow-xl">
                         {events.map((item) => (
                           <SelectItem key={item.id} value={item.id} className="py-3 text-base">
                             {item.eventName}
@@ -395,7 +394,7 @@ export default function UploadCampaignPage() {
                     </Select>
                   </div>
 
-                  <div className="grid gap-12 border-t border-zinc-100 pt-10 md:grid-cols-2">
+                  <div className="grid gap-12 pt-6 md:grid-cols-2">
                     <div className="space-y-4 md:col-span-2">
                       <label className="text-xs font-medium text-zinc-400">Official name</label>
                       <p className="text-2xl font-light tracking-tight text-zinc-950">
@@ -437,7 +436,7 @@ export default function UploadCampaignPage() {
                       value={category}
                       onChange={(event) => setCategory(event.target.value)}
                       placeholder="e.g. Energy, Finance, Technology"
-                      className="h-14 w-full border-b border-zinc-200 bg-transparent text-xl font-light tracking-tight text-zinc-950 placeholder:text-zinc-300 focus:border-blue-600 focus:outline-none"
+                      className="h-14 w-full border-b border-zinc-300 bg-transparent text-xl font-light tracking-tight text-zinc-950 placeholder:text-zinc-300 focus:border-blue-600 focus:outline-none"
                     />
                   </div>
 
@@ -447,7 +446,7 @@ export default function UploadCampaignPage() {
                       value={notes}
                       onChange={(event) => setNotes(event.target.value)}
                       placeholder="Describe your ideal customer profile and outreach goals..."
-                      className="min-h-[12rem] w-full border-b border-zinc-200 bg-transparent py-2 text-xl font-light leading-relaxed tracking-tight text-zinc-950 placeholder:text-zinc-300 focus:border-blue-600 focus:outline-none"
+                      className="min-h-[12rem] w-full border-b border-zinc-300 bg-transparent py-2 text-xl font-light leading-relaxed tracking-tight text-zinc-950 placeholder:text-zinc-300 focus:border-blue-600 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -483,7 +482,7 @@ export default function UploadCampaignPage() {
                       }`}
                     >
                       <div className="flex items-center gap-6">
-                        <div className="flex h-16 w-16 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-all group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-400 transition-all group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white">
                           <UploadCloud className="h-6 w-6" />
                         </div>
                         <div className="text-left">
@@ -501,12 +500,12 @@ export default function UploadCampaignPage() {
                             e.stopPropagation();
                             clearLeadSheet();
                           }}
-                          className="mr-4 flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 hover:border-red-600 hover:bg-red-600 hover:text-white"
+                          className="mr-4 flex h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-400 hover:border-red-600 hover:bg-red-600 hover:text-white"
                         >
                           <X className="h-4 w-4" />
                         </div>
                       ) : (
-                        <div className="mr-4 flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400">
+                        <div className="mr-4 flex h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-400">
                           <ArrowLeft className="h-4 w-4 rotate-180" />
                         </div>
                       )}

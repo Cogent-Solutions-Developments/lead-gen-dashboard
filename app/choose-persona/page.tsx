@@ -99,7 +99,7 @@ export default function ChoosePersonaPage() {
           <Link href="/dashboard">
             <Button
               variant="outline"
-              className="h-10 w-10 rounded-md border-zinc-200 bg-white/90 p-0 text-zinc-700 hover:bg-zinc-50"
+              className="h-10 w-10 rounded-md border-zinc-300 bg-white/90 p-0 text-zinc-700 hover:bg-zinc-50"
               aria-label="Go to dashboard"
             >
               <Home className="h-4 w-4" />
@@ -108,7 +108,7 @@ export default function ChoosePersonaPage() {
           <Button
             variant="outline"
             onClick={handleSignOut}
-            className="h-10 rounded-md border-zinc-200 bg-white/90 text-zinc-700 hover:bg-zinc-50"
+            className="h-10 rounded-md border-zinc-300 bg-white/90 text-zinc-700 hover:bg-zinc-50"
           >
             <LogOut className="mr-2 h-4 w-4" />
             Sign out
@@ -153,7 +153,7 @@ export default function ChoosePersonaPage() {
 
           <div className="w-full">
             <div className={gridClassName}>
-              <div className="group relative flex h-full flex-col rounded-2xl border border-zinc-200/80 bg-white/72 p-6 shadow-[0_14px_26px_-28px_rgba(9,40,105,0.32)] transition-all duration-200 hover:border-zinc-300/90 hover:shadow-[0_20px_30px_-28px_rgba(9,40,105,0.4)]">
+              <div className="group relative flex h-full flex-col rounded-2xl border border-zinc-300/80 bg-white/72 p-6 shadow-[0_14px_26px_-28px_rgba(9,40,105,0.32)] transition-all duration-200 hover:border-zinc-300/90 hover:shadow-[0_20px_30px_-28px_rgba(9,40,105,0.4)]">
                 {salesCurrent && (
                   <span className="absolute right-4 top-4 flex h-4 w-4 items-center justify-center rounded-full border border-blue-500/90 bg-white shadow-[0_0_0_3px_rgba(59,130,246,0.14)]">
                     <span className="h-2 w-2 rounded-full bg-[radial-gradient(circle_at_35%_30%,#93c5fd_0%,#2563eb_55%,#1d4ed8_100%)]" />
@@ -176,7 +176,7 @@ export default function ChoosePersonaPage() {
                 </Button>
               </div>
 
-              <div className="group relative flex h-full flex-col rounded-2xl border border-zinc-200/80 bg-white/72 p-6 shadow-[0_14px_26px_-28px_rgba(9,40,105,0.32)] transition-all duration-200 hover:border-zinc-300/90 hover:shadow-[0_20px_30px_-28px_rgba(9,40,105,0.4)]">
+              <div className="group relative flex h-full flex-col rounded-2xl border border-zinc-300/80 bg-white/72 p-6 shadow-[0_14px_26px_-28px_rgba(9,40,105,0.32)] transition-all duration-200 hover:border-zinc-300/90 hover:shadow-[0_20px_30px_-28px_rgba(9,40,105,0.4)]">
                 {delegatesCurrent && (
                   <span className="absolute right-4 top-4 flex h-4 w-4 items-center justify-center rounded-full border border-blue-500/90 bg-white shadow-[0_0_0_3px_rgba(59,130,246,0.14)]">
                     <span className="h-2 w-2 rounded-full bg-[radial-gradient(circle_at_35%_30%,#93c5fd_0%,#2563eb_55%,#1d4ed8_100%)]" />
@@ -192,7 +192,7 @@ export default function ChoosePersonaPage() {
 
                 <Button
                   variant="outline"
-                  className="mt-8 h-10 w-full rounded-md border-zinc-200 bg-white/80 text-zinc-700 hover:bg-zinc-50"
+                  className="mt-8 h-10 w-full rounded-md border-zinc-300 bg-white/80 text-zinc-700 hover:bg-zinc-50"
                   onClick={() => selectPersona("delegates")}
                 >
                   Continue as Delegates
@@ -200,7 +200,7 @@ export default function ChoosePersonaPage() {
                 </Button>
               </div>
 
-              <div className="group relative flex h-full flex-col rounded-2xl border border-zinc-200/80 bg-white/72 p-6 shadow-[0_14px_26px_-28px_rgba(9,40,105,0.32)] transition-all duration-200 hover:border-zinc-300/90 hover:shadow-[0_20px_30px_-28px_rgba(9,40,105,0.4)]">
+              <div className="group relative flex h-full flex-col rounded-2xl border border-zinc-300/80 bg-white/72 p-6 shadow-[0_14px_26px_-28px_rgba(9,40,105,0.32)] transition-all duration-200 hover:border-zinc-300/90 hover:shadow-[0_20px_30px_-28px_rgba(9,40,105,0.4)]">
                 {productionCurrent && (
                   <span className="absolute right-4 top-4 flex h-4 w-4 items-center justify-center rounded-full border border-blue-500/90 bg-white shadow-[0_0_0_3px_rgba(59,130,246,0.14)]">
                     <span className="h-2 w-2 rounded-full bg-[radial-gradient(circle_at_35%_30%,#93c5fd_0%,#2563eb_55%,#1d4ed8_100%)]" />
@@ -216,7 +216,7 @@ export default function ChoosePersonaPage() {
 
                 <Button
                   variant="outline"
-                  className="mt-8 h-10 w-full rounded-md border-zinc-200 bg-white/80 text-zinc-700 hover:bg-zinc-50"
+                  className="mt-8 h-10 w-full rounded-md border-zinc-300 bg-white/80 text-zinc-700 hover:bg-zinc-50"
                   onClick={() => selectPersona("production")}
                 >
                   Continue as Production
@@ -225,9 +225,9 @@ export default function ChoosePersonaPage() {
               </div>
 
               {isSuperAdmin ? (
-                <div className="group relative flex h-full flex-col rounded-2xl border border-zinc-200/80 bg-white/72 p-6 shadow-[0_14px_26px_-28px_rgba(9,40,105,0.32)] transition-all duration-200 hover:border-zinc-300/90 hover:shadow-[0_20px_30px_-28px_rgba(9,40,105,0.4)]">
+                <div className="group relative flex h-full flex-col rounded-2xl border border-zinc-300/80 bg-white/72 p-6 shadow-[0_14px_26px_-28px_rgba(9,40,105,0.32)] transition-all duration-200 hover:border-zinc-300/90 hover:shadow-[0_20px_30px_-28px_rgba(9,40,105,0.4)]">
                   <div className="space-y-1">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 text-zinc-700">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-300/80 bg-zinc-50 text-zinc-700">
                       <ShieldCheck className="h-5 w-5" />
                     </div>
                     <p className="pt-3 text-lg font-semibold text-zinc-900">Admin Panel</p>
@@ -240,7 +240,7 @@ export default function ChoosePersonaPage() {
                   <Link href="/admin/users" className="mt-8">
                     <Button
                       variant="outline"
-                      className="h-10 w-full rounded-md border-zinc-200 bg-white/80 text-zinc-700 hover:bg-zinc-50"
+                      className="h-10 w-full rounded-md border-zinc-300 bg-white/80 text-zinc-700 hover:bg-zinc-50"
                     >
                       Open Admin Panel
                       <ArrowRight className="ml-1 h-4 w-4" />

@@ -75,7 +75,7 @@ export function RepliesOverviewCard() {
 
   return (
     <Link href="/replies" className="block h-full">
-      <Card className="group relative flex h-full min-h-[5.5rem] flex-col justify-between gap-0 rounded-none border-0 border-b border-zinc-200 bg-transparent p-0 pb-6 shadow-none transition-colors hover:border-zinc-950">
+      <Card className="group relative flex h-full min-h-[5.5rem] flex-col justify-between gap-0 rounded-none border-0 border-b border-zinc-300 bg-transparent p-0 pb-6 shadow-none transition-colors hover:border-zinc-950">
         <div className="relative z-[2] flex h-full items-stretch justify-between gap-3">
           <div className="flex min-w-0 flex-1 flex-col justify-between">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">

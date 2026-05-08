@@ -197,7 +197,7 @@ export function DashboardSearch() {
 
   return (
     <div className="relative">
-      <div className="relative flex h-11 items-center gap-5 rounded-full border border-zinc-200 bg-white px-4 transition-colors focus-within:border-zinc-900">
+      <div className="relative flex h-11 items-center gap-5 rounded-full border border-zinc-300 bg-white px-4 transition-colors focus-within:border-zinc-900">
         <Search className="h-4 w-4 text-zinc-400" />
         <div className="min-w-0 flex-1">
           <input
@@ -220,7 +220,7 @@ export function DashboardSearch() {
       </div>
 
       {query.trim().length >= 2 ? (
-        <Card className="absolute right-0 top-[calc(100%+0.75rem)] z-30 w-[min(44rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-zinc-200 bg-white p-0 shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
+        <Card className="absolute right-0 top-[calc(100%+0.75rem)] z-30 w-[min(44rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-zinc-300 bg-white p-0 shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
           {loading ? (
             <div className="flex items-center gap-3 px-6 py-8 text-sm font-light text-zinc-400">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -244,7 +244,7 @@ export function DashboardSearch() {
                           <Link
                             key={`${result.type}-${result.id}`}
                             href={result.href}
-                            className="group grid grid-cols-[minmax(0,1.35fr)_minmax(9rem,0.8fr)_auto] items-center gap-6 rounded-xl border border-transparent px-4 py-3 transition-colors hover:border-zinc-200 hover:bg-zinc-50/50"
+                            className="group grid grid-cols-[minmax(0,1.35fr)_minmax(9rem,0.8fr)_auto] items-center gap-6 rounded-xl border border-transparent px-4 py-3 transition-colors hover:border-zinc-300 hover:bg-zinc-50/50"
                           >
                             <span className="min-w-0">
                               <span className="block truncate text-sm font-semibold text-zinc-950 group-hover:text-blue-700">

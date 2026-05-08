@@ -85,7 +85,7 @@ function statusTone(status?: SystemMonitorStatus | null) {
   if (value === "critical" || value === "failed" || value === "failure" || value === "error") {
     return "border-red-200 bg-red-50 text-red-700";
   }
-  return "border-zinc-200 bg-zinc-50 text-zinc-600";
+  return "border-zinc-300 bg-zinc-50 text-zinc-600";
 }
 
 function StatusBadge({ value }: { value?: SystemMonitorStatus | null }) {
@@ -110,7 +110,7 @@ function SectionCard({
   children: ReactNode;
 }) {
   return (
-    <Card className="overflow-hidden rounded-2xl border border-zinc-200/85 bg-white/84 py-0">
+    <Card className="overflow-hidden rounded-2xl border border-zinc-300/85 bg-white/84 py-0">
       <div className="border-b border-zinc-100 px-5 py-4">
         <h2 className="text-base font-semibold text-zinc-900">{title}</h2>
         {description ? <p className="mt-1 text-sm text-zinc-500">{description}</p> : null}
@@ -144,7 +144,7 @@ function MetricCard({
   icon: LucideIcon;
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white/88 p-4 shadow-sm">
+    <div className="rounded-2xl border border-zinc-300 bg-white/88 p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{label}</p>
@@ -154,7 +154,7 @@ function MetricCard({
           </div>
           {detail ? <p className="mt-2 truncate text-xs text-zinc-500">{detail}</p> : null}
         </div>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-700">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-zinc-300 bg-zinc-50 text-zinc-700">
           <Icon className="h-5 w-5" />
         </div>
       </div>
@@ -169,7 +169,7 @@ function ExternalDashboardButton({ label, href }: { label: string; href?: string
         type="button"
         variant="outline"
         disabled
-        className="h-10 border-zinc-200 bg-white/70 px-4 text-zinc-400"
+        className="h-10 border-zinc-300 bg-white/70 px-4 text-zinc-400"
       >
         <ExternalLink className="mr-2 h-4 w-4" />
         {label}
@@ -181,7 +181,7 @@ function ExternalDashboardButton({ label, href }: { label: string; href?: string
     <Button
       asChild
       variant="outline"
-      className="h-10 border-zinc-200 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
+      className="h-10 border-zinc-300 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
     >
       <a href={href} target="_blank" rel="noreferrer">
         <ExternalLink className="mr-2 h-4 w-4" />
@@ -292,7 +292,7 @@ export default function SystemMonitorPage() {
     return (
       <AdminPanelShell>
       <div className="flex min-h-[calc(100dvh-3rem)] items-center justify-center p-4">
-        <Card className="max-w-md rounded-2xl border border-zinc-200 bg-white/88 p-6 text-center">
+        <Card className="max-w-md rounded-2xl border border-zinc-300 bg-white/88 p-6 text-center">
           <ShieldAlert className="mx-auto h-9 w-9 text-amber-600" />
           <h1 className="mt-3 text-lg font-semibold text-zinc-900">Super Admin Only</h1>
           <p className="mt-2 text-sm text-zinc-500">System Monitor is restricted to super admin users.</p>
@@ -321,7 +321,7 @@ export default function SystemMonitorPage() {
         <div className="flex flex-wrap items-center gap-2">
           <ExternalDashboardButton label="Open Grafana" href={monitoringLinks.grafana} />
 
-          <label className="flex h-10 items-center gap-2 rounded-md border border-zinc-200 bg-white/90 px-3 text-xs font-semibold text-zinc-700">
+          <label className="flex h-10 items-center gap-2 rounded-md border border-zinc-300 bg-white/90 px-3 text-xs font-semibold text-zinc-700">
             <input
               type="checkbox"
               checked={autoRefresh}
@@ -335,7 +335,7 @@ export default function SystemMonitorPage() {
             <Button
               type="button"
               variant="outline"
-              className="h-10 border-zinc-200 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
+              className="h-10 border-zinc-300 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Settings
@@ -361,7 +361,7 @@ export default function SystemMonitorPage() {
       ) : null}
 
       {loading && !snapshot ? (
-        <Card className="flex min-h-[22rem] items-center justify-center rounded-2xl border border-zinc-200 bg-white/84 p-8">
+        <Card className="flex min-h-[22rem] items-center justify-center rounded-2xl border border-zinc-300 bg-white/84 p-8">
           <div className="flex items-center gap-3 text-sm text-zinc-500">
             <Loader2 className="h-5 w-5 animate-spin" />
             Loading system monitor...
@@ -370,7 +370,7 @@ export default function SystemMonitorPage() {
       ) : null}
 
       {!loading && !snapshot && !error ? (
-        <Card className="flex min-h-[22rem] items-center justify-center rounded-2xl border border-zinc-200 bg-white/84 p-8 text-sm text-zinc-500">
+        <Card className="flex min-h-[22rem] items-center justify-center rounded-2xl border border-zinc-300 bg-white/84 p-8 text-sm text-zinc-500">
           No system monitor snapshot is available.
         </Card>
       ) : null}
@@ -490,7 +490,7 @@ export default function SystemMonitorPage() {
             description={`Open: ${countValue(runtime?.sendQueue?.openTotal)} / Failed: ${countValue(runtime?.sendQueue?.failedTotal)} / Stuck: ${countValue(runtime?.sendQueue?.stuckTotal)}`}
           >
             <div className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
-              <div className="min-w-0 overflow-x-auto rounded-xl border border-zinc-200">
+              <div className="min-w-0 overflow-x-auto rounded-xl border border-zinc-300">
                 <table className="w-full min-w-[560px]">
                   <thead className="border-b border-zinc-100 bg-zinc-50/70 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
                     <tr>
@@ -516,7 +516,7 @@ export default function SystemMonitorPage() {
               </div>
 
               <div className="space-y-3">
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-4">
+                <div className="rounded-xl border border-zinc-300 bg-zinc-50/70 p-4">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Oldest Open Row</p>
                   {runtime?.sendQueue?.oldestOpen ? (
                     <div className="mt-3 space-y-2 text-xs text-zinc-600">
@@ -530,7 +530,7 @@ export default function SystemMonitorPage() {
                   )}
                 </div>
 
-                <div className="rounded-xl border border-zinc-200 bg-white p-4">
+                <div className="rounded-xl border border-zinc-300 bg-white p-4">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Stuck By Channel</p>
                   {stuckRows.length === 0 ? (
                     <p className="mt-3 text-sm text-zinc-500">No stuck channel rows.</p>
@@ -554,7 +554,7 @@ export default function SystemMonitorPage() {
             description={`Failed last 24h: ${countValue(runtime?.providers?.failedLast24h)}`}
           >
             <div className="grid gap-5 p-5 xl:grid-cols-2">
-              <div className="overflow-x-auto rounded-xl border border-zinc-200">
+              <div className="overflow-x-auto rounded-xl border border-zinc-300">
                 <table className="w-full min-w-[480px]">
                   <thead className="border-b border-zinc-100 bg-zinc-50/70 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
                     <tr>
@@ -579,7 +579,7 @@ export default function SystemMonitorPage() {
                 </table>
               </div>
 
-              <div className="overflow-x-auto rounded-xl border border-zinc-200">
+              <div className="overflow-x-auto rounded-xl border border-zinc-300">
                 <table className="w-full min-w-[620px]">
                   <thead className="border-b border-zinc-100 bg-zinc-50/70 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
                     <tr>
