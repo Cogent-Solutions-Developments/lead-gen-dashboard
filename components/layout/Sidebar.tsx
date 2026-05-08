@@ -151,7 +151,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
         aria-label={isPinned ? "Collapse sidebar" : "Pin expanded sidebar"}
         onClick={() => onPinnedChange(!isPinned)}
         className={`mb-16 grid w-full flex-shrink-0 items-center text-left transition-all ${
-          isExpanded ? "grid-cols-[2.75rem_minmax(0,1fr)] gap-6 px-1" : "grid-cols-1 justify-items-center px-0"
+          isExpanded ? "grid-cols-[2.75rem_minmax(0,1fr)] gap-3 px-1" : "grid-cols-1 justify-items-center px-0"
         }`}
       >
         <motion.div
