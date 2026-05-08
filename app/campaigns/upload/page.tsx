@@ -133,6 +133,7 @@ export default function UploadCampaignPage() {
   const displayName = getDisplayName(user);
   const firstName = displayName.split(/\s+/)[0] || "there";
   const activeStepIndex = uploadSteps.findIndex((step) => step.id === currentStep);
+  const pageTitle = isSuperAdmin ? "Campaign Upload" : "Upload Leads";
 
   const validateLeadSheet = (file: File | null) => {
     if (!file) return "A CSV lead sheet is required.";
@@ -264,7 +265,7 @@ export default function UploadCampaignPage() {
 
             <div className="mt-8">
               <h1 className="text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
-                Campaign Upload
+                {pageTitle}
               </h1>
               <p className="mt-4 max-w-xl text-lg font-light leading-relaxed text-zinc-500">
                 Onboard your latest event intelligence and synchronize lead data with our database.
