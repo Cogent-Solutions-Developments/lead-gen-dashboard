@@ -89,19 +89,19 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="flex h-full flex-1 flex-col bg-[#f7f7f7] p-1 font-sans text-zinc-950 overflow-hidden">
-      <header className="flex w-full flex-1 flex-col justify-between">
-        <div className="flex w-full justify-end">
-          <span className="text-base font-normal text-zinc-400">
+    <div className="flex min-h-[calc(100dvh-3rem)] flex-1 flex-col overflow-hidden bg-[#f7f7f7] p-1 font-sans text-zinc-950">
+      <header className="grid min-h-[calc(100dvh-4.5rem)] w-full grid-rows-[auto_1fr]">
+        <div className="flex w-full justify-center">
+          <span className="inline-flex h-9 items-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-500">
             {getDateLabel()}
           </span>
         </div>
 
-        <div className="mt-12 flex flex-col gap-12 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex items-center justify-center pb-12 text-center">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-4xl"
+            className="w-full max-w-5xl"
           >
             <p className="mb-4 text-xl font-normal text-zinc-500">
               {workspaceLabel} Workspace
@@ -115,7 +115,6 @@ export default function DashboardPage() {
               Choose an event, run NizoAI, upload leads, or move directly into the lead sheet.
             </p>
           </motion.div>
-
         </div>
       </header>
     </div>

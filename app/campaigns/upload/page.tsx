@@ -394,28 +394,30 @@ export default function UploadCampaignPage() {
                     </Select>
                   </div>
 
-                  <div className="grid gap-12 pt-6 md:grid-cols-2">
-                    <div className="space-y-4 md:col-span-2">
-                      <label className="text-xs font-medium text-zinc-400">Official name</label>
-                      <p className="text-2xl font-light tracking-tight text-zinc-950">
-                        {selectedEvent?.eventName || "—"}
-                      </p>
-                    </div>
+                  {selectedEvent ? (
+                    <div className="grid gap-12 pt-6 md:grid-cols-2">
+                      <div className="space-y-4 md:col-span-2">
+                        <label className="text-xs font-medium text-zinc-400">Official name</label>
+                        <p className="text-2xl font-light tracking-tight text-zinc-950">
+                          {selectedEvent.eventName || "—"}
+                        </p>
+                      </div>
 
-                    <div className="space-y-4">
-                      <label className="text-xs font-medium text-zinc-400">Registry location</label>
-                      <p className="text-xl font-light tracking-tight text-zinc-950">
-                        {selectedEvent?.location || "—"}
-                      </p>
-                    </div>
+                      <div className="space-y-4">
+                        <label className="text-xs font-medium text-zinc-400">Registry location</label>
+                        <p className="text-xl font-light tracking-tight text-zinc-950">
+                          {selectedEvent.location || "—"}
+                        </p>
+                      </div>
 
-                    <div className="space-y-4">
-                      <label className="text-xs font-medium text-zinc-400">Scheduled date</label>
-                      <p className="text-xl font-light tracking-tight text-zinc-950">
-                        {selectedEvent?.date || "—"}
-                      </p>
+                      <div className="space-y-4">
+                        <label className="text-xs font-medium text-zinc-400">Scheduled date</label>
+                        <p className="text-xl font-light tracking-tight text-zinc-950">
+                          {selectedEvent.date || "—"}
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  ) : null}
                 </div>
               </section>
             ) : null}
