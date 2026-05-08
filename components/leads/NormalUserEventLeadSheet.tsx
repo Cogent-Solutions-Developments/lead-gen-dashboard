@@ -124,19 +124,11 @@ const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     isActive: true,
   },
   {
-    id: "workflow-default-contacted",
-    statusKey: "contacted",
-    label: "Contacted",
-    isSystemDefault: true,
-    sortOrder: 1,
-    isActive: true,
-  },
-  {
     id: "workflow-default-first-call",
     statusKey: "first-call",
     label: "First Call",
     isSystemDefault: true,
-    sortOrder: 2,
+    sortOrder: 1,
     isActive: true,
   },
   {
@@ -144,15 +136,7 @@ const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     statusKey: "follow-up",
     label: "Follow Up",
     isSystemDefault: true,
-    sortOrder: 3,
-    isActive: true,
-  },
-  {
-    id: "workflow-default-qualified",
-    statusKey: "qualified",
-    label: "Qualified",
-    isSystemDefault: true,
-    sortOrder: 4,
+    sortOrder: 2,
     isActive: true,
   },
   {
@@ -160,15 +144,15 @@ const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     statusKey: "deal-closed",
     label: "Deal Closed",
     isSystemDefault: true,
-    sortOrder: 5,
+    sortOrder: 3,
     isActive: true,
   },
   {
-    id: "workflow-default-not-interested",
-    statusKey: "not-interested",
-    label: "Not Interested",
+    id: "workflow-default-deal-dead",
+    statusKey: "deal-dead",
+    label: "Deal Dead",
     isSystemDefault: true,
-    sortOrder: 6,
+    sortOrder: 4,
     isActive: true,
   },
 ];
@@ -176,12 +160,10 @@ const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
 const FIXED_WORKFLOW_STATUS_KEYS = new Set(FIXED_WORKFLOW_STATUSES.map((item) => item.statusKey));
 const STATUS_DOT_CLASS: Record<string, string> = {
   new: "bg-[#0aefff] shadow-[0_0_0_3px_rgba(10,239,255,0.20)]",
-  contacted: "bg-[#be0aff] shadow-[0_0_0_3px_rgba(190,10,255,0.18)]",
   "first-call": "bg-[#147df5] shadow-[0_0_0_3px_rgba(20,125,245,0.20)]",
   "follow-up": "bg-[#ff8700] shadow-[0_0_0_3px_rgba(255,135,0,0.20)]",
-  qualified: "bg-[#0aff99] shadow-[0_0_0_3px_rgba(10,255,153,0.20)]",
   "deal-closed": "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
-  "not-interested": "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]",
+  "deal-dead": "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]",
 };
 const DEFAULT_PAGE_SIZE = 50;
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
