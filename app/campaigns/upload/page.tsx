@@ -45,6 +45,9 @@ const preferredHeaders = [
   "contentWhatsapp",
 ];
 
+const leadSheetAccept = ".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const allowedLeadSheetExtensions = new Set([".csv", ".xlsx"]);
+
 function formatBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
 
@@ -123,9 +126,10 @@ export default function UploadCampaignPage() {
   );
 
   const validateLeadSheet = (file: File | null) => {
-    if (!file) return "A CSV lead sheet is required.";
-    if (!file.name.toLowerCase().endsWith(".csv")) return "Only .csv files are supported.";
-    if (file.size <= 0) return "The selected CSV file is empty.";
+    if (!file) return "A CSV or XLSX lead sheet is required.";
+    const extension = file.name.toLowerCase().match(/\.[^.]+$/)?.[0] ?? "";
+    if (!allowedLeadSheetExtensions.has(extension)) return "Only .csv and .xlsx files are supported.";
+    if (file.size <= 0) return "The selected lead sheet is empty.";
     return null;
   };
 
@@ -219,7 +223,7 @@ export default function UploadCampaignPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Upload Campaign</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Import a CSV lead sheet for outreach. Uploaded campaigns skip lead generation and go straight to review.
+          Import a CSV or XLSX lead sheet for outreach. Uploaded campaigns skip lead generation and go straight to review.
         </p>
       </div>
 
@@ -228,7 +232,7 @@ export default function UploadCampaignPage() {
           <div className="rounded-xl border border-amber-200/80 bg-amber-50/75 p-4">
             <p className="text-sm font-semibold text-amber-900">Manual upload mode</p>
             <p className="mt-1 text-sm leading-relaxed text-amber-800">
-              Only the leads in your CSV will be used for approval and outreach. The system will not discover or generate additional leads for this campaign.
+              Only the leads in your uploaded sheet will be used for approval and outreach. The system will not discover or generate additional leads for this campaign.
             </p>
           </div>
 
@@ -352,13 +356,13 @@ export default function UploadCampaignPage() {
 
           <div className="mt-6 space-y-2">
             <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Lead Sheet (.csv)
+              Lead Sheet (.csv, .xlsx)
             </label>
 
             <input
               ref={leadSheetInputRef}
               type="file"
-              accept=".csv,text/csv"
+              accept={leadSheetAccept}
               className="hidden"
               onChange={handleLeadSheetChange}
             />
@@ -371,7 +375,7 @@ export default function UploadCampaignPage() {
               <div className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm">
                 <UploadCloud className="h-5 w-5" />
               </div>
-              <p className="mt-4 text-sm font-semibold text-zinc-900">Choose CSV lead sheet</p>
+              <p className="mt-4 text-sm font-semibold text-zinc-900">Choose lead sheet</p>
               <p className="mt-1 max-w-xl text-sm text-zinc-500">
                 Upload your lead sheet and the campaign will be created as review-ready without starting discovery.
               </p>
@@ -400,7 +404,7 @@ export default function UploadCampaignPage() {
 
             <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                Preferred CSV Headers
+                Preferred Sheet Headers
               </p>
               <p className="mt-1 text-sm text-zinc-500">
                 The exported template uses the headers below. Matching them will reduce rejected or invalid rows during import.
