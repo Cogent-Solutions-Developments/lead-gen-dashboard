@@ -178,9 +178,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         onPinnedChange={setSidebarPinned}
       />
       <main
-        className={`min-h-screen bg-transparent p-6 transition-[margin] duration-300 ease-out ${
+        className={`min-h-screen bg-transparent transition-[margin] duration-300 ease-out ${
           sidebarExpanded ? "ml-72" : "ml-24"
-        }`}
+        } ${isFlushContentRoute ? "p-0" : "p-6"}`}
       >
         {children}
       </main>
