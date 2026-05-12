@@ -127,7 +127,7 @@ export default function NewCampaignPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="max-w-4xl">
-        <Card className="rounded-xl border border-zinc-200 bg-white p-6">
+        <Card className="rounded-xl border border-zinc-300 bg-white p-6">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2 md:col-span-2">
               <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
@@ -138,7 +138,7 @@ export default function NewCampaignPage() {
                 onValueChange={setSelectedEventId}
                 disabled={eventsLoading || isSubmitting}
               >
-                <SelectTrigger className="h-10 border-zinc-200 bg-white">
+                <SelectTrigger className="h-10 border-zinc-300 bg-white">
                   <SelectValue
                     placeholder={eventsLoading ? "Loading events..." : "Select an event"}
                   />
@@ -173,7 +173,7 @@ export default function NewCampaignPage() {
                   readOnly
                   disabled
                   placeholder="Select an event"
-                  className="h-10 border-zinc-200 bg-zinc-50 pl-9 text-zinc-700 disabled:opacity-100"
+                  className="h-10 border-zinc-300 bg-zinc-50 pl-9 text-zinc-700 disabled:opacity-100"
                 />
               </div>
             </div>
@@ -189,7 +189,7 @@ export default function NewCampaignPage() {
                   readOnly
                   disabled
                   placeholder="Select an event"
-                  className="h-10 border-zinc-200 bg-zinc-50 pl-9 text-zinc-700 disabled:opacity-100"
+                  className="h-10 border-zinc-300 bg-zinc-50 pl-9 text-zinc-700 disabled:opacity-100"
                 />
               </div>
             </div>
@@ -205,7 +205,7 @@ export default function NewCampaignPage() {
                   readOnly
                   disabled
                   placeholder="Select an event"
-                  className="h-10 border-zinc-200 bg-zinc-50 pl-9 text-zinc-700 disabled:opacity-100"
+                  className="h-10 border-zinc-300 bg-zinc-50 pl-9 text-zinc-700 disabled:opacity-100"
                 />
               </div>
             </div>
@@ -218,12 +218,12 @@ export default function NewCampaignPage() {
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 placeholder="Conference"
-                className="h-10 border-zinc-200 bg-white"
+                className="h-10 border-zinc-300 bg-white"
               />
             </div>
           </div>
 
-          <div className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50/70 p-4 text-xs leading-relaxed text-zinc-500">
+          <div className="mt-6 rounded-xl border border-zinc-300 bg-zinc-50/70 p-4 text-xs leading-relaxed text-zinc-500">
             Event name, location, and date are locked to the selected registry entry. Category stays campaign-specific and can be set here.
           </div>
 
@@ -234,8 +234,8 @@ export default function NewCampaignPage() {
             <Textarea
               value={icp}
               onChange={(e) => setIcp(e.target.value)}
-              placeholder={`Example:\nEvent: AMICT Malaysia\nTarget companies: Asset integrity and inspection vendors\nTarget roles: Sales Director, Regional Business Development Manager\nExclusions: Non-commercial institutions`}
-              className="min-h-80 resize-y border-zinc-200 bg-white font-mono text-sm"
+              placeholder={`Example:\nEvent: AMICT Malaysia\nTarget companies: Asset integrity and inspection vendors\nTarget roles: Commercial Director, Regional Business Development Manager\nExclusions: Non-commercial institutions`}
+              className="min-h-80 resize-y border-zinc-300 bg-white font-mono text-sm"
             />
             <p className="text-xs text-zinc-400">{icp.length} characters</p>
           </div>

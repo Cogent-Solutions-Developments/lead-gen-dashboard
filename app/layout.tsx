@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { Outfit } from "next/font/google";
+import { Google_Sans } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/components/layout/AppShell";
 
-const outfit = Outfit({
+const googleSans = Google_Sans({
   subsets: ["latin"],
-  variable: "--font-outfit",
+  variable: "--font-google-sans",
 });
 
 export const metadata: Metadata = {
@@ -21,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="bg-transparent">
-      <body className={`${outfit.className} ${outfit.variable} min-h-screen bg-black/3`}>
+      <body className={`${googleSans.className} ${googleSans.variable} min-h-screen bg-black/3`}>
         <AppShell>{children}</AppShell>
         <Toaster position="top-right" />
       </body>

@@ -82,7 +82,7 @@ export default function AdminDashboardPage() {
           <Button
             type="button"
             variant="outline"
-            className="h-10 border-zinc-200 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
+            className="h-10 border-zinc-300 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
           >
             <ShieldCheck className="mr-2 h-4 w-4" />
             Workspaces
@@ -93,13 +93,13 @@ export default function AdminDashboardPage() {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {adminTasks.map((task) => (
           <Link key={task.title} href={task.href}>
-            <div className="h-full rounded-2xl border border-zinc-200 bg-white/88 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:bg-white">
+            <div className="h-full rounded-2xl border border-zinc-300 bg-white/88 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:bg-white">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{task.metric}</p>
                   <h2 className="mt-2 text-base font-semibold tracking-tight text-zinc-900">{task.title}</h2>
                 </div>
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-700">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-zinc-300 bg-zinc-50 text-zinc-700">
                   <task.icon className="h-5 w-5" />
                 </div>
               </div>
@@ -113,7 +113,7 @@ export default function AdminDashboardPage() {
         ))}
       </div>
 
-      <div className="mt-5 rounded-2xl border border-zinc-200/85 bg-white/84 p-5">
+      <div className="mt-5 rounded-2xl border border-zinc-300/85 bg-white/84 p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-base font-semibold text-zinc-900">Admin Task Flow</h2>
@@ -127,7 +127,7 @@ export default function AdminDashboardPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-9 border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                  className="h-9 border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
                 >
                   <task.icon className="mr-1.5 h-3.5 w-3.5" />
                   {task.metric}

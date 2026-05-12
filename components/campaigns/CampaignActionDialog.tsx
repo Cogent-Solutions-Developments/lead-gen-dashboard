@@ -79,7 +79,7 @@ export function CampaignActionDialog({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.98 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="relative z-[1] w-full max-w-md overflow-hidden rounded-2xl border border-zinc-200/85 bg-white/96 shadow-[0_0_0_1px_rgba(255,255,255,0.9),0_24px_40px_-24px_rgba(2,10,27,0.6),0_12px_22px_-16px_rgba(15,23,42,0.34)] backdrop-blur-[10px]"
+            className="relative z-[1] w-full max-w-md overflow-hidden rounded-2xl border border-zinc-300/85 bg-white/96 shadow-[0_0_0_1px_rgba(255,255,255,0.9),0_24px_40px_-24px_rgba(2,10,27,0.6),0_12px_22px_-16px_rgba(15,23,42,0.34)] backdrop-blur-[10px]"
           >
             <div className="pointer-events-none absolute -right-14 -top-16 h-44 w-44 rounded-full bg-gradient-to-br from-sky-200/50 via-blue-300/25 to-transparent blur-3xl" />
             <div className="pointer-events-none absolute -left-14 bottom-0 h-32 w-32 rounded-full bg-gradient-to-tr from-zinc-100/70 to-transparent blur-2xl" />
@@ -119,7 +119,7 @@ export function CampaignActionDialog({
                   ) : null}
 
                   {blockedDetail?.nextAction ? (
-                    <div className="rounded-xl border border-zinc-200/80 bg-white/85 p-4">
+                    <div className="rounded-xl border border-zinc-300/80 bg-white/85 p-4">
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                         Next Action
                       </p>
@@ -159,7 +159,7 @@ export function CampaignActionDialog({
                   variant="ghost"
                   disabled={isBusy}
                   onClick={closeSafely}
-                  className="h-9 rounded-md border border-zinc-200/80 bg-white/90 px-3 text-xs font-semibold text-zinc-700 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:opacity-60"
+                  className="h-9 rounded-md border border-zinc-300/80 bg-white/90 px-3 text-xs font-semibold text-zinc-700 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:opacity-60"
                 >
                   {isDeleteBlocked ? "Close" : "Cancel"}
                 </Button>

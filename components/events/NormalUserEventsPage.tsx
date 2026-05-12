@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { listEvents, type EventSummaryItem } from "@/lib/apiRouter";
-import { usePersona } from "@/hooks/usePersona";
-import { ChevronRight, Layers3, RefreshCcw, Search, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  RefreshCcw,
+  Search,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 function getErrorMessage(error: unknown) {
@@ -16,14 +17,12 @@ function getErrorMessage(error: unknown) {
 }
 
 export function NormalUserEventsPage() {
-  const { persona } = usePersona();
-  const personaLabel =
-    persona === "delegates" ? "Delegate" : persona === "production" ? "Production" : "Sales";
-
   const [items, setItems] = useState<EventSummaryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
+  const hasSearch = searchQuery.trim().length > 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -60,6 +59,7 @@ export function NormalUserEventsPage() {
       const haystack = [
         item.canonicalEventName,
         item.canonicalEventKey,
+        ...(item.relatedCampaignNames || []),
       ]
         .join(" ")
         .toLowerCase();
@@ -74,123 +74,183 @@ export function NormalUserEventsPage() {
   );
 
   return (
-    <div className="font-sans flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1">
-      <div className="relative z-10 flex shrink-0 flex-col gap-4 border-b border-zinc-100/90 bg-transparent pb-6 backdrop-blur-[8px] sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-[0.18em] text-zinc-400">
-            {personaLabel} Workspace
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-900">Events</h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Open an event to review one combined lead sheet for the whole event bucket.
-          </p>
-        </div>
+    <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
+      <header className="shrink-0 border-b border-zinc-300 pb-12">
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-950"
+            >
+              <ArrowLeft className="mr-2 h-3 w-3" />
+              Return to dashboard
+            </Link>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge className="rounded-md border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-zinc-500 shadow-none">
-            {items.length} events
-          </Badge>
-          <Badge className="rounded-md border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-zinc-500 shadow-none">
-            {totalLeadCount} unique leads
-          </Badge>
-        </div>
-      </div>
-
-      <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/32 backdrop-blur-[8px]">
-        <div className="flex shrink-0 flex-col gap-3 border-b border-zinc-200/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative w-full sm:max-w-sm">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-              <Input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search event"
-                className="h-9 border-zinc-200/80 bg-white/85 pl-9 text-sm"
-              />
+            <div className="mt-8">
+              <h1 className="text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
+                Events
+              </h1>
+              <p className="mt-4 max-w-xl text-lg font-light leading-relaxed text-zinc-500">
+                Browse our curated event registry and access real-time prospect intelligence.
+              </p>
+            </div>
           </div>
 
-          <Button
-            variant="outline"
-            className="h-9 shrink-0 border-zinc-200/80 bg-white/85 px-3.5 text-xs font-semibold text-zinc-700 hover:bg-white"
-            onClick={() => setRefreshTick((value) => value + 1)}
-          >
-            <RefreshCcw className="mr-1.5 h-3.5 w-3.5" />
-            Refresh
-          </Button>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-auto px-4 py-3">
-          {loading ? (
-            <div className="px-5 py-10 text-sm text-zinc-500">Loading events...</div>
-          ) : filteredItems.length === 0 ? (
-            <div className="px-5 py-10 text-sm text-zinc-500">
-              {searchQuery.trim() ? "No events match the current search." : "No events found."}
+          <div className="flex flex-col gap-5 border-zinc-300 lg:min-w-[23rem] lg:border-l lg:pl-10">
+            <div className="grid grid-cols-2 gap-10">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-zinc-400">Active events</p>
+                <p className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
+                  {items.length}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-zinc-400">Total prospect reach</p>
+                <p className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
+                  {totalLeadCount.toLocaleString()}
+                </p>
+              </div>
             </div>
-          ) : (
-            <table className="min-w-[760px] w-full">
-              <thead className="border-b border-zinc-100/85 bg-white/70">
-                <tr>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                    Event
-                  </th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                    Campaigns
-                  </th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                    Unique Leads
-                  </th>
-                  <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
 
-              <tbody className="divide-y divide-zinc-100/70">
-                {filteredItems.map((item, index) => (
-                  <motion.tr
-                    key={item.canonicalEventKey}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.03 }}
-                    className="group transition-colors hover:bg-white/46"
-                  >
-                    <td className="px-4 py-4 align-top">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-zinc-900">
-                          {item.canonicalEventName}
-                        </p>
-                        <p className="mt-1 text-xs text-zinc-400">{item.canonicalEventKey}</p>
-                      </div>
-                    </td>
+            <div className="grid grid-cols-2 gap-10 border-t border-zinc-300 pt-4">
+              <button
+                type="button"
+                className={`inline-flex h-10 w-fit items-center gap-4 border-b border-transparent text-base font-medium transition-all ${
+                  hasSearch
+                    ? "border-zinc-950 text-zinc-950"
+                    : "text-zinc-500 hover:border-zinc-900 hover:text-zinc-950"
+                }`}
+                onClick={() => setSearchOpen(true)}
+              >
+                <Search className="h-4 w-4" />
+                Search
+              </button>
 
-                    <td className="px-4 py-4 align-top">
-                      <span className="inline-flex items-center gap-2 text-sm font-medium text-zinc-700">
-                        <Layers3 className="h-4 w-4 text-zinc-400" />
-                        {item.campaignCount}
-                      </span>
-                    </td>
-
-                    <td className="px-4 py-4 align-top">
-                      <span className="inline-flex items-center gap-2 text-sm font-medium text-zinc-700">
-                        <Users className="h-4 w-4 text-zinc-400" />
-                        {item.leadCount}
-                      </span>
-                    </td>
-
-                    <td className="px-4 py-4 align-top text-right">
-                      <Link href={`/leads?event=${encodeURIComponent(item.canonicalEventKey)}`}>
-                        <Button className="h-9 rounded-md border border-zinc-200/80 bg-white/82 px-3.5 text-xs font-semibold text-zinc-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-zinc-300 hover:bg-white hover:text-zinc-900">
-                          Open Lead Sheet
-                          <ChevronRight className="ml-1 h-3 w-3" />
-                        </Button>
-                      </Link>
-                    </td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+              <button
+                type="button"
+                className="inline-flex h-10 w-fit items-center gap-3 border-b border-transparent text-base font-medium text-zinc-500 transition-all hover:border-zinc-900 hover:text-zinc-900"
+                onClick={() => setRefreshTick((value) => value + 1)}
+              >
+                <RefreshCcw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+                Refresh
+              </button>
+            </div>
+          </div>
         </div>
+      </header>
+
+      <div className="flex min-h-0 flex-1 flex-col pt-10">
+        <main className="flex min-h-0 flex-col">
+          {hasSearch ? (
+            <div className="mb-6 flex shrink-0 items-center justify-between border-y border-zinc-100 py-4">
+              <p className="text-base font-light text-zinc-500">
+                Searching for <span className="font-medium text-zinc-950">{searchQuery.trim()}</span>
+              </p>
+              <button
+                type="button"
+                className="text-base font-medium text-zinc-400 transition-colors hover:text-zinc-950"
+                onClick={() => setSearchQuery("")}
+              >
+                Clear
+              </button>
+            </div>
+          ) : null}
+
+          <div className="min-h-0 flex-1 overflow-y-auto scrollbar-modern">
+            {loading ? (
+              <div className="py-12 text-sm text-zinc-500">Loading events...</div>
+            ) : filteredItems.length === 0 ? (
+              <div className="py-12 text-sm text-zinc-500">
+                {searchQuery.trim() ? "No events match this search." : "No events found."}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1">
+                {filteredItems.map((item, index) => (
+                  <motion.div
+                    key={item.canonicalEventKey}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: index * 0.02 }}
+                    className="group border-b border-zinc-300 transition-colors hover:bg-zinc-50/50"
+                  >
+                    <Link
+                      href={`/leads?event=${encodeURIComponent(item.canonicalEventKey)}`}
+                      className="flex h-full flex-col p-7 2xl:p-8"
+                    >
+                      <div className="flex flex-1 flex-col justify-between gap-8 2xl:gap-10">
+                        <div className="space-y-4">
+                          <h2 className="text-2xl font-normal leading-[1.25] tracking-[-0.018em] text-zinc-950 group-hover:text-blue-700 2xl:text-3xl">
+                            {item.canonicalEventName}
+                          </h2>
+                        </div>
+
+                        <div className="flex items-end justify-between">
+                          <div className="space-y-1">
+                            <span className="text-sm font-medium text-zinc-400">Total prospects</span>
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-3xl font-light tabular-nums tracking-tight text-zinc-900 2xl:text-4xl">
+                                {Number(item.leadCount).toLocaleString()}
+                              </span>
+                              <span className="text-base font-light text-zinc-500">leads</span>
+                            </div>
+                          </div>
+
+                          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-400 transition-all group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white 2xl:h-12 2xl:w-12">
+                            <ArrowLeft className="h-4 w-4 rotate-180 2xl:h-5 2xl:w-5" />
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
+        </main>
       </div>
+
+      {searchOpen ? (
+        <div className="fixed inset-0 z-[90] flex items-start justify-center px-6 pt-24">
+          <button
+            type="button"
+            aria-label="Close search"
+            className="absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,0.34),rgba(9,9,11,0.18)_42%,rgba(9,9,11,0.28))] backdrop-blur-[10px]"
+            onClick={() => setSearchOpen(false)}
+          />
+
+          <div className="relative z-[1] w-full max-w-2xl overflow-hidden rounded-full border border-zinc-300 bg-white/48 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(255,255,255,0.35),0_34px_100px_-48px_rgba(2,10,27,0.85),0_10px_32px_-24px_rgba(2,10,27,0.5)] ring-1 ring-white/45 backdrop-blur-[34px]">
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.88)_0%,rgba(255,255,255,0.34)_38%,rgba(255,255,255,0.18)_100%)]" />
+            <div className="pointer-events-none absolute -left-20 -top-24 h-56 w-56 rounded-full bg-white/65 blur-3xl" />
+            <div className="pointer-events-none absolute -right-24 bottom-0 h-56 w-56 rounded-full bg-blue-200/22 blur-3xl" />
+
+            <div className="relative flex items-center gap-6 px-6 py-4">
+              <Search className="h-5 w-5 shrink-0 text-zinc-400/90" />
+              <input
+                autoFocus
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setSearchOpen(false);
+                  if (event.key === "Enter") setSearchOpen(false);
+                }}
+                placeholder="Search events, regions, or campaign names"
+                className="h-12 min-w-0 flex-1 bg-transparent text-3xl font-light tracking-[-0.03em] text-zinc-950 placeholder:text-zinc-400/86 focus:outline-none"
+              />
+              {hasSearch ? (
+                <button
+                  type="button"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/55 bg-white/36 text-zinc-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] transition-colors hover:bg-white/70 hover:text-zinc-950"
+                  onClick={() => setSearchQuery("")}
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
+
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
