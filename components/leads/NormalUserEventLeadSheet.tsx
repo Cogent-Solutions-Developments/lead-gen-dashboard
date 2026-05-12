@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -15,6 +16,7 @@ import {
 import {
   addEventLead,
   createWorkflowStatus,
+  getLeadWorkflowStatusHistory,
   listEventLeads,
   listEvents,
   listWorkflowStatuses,
@@ -25,14 +27,18 @@ import {
   type EventSummaryItem,
   type WorkflowStatus,
   type WorkflowStatusDefinitionItem,
+  type WorkflowStatusHistoryItem,
 } from "@/lib/apiRouter";
 import { usePersona } from "@/hooks/usePersona";
 import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  Clock3,
   Copy,
+  History,
   Loader2,
+  MessageSquare,
   Plus,
   RefreshCcw,
   Search,
@@ -55,6 +61,9 @@ type LeadSheetRow = {
   companyUrl: string;
   workflowStatus: WorkflowStatus;
   workflowStatusLabel: string;
+  workflowComment: string;
+  workflowCommentUpdatedAt: string;
+  workflowCommentHistoryCount: number;
   isManualLead: boolean;
 };
 
@@ -72,6 +81,11 @@ type LeadFilterState = {
   status: string;
   contact: "all" | "email" | "phone" | "complete" | "missing-contact" | "linkedin" | "website";
   source: "all" | "manual" | "imported";
+};
+
+type PendingStatusChange = {
+  item: LeadSheetRow;
+  nextStatus: WorkflowStatus;
 };
 
 const LinkedInIcon = ({ className }: { className?: string }) => (
@@ -157,7 +171,6 @@ const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
   },
 ];
 
-const FIXED_WORKFLOW_STATUS_KEYS = new Set(FIXED_WORKFLOW_STATUSES.map((item) => item.statusKey));
 const STATUS_DOT_CLASS: Record<string, string> = {
   new: "bg-[#0aefff] shadow-[0_0_0_3px_rgba(10,239,255,0.20)]",
   "first-call": "bg-[#147df5] shadow-[0_0_0_3px_rgba(20,125,245,0.20)]",
@@ -201,6 +214,13 @@ function humanizeStatusLabel(value: string) {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString();
 }
 
 function sortWorkflowStatuses(items: WorkflowStatusDefinitionItem[]) {
@@ -261,6 +281,9 @@ function mapLeadItem(item: EventLeadListItem, labelLookup: Map<string, string>):
     companyUrl: asText(item.companyUrl),
     workflowStatus,
     workflowStatusLabel,
+    workflowComment: asText(item.workflowComment),
+    workflowCommentUpdatedAt: asText(item.workflowCommentUpdatedAt),
+    workflowCommentHistoryCount: Number(item.workflowCommentHistoryCount || 0),
     isManualLead: Boolean(item.isManualLead),
   };
 }
@@ -328,9 +351,7 @@ function LeadSheetDialog({
 }
 
 export function NormalUserEventLeadSheet() {
-  const { persona } = usePersona();
-  const personaLabel =
-    persona === "delegates" ? "Delegate" : persona === "production" ? "Production" : "Sales";
+  usePersona();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -356,6 +377,12 @@ export function NormalUserEventLeadSheet() {
   const [copiedLeadId, setCopiedLeadId] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [filters, setFilters] = useState<LeadFilterState>(EMPTY_FILTERS);
+  const [pendingStatusChange, setPendingStatusChange] = useState<PendingStatusChange | null>(null);
+  const [statusComment, setStatusComment] = useState("");
+  const [historyLead, setHistoryLead] = useState<LeadSheetRow | null>(null);
+  const [historyItems, setHistoryItems] = useState<WorkflowStatusHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const targetLeadRowRef = useRef<HTMLDivElement | null>(null);
 
   const workflowStatusLabelLookup = useMemo(() => {
@@ -566,12 +593,12 @@ export function NormalUserEventLeadSheet() {
   };
 
   const handleWorkflowStatusChange = useCallback(
-    async (item: LeadSheetRow, nextStatus: WorkflowStatus) => {
+    async (item: LeadSheetRow, nextStatus: WorkflowStatus, comment?: string) => {
       const updateKey = `${item.canonicalEventKey}::${item.leadIdentityKey}`;
 
       setUpdatingKeys((prev) => ({ ...prev, [updateKey]: true }));
       try {
-        const response = await updateLeadWorkflowStatus(item.id, nextStatus);
+        const response = await updateLeadWorkflowStatus(item.id, nextStatus, comment);
 
         const nextLabel =
           asText(response.workflowStatusLabel) ||
@@ -591,6 +618,10 @@ export function NormalUserEventLeadSheet() {
                       ...lead,
                       workflowStatus: response.workflowStatus,
                       workflowStatusLabel: nextLabel,
+                      workflowComment: response.workflowComment,
+                      workflowCommentUpdatedAt: response.workflowCommentUpdatedAt,
+                      workflowCommentUpdatedByUserId: response.workflowCommentUpdatedByUserId,
+                      workflowCommentHistoryCount: response.workflowCommentHistoryCount,
                     };
                   }
                   return lead;
@@ -598,10 +629,12 @@ export function NormalUserEventLeadSheet() {
               }
             : prev
         );
+        return true;
       } catch (error: unknown) {
         toast.error("Failed to update status", {
           description: getErrorMessage(error),
         });
+        return false;
       } finally {
         setUpdatingKeys((prev) => {
           const next = { ...prev };
@@ -614,7 +647,54 @@ export function NormalUserEventLeadSheet() {
   );
 
   const handleStatusSelection = (item: LeadSheetRow, value: string) => {
-    void handleWorkflowStatusChange(item, value);
+    if (value === item.workflowStatus) return;
+    setPendingStatusChange({ item, nextStatus: value });
+    setStatusComment("");
+  };
+
+  const closeStatusCommentDialog = () => {
+    if (!pendingStatusChange) return;
+    const updateKey = `${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`;
+    if (updatingKeys[updateKey]) return;
+    setPendingStatusChange(null);
+    setStatusComment("");
+  };
+
+  const submitStatusComment = async () => {
+    if (!pendingStatusChange) return;
+    const comment = statusComment.trim();
+    const updated = await handleWorkflowStatusChange(
+      pendingStatusChange.item,
+      pendingStatusChange.nextStatus,
+      comment || undefined
+    );
+    if (updated) {
+      setPendingStatusChange(null);
+      setStatusComment("");
+    }
+  };
+
+  const openHistory = async (item: LeadSheetRow) => {
+    setHistoryLead(item);
+    setHistoryItems([]);
+    setHistoryError(null);
+    setHistoryLoading(true);
+    try {
+      const response = await getLeadWorkflowStatusHistory(item.id);
+      setHistoryItems(Array.isArray(response.history) ? response.history : []);
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      setHistoryError(message);
+      toast.error("Failed to load comment history", { description: message });
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const closeHistory = () => {
+    setHistoryLead(null);
+    setHistoryItems([]);
+    setHistoryError(null);
   };
 
   const copyLeadDetails = async (item: LeadSheetRow) => {
@@ -877,9 +957,10 @@ export function NormalUserEventLeadSheet() {
                       const updateKey = `${item.canonicalEventKey}::${item.leadIdentityKey}`;
                       const isTargetLead = targetLeadId === item.id;
                       const isUpdating = Boolean(updatingKeys[updateKey]);
-                      const selectedStatusValue = FIXED_WORKFLOW_STATUS_KEYS.has(item.workflowStatus)
+                      const selectedStatusValue = statusOptions.some((option) => option.statusKey === item.workflowStatus)
                         ? item.workflowStatus
                         : undefined;
+                      const historyCount = item.workflowCommentHistoryCount || 0;
 
                       return (
                         <div
@@ -977,6 +1058,33 @@ export function NormalUserEventLeadSheet() {
                               </div>
                               {isUpdating && <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />}
                             </div>
+                            <div className="mt-4 space-y-2">
+                              {item.workflowComment ? (
+                                <button
+                                  type="button"
+                                  onClick={() => void openHistory(item)}
+                                  className="block w-full border-l border-zinc-300 pl-3 text-left transition-colors hover:border-zinc-900"
+                                >
+                                  <span className="line-clamp-2 text-xs font-light leading-relaxed text-zinc-500">
+                                    {item.workflowComment}
+                                  </span>
+                                  {item.workflowCommentUpdatedAt ? (
+                                    <span className="mt-1 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+                                      <Clock3 className="h-3 w-3" />
+                                      {formatDateTime(item.workflowCommentUpdatedAt)}
+                                    </span>
+                                  ) : null}
+                                </button>
+                              ) : null}
+                              <button
+                                type="button"
+                                onClick={() => void openHistory(item)}
+                                className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950"
+                              >
+                                <History className="h-3.5 w-3.5" />
+                                {historyCount > 0 ? `${historyCount} comment${historyCount === 1 ? "" : "s"}` : "Comment history"}
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );
@@ -1019,6 +1127,135 @@ export function NormalUserEventLeadSheet() {
           </main>
         </div>
       </div>
+
+      {pendingStatusChange ? (
+        <LeadSheetDialog
+          open
+          title="Status Note"
+          description="Add a short comment for this state change so the next person can understand the context."
+          onClose={closeStatusCommentDialog}
+        >
+          <div className="space-y-8">
+            <div className="border-b border-zinc-100 pb-6">
+              <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Selected profile</p>
+              <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
+                {pendingStatusChange.item.employeeName || "-"}
+              </h3>
+              <p className="mt-1 text-sm font-light text-zinc-500">
+                {pendingStatusChange.item.company || "-"}
+              </p>
+            </div>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="border border-zinc-200 bg-zinc-50/70 p-4">
+                <p className="text-xs font-medium text-zinc-400">Current status</p>
+                <p className="mt-2 text-lg font-light text-zinc-950">
+                  {pendingStatusChange.item.workflowStatusLabel}
+                </p>
+              </div>
+              <div className="border border-zinc-950 bg-white p-4">
+                <p className="text-xs font-medium text-zinc-400">New status</p>
+                <p className="mt-2 text-lg font-light text-zinc-950">
+                  {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
+                    humanizeStatusLabel(pendingStatusChange.nextStatus)}
+                </p>
+              </div>
+            </div>
+
+            <label className="block space-y-3">
+              <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                Comment <span className="normal-case tracking-normal text-zinc-400">Optional</span>
+              </span>
+              <Textarea
+                value={statusComment}
+                onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
+                placeholder="Example: Follow up after first call. Asked to reconnect next week."
+                className="min-h-36 rounded-none border-zinc-300 bg-white text-sm font-light shadow-none focus-visible:ring-1 focus-visible:ring-zinc-900"
+              />
+              <span className="block text-right text-xs font-light text-zinc-400">
+                {statusComment.length}/2000
+              </span>
+            </label>
+
+            <div className="flex justify-end gap-3 border-t border-zinc-100 pt-6">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={closeStatusCommentDialog}
+                className="h-10 rounded-none border border-zinc-300 bg-white px-5 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => void submitStatusComment()}
+                disabled={Boolean(updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`])}
+                className="h-10 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
+              >
+                {updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`] ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                )}
+                Update Status
+              </Button>
+            </div>
+          </div>
+        </LeadSheetDialog>
+      ) : null}
+
+      {historyLead ? (
+        <LeadSheetDialog
+          open
+          title="Comment History"
+          description="Review the status timeline and notes saved for this record."
+          onClose={closeHistory}
+        >
+          <div className="space-y-6">
+            <div className="border-b border-zinc-100 pb-6">
+              <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Selected profile</p>
+              <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
+                {historyLead.employeeName || "-"}
+              </h3>
+              <p className="mt-1 text-sm font-light text-zinc-500">{historyLead.company || "-"}</p>
+            </div>
+
+            {historyLoading ? (
+              <div className="flex h-32 items-center justify-center text-sm font-light text-zinc-400">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Loading history...
+              </div>
+            ) : historyError ? (
+              <div className="border border-red-200 bg-red-50 p-4 text-sm font-light text-red-700">
+                {historyError}
+              </div>
+            ) : historyItems.length === 0 ? (
+              <div className="border border-zinc-200 bg-zinc-50/70 p-6 text-sm font-light text-zinc-500">
+                No comments have been recorded for this lead yet.
+              </div>
+            ) : (
+              <div className="space-y-0 border-y border-zinc-200">
+                {historyItems.map((entry) => (
+                  <div key={entry.id} className="border-b border-zinc-100 py-5 last:border-b-0">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <span className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(entry.workflowStatus)}`} />
+                        <span className="text-sm font-medium text-zinc-950">
+                          {entry.workflowStatusLabel || humanizeStatusLabel(entry.workflowStatus)}
+                        </span>
+                      </div>
+                      <span className="text-xs font-light text-zinc-400">{formatDateTime(entry.createdAt)}</span>
+                    </div>
+                    <p className="mt-3 whitespace-pre-wrap text-sm font-light leading-relaxed text-zinc-600">
+                      {entry.comment || "No comment added."}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </LeadSheetDialog>
+      ) : null}
 
       {filterOpen ? (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-6">

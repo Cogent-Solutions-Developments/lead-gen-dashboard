@@ -65,6 +65,8 @@ export type {
   WorkflowStatus,
   WorkflowStatusDefinitionItem,
   WorkflowStatusDefinitionsResponse,
+  WorkflowStatusHistoryItem,
+  WorkflowStatusHistoryResponse,
   WorkflowStatusUpdateResponse,
   WhatsAppInbound,
   WhatsAppMessagesResponse,
@@ -146,6 +148,9 @@ export const updateLeadContent: typeof sales.updateLeadContent = (...args) =>
 
 export const updateLeadWorkflowStatus: typeof sales.updateLeadWorkflowStatus = (...args) =>
   pickModule().updateLeadWorkflowStatus(...args);
+
+export const getLeadWorkflowStatusHistory: typeof sales.getLeadWorkflowStatusHistory = (...args) =>
+  pickModule().getLeadWorkflowStatusHistory(...args);
 
 export const approveAllCampaign: typeof sales.approveAllCampaign = (...args) =>
   pickModule().approveAllCampaign(...args);

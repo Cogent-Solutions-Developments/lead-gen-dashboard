@@ -49,6 +49,7 @@ import type {
   WorkflowStatus,
   WorkflowStatusDefinitionItem,
   WorkflowStatusDefinitionsResponse,
+  WorkflowStatusHistoryResponse,
   WorkflowStatusUpdateResponse,
 } from "./api";
 
@@ -100,6 +101,7 @@ export type {
   WorkflowStatus,
   WorkflowStatusDefinitionItem,
   WorkflowStatusDefinitionsResponse,
+  WorkflowStatusHistoryResponse,
   WorkflowStatusUpdateResponse,
 };
 
@@ -342,10 +344,17 @@ export async function updateLeadContent(
   return data;
 }
 
-export async function updateLeadWorkflowStatus(id: string, workflowStatus: WorkflowStatus) {
+export async function updateLeadWorkflowStatus(id: string, workflowStatus: WorkflowStatus, comment?: string) {
   const { data } = await apiClientDelegate.put<WorkflowStatusUpdateResponse>(
     `/api/delegates/leads/${id}/workflow-status`,
-    { workflowStatus }
+    { workflowStatus, comment }
+  );
+  return data;
+}
+
+export async function getLeadWorkflowStatusHistory(id: string) {
+  const { data } = await apiClientDelegate.get<WorkflowStatusHistoryResponse>(
+    `/api/delegates/leads/${id}/workflow-status-history`
   );
   return data;
 }
