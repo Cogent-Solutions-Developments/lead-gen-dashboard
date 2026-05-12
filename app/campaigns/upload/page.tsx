@@ -31,6 +31,9 @@ const uploadSteps = [
 
 type UploadStep = (typeof uploadSteps)[number]["id"];
 
+const leadSheetAccept = ".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const allowedLeadSheetExtensions = new Set([".csv", ".xlsx"]);
+
 function formatBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
 
@@ -136,9 +139,10 @@ export default function UploadCampaignPage() {
   const pageTitle = isSuperAdmin ? "Campaign Upload" : "Upload Leads";
 
   const validateLeadSheet = (file: File | null) => {
-    if (!file) return "A CSV lead sheet is required.";
-    if (!file.name.toLowerCase().endsWith(".csv")) return "Only .csv files are supported.";
-    if (file.size <= 0) return "The selected CSV file is empty.";
+    if (!file) return "A CSV or XLSX lead sheet is required.";
+    const extension = file.name.toLowerCase().match(/\.[^.]+$/)?.[0] ?? "";
+    if (!allowedLeadSheetExtensions.has(extension)) return "Only .csv and .xlsx files are supported.";
+    if (file.size <= 0) return "The selected lead sheet is empty.";
     return null;
   };
 

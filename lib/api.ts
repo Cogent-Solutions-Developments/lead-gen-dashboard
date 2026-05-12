@@ -459,6 +459,10 @@ export type LeadItem = {
   leadIdentityKey?: string | null;
   workflowStatus?: WorkflowStatus | null;
   workflowStatusLabel?: string | null;
+  workflowComment?: string | null;
+  workflowCommentUpdatedAt?: string | null;
+  workflowCommentUpdatedByUserId?: string | null;
+  workflowCommentHistoryCount?: number | null;
   hostIcpRunId?: string | null;
   isManualLead?: boolean | null;
   manualLeadAddedByUserId?: string | null;
@@ -485,7 +489,32 @@ export type WorkflowStatusUpdateResponse = {
   leadIdentityKey: string;
   workflowStatus: WorkflowStatus;
   workflowStatusLabel?: string | null;
+  workflowComment?: string | null;
+  workflowCommentUpdatedAt?: string | null;
+  workflowCommentUpdatedByUserId?: string | null;
+  workflowCommentHistoryCount: number;
   updatedAt?: string | null;
+};
+
+export type WorkflowStatusHistoryItem = {
+  id: string;
+  canonicalEventKey: string;
+  canonicalEventName: string;
+  leadIdentityKey: string;
+  workflowStatus: WorkflowStatus;
+  workflowStatusLabel?: string | null;
+  comment?: string | null;
+  updatedByUserId?: string | null;
+  createdAt?: string | null;
+};
+
+export type WorkflowStatusHistoryResponse = {
+  id: string;
+  canonicalEventKey: string;
+  canonicalEventName: string;
+  leadIdentityKey: string;
+  history: WorkflowStatusHistoryItem[];
+  total: number;
 };
 
 export type EventSummaryItem = {
@@ -517,6 +546,10 @@ export type EventLeadListItem = {
   companyUrl?: string | null;
   workflowStatus: WorkflowStatus;
   workflowStatusLabel?: string | null;
+  workflowComment?: string | null;
+  workflowCommentUpdatedAt?: string | null;
+  workflowCommentUpdatedByUserId?: string | null;
+  workflowCommentHistoryCount?: number | null;
   isSuppressed?: boolean;
   suppression?: SuppressionMeta | null;
   contactReadOnly?: boolean;
@@ -890,10 +923,17 @@ export async function updateLeadContent(id: string, payload: {
   return data;
 }
 
-export async function updateLeadWorkflowStatus(id: string, workflowStatus: WorkflowStatus) {
+export async function updateLeadWorkflowStatus(id: string, workflowStatus: WorkflowStatus, comment?: string) {
   const { data } = await apiClient.put<WorkflowStatusUpdateResponse>(
     `/api/leads/${id}/workflow-status`,
-    { workflowStatus }
+    { workflowStatus, comment }
+  );
+  return data;
+}
+
+export async function getLeadWorkflowStatusHistory(id: string) {
+  const { data } = await apiClient.get<WorkflowStatusHistoryResponse>(
+    `/api/leads/${id}/workflow-status-history`
   );
   return data;
 }
