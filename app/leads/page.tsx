@@ -233,6 +233,7 @@ function deriveContactState(source: Record<string, unknown>): ContactState {
   const markEmail = (value: unknown) => {
     emailSignal = strongestSignal([emailSignal, signalFromUnknown(value)]);
   };
+  
 
   const markWhatsapp = (value: unknown) => {
     whatsappSignal = strongestSignal([whatsappSignal, signalFromUnknown(value)]);
