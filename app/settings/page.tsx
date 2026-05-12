@@ -170,7 +170,7 @@ export default function SettingsPage() {
           <Button
             type="button"
             variant="outline"
-            className="h-10 border-slate-200 bg-white/90 text-slate-700 hover:bg-slate-50"
+            className="h-10 border-slate-300 bg-white/90 text-slate-700 hover:bg-slate-50"
           >
             <Activity className="mr-2 h-4 w-4" />
             System Monitor
@@ -269,14 +269,14 @@ export default function SettingsPage() {
                 variant="outline"
                 onClick={() => void loadOptOutList()}
                 disabled={optOutLoading || uploadingCsv || addingManual}
-                className="border-slate-200 text-slate-700"
+                className="border-slate-300 text-slate-700"
               >
                 <RefreshCw className={`mr-2 h-4 w-4 ${optOutLoading ? "animate-spin" : ""}`} />
                 Refresh
               </Button>
             </div>
 
-            <div className="mb-3 grid gap-3 rounded-lg border border-slate-200 bg-slate-50/60 p-4 md:grid-cols-3">
+            <div className="mb-3 grid gap-3 rounded-lg border border-slate-300 bg-slate-50/60 p-4 md:grid-cols-3">
               <div className="space-y-1">
                 <label className="block text-sm font-medium text-slate-700">Phone (optional)</label>
                 <Input
@@ -316,7 +316,7 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50/60 p-4 md:grid-cols-[1fr_auto] md:items-end">
+            <div className="grid gap-3 rounded-lg border border-slate-300 bg-slate-50/60 p-4 md:grid-cols-[1fr_auto] md:items-end">
               <div className="space-y-1">
                 <label className="block text-sm font-medium text-slate-700">Upload Opt-out CSV</label>
                 <Input
@@ -364,7 +364,7 @@ export default function SettingsPage() {
               </div>
             ) : null}
 
-            <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+            <div className="mt-4 overflow-x-auto rounded-lg border border-slate-300">
               <table className="min-w-full text-left text-sm">
                 <thead className="bg-slate-100/80 text-xs uppercase tracking-wide text-slate-600">
                   <tr>

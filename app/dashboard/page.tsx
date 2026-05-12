@@ -1,90 +1,122 @@
-﻿"use client";
+"use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Plus, User } from "lucide-react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-
-import { StatsCards } from "@/components/dashboard/StatsCards";
-import { RecentCampaigns } from "@/components/dashboard/RecentCampaigns";
-import { RecentEvents } from "@/components/dashboard/RecentEvents";
-import { LeadsBreakdown } from "@/components/dashboard/LeadsBreakdown";
-import { RepliesOverviewCard } from "@/components/dashboard/RepliesOverviewCard";
-import { usePersona } from "@/hooks/usePersona";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { usePersona } from "@/hooks/usePersona";
+import { getCachedAuthUserDisplayName } from "@/lib/auth";
+import { listEvents, type EventSummaryItem } from "@/lib/apiRouter";
+
+function getDisplayName(user: ReturnType<typeof useAuth>["user"]) {
+  const values = [user?.fullName, getCachedAuthUserDisplayName(user), user?.username]
+    .map((value) => value?.trim())
+    .filter(Boolean) as string[];
+  const rolePlaceholders = new Set([
+    "sales_user",
+    "sales user",
+    "delegate_user",
+    "delegate user",
+    "production_user",
+    "production user",
+    "super_admin_user",
+    "super admin user",
+  ]);
+
+  return values.find((value) => !rolePlaceholders.has(value.toLowerCase())) || "there";
+}
+
+function firstName(value: string) {
+  return value.split(/\s+/)[0] || value;
+}
+
+function getDateLabel() {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  }).format(new Date());
+}
+
+function getTimeGreeting() {
+  const hour = new Date().getHours();
+
+  if (hour < 5) return "Hey Night Owl";
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  if (hour < 21) return "Good evening";
+  return "Good night";
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Could not load dashboard data.";
+}
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const { persona } = usePersona();
-  const { isSuperAdmin } = useAuth();
-  const personaLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
+  const [events, setEvents] = useState<EventSummaryItem[]>([]);
+  const displayName = firstName(getDisplayName(user));
+  const greeting = getTimeGreeting();
+  const workspaceLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
+  const workLabel = persona === "delegates" ? "delegate" : persona === "production" ? "production" : "sales";
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadDashboard() {
+      try {
+        const eventResponse = await listEvents();
+
+        if (!alive) return;
+        setEvents(eventResponse.events || []);
+      } catch (error) {
+        if (!alive) return;
+        toast.error("Dashboard sync failed", { description: getErrorMessage(error) });
+        setEvents([]);
+      }
+    }
+
+    void loadDashboard();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const totalProspects = useMemo(
+    () => events.reduce((sum, event) => sum + Number(event.leadCount || 0), 0),
+    [events]
+  );
 
   return (
-    <div className="font-sans flex h-[calc(100dvh-3rem)] flex-col overflow-y-auto bg-transparent p-1 lg:overflow-hidden">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-5 flex shrink-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
-      >
-        <div>
-          <p className="text-lg font-normal text-zinc-900">Hi! Welcome to</p>
-          <h1 className="mt-0 text-2xl font-semibold tracking-tight text-zinc-900">
-           supernizo {personaLabel} Dashboard
-          </h1>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          {isSuperAdmin ? (
-            <Link href="/">
-              <Button
-                aria-label="Change user role"
-                className="analytics-frost-btn h-10 w-10 p-0 shadow-[0_0_12px_-6px_rgba(2,10,27,0.62)] hover:shadow-[0_0_14px_-6px_rgba(2,10,27,0.72)]"
-              >
-                <User className="h-4 w-4" />
-              </Button>
-            </Link>
-          ) : null}
-
-          {isSuperAdmin ? (
-            <Link href="/campaigns/new">
-              <Button className="btn-sidebar-noise h-10">
-                <Plus className="h-4 w-4" />
-                New Campaign
-              </Button>
-            </Link>
-          ) : null}
-        </div>
-      </motion.div>
-
-      {/* Main layout */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="mt-5 grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,2.8fr)_minmax(0,1fr)]"
-      >
-        {/* Left column: compact stats + recent campaigns */}
-        <div className="flex h-full min-h-0 flex-col gap-5">
-          <div className="shrink-0 lg:h-32">
-            <StatsCards />
-          </div>
-          <div className="min-h-0 flex-1">
-            {isSuperAdmin ? <RecentCampaigns /> : <RecentEvents />}
-          </div>
+    <div className="flex min-h-[calc(100dvh-3rem)] flex-1 flex-col overflow-hidden bg-[#f7f7f7] p-1 font-sans text-zinc-950">
+      <header className="grid min-h-[calc(100dvh-4.5rem)] w-full grid-rows-[auto_1fr]">
+        <div className="flex w-full justify-center">
+          <span className="inline-flex h-9 items-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-500">
+            {getDateLabel()}
+          </span>
         </div>
 
-        {/* Right column: reserved slots + lead breakdown */}
-        <div className="flex h-full min-h-0 flex-col gap-5">
-          {isSuperAdmin ? (
-            <div className="shrink-0 lg:h-32">
-              <RepliesOverviewCard />
-            </div>
-          ) : null}
-          <div className="min-h-0 flex-1">
-            <LeadsBreakdown />
-          </div>
+        <div className="flex items-center justify-center pb-12 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-5xl"
+          >
+            <p className="mb-4 text-xl font-normal text-zinc-500">
+              {workspaceLabel} Workspace
+            </p>
+
+            <h1 className="text-5xl font-light leading-[1.08] tracking-[-0.04em] text-zinc-950 sm:text-6xl 2xl:text-7xl">
+              {greeting}, {displayName}. Here is where {workLabel} work starts.
+            </h1>
+
+            <p className="mt-6 text-xl font-light leading-relaxed text-zinc-500">
+              Choose an event, run NizoAI, upload leads, or move directly into the lead sheet.
+            </p>
+          </motion.div>
         </div>
-      </motion.div>
+      </header>
     </div>
   );
 }

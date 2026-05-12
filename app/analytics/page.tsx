@@ -90,7 +90,7 @@ const kpiData = [
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-xl">
+      <div className="rounded-lg border border-slate-300 bg-white p-4 shadow-xl">
         <p className="mb-2 text-xs font-semibold uppercase text-slate-500">{label}</p>
         {payload.map((entry: any, index: number) => (
           <div key={index} className="flex items-center gap-2 text-sm">
@@ -115,7 +115,7 @@ export default function AnalyticsPage() {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between border-b border-slate-200 pb-6"
+        className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between border-b border-slate-300 pb-6"
       >
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Analytics (Experimental Preview) </h1>
@@ -124,7 +124,7 @@ This is an early look at upcoming analytics features. Full functionality will be
         </div>
         
         <div className="flex gap-3">
-          <Button variant="outline" className="h-9 border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
+          <Button variant="outline" className="h-9 border-slate-300 bg-white text-slate-600 hover:bg-slate-50">
             <CalendarIcon className="mr-2 h-3.5 w-3.5" />
             Last 7 Days
           </Button>
@@ -144,7 +144,7 @@ This is an early look at upcoming analytics features. Full functionality will be
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
           >
-            <Card className="border-slate-200 shadow-sm transition-all hover:shadow-md">
+            <Card className="border-slate-300 shadow-sm transition-all hover:shadow-md">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${kpi.bg}`}>
@@ -175,7 +175,7 @@ This is an early look at upcoming analytics features. Full functionality will be
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3 }}
         >
-          <Card className="h-full border-slate-200 shadow-sm">
+          <Card className="h-full border-slate-300 shadow-sm">
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-slate-900">Email Engagement</CardTitle>
               <CardDescription>Volume of emails sent vs. open rate trends</CardDescription>
@@ -238,7 +238,7 @@ This is an early look at upcoming analytics features. Full functionality will be
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.4 }}
         >
-          <Card className="h-full border-slate-200 shadow-sm">
+          <Card className="h-full border-slate-300 shadow-sm">
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-slate-900">Lead Quality Score</CardTitle>
               <CardDescription>Distribution of scraped leads</CardDescription>
@@ -289,7 +289,7 @@ This is an early look at upcoming analytics features. Full functionality will be
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
       >
-        <Card className="border-slate-200 shadow-sm overflow-hidden">
+        <Card className="border-slate-300 shadow-sm overflow-hidden">
           <CardHeader className="border-b border-slate-100 bg-slate-50/50">
             <div className="flex items-center justify-between">
               <div>

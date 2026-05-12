@@ -66,7 +66,7 @@ const statusConfig: Record<
   },
   cancelled: {
     label: "Cancelled",
-    style: "border-zinc-200/80 bg-zinc-100/85 text-zinc-600",
+    style: "border-zinc-300/80 bg-zinc-100/85 text-zinc-600",
   },
   failed: {
     label: "Failed",
@@ -89,7 +89,7 @@ const CAMPAIGN_LIST_POLL_MS = 30000;
 function statusUI(status: string) {
   return statusConfig[status] || {
     label: status.replaceAll("_", " "),
-    style: "border-zinc-200/80 bg-zinc-100/85 text-zinc-700",
+    style: "border-zinc-300/80 bg-zinc-100/85 text-zinc-700",
   };
 }
 
@@ -587,14 +587,14 @@ function SuperAdminCampaignsPage() {
   };
 
   const listShell =
-    "flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/32 backdrop-blur-[8px]";
+    "flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-zinc-300/80 bg-white/32 backdrop-blur-[8px]";
 
   return (
     <div className="font-sans flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1">
       <div className="relative z-10 flex shrink-0 flex-col gap-4 border-b border-zinc-100/90 bg-transparent pb-6 backdrop-blur-[8px] sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Campaigns</h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <h1 className="text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">Campaigns</h1>
+          <p className="mt-4 max-w-xl text-lg font-light leading-relaxed text-zinc-500">
             Manage and track your lead generation workflows
           </p>
         </div>
@@ -616,7 +616,7 @@ function SuperAdminCampaignsPage() {
             </Button>
 
             {isFilterOpen && (
-              <div className="absolute right-0 top-12 z-30 w-80 rounded-2xl border border-zinc-200 bg-white p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.85),0_16px_24px_-14px_rgba(2,10,27,0.24),0_6px_12px_-8px_rgba(15,23,42,0.14)]">
+              <div className="absolute right-0 top-12 z-30 w-80 rounded-2xl border border-zinc-300 bg-white p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.85),0_16px_24px_-14px_rgba(2,10,27,0.24),0_6px_12px_-8px_rgba(15,23,42,0.14)]">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-sm font-semibold text-zinc-800">Filter Campaigns</p>
                   {activeFilters && (
@@ -645,7 +645,7 @@ function SuperAdminCampaignsPage() {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Name, ICP, or campaign ID"
-                      className="h-9 border-zinc-200/80 bg-white/80 pl-9 text-sm"
+                      className="h-9 border-zinc-300/80 bg-white/80 pl-9 text-sm"
                     />
                   </div>
                 </div>
@@ -663,7 +663,7 @@ function SuperAdminCampaignsPage() {
                         className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
                           statusFilter === option.value
                             ? "border-zinc-300 bg-zinc-900 text-white"
-                            : "border-zinc-200 bg-white/82 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
+                            : "border-zinc-300 bg-white/82 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
                         }`}
                       >
                         {option.label}
@@ -685,7 +685,7 @@ function SuperAdminCampaignsPage() {
                         className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
                           categoryFilter === option.value
                             ? "border-zinc-300 bg-zinc-900 text-white"
-                            : "border-zinc-200 bg-white/82 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
+                            : "border-zinc-300 bg-white/82 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
                         }`}
                       >
                         {option.label}
@@ -694,13 +694,13 @@ function SuperAdminCampaignsPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between border-t border-zinc-200/70 pt-3 text-xs text-zinc-500">
+                <div className="mt-4 flex items-center justify-between border-t border-zinc-300/70 pt-3 text-xs text-zinc-500">
                   <span>{filteredItems.length} campaigns match</span>
                   <Button
                     type="button"
                     variant="ghost"
                     onClick={() => setIsFilterOpen(false)}
-                    className="h-7 rounded-md border border-zinc-200/80 bg-white/80 px-2.5 text-xs font-medium text-zinc-700 hover:bg-white"
+                    className="h-7 rounded-md border border-zinc-300/80 bg-white/80 px-2.5 text-xs font-medium text-zinc-700 hover:bg-white"
                   >
                     Done
                   </Button>
@@ -722,7 +722,7 @@ function SuperAdminCampaignsPage() {
 
       <div className="mt-5 min-h-0 flex-1 pr-1">
         <div className={listShell}>
-          <div className="hidden grid-cols-[minmax(0,2.25fr)_minmax(250px,0.95fr)_minmax(300px,1fr)] items-center gap-6 border-b border-zinc-200/80 px-6 py-3.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 md:grid">
+          <div className="hidden grid-cols-[minmax(0,2.25fr)_minmax(250px,0.95fr)_minmax(300px,1fr)] items-center gap-6 border-b border-zinc-300/80 px-6 py-3.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 md:grid">
             <span>Campaign</span>
             <span>Metrics</span>
             <span className="text-right">Actions</span>
@@ -754,7 +754,7 @@ function SuperAdminCampaignsPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.04 }}
                     data-campaign-row="true"
-                    className="group border-b border-zinc-200/75 transition-colors hover:bg-white/30 last:border-b-0"
+                    className="group border-b border-zinc-300/75 transition-colors hover:bg-white/30 last:border-b-0"
                   >
                     <div className="grid gap-5 px-6 py-4 md:min-h-[9.75rem] md:grid-cols-[minmax(0,2.25fr)_minmax(250px,0.95fr)_minmax(300px,1fr)] md:items-start">
                       <div className="min-w-0">
@@ -851,7 +851,7 @@ function SuperAdminCampaignsPage() {
 
                           <Link href={`/campaigns/${campaign.id}`}>
                             <Button
-                              className="h-9 rounded-md border border-zinc-200/80 bg-white/82 px-3.5 text-xs font-semibold text-zinc-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+                              className="h-9 rounded-md border border-zinc-300/80 bg-white/82 px-3.5 text-xs font-semibold text-zinc-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
                             >
                               View Details
                               <ChevronRight className="ml-1 h-3 w-3" />
@@ -891,7 +891,7 @@ function SuperAdminCampaignsPage() {
           </div>
 
           {!loading && filteredItems.length > 0 && (
-            <div className="flex shrink-0 items-center justify-between border-t border-zinc-200/80 px-6 py-3">
+            <div className="flex shrink-0 items-center justify-between border-t border-zinc-300/80 px-6 py-3">
               <span className="text-xs text-zinc-500">
                 Showing {(currentPage - 1) * itemsPerPage + 1}-
                 {Math.min(currentPage * itemsPerPage, filteredItems.length)} of {filteredItems.length}
@@ -903,7 +903,7 @@ function SuperAdminCampaignsPage() {
                   variant="ghost"
                   onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
-                  className="h-8 rounded-md border border-zinc-200/80 bg-white/82 px-2 text-zinc-600 disabled:opacity-40"
+                  className="h-8 rounded-md border border-zinc-300/80 bg-white/82 px-2 text-zinc-600 disabled:opacity-40"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" />
                 </Button>
@@ -916,7 +916,7 @@ function SuperAdminCampaignsPage() {
                     className={`h-8 min-w-8 rounded-md border px-2 text-xs font-semibold transition-colors ${
                       pageNum === currentPage
                         ? "border-zinc-300 bg-zinc-900 text-white"
-                        : "border-zinc-200/80 bg-white/82 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
+                        : "border-zinc-300/80 bg-white/82 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
                     }`}
                   >
                     {pageNum}
@@ -928,7 +928,7 @@ function SuperAdminCampaignsPage() {
                   variant="ghost"
                   onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
-                  className="h-8 rounded-md border border-zinc-200/80 bg-white/82 px-2 text-zinc-600 disabled:opacity-40"
+                  className="h-8 rounded-md border border-zinc-300/80 bg-white/82 px-2 text-zinc-600 disabled:opacity-40"
                 >
                   <ChevronRight className="h-3.5 w-3.5" />
                 </Button>

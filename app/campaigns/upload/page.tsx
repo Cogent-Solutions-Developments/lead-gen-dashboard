@@ -5,19 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  CalendarDays,
-  FileText,
+  ArrowRight,
   Loader2,
-  MapPin,
-  Tags,
   UploadCloud,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -28,22 +21,15 @@ import {
 import { createCampaignFromUpload } from "@/lib/apiRouter";
 import { persistCampaignUploadSummary } from "@/lib/campaignUploadSummary";
 import { useAuth } from "@/hooks/useAuth";
-import { listActiveEventRegistry, type AdminEventItem } from "@/lib/auth";
+import { getCachedAuthUserDisplayName, listActiveEventRegistry, type AdminEventItem } from "@/lib/auth";
 
-const preferredHeaders = [
-  "employeeName",
-  "title",
-  "company",
-  "email",
-  "phone",
-  "linkedinUrl",
-  "companyUrl",
-  "approvalStatus",
-  "contentEmailSubject",
-  "contentEmail",
-  "contentLinkedin",
-  "contentWhatsapp",
-];
+const uploadSteps = [
+  { id: "event", label: "Event" },
+  { id: "details", label: "Details" },
+  { id: "csv", label: "Lead sheet" },
+] as const;
+
+type UploadStep = (typeof uploadSteps)[number]["id"];
 
 const leadSheetAccept = ".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const allowedLeadSheetExtensions = new Set([".csv", ".xlsx"]);
@@ -81,9 +67,27 @@ function getApiErrorMessage(error: unknown) {
   return trimmed;
 }
 
+function getDisplayName(user: ReturnType<typeof useAuth>["user"]) {
+  const values = [user?.fullName, getCachedAuthUserDisplayName(user), user?.username]
+    .map((value) => value?.trim())
+    .filter(Boolean) as string[];
+  const rolePlaceholders = new Set([
+    "sales_user",
+    "sales user",
+    "delegate_user",
+    "delegate user",
+    "production_user",
+    "production user",
+    "super_admin_user",
+    "super admin user",
+  ]);
+
+  return values.find((value) => !rolePlaceholders.has(value.toLowerCase())) || "there";
+}
+
 export default function UploadCampaignPage() {
   const router = useRouter();
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, user } = useAuth();
   const leadSheetInputRef = useRef<HTMLInputElement | null>(null);
 
   const [events, setEvents] = useState<AdminEventItem[]>([]);
@@ -93,6 +97,7 @@ export default function UploadCampaignPage() {
   const [notes, setNotes] = useState("");
   const [leadSheet, setLeadSheet] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentStep, setCurrentStep] = useState<UploadStep>("event");
 
   useEffect(() => {
     let active = true;
@@ -124,6 +129,14 @@ export default function UploadCampaignPage() {
     () => events.find((item) => item.id === selectedEventId) ?? null,
     [events, selectedEventId]
   );
+  const eventReady = Boolean(
+    selectedEvent?.eventName.trim() &&
+      selectedEvent.location?.trim()
+  );
+  const displayName = getDisplayName(user);
+  const firstName = displayName.split(/\s+/)[0] || "there";
+  const activeStepIndex = uploadSteps.findIndex((step) => step.id === currentStep);
+  const pageTitle = isSuperAdmin ? "Campaign Upload" : "Upload Leads";
 
   const validateLeadSheet = (file: File | null) => {
     if (!file) return "A CSV or XLSX lead sheet is required.";
@@ -137,8 +150,39 @@ export default function UploadCampaignPage() {
     if (!selectedEvent) return "Event selection is required.";
     if (!selectedEvent.eventName.trim()) return "Selected event is missing a name.";
     if (!selectedEvent.location?.trim()) return "Selected event is missing a location.";
-    if (!selectedEvent.date?.trim()) return "Selected event is missing a date.";
     return validateLeadSheet(leadSheet);
+  };
+
+  const validateEventStep = () => {
+    if (!selectedEvent) return "Event selection is required.";
+    if (!selectedEvent.eventName.trim()) return "Selected event is missing a name.";
+    if (!selectedEvent.location?.trim()) return "Selected event is missing a location.";
+    return null;
+  };
+
+  const goToStep = (step: UploadStep) => {
+    if (step !== "event" && !eventReady) {
+      toast.error("Select an event first.");
+      return;
+    }
+
+    setCurrentStep(step);
+  };
+
+  const goNext = () => {
+    if (currentStep === "event") {
+      const error = validateEventStep();
+      if (error) {
+        toast.error(error);
+        return;
+      }
+      setCurrentStep("details");
+      return;
+    }
+
+    if (currentStep === "details") {
+      setCurrentStep("csv");
+    }
   };
 
   const handlePickLeadSheet = () => {
@@ -190,7 +234,7 @@ export default function UploadCampaignPage() {
 
       persistCampaignUploadSummary(response.id, response.importSummary);
 
-      toast.success("Campaign uploaded", {
+      toast.success("Bulk leads uploaded", {
         description: `${response.importSummary.importedLeads} leads are ready for review.`,
       });
 
@@ -211,237 +255,273 @@ export default function UploadCampaignPage() {
   };
 
   return (
-    <div className="min-h-screen p-1">
-      <Link
-        href="/campaigns"
-        className="mb-6 inline-flex items-center text-sm font-medium text-zinc-500 transition-colors hover:text-zinc-900"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Campaigns
-      </Link>
-
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Upload Campaign</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Import a CSV or XLSX lead sheet for outreach. Uploaded campaigns skip lead generation and go straight to review.
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="max-w-4xl">
-        <Card className="rounded-xl border border-zinc-200 bg-white p-6">
-          <div className="rounded-xl border border-amber-200/80 bg-amber-50/75 p-4">
-            <p className="text-sm font-semibold text-amber-900">Manual upload mode</p>
-            <p className="mt-1 text-sm leading-relaxed text-amber-800">
-              Only the leads in your uploaded sheet will be used for approval and outreach. The system will not discover or generate additional leads for this campaign.
-            </p>
-          </div>
-
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                Event Name
-              </label>
-              <Select
-                value={selectedEventId}
-                onValueChange={setSelectedEventId}
-                disabled={eventsLoading || isSubmitting}
-              >
-                <SelectTrigger className="h-10 border-zinc-200 bg-white">
-                  <SelectValue
-                    placeholder={eventsLoading ? "Loading events..." : "Select an event"}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {events.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.eventName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {events.length === 0 && !eventsLoading ? (
-                isSuperAdmin ? (
-                  <p className="text-xs text-zinc-500">
-                    No active events are available.{" "}
-                    <Link href="/admin/events" className="font-semibold text-zinc-700 hover:text-zinc-900">
-                      Activate an event first
-                    </Link>
-                    .
-                  </p>
-                ) : (
-                  <p className="text-xs text-zinc-500">
-                    No active events are available right now. Please ask an admin to activate one first.
-                  </p>
-                )
-              ) : null}
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                Name
-              </label>
-              <div className="relative">
-                <Tags className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                <Input
-                  value={selectedEvent?.eventName || ""}
-                  readOnly
-                  disabled
-                  placeholder="Select an event"
-                  className="h-10 border-zinc-200 bg-zinc-50 pl-9 text-zinc-700 disabled:opacity-100"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                Location
-              </label>
-              <div className="relative">
-                <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                <Input
-                  value={selectedEvent?.location || ""}
-                  readOnly
-                  disabled
-                  placeholder="Select an event"
-                  className="h-10 border-zinc-200 bg-zinc-50 pl-9 text-zinc-700 disabled:opacity-100"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                Date
-              </label>
-              <div className="relative">
-                <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                <Input
-                  value={selectedEvent?.date || ""}
-                  readOnly
-                  disabled
-                  placeholder="Select an event"
-                  className="h-10 border-zinc-200 bg-zinc-50 pl-9 text-zinc-700 disabled:opacity-100"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                Category <span className="normal-case tracking-normal text-zinc-400">Optional</span>
-              </label>
-              <Input
-                value={category}
-                onChange={(event) => setCategory(event.target.value)}
-                placeholder="Conference"
-                className="h-10 border-zinc-200 bg-white"
-              />
-            </div>
-          </div>
-
-          <div className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50/70 p-4 text-xs leading-relaxed text-zinc-500">
-            Event name, location, and date come directly from the selected active registry entry and cannot be edited here. Category and notes remain campaign-specific.
-          </div>
-
-          <div className="mt-6 space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Notes / Description <span className="normal-case tracking-normal text-zinc-400">Optional</span>
-            </label>
-            <Textarea
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              placeholder={`Example:\nEvent: AMICT Malaysia\nSource: Sponsor outreach list\nNotes: Focus on GCC software vendors with active field teams`}
-              className="min-h-44 resize-y border-zinc-200 bg-white font-mono text-sm"
-            />
-            <p className="text-xs text-zinc-400">{notes.length} characters</p>
-          </div>
-
-          <div className="mt-6 space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Lead Sheet (.csv, .xlsx)
-            </label>
-
-            <input
-              ref={leadSheetInputRef}
-              type="file"
-              accept={leadSheetAccept}
-              className="hidden"
-              onChange={handleLeadSheetChange}
-            />
-
-            <button
-              type="button"
-              onClick={handlePickLeadSheet}
-              className="flex w-full flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50/80 px-5 py-10 text-center transition-colors hover:border-zinc-400 hover:bg-zinc-50"
+    <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
+      <header className="shrink-0 border-b border-zinc-300 pb-12">
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-950"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm">
-                <UploadCloud className="h-5 w-5" />
-              </div>
-              <p className="mt-4 text-sm font-semibold text-zinc-900">Choose lead sheet</p>
-              <p className="mt-1 max-w-xl text-sm text-zinc-500">
-                Upload your lead sheet and the campaign will be created as review-ready without starting discovery.
+              <ArrowLeft className="mr-2 h-3 w-3" />
+              Return to dashboard
+            </Link>
+
+            <div className="mt-8">
+              <h1 className="text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
+                {pageTitle}
+              </h1>
+              <p className="mt-4 max-w-xl text-lg font-light leading-relaxed text-zinc-500">
+                Onboard your latest event intelligence and synchronize lead data with our database.
               </p>
-            </button>
+            </div>
+          </div>
 
-            {leadSheet ? (
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-zinc-500" />
-                    <p className="truncate text-sm font-medium text-zinc-900">{leadSheet.name}</p>
-                  </div>
-                  <p className="mt-1 text-xs text-zinc-500">{formatBytes(leadSheet.size)}</p>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={clearLeadSheet}
-                  className="h-8 rounded-md border border-zinc-200/80 bg-white px-2.5 text-zinc-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
+          <div className="flex items-center gap-4">
+            {currentStep !== "event" ? (
+              <button
+                type="button"
+                onClick={() => setCurrentStep(currentStep === "csv" ? "details" : "event")}
+                className="inline-flex h-10 items-center justify-center px-5 text-sm font-medium text-zinc-500 transition-colors hover:text-zinc-950"
+              >
+                Go Back
+              </button>
             ) : null}
 
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                Preferred Sheet Headers
-              </p>
-              <p className="mt-1 text-sm text-zinc-500">
-                The exported template uses the headers below. Matching them will reduce rejected or invalid rows during import.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {preferredHeaders.map((header) => (
-                  <span
-                    key={header}
-                    className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600"
-                  >
-                    {header}
-                  </span>
-                ))}
-              </div>
-            </div>
+            {currentStep !== "csv" ? (
+              <button
+                type="button"
+                onClick={goNext}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-zinc-950 bg-transparent px-6 text-sm font-semibold text-zinc-950 transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white active:scale-[0.98]"
+              >
+                Continue
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            ) : (
+              <button
+                form="upload-campaign-form"
+                type="submit"
+                disabled={isSubmitting || eventsLoading}
+                className="inline-flex h-10 min-w-36 items-center justify-center gap-2 rounded-full border border-zinc-950 bg-transparent px-6 text-sm font-semibold text-zinc-950 transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white active:scale-[0.98] disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    Submit upload
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
+              </button>
+            )}
           </div>
+        </div>
+      </header>
 
-          <div className="mt-6 flex items-center justify-end border-t border-zinc-100 pt-6">
-            <Button
-              type="submit"
-              disabled={isSubmitting || eventsLoading}
-              className="h-10 min-w-40 bg-sidebar text-white hover:bg-zinc-800 disabled:opacity-50"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <UploadCloud className="mr-2 h-4 w-4" />
-                  Upload Campaign
-                </>
-              )}
-            </Button>
+      <form
+        id="upload-campaign-form"
+        onSubmit={handleSubmit}
+        className="mt-12 grid min-h-0 flex-1 w-full gap-8 xl:grid-cols-[13rem_minmax(0,1fr)] overflow-hidden"
+      >
+        <nav className="shrink-0 space-y-2">
+          {uploadSteps.map((step, index) => {
+            const isActive = step.id === currentStep;
+            const isDone =
+              step.id === "event"
+                ? eventReady
+                : step.id === "details"
+                  ? activeStepIndex > index
+                  : Boolean(leadSheet);
+
+            return (
+              <button
+                key={step.id}
+                type="button"
+                onClick={() => goToStep(step.id)}
+                className={`group flex w-full items-center justify-between border-b border-zinc-300 py-4 text-left transition-colors ${
+                  isActive ? "border-zinc-900" : "hover:border-zinc-300"
+                }`}
+              >
+                <div className="flex flex-col">
+                  <span className={`text-xs font-bold ${
+                    isActive ? "text-zinc-900" : "text-zinc-400"
+                  }`}>
+                    Step 0{index + 1}
+                  </span>
+                  <span className={`mt-1 text-lg font-light tracking-tight ${
+                    isActive ? "text-zinc-950" : "text-zinc-500"
+                  }`}>
+                    {step.label}
+                  </span>
+                </div>
+                {isDone && !isActive && (
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-100 text-zinc-400">
+                    <ArrowLeft className="h-3 w-3 rotate-180" />
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="min-h-0 flex-1 flex flex-col lg:border-l lg:border-zinc-300 lg:pl-10 overflow-hidden">
+          <div className="flex-1 overflow-y-auto pb-12 pr-4 scrollbar-hide">
+            {currentStep === "event" ? (
+              <section className="max-w-4xl space-y-12">
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-light tracking-tight text-zinc-950">Select active event</h2>
+                  <p className="text-base font-light text-zinc-500">
+                    Welcome back, {firstName}. Select an entry from the registry to begin.
+                  </p>
+                </div>
+
+                <div className="space-y-8">
+                  <div>
+                    <Select
+                      value={selectedEventId}
+                      onValueChange={setSelectedEventId}
+                      disabled={eventsLoading || isSubmitting}
+                    >
+                      <SelectTrigger className="!h-14 w-full max-w-xl rounded-full border border-zinc-400 bg-white px-5 text-lg font-semibold text-zinc-700 shadow-none transition-colors hover:border-zinc-500 hover:text-zinc-950 focus:border-blue-600 focus:ring-0 [&>svg]:h-5 [&>svg]:w-5 [&>svg]:text-zinc-500">
+                        <SelectValue placeholder={eventsLoading ? "Accessing registry..." : "Choose an event"} />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-zinc-300 bg-white shadow-xl">
+                        {events.map((item) => (
+                          <SelectItem key={item.id} value={item.id} className="py-3 text-base">
+                            {item.eventName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {selectedEvent ? (
+                    <div className="grid gap-12 pt-6 md:grid-cols-2">
+                      <div className="space-y-4 md:col-span-2">
+                        <label className="text-xs font-medium text-zinc-400">Official name</label>
+                        <p className="text-2xl font-light tracking-tight text-zinc-950">
+                          {selectedEvent.eventName || "—"}
+                        </p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <label className="text-xs font-medium text-zinc-400">Registry location</label>
+                        <p className="text-xl font-light tracking-tight text-zinc-950">
+                          {selectedEvent.location || "—"}
+                        </p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <label className="text-xs font-medium text-zinc-400">Scheduled date</label>
+                        <p className="text-xl font-light tracking-tight text-zinc-950">
+                          {selectedEvent.date || "—"}
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </section>
+            ) : null}
+
+            {currentStep === "details" ? (
+              <section className="max-w-4xl space-y-12">
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-light tracking-tight text-zinc-950">Capture details</h2>
+                  <p className="text-base font-light text-zinc-500">
+                    Provide context to help our intelligence engine categorize these leads.
+                  </p>
+                </div>
+
+                <div className="space-y-12">
+                  <div className="space-y-4">
+                    <label className="text-xs font-medium text-zinc-400">Industry category</label>
+                    <input
+                      value={category}
+                      onChange={(event) => setCategory(event.target.value)}
+                      placeholder="e.g. Energy, Finance, Technology"
+                      className="h-14 w-full border-b border-zinc-300 bg-transparent text-xl font-light tracking-tight text-zinc-950 placeholder:text-zinc-300 focus:border-blue-600 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <label className="text-xs font-medium text-zinc-400">Target ICP & Context</label>
+                    <textarea
+                      value={notes}
+                      onChange={(event) => setNotes(event.target.value)}
+                      placeholder="Describe your ideal customer profile and outreach goals..."
+                      className="min-h-[12rem] w-full border-b border-zinc-300 bg-transparent py-2 text-xl font-light leading-relaxed tracking-tight text-zinc-950 placeholder:text-zinc-300 focus:border-blue-600 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </section>
+            ) : null}
+
+            {currentStep === "csv" ? (
+              <section className="max-w-4xl space-y-12">
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-light tracking-tight text-zinc-950">Synchronize lead sheet</h2>
+                  <p className="text-base font-light text-zinc-500">
+                    Upload your prepared CSV data to finalize the onboard process.
+                  </p>
+                </div>
+
+                <div className="space-y-10">
+                  <input
+                    ref={leadSheetInputRef}
+                    type="file"
+                    accept=".csv,text/csv"
+                    className="hidden"
+                    onChange={handleLeadSheetChange}
+                  />
+
+                  <div className="space-y-6">
+                    <label className="text-xs font-medium text-zinc-400">Lead sheet source</label>
+
+                    <button
+                      type="button"
+                      onClick={handlePickLeadSheet}
+                      className={`group flex w-full items-center justify-between border-y border-zinc-100 py-10 transition-colors hover:bg-zinc-50/50 ${
+                        leadSheet ? "border-blue-100 bg-blue-50/20" : ""
+                      }`}
+                    >
+                      <div className="flex items-center gap-6">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-400 transition-all group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white">
+                          <UploadCloud className="h-6 w-6" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-2xl font-light tracking-tight text-zinc-950">
+                            {leadSheet ? leadSheet.name : "Choose CSV directory"}
+                          </p>
+                          <p className="text-sm font-light text-zinc-500">
+                            {leadSheet ? formatBytes(leadSheet.size) : "Standard CSV format accepted"}
+                          </p>
+                        </div>
+                      </div>
+                      {leadSheet ? (
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            clearLeadSheet();
+                          }}
+                          className="mr-4 flex h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-400 hover:border-red-600 hover:bg-red-600 hover:text-white"
+                        >
+                          <X className="h-4 w-4" />
+                        </div>
+                      ) : (
+                        <div className="mr-4 flex h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-400">
+                          <ArrowLeft className="h-4 w-4 rotate-180" />
+                        </div>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </section>
+            ) : null}
           </div>
-        </Card>
+        </div>
       </form>
     </div>
   );

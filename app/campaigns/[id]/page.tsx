@@ -171,9 +171,9 @@ type LeadExportRow = {
 };
 
 const approvalStyles = {
-  pending: { bg: "bg-zinc-100 text-zinc-500 border-zinc-200", icon: Clock },
+  pending: { bg: "bg-zinc-100 text-zinc-500 border-zinc-300", icon: Clock },
   approved: { bg: "bg-sidebar-primary/10 text-emerald-900 border-sidebar-primary/20", icon: CheckCircle },
-  rejected: { bg: "bg-white text-zinc-400 border-zinc-200 line-through", icon: XCircle },
+  rejected: { bg: "bg-white text-zinc-400 border-zinc-300 line-through", icon: XCircle },
   suppressed: { bg: "bg-rose-50 text-rose-700 border-rose-200", icon: XCircle },
 };
 
@@ -570,10 +570,10 @@ const AttachmentSection = ({
   const hasAny = attachments.length > 0 || pendingUploads.length > 0 || readonlyList.length > 0;
 
   return (
-    <Card className={`flex min-h-0 flex-col rounded-xl border border-zinc-200 bg-white shadow-sm ${className || ""}`}>
+    <Card className={`flex min-h-0 flex-col rounded-xl border border-zinc-300 bg-white shadow-sm ${className || ""}`}>
       <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white">
             <Paperclip className="h-4 w-4 text-zinc-900" />
           </div>
           <div>
@@ -584,7 +584,7 @@ const AttachmentSection = ({
 
         <Button
           type="button"
-          className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
+          className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
           onClick={onPickFiles}
         >
           <UploadCloud className="mr-2 h-4 w-4" />
@@ -601,7 +601,7 @@ const AttachmentSection = ({
         ) : (
           <div className="space-y-2">
             {readonlyList.map((a) => (
-              <div key={a.id} className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
+              <div key={a.id} className="flex items-center justify-between rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2">
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium text-zinc-900">
                     {a.name}
@@ -616,7 +616,7 @@ const AttachmentSection = ({
             ))}
 
             {pendingUploads.map((p) => (
-              <div key={p.tempId} className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2">
+              <div key={p.tempId} className="flex items-center justify-between rounded-lg border border-zinc-300 bg-white px-3 py-2">
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-zinc-900 truncate">
                     {p.name}{" "}
@@ -642,7 +642,7 @@ const AttachmentSection = ({
             ))}
 
             {attachments.map((a) => (
-              <div key={a.id} className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2">
+              <div key={a.id} className="flex items-center justify-between rounded-lg border border-zinc-300 bg-white px-3 py-2">
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-zinc-900 truncate">{a.name}</div>
                   <div className="text-xs text-zinc-500">
@@ -2262,7 +2262,7 @@ function SuperAdminCampaignDetailPage() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="truncate text-xl font-semibold tracking-tight text-zinc-900">{campaign?.name || "Campaign"}</h1>
-              <Badge className="rounded-full border border-zinc-200/80 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-700 shadow-none backdrop-blur-[6px] [backdrop-filter:saturate(130%)_blur(6px)]">
+              <Badge className="rounded-full border border-zinc-300/80 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-700 shadow-none backdrop-blur-[6px] [backdrop-filter:saturate(130%)_blur(6px)]">
                 {String(campaign?.status || "needs_review").replaceAll("_", " ")}
               </Badge>
               {categoryChipLabel ? (
@@ -2299,7 +2299,7 @@ function SuperAdminCampaignDetailPage() {
               { label: "Suppressed", value: suppressedMetricCount, valueClass: "text-rose-700" },
               { label: "Rejected", value: rejectedMetricCount, valueClass: "text-zinc-500" },
             ].map((metric) => (
-              <Card key={metric.label} className="rounded-2xl border border-zinc-200 bg-white p-3">
+              <Card key={metric.label} className="rounded-2xl border border-zinc-300 bg-white p-3">
                 <div className="flex h-full flex-col">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500/90">{metric.label}</span>
                   <div className="mt-auto flex items-end">
@@ -2365,7 +2365,7 @@ function SuperAdminCampaignDetailPage() {
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
             <div className="min-w-0 xl:w-80">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white">
+                <div className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white">
                   <Mail className="h-4 w-4 text-zinc-900" />
                 </div>
                 <div className="min-w-0">
@@ -2374,7 +2374,7 @@ function SuperAdminCampaignDetailPage() {
                     <Badge className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide shadow-none ${
                       emailTemplateId
                         ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                        : "border-zinc-200 bg-white text-zinc-500"
+                        : "border-zinc-300 bg-white text-zinc-500"
                     }`}>
                       {emailTemplateId ? "Active" : "Not Set"}
                     </Badge>
@@ -2412,7 +2412,7 @@ function SuperAdminCampaignDetailPage() {
                   onChange={(event) => setEmailTemplateSubject(event.target.value)}
                   disabled={emailTemplateSaveDisabled}
                   placeholder="e.g. Digital Stadium 2026"
-                  className="h-10 border-zinc-200/85 bg-white/90 text-sm text-zinc-900 placeholder:text-zinc-400"
+                  className="h-10 border-zinc-300/85 bg-white/90 text-sm text-zinc-900 placeholder:text-zinc-400"
                 />
               </div>
 
@@ -2425,7 +2425,7 @@ function SuperAdminCampaignDetailPage() {
                   onChange={(event) => setEmailTemplateBody(event.target.value)}
                   disabled={emailTemplateSaveDisabled}
                   placeholder={"Dear {{first_name}},\n\nWrite the fallback email body for leads with email addresses."}
-                  className="min-h-28 w-full resize-y rounded-md border border-zinc-200/85 bg-white/90 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="min-h-28 w-full resize-y rounded-md border border-zinc-300/85 bg-white/90 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
                 />
               </div>
             </div>
@@ -2451,7 +2451,7 @@ function SuperAdminCampaignDetailPage() {
                 variant="ghost"
                 onClick={handleDeleteEmailTemplate}
                 disabled={isEmailTemplateLoading || isEmailTemplateSaving || isEmailTemplateDeleting || (!emailTemplateId && !emailTemplateSubject && !emailTemplateBody)}
-                className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-zinc-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
               >
                 {isEmailTemplateDeleting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -2471,7 +2471,7 @@ function SuperAdminCampaignDetailPage() {
 
         <div className="relative z-[6] flex flex-col gap-2 px-6 pt-0.5 sm:flex-row sm:items-center sm:justify-between">
           {canManageLeadActions ? (
-            <div className="inline-flex flex-wrap items-center rounded-xl border border-zinc-200/90 bg-white/60 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_8px_-10px_rgba(2,10,27,0.34)] backdrop-blur-[6px]">
+            <div className="inline-flex flex-wrap items-center rounded-xl border border-zinc-300/90 bg-white/60 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_8px_-10px_rgba(2,10,27,0.34)] backdrop-blur-[6px]">
               {leadFilterTabs.map((tab) => (
                 <button
                   key={tab.key}
@@ -2520,7 +2520,7 @@ function SuperAdminCampaignDetailPage() {
                 value={tableSearch}
                 onChange={(e) => setTableSearch(e.target.value)}
                 placeholder={`Search ${activeFilterLabel.toLowerCase()} leads`}
-                className="h-8 border-zinc-200/85 bg-white/88 pl-8 text-xs text-zinc-700 placeholder:text-zinc-400"
+                className="h-8 border-zinc-300/85 bg-white/88 pl-8 text-xs text-zinc-700 placeholder:text-zinc-400"
               />
             </div>
 
@@ -2548,7 +2548,7 @@ function SuperAdminCampaignDetailPage() {
                     className={`h-8 w-8 rounded-md border p-0 shadow-none disabled:cursor-not-allowed disabled:opacity-50 ${
                       commonAttachmentId && universalAttachment
                         ? "border-emerald-200/90 bg-emerald-50/90 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50"
-                        : "border-zinc-200/80 bg-white/82 text-zinc-700 hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+                        : "border-zinc-300/80 bg-white/82 text-zinc-700 hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
                     }`}
                   >
                     {isCommonAttachmentUploading ? (
@@ -2564,7 +2564,7 @@ function SuperAdminCampaignDetailPage() {
                     disabled={!commonAttachmentId || !universalAttachment?.url || isCommonAttachmentUploading}
                     aria-label="View attachment"
                     title="View attachment"
-                    className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 p-0 text-zinc-700 shadow-none hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="h-8 w-8 rounded-md border border-zinc-300/80 bg-white/82 p-0 text-zinc-700 shadow-none hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Eye className="h-3.5 w-3.5" />
                   </Button>
@@ -2575,7 +2575,7 @@ function SuperAdminCampaignDetailPage() {
                     disabled={!commonAttachmentId || isCommonAttachmentUploading || isBulkSending}
                     aria-label="Delete attachment"
                     title="Delete attachment"
-                    className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 p-0 text-zinc-700 shadow-none hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="h-8 w-8 rounded-md border border-zinc-300/80 bg-white/82 p-0 text-zinc-700 shadow-none hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
@@ -2586,7 +2586,7 @@ function SuperAdminCampaignDetailPage() {
                 <Button
                   type="button"
                   onClick={() => setIsTableFilterOpen((prev) => !prev)}
-                  className="h-8 rounded-md border border-zinc-200/80 bg-white/82 px-2.5 text-[11px] font-semibold text-zinc-700 shadow-none hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+                  className="h-8 rounded-md border border-zinc-300/80 bg-white/82 px-2.5 text-[11px] font-semibold text-zinc-700 shadow-none hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
                 >
                   <Filter className="mr-1.5 h-3.5 w-3.5" />
                   Filter
@@ -2596,18 +2596,18 @@ function SuperAdminCampaignDetailPage() {
                 </Button>
 
                 {isTableFilterOpen && (
-                  <div className="absolute right-0 top-10 z-40 w-72 rounded-xl border border-zinc-200/85 bg-white/96 p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.85),0_16px_24px_-14px_rgba(2,10,27,0.24),0_6px_12px_-8px_rgba(15,23,42,0.14)] backdrop-blur-[8px]">
+                  <div className="absolute right-0 top-10 z-40 w-72 rounded-xl border border-zinc-300/85 bg-white/96 p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.85),0_16px_24px_-14px_rgba(2,10,27,0.24),0_6px_12px_-8px_rgba(15,23,42,0.14)] backdrop-blur-[8px]">
                     <div className="space-y-2">
                       <label className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Job Title</label>
                       <Input
                         value={jobTitleFilter}
                         onChange={(e) => setJobTitleFilter(e.target.value)}
                         placeholder="e.g. manager, director"
-                        className="h-8 border-zinc-200/80 bg-white text-xs"
+                        className="h-8 border-zinc-300/80 bg-white text-xs"
                       />
                     </div>
 
-                    <div className="mt-3 flex items-center justify-between rounded-lg border border-zinc-200/75 bg-white/85 px-2.5 py-2">
+                    <div className="mt-3 flex items-center justify-between rounded-lg border border-zinc-300/75 bg-white/85 px-2.5 py-2">
                       <div className="pr-3">
                         <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Has Email</p>
                         <p className="text-[10px] text-zinc-400">Show only leads with an email address</p>
@@ -2631,7 +2631,7 @@ function SuperAdminCampaignDetailPage() {
                         value={domainFilter}
                         onChange={(e) => setDomainFilter(e.target.value)}
                         placeholder="e.g. .ae, .sa, company.com"
-                        className="h-8 border-zinc-200/80 bg-white text-xs"
+                        className="h-8 border-zinc-300/80 bg-white text-xs"
                       />
                     </div>
 
@@ -2641,11 +2641,11 @@ function SuperAdminCampaignDetailPage() {
                         value={phoneFilter}
                         onChange={(e) => setPhoneFilter(e.target.value)}
                         placeholder="Type any part of phone"
-                        className="h-8 border-zinc-200/80 bg-white text-xs"
+                        className="h-8 border-zinc-300/80 bg-white text-xs"
                       />
                     </div>
 
-                    <div className="mt-3 flex items-center justify-between border-t border-zinc-200/70 pt-2.5">
+                    <div className="mt-3 flex items-center justify-between border-t border-zinc-300/70 pt-2.5">
                       <button
                         type="button"
                         onClick={() => {
@@ -2663,7 +2663,7 @@ function SuperAdminCampaignDetailPage() {
                         type="button"
                         variant="ghost"
                         onClick={() => setIsTableFilterOpen(false)}
-                        className="h-7 rounded-md border border-zinc-200/80 bg-white/90 px-2.5 text-[11px] font-medium text-zinc-700 hover:bg-white"
+                        className="h-7 rounded-md border border-zinc-300/80 bg-white/90 px-2.5 text-[11px] font-medium text-zinc-700 hover:bg-white"
                       >
                         Done
                       </Button>
@@ -2676,7 +2676,7 @@ function SuperAdminCampaignDetailPage() {
                 type="button"
                 onClick={handleExportCsv}
                 disabled={exportRows.length === 0}
-                className="h-8 rounded-md border border-zinc-200/80 bg-white/82 px-2.5 text-[11px] font-semibold text-zinc-700 shadow-none hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:opacity-50"
+                className="h-8 rounded-md border border-zinc-300/80 bg-white/82 px-2.5 text-[11px] font-semibold text-zinc-700 shadow-none hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:opacity-50"
               >
                 <Download className="mr-1.5 h-3.5 w-3.5" />
                 CSV
@@ -2872,7 +2872,7 @@ function SuperAdminCampaignDetailPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-8 rounded-md border border-zinc-200/80 bg-white/82 text-xs font-semibold text-zinc-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+                              className="h-8 rounded-md border border-zinc-300/80 bg-white/82 text-xs font-semibold text-zinc-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
                               onClick={() => setSelectedLead(item)}
                               disabled={reviewContentDisabled}
                               title={
@@ -2920,7 +2920,7 @@ function SuperAdminCampaignDetailPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-500 hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+                          className="h-8 w-8 rounded-md border border-zinc-300/80 bg-white/82 text-zinc-500 hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
                           onClick={() => handleCopyLeadDetails(item)}
                           title={isLeadReadOnly ? "Lead actions are blocked" : "Copy lead details"}
                           disabled={isLeadReadOnly}
@@ -2930,7 +2930,7 @@ function SuperAdminCampaignDetailPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-400 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 disabled:cursor-not-allowed disabled:opacity-45"
+                          className="h-8 w-8 rounded-md border border-zinc-300/80 bg-white/82 text-zinc-400 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 disabled:cursor-not-allowed disabled:opacity-45"
                           onClick={() => openDisableWhatsappConfirm(item)}
                           title={
                             !hasText(item.phone) && !hasText(item.email)
@@ -2949,7 +2949,7 @@ function SuperAdminCampaignDetailPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-500 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-45"
+                                className="h-8 w-8 rounded-md border border-zinc-300/80 bg-white/82 text-zinc-500 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-45"
                                 onClick={() =>
                                   void (item.approvalStatus === "pending"
                                     ? handleApprove(item.id, "whatsapp")
@@ -2972,7 +2972,7 @@ function SuperAdminCampaignDetailPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-500 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-45"
+                                className="h-8 w-8 rounded-md border border-zinc-300/80 bg-white/82 text-zinc-500 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-45"
                                 onClick={() =>
                                   void (item.approvalStatus === "pending"
                                     ? handleApprove(item.id, "email")
@@ -2995,7 +2995,7 @@ function SuperAdminCampaignDetailPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 rounded-md border border-zinc-200/80 bg-white/82 text-zinc-400 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                                className="h-8 w-8 rounded-md border border-zinc-300/80 bg-white/82 text-zinc-400 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                                 onClick={() => handleReject(item.id)}
                                 disabled={isLeadReadOnly}
                               >
@@ -3007,7 +3007,7 @@ function SuperAdminCampaignDetailPage() {
                                 size="icon"
                                 className={`h-8 w-8 rounded-md border text-sidebar-foreground shadow-[0_8px_14px_-12px_rgba(17,46,98,0.62)] ${
                                   Boolean(sendBothDisabledReason) || isSendingBoth
-                                    ? "cursor-not-allowed border-zinc-200 bg-zinc-200 text-zinc-400 shadow-none"
+                                    ? "cursor-not-allowed border-zinc-300 bg-zinc-200 text-zinc-400 shadow-none"
                                     : "border-sidebar-primary/75 bg-sidebar-primary hover:bg-sidebar-primary/85"
                                 }`}
                                 onClick={() =>
@@ -3049,17 +3049,17 @@ function SuperAdminCampaignDetailPage() {
             </span>
 
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <label className="inline-flex items-center gap-2 rounded-md border border-zinc-200/80 bg-white/82 px-2.5 py-1.5 text-[11px] font-medium text-zinc-600">
+              <label className="inline-flex items-center gap-2 rounded-md border border-zinc-300/80 bg-white/82 px-2.5 py-1.5 text-[11px] font-medium text-zinc-600">
                 <span>Rows per page</span>
                 <Select value={String(itemsPerPage)} onValueChange={handleItemsPerPageChange}>
                   <SelectTrigger
                     size="sm"
-                    className="h-7 min-w-[4.25rem] border-zinc-200/80 bg-white/95 px-2 text-[11px] font-semibold text-zinc-800 shadow-none"
+                    className="h-7 min-w-[4.25rem] border-zinc-300/80 bg-white/95 px-2 text-[11px] font-semibold text-zinc-800 shadow-none"
                     aria-label="Rows per page"
                   >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent align="end" className="border-zinc-200 bg-white/96 backdrop-blur-[10px]">
+                  <SelectContent align="end" className="border-zinc-300 bg-white/96 backdrop-blur-[10px]">
                     {PAGE_SIZE_OPTIONS.map((size) => (
                       <SelectItem key={size} value={String(size)} className="text-xs">
                         {size}
@@ -3078,7 +3078,7 @@ function SuperAdminCampaignDetailPage() {
                 variant="ghost"
                 onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="h-8 rounded-md border border-zinc-200/80 bg-white/82 px-2 text-zinc-600 disabled:opacity-40"
+                className="h-8 rounded-md border border-zinc-300/80 bg-white/82 px-2 text-zinc-600 disabled:opacity-40"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
@@ -3091,7 +3091,7 @@ function SuperAdminCampaignDetailPage() {
                   className={`h-8 min-w-8 rounded-md border px-2 text-xs font-semibold transition-colors ${
                     pageNum === currentPage
                       ? "border-zinc-300 bg-zinc-900 text-white"
-                      : "border-zinc-200/80 bg-white/82 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
+                      : "border-zinc-300/80 bg-white/82 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
                   }`}
                 >
                   {pageNum}
@@ -3103,7 +3103,7 @@ function SuperAdminCampaignDetailPage() {
                 variant="ghost"
                 onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className="h-8 rounded-md border border-zinc-200/80 bg-white/82 px-2 text-zinc-600 disabled:opacity-40"
+                className="h-8 rounded-md border border-zinc-300/80 bg-white/82 px-2 text-zinc-600 disabled:opacity-40"
               >
                 <ChevronRight className="h-3.5 w-3.5" />
               </Button>
@@ -3158,7 +3158,7 @@ function SuperAdminCampaignDetailPage() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.96, opacity: 0, y: 8 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className="w-full max-w-md overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_24px_40px_-28px_rgba(2,10,27,0.68)]"
+              className="w-full max-w-md overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_24px_40px_-28px_rgba(2,10,27,0.68)]"
             >
               <div className="space-y-2 border-b border-zinc-100 px-5 py-4">
                 <h3 className="text-base font-semibold text-zinc-900">Confirm bulk outreach</h3>
@@ -3176,7 +3176,7 @@ function SuperAdminCampaignDetailPage() {
                   variant="ghost"
                   disabled={isBulkSending}
                   onClick={() => setShowBulkSendConfirm(false)}
-                  className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
+                  className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
                 >
                   Cancel
                 </Button>
@@ -3212,7 +3212,7 @@ function SuperAdminCampaignDetailPage() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.96, opacity: 0, y: 8 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className="w-full max-w-md overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_24px_40px_-28px_rgba(2,10,27,0.68)]"
+              className="w-full max-w-md overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_24px_40px_-28px_rgba(2,10,27,0.68)]"
             >
               <div className="space-y-2 border-b border-zinc-100 px-5 py-4">
                 <h3 className="text-base font-semibold text-zinc-900">Disable Marketing For Lead</h3>
@@ -3232,7 +3232,7 @@ function SuperAdminCampaignDetailPage() {
                   onChange={(event) => setDisableReason(event.target.value)}
                   placeholder="e.g. requested to stop all marketing messages"
                   disabled={isDisablingWhatsapp}
-                  className="border-zinc-200"
+                  className="border-zinc-300"
                 />
               </div>
 
@@ -3242,7 +3242,7 @@ function SuperAdminCampaignDetailPage() {
                   variant="ghost"
                   disabled={isDisablingWhatsapp}
                   onClick={closeDisableWhatsappConfirm}
-                  className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
+                  className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
                 >
                   Cancel
                 </Button>
@@ -3278,7 +3278,7 @@ function SuperAdminCampaignDetailPage() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.96, opacity: 0, y: 10 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className="relative flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_22px_36px_-26px_rgba(2,10,27,0.62)]"
+              className="relative flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_22px_36px_-26px_rgba(2,10,27,0.62)]"
             >
               <div className="relative z-[2] flex flex-col gap-3 border-b border-zinc-100 bg-white px-6 py-5 sm:flex-row sm:items-start sm:justify-between">
                 <div>
@@ -3298,7 +3298,7 @@ function SuperAdminCampaignDetailPage() {
                     variant="ghost"
                     size="icon"
                     onClick={closeModal}
-                    className="h-8 w-8 rounded-md border border-zinc-200 bg-white text-zinc-400 hover:border-zinc-300 hover:text-zinc-900"
+                    className="h-8 w-8 rounded-md border border-zinc-300 bg-white text-zinc-400 hover:border-zinc-300 hover:text-zinc-900"
                   >
                     <X className="h-5 w-5" />
                   </Button>
@@ -3307,9 +3307,9 @@ function SuperAdminCampaignDetailPage() {
 
               <div className="relative z-[2] flex-1 space-y-5 overflow-y-auto scrollbar-hide bg-white p-6">
                 <div className="grid gap-5 xl:h-[24.5rem] xl:grid-cols-1">
-                  <Card className="h-full rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+                  <Card className="h-full rounded-2xl border border-zinc-300 bg-white p-5 shadow-sm">
                     <div className="mb-4 flex items-center gap-2">
-                      <div className="rounded-md border border-zinc-200 bg-white p-1.5">
+                      <div className="rounded-md border border-zinc-300 bg-white p-1.5">
                         <Mail className="h-4 w-4 text-zinc-900" />
                       </div>
                       <span className="text-sm font-semibold text-zinc-900">Cold Email</span>
@@ -3319,7 +3319,7 @@ function SuperAdminCampaignDetailPage() {
                       <div>
                         <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">Subject Line</label>
                         <input
-                          className="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                          className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900"
                           value={(editForm.contentEmailSubject as string) || ""}
                           onChange={(e) => handleContentChange("contentEmailSubject", e.target.value)}
                         />
@@ -3328,7 +3328,7 @@ function SuperAdminCampaignDetailPage() {
                       <div className="flex min-h-0 flex-1 flex-col">
                         <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">Email Body</label>
                         <textarea
-                          className="h-full min-h-0 w-full resize-none rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                          className="h-full min-h-0 w-full resize-none rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900"
                           value={(editForm.contentEmail as string) || ""}
                           onChange={(e) => handleContentChange("contentEmail", e.target.value)}
                         />
@@ -3380,7 +3380,7 @@ function SuperAdminCampaignDetailPage() {
                   <div className="flex justify-end gap-3">
                     <Button
                       variant="ghost"
-                      className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-zinc-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                      className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                       disabled={isLeadMarketingOptedOut(selectedLead)}
                       onClick={async () => {
                         await handleReject(selectedLead.id);

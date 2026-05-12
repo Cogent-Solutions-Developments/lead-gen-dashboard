@@ -381,7 +381,7 @@ export default function RepliesPage() {
                 value={personIdInput}
                 onChange={(e) => setPersonIdInput(e.target.value)}
                 placeholder="Open by contact ID"
-                className="h-9 border-zinc-200 bg-white/90 focus-visible:ring-zinc-900"
+                className="h-9 border-zinc-300 bg-white/90 focus-visible:ring-zinc-900"
               />
               <Button
                 type="button"
@@ -396,7 +396,7 @@ export default function RepliesPage() {
 
           <div className="scrollbar-modern relative z-[2] min-h-0 flex-1 overflow-y-auto p-3">
             {sortedNotifications.length === 0 ? (
-              <div className="flex min-h-44 flex-col items-center justify-center rounded-xl border border-dashed border-zinc-200 bg-white/78 text-center">
+              <div className="flex min-h-44 flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-white/78 text-center">
                 <Inbox className="h-5 w-5 text-zinc-400" />
                 <p className="mt-2 text-sm text-zinc-500">Loading notifications...</p>
               </div>
@@ -415,11 +415,11 @@ export default function RepliesPage() {
                       className={`w-full rounded-xl border px-3 py-3 text-left transition-all ${
                         active
                           ? "border-zinc-300 bg-white shadow-[0_10px_20px_-18px_rgba(2,10,27,0.55)]"
-                          : "border-zinc-200/90 bg-white/84 hover:border-zinc-300 hover:bg-white"
+                          : "border-zinc-300/90 bg-white/84 hover:border-zinc-300 hover:bg-white"
                       }`}
                     >
                       <div className="flex items-start gap-2">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-600">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600">
                           <MessageCircle className="h-4 w-4" />
                         </div>
                         <div className="min-w-0">
@@ -435,7 +435,7 @@ export default function RepliesPage() {
                       <p className="mt-2 line-clamp-2 text-xs text-zinc-600">{item.text || "(No text body)"}</p>
 
                       <div className="mt-2 flex items-center justify-between">
-                        <Badge className="rounded-full border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[10px] uppercase tracking-wider text-zinc-700 shadow-none">
+                        <Badge className="rounded-full border-zinc-300 bg-zinc-100 px-2 py-0.5 text-[10px] uppercase tracking-wider text-zinc-700 shadow-none">
                           {item.messageType || "text"}
                         </Badge>
                         <span className="text-[11px] text-zinc-400">{formatRelativeTime(item.receivedAt)}</span>
@@ -466,18 +466,18 @@ export default function RepliesPage() {
             <div className="grid min-h-0 flex-1 gap-0 lg:grid-cols-[minmax(0,1fr)_300px]">
               <div className="scrollbar-modern min-h-0 space-y-3 overflow-y-auto p-5">
                 {historyLoading ? (
-                  <div className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-600">
+                  <div className="flex items-center gap-2 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-600">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Loading inbound history...
                   </div>
                 ) : messages.length === 0 ? (
-                  <div className="rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-500">
+                  <div className="rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-500">
                     No messages for this person.
                   </div>
                 ) : (
                   messages.map((msg) => (
                     <div key={msg.id} className="flex">
-                      <div className="max-w-[85%] rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-[0_10px_20px_-18px_rgba(2,10,27,0.52)]">
+                      <div className="max-w-[85%] rounded-2xl border border-zinc-300 bg-white px-4 py-3 shadow-[0_10px_20px_-18px_rgba(2,10,27,0.52)]">
                         <p className="text-sm leading-relaxed text-zinc-800">{msg.text || "(No text body)"}</p>
                         <p className="mt-2 text-[11px] text-zinc-400">{formatAbsoluteTime(msg.receivedAt)}</p>
                       </div>
@@ -489,7 +489,7 @@ export default function RepliesPage() {
               <div className="scrollbar-modern min-h-0 space-y-3 overflow-y-auto border-l border-zinc-100/90 bg-white/55 p-5">
                 <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Receiver Details</p>
 
-                <div className="rounded-lg border border-zinc-200 bg-white p-3">
+                <div className="rounded-lg border border-zinc-300 bg-white p-3">
                   <div className="flex items-center gap-2">
                     <UserRound className="h-4 w-4 text-zinc-500" />
                     <div>
@@ -499,7 +499,7 @@ export default function RepliesPage() {
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-zinc-200 bg-white p-3">
+                <div className="rounded-lg border border-zinc-300 bg-white p-3">
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-zinc-500" />
                     <div>
@@ -509,7 +509,7 @@ export default function RepliesPage() {
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-zinc-200 bg-white p-3">
+                <div className="rounded-lg border border-zinc-300 bg-white p-3">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                     <div>
