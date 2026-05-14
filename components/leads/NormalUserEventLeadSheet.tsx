@@ -320,8 +320,8 @@ function LeadSheetDialog({
         onClick={onClose}
       />
 
-      <div className="relative z-[1] w-full max-w-3xl overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
-        <div className="relative grid min-h-[34rem] md:grid-cols-[17rem_minmax(0,1fr)]">
+      <div className="relative z-[1] h-[min(42rem,calc(100dvh-3rem))] w-full max-w-3xl overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
+        <div className="relative grid h-full min-h-0 md:grid-cols-[17rem_minmax(0,1fr)]">
           <aside className="border-b border-zinc-300 bg-zinc-50/70 p-8 md:border-b-0 md:border-r">
             <div>
               <p className="text-sm font-medium text-zinc-400">Lead Sheet Updates</p>
@@ -341,7 +341,7 @@ function LeadSheetDialog({
             </Button>
           </aside>
 
-          <div className="min-h-0 overflow-y-auto p-8">
+          <div className="min-h-0 overflow-y-auto p-8 scrollbar-modern">
             {children}
           </div>
         </div>
@@ -1234,23 +1234,55 @@ export function NormalUserEventLeadSheet() {
                 No comments have been recorded for this lead yet.
               </div>
             ) : (
-              <div className="space-y-0 border-y border-zinc-200">
-                {historyItems.map((entry) => (
-                  <div key={entry.id} className="border-b border-zinc-100 py-5 last:border-b-0">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <span className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(entry.workflowStatus)}`} />
-                        <span className="text-sm font-medium text-zinc-950">
-                          {entry.workflowStatusLabel || humanizeStatusLabel(entry.workflowStatus)}
-                        </span>
-                      </div>
-                      <span className="text-xs font-light text-zinc-400">{formatDateTime(entry.createdAt)}</span>
-                    </div>
-                    <p className="mt-3 whitespace-pre-wrap text-sm font-light leading-relaxed text-zinc-600">
-                      {entry.comment || "No comment added."}
-                    </p>
+              <div className="border-y border-zinc-300">
+                <div className="flex items-center justify-between border-b border-zinc-200 py-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Timeline</span>
                   </div>
-                ))}
+                  <span className="text-xs font-light text-zinc-400">
+                    {historyItems.length} update{historyItems.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+
+                <div>
+                  {historyItems.map((entry) => {
+                    const statusLabel = entry.workflowStatusLabel || humanizeStatusLabel(entry.workflowStatus);
+
+                    return (
+                      <article
+                        key={entry.id}
+                        className="group grid grid-cols-[2.75rem_minmax(0,1fr)] border-b border-zinc-100 last:border-b-0"
+                      >
+                        <div className="relative flex justify-center">
+                          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-blue-500/35" />
+                          <span className="relative mt-5 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-blue-500 bg-white shadow-[0_0_0_3px_rgba(37,99,235,0.08)]">
+                            <span className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(entry.workflowStatus)}`} />
+                          </span>
+                        </div>
+
+                        <div className="min-w-0 py-5 transition-colors group-hover:bg-zinc-50/40">
+                          <div className="flex flex-wrap items-start justify-between gap-3 pr-1">
+                            <div className="min-w-0">
+                              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                                <h4 className="text-base font-medium tracking-tight text-zinc-950">{statusLabel}</h4>
+                              </div>
+                            </div>
+
+                            <time className="shrink-0 text-right text-xs font-light leading-5 text-zinc-400">
+                              {formatDateTime(entry.createdAt) || "Time unavailable"}
+                            </time>
+                          </div>
+
+                          <div className="mt-3 max-w-xl border-l border-zinc-200 pl-3">
+                            <p className="whitespace-pre-wrap text-sm font-light leading-6 text-zinc-600">
+                              {entry.comment || "No comment added."}
+                            </p>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
