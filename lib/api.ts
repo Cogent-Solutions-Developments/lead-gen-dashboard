@@ -609,6 +609,57 @@ export type GlobalLeadSearchResponse = {
   hasMore: boolean;
 };
 
+export type NizoAiMention = {
+  id: string;
+  type: "lead" | "event" | "campaign" | "doc";
+  label?: string | null;
+  description?: string | null;
+};
+
+export type NizoAiChatRequest = {
+  message: string;
+  sessionId?: string | null;
+  mentions?: NizoAiMention[];
+};
+
+export type NizoAiSource = {
+  documentId?: string | null;
+  chunkId?: string | null;
+  title?: string | null;
+  documentType?: string | null;
+  fileName?: string | null;
+  pageNumber?: number | null;
+  heading?: string | null;
+  score?: number | null;
+};
+
+export type NizoAiLeadContext = {
+  id: string;
+  name?: string | null;
+  title?: string | null;
+  company?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  linkedinUrl?: string | null;
+  companyUrl?: string | null;
+  campaignId?: string | null;
+  campaignName?: string | null;
+  canonicalEventKey?: string | null;
+  canonicalEventName?: string | null;
+};
+
+export type NizoAiChatResponse = {
+  sessionId: string;
+  answer: string;
+  sources: NizoAiSource[];
+  leadContext: NizoAiLeadContext[];
+};
+
+export type NizoAiMentionSearchResponse = {
+  items: NizoAiMention[];
+  total: number;
+};
+
 export type WorkflowStatusDefinitionItem = {
   id: string;
   ownerUserId?: string | null;
@@ -888,6 +939,30 @@ export async function listEventLeads(canonicalEventKey: string, params?: EventLe
       },
     }
   );
+  return data;
+}
+
+export async function nizoAiChat(payload: NizoAiChatRequest) {
+  const { data } = await apiClient.post<NizoAiChatResponse>("/api/nizo-ai/chat", {
+    message: payload.message,
+    sessionId: payload.sessionId || undefined,
+    mentions: payload.mentions || [],
+  });
+  return data;
+}
+
+export async function searchNizoAiMentions(params?: {
+  q?: string;
+  kind?: "all" | "lead" | "event";
+  limit?: number;
+}) {
+  const { data } = await apiClient.get<NizoAiMentionSearchResponse>("/api/nizo-ai/mentions", {
+    params: {
+      q: params?.q,
+      kind: params?.kind,
+      limit: params?.limit,
+    },
+  });
   return data;
 }
 

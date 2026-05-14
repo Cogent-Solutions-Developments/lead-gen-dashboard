@@ -30,7 +30,7 @@ const navItems = [
   { name: "Upload Campaign", normalLabel: "Upload Leads", href: "/campaigns/upload", icon: Upload },
   // { name: "Completed", href: "/completed", icon: CheckCircle },
   { name: "Nizo Finder", normalLabel: "Lead Sheet", href: "/leads", icon: TrainFront },
-  { name: "NizoAI", href: "/nizo-ai", icon: Brain },
+  { name: "NizoAI", href: "/nizo-ai", icon: Brain, normalOnly: true },
   { name: "Admin Panel", href: "/admin", icon: ShieldCheck, superOnly: true },
 ];
 
@@ -180,7 +180,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
       {/* 2. Navigation Items (Scrollable if needed) */}
       <nav className={`flex-1 overflow-y-auto transition-[margin] duration-300 ${isExpanded ? "-mx-10" : "-mx-6"}`}>
         {navItems
-          .filter((item) => isSuperAdmin || !item.superOnly)
+          .filter((item) => (isSuperAdmin ? !item.normalOnly : !item.superOnly))
           .map((item, index) => {
           const isActive = pathname === item.href;
           return (
