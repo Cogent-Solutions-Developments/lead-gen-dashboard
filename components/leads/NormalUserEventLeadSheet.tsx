@@ -230,7 +230,7 @@ function formatDateTime(value?: string | null) {
 
 function normalizeDialPhone(value: string) {
   const digits = value.replace(/\D/g, "");
-  return digits.length >= 8 ? `+${digits}` : "";
+  return digits.length >= 8 ? `900${digits}` : "";
 }
 
 function buildTelHref(value: string) {
