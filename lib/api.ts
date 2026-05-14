@@ -648,6 +648,7 @@ export type NizoAiLeadContext = {
   canonicalEventName?: string | null;
 };
 
+
 export type NizoAiLeadSearchItem = NizoAiMention & {
   type: "lead";
   name?: string | null;
