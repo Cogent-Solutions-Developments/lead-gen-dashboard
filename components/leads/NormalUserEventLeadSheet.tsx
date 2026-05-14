@@ -68,6 +68,8 @@ type LeadSheetRow = {
   workflowStatusLabel: string;
   workflowComment: string;
   workflowCommentUpdatedAt: string;
+  workflowCommentUpdatedByUsername: string;
+  workflowCommentUpdatedByUserDisplayName: string;
   workflowCommentHistoryCount: number;
   isManualLead: boolean;
 };
@@ -336,6 +338,8 @@ function mapLeadItem(item: EventLeadListItem, labelLookup: Map<string, string>):
     workflowStatusLabel,
     workflowComment: asText(item.workflowComment),
     workflowCommentUpdatedAt: asText(item.workflowCommentUpdatedAt),
+    workflowCommentUpdatedByUsername: asText(item.workflowCommentUpdatedByUsername),
+    workflowCommentUpdatedByUserDisplayName: asText(item.workflowCommentUpdatedByUserDisplayName),
     workflowCommentHistoryCount: Number(item.workflowCommentHistoryCount || 0),
     isManualLead: Boolean(item.isManualLead),
   };
@@ -680,6 +684,8 @@ export function NormalUserEventLeadSheet() {
                       workflowComment: response.workflowComment,
                       workflowCommentUpdatedAt: response.workflowCommentUpdatedAt,
                       workflowCommentUpdatedByUserId: response.workflowCommentUpdatedByUserId,
+                      workflowCommentUpdatedByUsername: response.workflowCommentUpdatedByUsername,
+                      workflowCommentUpdatedByUserDisplayName: response.workflowCommentUpdatedByUserDisplayName,
                       workflowCommentHistoryCount: response.workflowCommentHistoryCount,
                     };
                   }
@@ -1502,6 +1508,10 @@ export function NormalUserEventLeadSheet() {
                 <div>
                   {historyItems.map((entry) => {
                     const statusLabel = entry.workflowStatusLabel || humanizeStatusLabel(entry.workflowStatus);
+                    const actorName =
+                      asText(entry.updatedByUserDisplayName) ||
+                      asText(entry.updatedByUsername) ||
+                      "Unknown user";
 
                     return (
                       <article
@@ -1521,6 +1531,7 @@ export function NormalUserEventLeadSheet() {
                               <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                                 <h4 className="text-base font-medium tracking-tight text-zinc-950">{statusLabel}</h4>
                               </div>
+                              <p className="mt-1 text-xs font-light text-zinc-400">Updated by {actorName}</p>
                             </div>
 
                             <time className="shrink-0 text-right text-xs font-light leading-5 text-zinc-400">

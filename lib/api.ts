@@ -462,6 +462,8 @@ export type LeadItem = {
   workflowComment?: string | null;
   workflowCommentUpdatedAt?: string | null;
   workflowCommentUpdatedByUserId?: string | null;
+  workflowCommentUpdatedByUsername?: string | null;
+  workflowCommentUpdatedByUserDisplayName?: string | null;
   workflowCommentHistoryCount?: number | null;
   hostIcpRunId?: string | null;
   isManualLead?: boolean | null;
@@ -492,6 +494,8 @@ export type WorkflowStatusUpdateResponse = {
   workflowComment?: string | null;
   workflowCommentUpdatedAt?: string | null;
   workflowCommentUpdatedByUserId?: string | null;
+  workflowCommentUpdatedByUsername?: string | null;
+  workflowCommentUpdatedByUserDisplayName?: string | null;
   workflowCommentHistoryCount: number;
   updatedAt?: string | null;
 };
@@ -505,6 +509,8 @@ export type WorkflowStatusHistoryItem = {
   workflowStatusLabel?: string | null;
   comment?: string | null;
   updatedByUserId?: string | null;
+  updatedByUsername?: string | null;
+  updatedByUserDisplayName?: string | null;
   createdAt?: string | null;
 };
 
@@ -549,6 +555,8 @@ export type EventLeadListItem = {
   workflowComment?: string | null;
   workflowCommentUpdatedAt?: string | null;
   workflowCommentUpdatedByUserId?: string | null;
+  workflowCommentUpdatedByUsername?: string | null;
+  workflowCommentUpdatedByUserDisplayName?: string | null;
   workflowCommentHistoryCount?: number | null;
   isSuppressed?: boolean;
   suppression?: SuppressionMeta | null;
