@@ -228,6 +228,16 @@ function formatDateTime(value?: string | null) {
   return parsed.toLocaleString();
 }
 
+function normalizeDialPhone(value: string) {
+  const digits = value.replace(/\D/g, "");
+  return digits.length >= 8 ? `+${digits}` : "";
+}
+
+function buildTelHref(value: string) {
+  const phone = normalizeDialPhone(value);
+  return phone ? `tel:${phone}` : "";
+}
+
 function firstName(value: string) {
   return value.trim().split(/\s+/)[0] || "";
 }
@@ -1033,6 +1043,7 @@ export function NormalUserEventLeadSheet() {
                         ? item.workflowStatus
                         : undefined;
                       const historyCount = item.workflowCommentHistoryCount || 0;
+                      const telHref = item.phone ? buildTelHref(item.phone) : "";
 
                       return (
                         <div
@@ -1072,7 +1083,17 @@ export function NormalUserEventLeadSheet() {
                                 {item.phone ? (
                                   <>
                                     <PhoneIcon className="h-3.5 w-3.5 text-[#22C55E]" />
-                                    <span className="text-sm font-light text-zinc-500">{item.phone}</span>
+                                    {telHref ? (
+                                      <a
+                                        href={telHref}
+                                        className="text-sm font-light text-zinc-500 transition-colors hover:text-zinc-950"
+                                        title="Call with Linkus"
+                                      >
+                                        {item.phone}
+                                      </a>
+                                    ) : (
+                                      <span className="text-sm font-light text-zinc-500">{item.phone}</span>
+                                    )}
                                   </>
                                 ) : (
                                   <span className="text-sm font-light text-zinc-500">-</span>
