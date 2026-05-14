@@ -1309,7 +1309,7 @@ export function NormalUserEventLeadSheet() {
               <h3 className="text-3xl font-light leading-none tracking-[-0.04em] text-zinc-950">
                 Ring the deal bell?
               </h3>
-              <p className="mt-4 max-w-sm text-sm font-light leading-6 text-zinc-500">
+              <p className="mt-1.5 max-w-sm text-sm font-light leading-6 text-zinc-500">
                 Let the team know you closed the deal with{" "}
                 <span className="font-medium text-zinc-700">{pendingStatusChange.item.employeeName || "this lead"}</span>.
               </p>

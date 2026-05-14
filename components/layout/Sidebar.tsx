@@ -263,7 +263,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
                     className="relative min-w-0 overflow-hidden whitespace-nowrap"
                   >
                     <span className="block text-sm font-medium tracking-tight">Ring the deal bell</span>
-                    <span className="mt-0.5 block text-[11px] font-light text-white/58">Let the team know</span>
+                    <span className="mt-0 block text-[11px] font-light text-white/58">Let the team know</span>
                   </motion.span>
                 ) : null}
               </AnimatePresence>
