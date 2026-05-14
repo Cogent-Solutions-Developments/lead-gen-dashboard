@@ -528,8 +528,8 @@ export default function NizoAiPage() {
         <div className="absolute right-[8%] top-1/3 h-80 w-80 rounded-full bg-zinc-950/5 blur-3xl" />
       </div>
 
-      <div className="relative flex min-h-[calc(100dvh-3rem)] w-full flex-col p-1">
-        <header className="flex shrink-0 items-start justify-between gap-6">
+      <div className="relative flex min-h-[calc(100dvh-3rem)] w-full flex-col p-6">
+        <header className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <Link
               href="/dashboard"
@@ -540,7 +540,7 @@ export default function NizoAiPage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 border-l border-zinc-300 pl-8">
+          <div className="grid shrink-0 grid-cols-2 gap-8 border-l border-zinc-300 pl-8">
             <div>
               <p className="text-xs font-medium text-zinc-400">Candidates</p>
               <p className="mt-1 text-2xl font-light tabular-nums tracking-tight text-zinc-950">

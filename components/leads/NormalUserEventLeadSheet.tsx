@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,9 +30,12 @@ import {
   type WorkflowStatusDefinitionItem,
   type WorkflowStatusHistoryItem,
 } from "@/lib/apiRouter";
+import { getCachedAuthUserDisplayName } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 import {
   ArrowLeft,
+  BellRing,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -178,9 +182,10 @@ const STATUS_DOT_CLASS: Record<string, string> = {
   "deal-closed": "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
   "deal-dead": "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]",
 };
-const DEFAULT_PAGE_SIZE = 50;
+const DEFAULT_PAGE_SIZE = 100;
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 const SEARCH_DEBOUNCE_MS = 300;
+const DEAL_CLOSED_ANIMATION_SRC = "https://lottie.host/e872d848-c226-4c29-8108-9111e8bd8c9c/npFGm1Le6t.lottie";
 
 const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
   fullName: "",
@@ -221,6 +226,16 @@ function formatDateTime(value?: string | null) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
   return parsed.toLocaleString();
+}
+
+function firstName(value: string) {
+  return value.trim().split(/\s+/)[0] || "";
+}
+
+function getUserDisplayName(user: ReturnType<typeof useAuth>["user"]) {
+  return [user?.fullName, getCachedAuthUserDisplayName(user), user?.username]
+    .map((value) => value?.trim())
+    .find(Boolean) || "";
 }
 
 function sortWorkflowStatuses(items: WorkflowStatusDefinitionItem[]) {
@@ -320,8 +335,8 @@ function LeadSheetDialog({
         onClick={onClose}
       />
 
-      <div className="relative z-[1] w-full max-w-3xl overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
-        <div className="relative grid min-h-[34rem] md:grid-cols-[17rem_minmax(0,1fr)]">
+      <div className="relative z-[1] h-[min(42rem,calc(100dvh-3rem))] w-full max-w-3xl overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
+        <div className="relative grid h-full min-h-0 md:grid-cols-[17rem_minmax(0,1fr)]">
           <aside className="border-b border-zinc-300 bg-zinc-50/70 p-8 md:border-b-0 md:border-r">
             <div>
               <p className="text-sm font-medium text-zinc-400">Lead Sheet Updates</p>
@@ -341,7 +356,7 @@ function LeadSheetDialog({
             </Button>
           </aside>
 
-          <div className="min-h-0 overflow-y-auto p-8">
+          <div className="min-h-0 overflow-y-auto p-8 scrollbar-modern">
             {children}
           </div>
         </div>
@@ -352,6 +367,7 @@ function LeadSheetDialog({
 
 export function NormalUserEventLeadSheet() {
   usePersona();
+  const { role, user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -379,6 +395,8 @@ export function NormalUserEventLeadSheet() {
   const [filters, setFilters] = useState<LeadFilterState>(EMPTY_FILTERS);
   const [pendingStatusChange, setPendingStatusChange] = useState<PendingStatusChange | null>(null);
   const [statusComment, setStatusComment] = useState("");
+  const [ringBellConfirmOpen, setRingBellConfirmOpen] = useState(false);
+  const [ringingDealBell, setRingingDealBell] = useState(false);
   const [historyLead, setHistoryLead] = useState<LeadSheetRow | null>(null);
   const [historyItems, setHistoryItems] = useState<WorkflowStatusHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -396,6 +414,8 @@ export function NormalUserEventLeadSheet() {
   const statusOptions = useMemo(() => {
     return workflowStatuses.length > 0 ? workflowStatuses : FIXED_WORKFLOW_STATUSES;
   }, [workflowStatuses]);
+  const canUseDealBellFlow = role === "sales_user";
+  const signedInFirstName = firstName(getUserDisplayName(user)) || "there";
 
   const loadInitialData = useCallback(async () => {
     setLoadingEvents(true);
@@ -655,23 +675,75 @@ export function NormalUserEventLeadSheet() {
   const closeStatusCommentDialog = () => {
     if (!pendingStatusChange) return;
     const updateKey = `${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`;
-    if (updatingKeys[updateKey]) return;
+    if (updatingKeys[updateKey] || ringingDealBell) return;
+    setRingBellConfirmOpen(false);
     setPendingStatusChange(null);
     setStatusComment("");
   };
 
-  const submitStatusComment = async () => {
+  const ringDealBell = async () => {
+    const userName = getUserDisplayName(user) || user?.username?.trim() || "A sales user";
+    const response = await fetch("/api/ring-bell", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userName,
+        userId: user?.id || "",
+        username: user?.username || "",
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      const detail = typeof data?.detail === "string" ? data.detail : "Could not send the bell email.";
+      throw new Error(detail);
+    }
+
+    toast.success("Bell rung", {
+      description: `${userName} successfully closed a deal.`,
+    });
+  };
+
+  const submitStatusComment = async (options: { ringBell?: boolean } = {}) => {
     if (!pendingStatusChange) return;
     const comment = statusComment.trim();
-    const updated = await handleWorkflowStatusChange(
-      pendingStatusChange.item,
-      pendingStatusChange.nextStatus,
-      comment || undefined
-    );
-    if (updated) {
+    const shouldRingBell = Boolean(options.ringBell);
+
+    if (shouldRingBell) setRingingDealBell(true);
+
+    try {
+      const updated = await handleWorkflowStatusChange(
+        pendingStatusChange.item,
+        pendingStatusChange.nextStatus,
+        comment || undefined
+      );
+      if (!updated) return;
+
+      if (shouldRingBell) {
+        try {
+          await ringDealBell();
+        } catch (error) {
+          toast.error("Bell failed", {
+            description: error instanceof Error ? error.message : "Could not send the bell email.",
+          });
+        }
+      }
+
+      setRingBellConfirmOpen(false);
       setPendingStatusChange(null);
       setStatusComment("");
+    } finally {
+      if (shouldRingBell) setRingingDealBell(false);
     }
+  };
+
+  const handleUpdateStatusClick = () => {
+    if (!pendingStatusChange) return;
+    if (canUseDealBellFlow && pendingStatusChange.nextStatus === "deal-closed") {
+      setRingBellConfirmOpen(true);
+      return;
+    }
+    void submitStatusComment();
   };
 
   const openHistory = async (item: LeadSheetRow) => {
@@ -1146,6 +1218,23 @@ export function NormalUserEventLeadSheet() {
               </p>
             </div>
 
+            {canUseDealBellFlow && pendingStatusChange.nextStatus === "deal-closed" ? (
+              <div className="text-center">
+                <DotLottieReact
+                  src={DEAL_CLOSED_ANIMATION_SRC}
+                  loop
+                  autoplay
+                  className="mx-auto h-36 w-full max-w-sm"
+                />
+                <p className="mt-1 text-lg font-medium tracking-tight text-zinc-950">
+                  Congrats on closing the deal with {pendingStatusChange.item.employeeName || "this lead"}.
+                </p>
+                <p className="mt-1 text-sm font-light text-zinc-500">
+                  Nice work, {signedInFirstName}. Add a final note so the team has the full context.
+                </p>
+              </div>
+            ) : null}
+
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="border border-zinc-200 bg-zinc-50/70 p-4">
                 <p className="text-xs font-medium text-zinc-400">Current status</p>
@@ -1188,20 +1277,70 @@ export function NormalUserEventLeadSheet() {
               </Button>
               <Button
                 type="button"
-                onClick={() => void submitStatusComment()}
-                disabled={Boolean(updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`])}
-                className="h-10 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
+                onClick={handleUpdateStatusClick}
+                disabled={Boolean(updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`]) || ringingDealBell}
+                className="h-10 gap-2 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
               >
-                {updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`] ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`] || ringingDealBell ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <MessageSquare className="mr-2 h-4 w-4" />
+                  <MessageSquare className="h-4 w-4" />
                 )}
                 Update Status
               </Button>
             </div>
           </div>
         </LeadSheetDialog>
+      ) : null}
+
+      {ringBellConfirmOpen && pendingStatusChange ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-6">
+          <button
+            type="button"
+            aria-label="Close bell confirmation"
+            className="absolute inset-0 bg-zinc-950/20 backdrop-blur-[2px]"
+            onClick={() => {
+              if (!ringingDealBell) setRingBellConfirmOpen(false);
+            }}
+          />
+
+          <div className="relative z-[1] w-full max-w-md overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_90px_-54px_rgba(2,10,27,0.82)]">
+            <div className="border-b border-zinc-100 px-7 py-6">
+              <h3 className="text-3xl font-light leading-none tracking-[-0.04em] text-zinc-950">
+                Ring the deal bell?
+              </h3>
+              <p className="mt-1.5 max-w-sm text-sm font-light leading-6 text-zinc-500">
+                Let the team know you closed the deal with{" "}
+                <span className="font-medium text-zinc-700">{pendingStatusChange.item.employeeName || "this lead"}</span>.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3 bg-zinc-50/70 px-7 py-5">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={ringingDealBell}
+                onClick={() => setRingBellConfirmOpen(false)}
+                className="h-10 rounded-none border border-zinc-300 bg-white px-5 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={ringingDealBell}
+                onClick={() => void submitStatusComment({ ringBell: true })}
+                className="h-10 gap-2 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
+              >
+                {ringingDealBell ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <BellRing className="h-4 w-4" />
+                )}
+                Ring bell
+              </Button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {historyLead ? (
@@ -1234,23 +1373,55 @@ export function NormalUserEventLeadSheet() {
                 No comments have been recorded for this lead yet.
               </div>
             ) : (
-              <div className="space-y-0 border-y border-zinc-200">
-                {historyItems.map((entry) => (
-                  <div key={entry.id} className="border-b border-zinc-100 py-5 last:border-b-0">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <span className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(entry.workflowStatus)}`} />
-                        <span className="text-sm font-medium text-zinc-950">
-                          {entry.workflowStatusLabel || humanizeStatusLabel(entry.workflowStatus)}
-                        </span>
-                      </div>
-                      <span className="text-xs font-light text-zinc-400">{formatDateTime(entry.createdAt)}</span>
-                    </div>
-                    <p className="mt-3 whitespace-pre-wrap text-sm font-light leading-relaxed text-zinc-600">
-                      {entry.comment || "No comment added."}
-                    </p>
+              <div className="border-y border-zinc-300">
+                <div className="flex items-center justify-between border-b border-zinc-200 py-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Timeline</span>
                   </div>
-                ))}
+                  <span className="text-xs font-light text-zinc-400">
+                    {historyItems.length} update{historyItems.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+
+                <div>
+                  {historyItems.map((entry) => {
+                    const statusLabel = entry.workflowStatusLabel || humanizeStatusLabel(entry.workflowStatus);
+
+                    return (
+                      <article
+                        key={entry.id}
+                        className="group grid grid-cols-[2.75rem_minmax(0,1fr)] border-b border-zinc-100 last:border-b-0"
+                      >
+                        <div className="relative flex justify-center">
+                          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-blue-500/35" />
+                          <span className="relative mt-5 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-blue-500 bg-white shadow-[0_0_0_3px_rgba(37,99,235,0.08)]">
+                            <span className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(entry.workflowStatus)}`} />
+                          </span>
+                        </div>
+
+                        <div className="min-w-0 py-5 transition-colors group-hover:bg-zinc-50/40">
+                          <div className="flex flex-wrap items-start justify-between gap-3 pr-1">
+                            <div className="min-w-0">
+                              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                                <h4 className="text-base font-medium tracking-tight text-zinc-950">{statusLabel}</h4>
+                              </div>
+                            </div>
+
+                            <time className="shrink-0 text-right text-xs font-light leading-5 text-zinc-400">
+                              {formatDateTime(entry.createdAt) || "Time unavailable"}
+                            </time>
+                          </div>
+
+                          <div className="mt-3 max-w-xl border-l border-zinc-200 pl-3">
+                            <p className="whitespace-pre-wrap text-sm font-light leading-6 text-zinc-600">
+                              {entry.comment || "No comment added."}
+                            </p>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
