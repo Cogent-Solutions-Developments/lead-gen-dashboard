@@ -172,11 +172,19 @@ const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     isActive: true,
   },
   {
+    id: "workflow-default-proposal-sent",
+    statusKey: "proposal-sent",
+    label: "Proposal Sent",
+    isSystemDefault: true,
+    sortOrder: 3,
+    isActive: true,
+  },
+  {
     id: "workflow-default-deal-closed",
     statusKey: "deal-closed",
     label: "Deal Closed",
     isSystemDefault: true,
-    sortOrder: 3,
+    sortOrder: 4,
     isActive: true,
   },
   {
@@ -184,7 +192,7 @@ const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     statusKey: "deal-dead",
     label: "Deal Dead",
     isSystemDefault: true,
-    sortOrder: 4,
+    sortOrder: 5,
     isActive: true,
   },
 ];
@@ -193,6 +201,7 @@ const STATUS_DOT_CLASS: Record<string, string> = {
   new: "bg-[#0aefff] shadow-[0_0_0_3px_rgba(10,239,255,0.20)]",
   "first-call": "bg-[#147df5] shadow-[0_0_0_3px_rgba(20,125,245,0.20)]",
   "follow-up": "bg-[#ff8700] shadow-[0_0_0_3px_rgba(255,135,0,0.20)]",
+  "proposal-sent": "bg-[#a855f7] shadow-[0_0_0_3px_rgba(168,85,247,0.20)]",
   "deal-closed": "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
   "deal-dead": "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]",
 };
