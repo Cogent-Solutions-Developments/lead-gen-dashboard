@@ -1073,7 +1073,13 @@ export function NormalUserEventLeadSheet() {
                                 {item.email ? (
                                   <>
                                     <EmailIcon className="h-3.5 w-3.5 text-[#EF4444]" />
-                                    <span className="text-sm font-light tracking-tight text-zinc-700">{item.email}</span>
+                                    <a
+                                      href={`mailto:${item.email}`}
+                                      className="text-sm font-light tracking-tight text-zinc-700 transition-colors hover:text-zinc-950"
+                                      title="Open in email app"
+                                    >
+                                      {item.email}
+                                    </a>
                                   </>
                                 ) : (
                                   <span className="text-sm font-light tracking-tight text-zinc-700">-</span>
