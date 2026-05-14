@@ -182,7 +182,7 @@ const STATUS_DOT_CLASS: Record<string, string> = {
   "deal-closed": "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
   "deal-dead": "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]",
 };
-const DEFAULT_PAGE_SIZE = 50;
+const DEFAULT_PAGE_SIZE = 100;
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 const SEARCH_DEBOUNCE_MS = 300;
 const DEAL_CLOSED_ANIMATION_SRC = "https://lottie.host/e872d848-c226-4c29-8108-9111e8bd8c9c/npFGm1Le6t.lottie";
@@ -367,7 +367,7 @@ function LeadSheetDialog({
 
 export function NormalUserEventLeadSheet() {
   usePersona();
-  const { user } = useAuth();
+  const { role, user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -414,6 +414,7 @@ export function NormalUserEventLeadSheet() {
   const statusOptions = useMemo(() => {
     return workflowStatuses.length > 0 ? workflowStatuses : FIXED_WORKFLOW_STATUSES;
   }, [workflowStatuses]);
+  const canUseDealBellFlow = role === "sales_user";
   const signedInFirstName = firstName(getUserDisplayName(user)) || "there";
 
   const loadInitialData = useCallback(async () => {
@@ -738,7 +739,7 @@ export function NormalUserEventLeadSheet() {
 
   const handleUpdateStatusClick = () => {
     if (!pendingStatusChange) return;
-    if (pendingStatusChange.nextStatus === "deal-closed") {
+    if (canUseDealBellFlow && pendingStatusChange.nextStatus === "deal-closed") {
       setRingBellConfirmOpen(true);
       return;
     }
@@ -1217,7 +1218,7 @@ export function NormalUserEventLeadSheet() {
               </p>
             </div>
 
-            {pendingStatusChange.nextStatus === "deal-closed" ? (
+            {canUseDealBellFlow && pendingStatusChange.nextStatus === "deal-closed" ? (
               <div className="text-center">
                 <DotLottieReact
                   src={DEAL_CLOSED_ANIMATION_SRC}
@@ -1278,12 +1279,12 @@ export function NormalUserEventLeadSheet() {
                 type="button"
                 onClick={handleUpdateStatusClick}
                 disabled={Boolean(updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`]) || ringingDealBell}
-                className="h-10 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
+                className="h-10 gap-2 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
               >
                 {updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`] || ringingDealBell ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <MessageSquare className="mr-2 h-4 w-4" />
+                  <MessageSquare className="h-4 w-4" />
                 )}
                 Update Status
               </Button>
@@ -1328,12 +1329,12 @@ export function NormalUserEventLeadSheet() {
                 type="button"
                 disabled={ringingDealBell}
                 onClick={() => void submitStatusComment({ ringBell: true })}
-                className="h-10 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
+                className="h-10 gap-2 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
               >
                 {ringingDealBell ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <BellRing className="mr-2 h-4 w-4" />
+                  <BellRing className="h-4 w-4" />
                 )}
                 Ring bell
               </Button>
