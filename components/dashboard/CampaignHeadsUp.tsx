@@ -50,7 +50,7 @@ export function CampaignHeadsUp({
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className="animate-pulse rounded-2xl border border-zinc-200 bg-white p-6"
+              className="animate-pulse  border border-zinc-200 bg-white p-6"
               style={{ minHeight: "11rem" }}
             >
               <div className="h-3 w-16 rounded bg-zinc-100" />
@@ -118,7 +118,7 @@ export function CampaignHeadsUp({
                 duration: 0.55,
                 ease: [0.22, 1, 0.36, 1],
               }}
-              className="group relative overflow-hidden rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:border-zinc-300"
+              className="group relative overflow-hidden border border-zinc-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:border-zinc-300"
             >
               {/* Subtle accent bar at top */}
               <div
