@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import {
   ArrowLeft,
   AtSign,
@@ -216,255 +217,267 @@ export default function NizoAiPage() {
 
   if (isSuperAdmin || !isPipelineUser) {
     return (
-      <div className="min-h-screen bg-[#f7f8fb] px-6 py-6 text-slate-950">
-        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900">
+      <div className="min-h-screen bg-[#f7f7f7] px-8 py-8 font-sans text-zinc-950">
+        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-light text-zinc-500 transition-colors hover:text-zinc-900">
           <ArrowLeft className="h-4 w-4" />
           Return to dashboard
         </Link>
-        <div className="mx-auto mt-28 max-w-xl rounded-lg border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <Brain className="mx-auto h-10 w-10 text-blue-600" />
-          <h1 className="mt-4 text-2xl font-semibold">NizoAI</h1>
-          <p className="mt-3 text-sm text-slate-500">This chat is available to pipeline users.</p>
+        <div className="mx-auto mt-28 max-w-xl border border-zinc-200 bg-white p-12 text-center shadow-sm">
+          <Brain className="mx-auto h-10 w-10 text-zinc-300" />
+          <h1 className="mt-6 text-3xl font-extralight tracking-tight text-zinc-950">NizoAI</h1>
+          <p className="mt-3 text-sm font-light text-zinc-500">This chat is available to pipeline users.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f8fb] text-slate-950">
-      <div className="flex min-h-screen flex-col">
-        <header className="flex items-center justify-between border-b border-slate-200 bg-white/80 px-6 py-4 backdrop-blur">
-          <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900">
-            <ArrowLeft className="h-4 w-4" />
-            Return to dashboard
-          </Link>
-          <div className="flex items-center gap-3 text-sm text-slate-500">
-            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5">
-              <Sparkles className="h-4 w-4 text-blue-600" />
-              Cogent knowledge chat
-            </span>
-          </div>
-        </header>
+    <div className="flex min-h-screen flex-col bg-[#f7f7f7] font-sans text-zinc-950">
+      <header className="relative z-10 flex items-center justify-between border-b border-zinc-200 bg-[#f7f7f7] px-8 py-5">
+        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-light text-zinc-500 transition-colors hover:text-zinc-900">
+          <ArrowLeft className="h-4 w-4" />
+          Return to dashboard
+        </Link>
+        <div className="flex items-center gap-3">
+          <span className="inline-flex h-8 items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-500 shadow-sm">
+            <Sparkles className="h-3.5 w-3.5 text-zinc-400" />
+            Cogent Knowledge Chat
+          </span>
+        </div>
+      </header>
 
-        <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-6 sm:px-6">
-          {messages.length === 0 ? (
-            <section className="flex flex-1 flex-col items-center justify-center pb-16 text-center">
-              <div className="mb-5 flex items-center gap-3">
-                <h1 className="text-5xl font-normal tracking-normal text-slate-950">NizoAI</h1>
-                <Brain className="h-10 w-10 text-slate-900" />
-              </div>
-              <p className="max-w-xl text-base text-slate-500">Ask about Cogent leads, events, objections, or next-step wording.</p>
-            </section>
-          ) : (
-            <section className="flex-1 space-y-5 pb-6">
-              {messages.map((message) => (
-                <article
-                  key={message.id}
-                  className={`group flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-6 py-10 lg:px-8">
+        {messages.length === 0 ? (
+          <motion.section 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+            className="flex flex-1 flex-col items-center justify-center pb-24 text-center"
+          >
+            <div className="mb-6 flex items-center justify-center gap-4">
+              <Brain className="h-12 w-12 text-zinc-200" />
+            </div>
+            <h1 className="text-[2.75rem] font-extralight tracking-tight text-zinc-950">NizoAI</h1>
+            <p className="mt-4 max-w-xl text-lg font-light leading-relaxed text-zinc-500">
+              Ask about Cogent leads, events, objections, or next-step wording.
+            </p>
+          </motion.section>
+        ) : (
+          <section className="flex-1 space-y-8 pb-6">
+            {messages.map((message, index) => (
+              <motion.article
+                key={message.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                className={`group flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-[min(46rem,90vw)] ${
+                    message.role === "user"
+                      ? "rounded-[2rem] bg-[#2977e7] px-6 py-3.5 text-white shadow-sm"
+                      : "px-2 py-2 text-zinc-950"
+                  }`}
                 >
-                  <div
-                    className={`max-w-[min(44rem,92vw)] rounded-lg px-5 py-4 shadow-sm ${
-                      message.role === "user"
-                        ? "bg-slate-950 text-white"
-                        : "border border-slate-200 bg-white text-slate-900"
-                    }`}
-                  >
-                    {message.mentions?.length ? (
-                      <div className="mb-3 flex flex-wrap gap-2">
-                        {message.mentions.map((item) => (
-                          <span
-                            key={`${item.type}-${item.id}`}
-                            className="rounded-full bg-white/10 px-2.5 py-1 text-xs text-white/80"
+                  {message.mentions?.length ? (
+                    <div className="mb-4 flex flex-wrap gap-2">
+                      {message.mentions.map((item) => (
+                        <span
+                          key={`${item.type}-${item.id}`}
+                          className={`px-2 py-1 text-[11px] font-medium uppercase tracking-wider ${
+                            message.role === "user" ? "rounded-full bg-white/20 text-white" : "rounded-none bg-zinc-200 text-zinc-600"
+                          }`}
+                        >
+                          @{mentionLabel(item)}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="whitespace-pre-wrap text-[15px] font-light leading-relaxed">{message.content}</div>
+                  
+                  {message.leadSearch?.items?.length ? (
+                    <div className="mt-6 space-y-3 border-t border-zinc-100 pt-5">
+                      {message.leadSearch.items.map((item) => {
+                        const selected = selectedMentionKeys.has(`lead:${item.id}`);
+                        return (
+                          <div
+                            key={item.id}
+                            className="grid gap-4 border border-zinc-200 bg-zinc-50 p-4 transition-colors hover:border-zinc-300 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
                           >
-                            @{mentionLabel(item)}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-                    <div className="whitespace-pre-wrap text-sm leading-6">{message.content}</div>
-                    {message.leadSearch?.items?.length ? (
-                      <div className="mt-4 space-y-2">
-                        {message.leadSearch.items.map((item) => {
-                          const selected = selectedMentionKeys.has(`lead:${item.id}`);
-                          return (
-                            <div
-                              key={item.id}
-                              className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
-                            >
-                              <div className="min-w-0">
-                                <div className="truncate text-sm font-semibold text-slate-950">{item.name || item.label}</div>
-                                <div className="mt-1 truncate text-xs text-slate-600">{leadResultDetail(item) || "Local lead"}</div>
-                                {leadContactDetail(item) ? (
-                                  <div className="mt-1 truncate text-xs text-slate-500">{leadContactDetail(item)}</div>
-                                ) : null}
-                              </div>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant={selected ? "secondary" : "outline"}
-                                className="h-8 justify-self-start border-slate-200 bg-white text-slate-700 hover:text-slate-950 sm:justify-self-end"
-                                onClick={() => addMention(item)}
-                                disabled={selected}
-                              >
-                                <AtSign className="h-4 w-4" />
-                                {selected ? "Selected" : "Select"}
-                              </Button>
+                            <div className="min-w-0">
+                              <div className="truncate text-[15px] font-medium text-zinc-950">{item.name || item.label}</div>
+                              <div className="mt-1.5 truncate text-xs font-light text-zinc-500">{leadResultDetail(item) || "Local lead"}</div>
+                              {leadContactDetail(item) ? (
+                                <div className="mt-1 truncate text-xs font-light text-zinc-400">{leadContactDetail(item)}</div>
+                              ) : null}
                             </div>
-                          );
-                        })}
-                        {message.role === "assistant" &&
-                        message === messages[messages.length - 1] &&
-                        leadSearchHasMore(message.leadSearch) ? (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="mt-2 h-8 border-slate-200 bg-white text-slate-700 hover:text-slate-950"
-                            onClick={() => void sendMessage("show more", [])}
-                            disabled={sending}
-                          >
-                            Show more
-                          </Button>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    {message.role === "assistant" ? (
-                      <div className="mt-4 flex flex-wrap items-center gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={selected ? "secondary" : "outline"}
+                              className="h-9 justify-self-start rounded-none border-zinc-200 bg-white text-sm font-light text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 sm:justify-self-end"
+                              onClick={() => addMention(item)}
+                              disabled={selected}
+                            >
+                              <AtSign className="mr-2 h-3.5 w-3.5" />
+                              {selected ? "Selected" : "Select"}
+                            </Button>
+                          </div>
+                        );
+                      })}
+                      {message.role === "assistant" &&
+                      message === messages[messages.length - 1] &&
+                      leadSearchHasMore(message.leadSearch) ? (
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
-                          className="h-8 border-slate-200 bg-white text-slate-600 hover:text-slate-950"
-                          onClick={() => copyText(message.content)}
-                          aria-label="Copy response"
+                          className="mt-3 h-9 rounded-none border-zinc-200 bg-white text-sm font-light text-zinc-700 hover:text-zinc-950"
+                          onClick={() => void sendMessage("show more", [])}
+                          disabled={sending}
                         >
-                          <Copy className="h-4 w-4" />
+                          Show more
                         </Button>
-                        {(message.sources || []).slice(0, 4).map((source) => (
-                          <span
-                            key={`${source.documentId}-${source.chunkId}`}
-                            className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs text-blue-700"
-                          >
-                            {sourceTitle(source)}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                </article>
-              ))}
-              {sending ? (
-                <div className="flex justify-start">
-                  <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    NizoAI is thinking
-                  </div>
-                </div>
-              ) : null}
-              <div ref={bottomRef} />
-            </section>
-          )}
+                      ) : null}
+                    </div>
+                  ) : null}
 
-          <footer className="sticky bottom-0 border-t border-slate-200 bg-[#f7f8fb]/95 py-4 backdrop-blur">
-            {selectedMentions.length ? (
-              <div className="mb-3 flex flex-wrap gap-2">
-                {selectedMentions.map((item) => (
-                  <button
-                    key={`${item.type}-${item.id}`}
-                    type="button"
-                    onClick={() => removeMention(item)}
-                    className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700"
-                  >
-                    @{mentionLabel(item)}
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                ))}
+                  {message.role === "assistant" ? (
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 rounded-none px-2 text-zinc-400 hover:bg-zinc-200/50 hover:text-zinc-900"
+                        onClick={() => copyText(message.content)}
+                        aria-label="Copy response"
+                      >
+                        <Copy className="mr-1.5 h-3.5 w-3.5" />
+                        <span className="text-xs">Copy</span>
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              </motion.article>
+            ))}
+            {sending ? (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex justify-start px-2"
+              >
+                <div className="inline-flex items-center gap-3 text-sm font-light text-zinc-500">
+                  <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
+                  NizoAI is thinking...
+                </div>
+              </motion.div>
+            ) : null}
+            <div ref={bottomRef} className="h-4" />
+          </section>
+        )}
+      </main>
+
+      <footer className="sticky bottom-0 z-20 border-t border-zinc-200 bg-[#f7f7f7] px-6 py-6 lg:px-8">
+        <div className="mx-auto w-full max-w-4xl">
+          {selectedMentions.length ? (
+            <div className="mb-4 flex flex-wrap gap-2">
+              {selectedMentions.map((item) => (
+                <button
+                  key={`${item.type}-${item.id}`}
+                  type="button"
+                  onClick={() => removeMention(item)}
+                  className="inline-flex items-center gap-1.5 rounded-none border border-zinc-300 bg-white px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50"
+                >
+                  @{mentionLabel(item)}
+                  <X className="h-3.5 w-3.5 text-zinc-400" />
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="relative border border-zinc-200 bg-white shadow-sm transition-shadow focus-within:border-zinc-300 focus-within:ring-1 focus-within:ring-zinc-200">
+            <Textarea
+              value={draft}
+              onChange={(event) => {
+                const value = event.target.value;
+                setDraft(value);
+                if (value.includes("@")) setMentionOpen(true);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  void sendMessage();
+                }
+              }}
+              placeholder="Ask NizoAI about a lead, event, objection, or message..."
+              className="min-h-[100px] resize-none rounded-none border-0 bg-transparent px-5 py-4 text-[15px] font-light text-zinc-950 placeholder:text-zinc-400 focus-visible:ring-0"
+              maxLength={4000}
+            />
+
+            {mentionActive ? (
+              <div className="absolute bottom-[calc(100%+1rem)] left-0 w-full max-w-xl border border-zinc-200 bg-white shadow-lg">
+                <div className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50 px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-zinc-500">
+                  <Search className="h-3.5 w-3.5" />
+                  {mentionQuery ? `Search: ${mentionQuery}` : "Recent Context"}
+                </div>
+                {mentionLoading ? (
+                  <div className="flex items-center gap-3 px-4 py-6 text-sm font-light text-zinc-500">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Searching...
+                  </div>
+                ) : mentionResults.length ? (
+                  <div className="max-h-64 overflow-y-auto py-2">
+                    {mentionResults.map((item) => (
+                      <button
+                        key={`${item.type}-${item.id}`}
+                        type="button"
+                        onClick={() => addMention(item)}
+                        className="flex w-full items-start gap-4 px-4 py-2.5 text-left transition-colors hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none"
+                      >
+                        <span className="mt-0.5 inline-flex min-w-[3.5rem] items-center justify-center border border-zinc-200 bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                          {item.type}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium text-zinc-950">{mentionLabel(item)}</span>
+                          {item.description ? (
+                            <span className="mt-0.5 block truncate text-[13px] font-light text-zinc-500">{item.description}</span>
+                          ) : null}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="px-4 py-6 text-sm font-light italic text-zinc-500">No matches found.</div>
+                )}
               </div>
             ) : null}
 
-            <div className="relative rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
-              <Textarea
-                value={draft}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setDraft(value);
-                  if (value.includes("@")) setMentionOpen(true);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    void sendMessage();
-                  }
-                }}
-                placeholder="Ask NizoAI about a lead, event, objection, or message..."
-                className="min-h-24 resize-none border-0 bg-transparent px-3 py-3 text-base shadow-none focus-visible:ring-0"
-                maxLength={4000}
-              />
-
-              {mentionActive ? (
-                <div className="absolute bottom-full left-0 mb-3 w-full max-w-xl rounded-lg border border-slate-200 bg-white p-2 shadow-xl">
-                  <div className="mb-2 flex items-center gap-2 px-2 py-1 text-xs text-slate-500">
-                    <Search className="h-3.5 w-3.5" />
-                    {mentionQuery ? `Search: ${mentionQuery}` : "Recent lead and event context"}
-                  </div>
-                  {mentionLoading ? (
-                    <div className="flex items-center gap-2 px-3 py-3 text-sm text-slate-500">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Searching
-                    </div>
-                  ) : mentionResults.length ? (
-                    <div className="max-h-64 overflow-y-auto">
-                      {mentionResults.map((item) => (
-                        <button
-                          key={`${item.type}-${item.id}`}
-                          type="button"
-                          onClick={() => addMention(item)}
-                          className="flex w-full items-start gap-3 rounded-md px-3 py-2 text-left hover:bg-slate-50"
-                        >
-                          <span className="mt-0.5 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium uppercase text-slate-500">
-                            {item.type}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-medium text-slate-900">{mentionLabel(item)}</span>
-                            {item.description ? (
-                              <span className="block truncate text-xs text-slate-500">{item.description}</span>
-                            ) : null}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="px-3 py-3 text-sm text-slate-500">No matches found.</div>
-                  )}
-                </div>
-              ) : null}
-
-              <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-2 pt-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 text-slate-500 hover:text-slate-950"
-                  onClick={() => setMentionOpen((value) => !value)}
-                  aria-label="Mention lead or event"
-                >
-                  <AtSign className="h-5 w-5" />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  disabled={!canSend}
-                  onClick={() => void sendMessage()}
-                  className="h-10 w-10 rounded-full bg-slate-950 text-white hover:bg-slate-800"
-                  aria-label="Send message"
-                >
-                  {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-                </Button>
-              </div>
+            <div className="flex items-center justify-between gap-3 border-t border-zinc-100 bg-zinc-50/50 px-3 py-2.5">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9 gap-2 rounded-none font-light text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950"
+                onClick={() => setMentionOpen((value) => !value)}
+                aria-label="Mention lead or event"
+              >
+                <AtSign className="h-4 w-4" />
+                <span className="text-xs">Mention context</span>
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                disabled={!canSend}
+                onClick={() => void sendMessage()}
+                className="h-9 w-9 rounded-none bg-zinc-950 text-white transition-colors hover:bg-zinc-800 disabled:bg-zinc-200 disabled:text-zinc-400"
+                aria-label="Send message"
+              >
+                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </Button>
             </div>
-          </footer>
-        </main>
-      </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

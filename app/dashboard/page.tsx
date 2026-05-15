@@ -1,12 +1,62 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
-import { getCachedAuthUserDisplayName } from "@/lib/auth";
-import { listEvents, type EventSummaryItem } from "@/lib/apiRouter";
+import { getAuthHeader, getCachedAuthUserDisplayName } from "@/lib/auth";
+import {
+  listEvents,
+  listEventLeads,
+  listWorkflowStatuses,
+  type EventLeadListItem,
+  type EventSummaryItem,
+  type WorkflowStatusDefinitionItem,
+} from "@/lib/apiRouter";
+
+
+import { getDailyManifesto } from "@/lib/manifesto";
+import { CampaignHeadsUp } from "@/components/dashboard/CampaignHeadsUp";
+
+type SalesMarathonRunner = {
+  id: string;
+  name: string;
+  initials: string;
+  proposalCount: number;
+};
+
+type EventHeadsUpItem = {
+  event: EventSummaryItem;
+  statusCounts: Record<string, number>;
+};
+
+const FALLBACK_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
+  {
+    id: "dashboard-follow-up",
+    statusKey: "follow-up",
+    label: "Follow Up",
+    isSystemDefault: true,
+    sortOrder: 10,
+    isActive: true,
+  },
+  {
+    id: "dashboard-proposal-sent",
+    statusKey: "proposal-sent",
+    label: "Proposal Sent",
+    isSystemDefault: true,
+    sortOrder: 20,
+    isActive: true,
+  },
+  {
+    id: "dashboard-deal-closed",
+    statusKey: "deal-closed",
+    label: "Deal Closed",
+    isSystemDefault: true,
+    sortOrder: 30,
+    isActive: true,
+  },
+];
 
 function getDisplayName(user: ReturnType<typeof useAuth>["user"]) {
   const values = [user?.fullName, getCachedAuthUserDisplayName(user), user?.username]
@@ -52,138 +102,144 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Could not load dashboard data.";
 }
 
-// Disabled for now. Flip this back to true when the dashboard mascot intro is ready to use.
-const ENABLE_DASHBOARD_MASCOT_INTRO = false;
+async function listSalesMarathonLeaderboard() {
+  const response = await fetch("/api/sales-marathon/leaderboard", {
+    headers: getAuthHeader(),
+  });
+  if (!response.ok) throw new Error("Failed to load sales marathon.");
+  const data = await response.json() as { runners?: SalesMarathonRunner[] };
+  return Array.isArray(data.runners) ? data.runners : [];
+}
 
-function DashboardMascotIntro() {
+function PixelAvatar({ colorHex, seed }: { colorHex: string; seed: string }) {
+  const url = `https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(seed)}&rowColor=${colorHex.replace('#', '')}&backgroundColor=transparent`;
   return (
-    <motion.div
-      className="pointer-events-none absolute inset-x-0 bottom-0 z-0 overflow-hidden"
-      style={{ height: "100%" }}
-      initial={{ opacity: 0, y: 70, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 80, scale: 0.985 }}
-      transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
-      aria-hidden="true"
-    >
-      {/* Outer halo */}
-      <div
-        className="absolute bottom-0 rounded-full"
-        style={{
-          width: "74vw",
-          aspectRatio: "1",
-          left: "50%",
-          transform: "translate(-50%, 58%)",
-        }}
-      >
-        <div className="dashboard-mascot-halo h-full w-full rounded-full bg-[rgba(41,119,231,0.16)]" />
-      </div>
-      {/* Middle halo */}
-      <div
-        className="absolute bottom-0 rounded-full"
-        style={{
-          width: "58vw",
-          aspectRatio: "1",
-          left: "50%",
-          transform: "translate(-50%, 58%)",
-        }}
-      >
-        <div className="dashboard-mascot-halo dashboard-mascot-halo-secondary h-full w-full rounded-full bg-[rgba(41,119,231,0.28)]" />
-      </div>
-      {/* Inner face */}
-      <div
-        className="absolute bottom-0 rounded-full"
-        style={{
-          width: "47vw",
-          aspectRatio: "1",
-          left: "50%",
-          transform: "translate(-50%, 58%)",
-        }}
-      >
-        <div className="dashboard-mascot-face h-full w-full rounded-full bg-[#2977e7]" />
+    <div className="w-6 h-6 overflow-hidden">
+      <img 
+        src={url} 
+        alt="Identicon" 
+        className="w-full h-full object-contain"
+      />
+    </div>
+  );
+}
+
+function SalesMarathon({
+  runners,
+  loading,
+}: {
+  runners: SalesMarathonRunner[];
+  loading: boolean;
+}) {
+  const dailyTarget = 5;
+  const barPalette = [
+    { bg: "bg-[#2977e7]", hex: "2977e7" },
+    { bg: "bg-emerald-500", hex: "10b981" },
+    { bg: "bg-amber-500", hex: "f59e0b" },
+    { bg: "bg-rose-500", hex: "f43f5e" },
+    { bg: "bg-indigo-500", hex: "6366f1" },
+    { bg: "bg-teal-500", hex: "14b8a6" },
+    { bg: "bg-orange-500", hex: "f97316" },
+  ];
+
+  return (
+    <section className="relative min-h-[35rem] overflow-hidden border border-zinc-200 bg-white px-8 py-8 shadow-sm">
+      <div className="relative flex items-baseline justify-between gap-6 border-b border-zinc-100 pb-6">
+        <div>
+          <h2 className="text-4xl font-extralight tracking-tight text-zinc-950">
+            Daily KPI Tracker
+          </h2>
+          <p className="mt-3 text-sm font-light text-zinc-500">
+            5 proposals a day keeps the sales stress far away.
+          </p>
+        </div>
       </div>
 
-      {/* Face features (eyes + smile) */}
-      <svg
-        viewBox="-80 -42 160 105"
-        className="dashboard-mascot absolute"
-        style={{
-          bottom: "12%",
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: "clamp(140px, 13vw, 220px)",
-        }}
-        role="img"
-      >
-        <g className="dashboard-mascot-expression">
-          <g>
-            {/* Left eye */}
-            <g transform="translate(-30 0)">
-              <g className="dashboard-mascot-eye">
-                <circle cx="0" cy="0" r="29" fill="#ffffff" stroke="#050505" strokeWidth="3" />
-                <g className="dashboard-mascot-pupil">
-                  <circle cx="6" cy="0" r="17" fill="#050505" />
-                  <circle cx="0" cy="-7" r="4.5" fill="#ffffff" opacity="0.92" />
-                </g>
-              </g>
-            </g>
-            {/* Right eye */}
-            <g transform="translate(30 0)">
-              <g className="dashboard-mascot-eye dashboard-mascot-eye-right">
-                <circle cx="0" cy="0" r="29" fill="#ffffff" stroke="#050505" strokeWidth="3" />
-                <g className="dashboard-mascot-pupil dashboard-mascot-pupil-right">
-                  <circle cx="6" cy="0" r="17" fill="#050505" />
-                  <circle cx="0" cy="-7" r="4.5" fill="#ffffff" opacity="0.92" />
-                </g>
-              </g>
-            </g>
-          </g>
-          {/* Smile */}
-          <motion.path
-            className="dashboard-mascot-smile"
-            d="M-22 42C-8 56 8 56 22 42"
-            animate={{
-              d: [
-                "M-20 43C-8 52 8 52 20 43",
-                "M-26 40C-10 62 10 62 26 40",
-                "M-22 42C-8 56 8 56 22 42",
-              ],
-            }}
-            transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-            fill="none"
-            stroke="#050505"
-            strokeLinecap="round"
-            strokeWidth="5"
-          />
-        </g>
-      </svg>
-    </motion.div>
+      <div className="relative mt-12 flex h-80 items-end justify-between gap-4">
+        {loading ? (
+          <div className="absolute inset-0 flex items-center justify-center text-sm font-light text-zinc-400 italic">
+            Synchronizing records...
+          </div>
+        ) : runners.length === 0 ? (
+          <div className="absolute inset-0 flex items-center justify-center text-sm font-light text-zinc-400 italic">
+            No active records for the current period.
+          </div>
+        ) : (
+          runners.map((runner, index) => {
+            const progress = Math.min(runner.proposalCount / dailyTarget, 1);
+            const colorItem = barPalette[index % barPalette.length];
+            return (
+              <div key={runner.id} className="group relative flex h-full flex-1 flex-col items-center justify-end">
+                <div className="mb-4 flex flex-col items-center gap-1">
+                  <span className="text-2xl font-extralight text-zinc-950">
+                    {runner.proposalCount}
+                  </span>
+                </div>
+
+                <div className="relative h-full w-8 bg-zinc-100 overflow-hidden">
+                  <motion.div
+                    initial={{ height: 0 }}
+                    animate={{ height: `${progress * 100}%` }}
+                    transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+                    className={`absolute bottom-0 w-full ${colorItem.bg}`}
+                  />
+                  {/* Grid markers */}
+                  <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="w-full h-[1px] bg-white/20" />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-6 flex flex-col items-center gap-3">
+                  <PixelAvatar colorHex={colorItem.hex} seed={runner.id} />
+                  <h3 className="max-w-[4.5rem] truncate text-[10px] font-medium tracking-wide text-zinc-950 text-center">
+                    {runner.name.split(' ')[0]}
+                  </h3>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <div className="mt-12 border-t border-zinc-100 pt-6">
+        <p className="text-[10px] leading-relaxed text-zinc-400">
+          * This data reflects the total number of proposals sent within the last 24-hour cycle.
+        </p>
+      </div>
+    </section>
   );
 }
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const { persona } = usePersona();
-  const [, setEvents] = useState<EventSummaryItem[]>([]);
-  const [showMascotIntro, setShowMascotIntro] = useState(false);
+  const [salesRunners, setSalesRunners] = useState<SalesMarathonRunner[]>([]);
+  const [loadingSalesMarathon, setLoadingSalesMarathon] = useState(true);
+  const [eventHeadsUp, setEventHeadsUp] = useState<EventHeadsUpItem[]>([]);
+  const [workflowStatuses, setWorkflowStatuses] = useState<WorkflowStatusDefinitionItem[]>(FALLBACK_WORKFLOW_STATUSES);
+  const [loadingEventHeadsUp, setLoadingEventHeadsUp] = useState(true);
   const displayName = firstName(getDisplayName(user));
   const greeting = getTimeGreeting();
+  const manifesto = getDailyManifesto(user?.id || "");
   const workspaceLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
-  const workLabel = persona === "delegates" ? "delegate" : persona === "production" ? "production" : "sales";
 
   useEffect(() => {
     let alive = true;
 
     async function loadDashboard() {
+      setLoadingSalesMarathon(true);
       try {
-        const eventResponse = await listEvents();
-
+        const runners = await listSalesMarathonLeaderboard();
         if (!alive) return;
-        setEvents(eventResponse.events || []);
+        setSalesRunners(runners);
       } catch (error) {
         if (!alive) return;
         toast.error("Dashboard sync failed", { description: getErrorMessage(error) });
-        setEvents([]);
+        setSalesRunners([]);
+      } finally {
+        if (alive) setLoadingSalesMarathon(false);
       }
     }
 
@@ -194,48 +250,138 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (!ENABLE_DASHBOARD_MASCOT_INTRO) return;
+    let alive = true;
 
-    const revealTimeout = window.setTimeout(() => setShowMascotIntro(true), 0);
-    const hideTimeout = window.setTimeout(() => setShowMascotIntro(false), 5000);
+    async function loadPersonalStats() {
+      if (!user?.id) return;
+      setLoadingEventHeadsUp(true);
+      try {
+        // 1. Fetch workflow statuses
+        let activeStatuses = FALLBACK_WORKFLOW_STATUSES;
+        try {
+          const statusResponse = await listWorkflowStatuses();
+          activeStatuses = (statusResponse.statuses || FALLBACK_WORKFLOW_STATUSES)
+             .filter((status) =>
+              ["follow-up", "proposal-sent", "deal-closed"].includes(status.statusKey)
+            )
+            .sort((a, b) => {
+              const order = { "follow-up": 1, "proposal-sent": 2, "deal-closed": 3 };
+              return (order[a.statusKey as keyof typeof order] || 99) - (order[b.statusKey as keyof typeof order] || 99);
+            });
+        } catch (e) {
+          console.warn("[Dashboard] listWorkflowStatuses failed, using fallback", e);
+        }
+        setWorkflowStatuses(activeStatuses);
+        if (!alive) return;
+
+        // 2. Fetch events then leads per event (same API the lead sheet uses)
+        let events: EventSummaryItem[] = [];
+        try {
+          const eventsResponse = await listEvents();
+          events = eventsResponse.events || [];
+        } catch (e) {
+          console.error("[Dashboard] listEvents FAILED", e);
+        }
+        if (!alive) return;
+
+        let allLeads: EventLeadListItem[] = [];
+        for (const event of events) {
+          if (!alive) return;
+          try {
+            const response = await listEventLeads(event.canonicalEventKey);
+            allLeads = allLeads.concat(response.items || []);
+          } catch (e) {
+            console.error(`[Dashboard] listEventLeads FAILED for "${event.canonicalEventKey}"`, e);
+          }
+        }
+        if (!alive) return;
+
+        // 3. Filter to leads this user has worked on
+        const userId = user.id;
+        const username = user.username?.toLowerCase();
+        const userDisplayName = (user.fullName || getCachedAuthUserDisplayName(user))?.toLowerCase();
+
+        const myLeads = allLeads.filter((lead) => {
+          if (lead.workflowCommentUpdatedByUserId === userId) return true;
+          if (lead.manualLeadAddedByUserId === userId) return true;
+          if (username && lead.workflowCommentUpdatedByUsername?.toLowerCase() === username) return true;
+          if (userDisplayName && lead.workflowCommentUpdatedByUserDisplayName?.toLowerCase() === userDisplayName) return true;
+          return false;
+        });
+
+        console.log("[Dashboard] myLeads (filtered for user):", myLeads.length);
+
+        // 4. Build status counts
+        const statusCounts: Record<string, number> = {};
+        activeStatuses.forEach((s) => {
+          statusCounts[s.statusKey] = myLeads.filter(
+            (l) => l.workflowStatus === s.statusKey
+          ).length;
+        });
+
+        setEventHeadsUp([{
+          event: {
+            canonicalEventKey: "personal",
+            canonicalEventName: "Personal Stats",
+            leadCount: myLeads.length,
+            campaignCount: 0,
+            relatedCampaignNames: [],
+          },
+          statusCounts,
+        }]);
+      } catch (error) {
+        if (!alive) return;
+        console.error("[Dashboard] loadPersonalStats CRASHED", error);
+        setEventHeadsUp([]);
+      } finally {
+        if (alive) setLoadingEventHeadsUp(false);
+      }
+    }
+
+    void loadPersonalStats();
     return () => {
-      window.clearTimeout(revealTimeout);
-      window.clearTimeout(hideTimeout);
+      alive = false;
     };
-  }, []);
+  }, [persona, user?.id]);
 
   return (
-    <div className="flex min-h-screen flex-1 flex-col overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">
-      <header className="relative isolate grid min-h-screen w-full grid-rows-[auto_1fr] overflow-hidden">
-        <AnimatePresence>
-          {ENABLE_DASHBOARD_MASCOT_INTRO && showMascotIntro ? <DashboardMascotIntro /> : null}
-        </AnimatePresence>
-
-        <div className="relative z-10 flex w-full justify-center pt-6">
+    <div className="flex h-screen flex-1 flex-col overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">
+      <header className="relative isolate h-full min-h-0 w-full overflow-y-auto px-8 py-7 lg:px-12">
+        <div className="relative z-10 flex w-full justify-end">
           <span className="inline-flex h-9 items-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-500">
             {getDateLabel()}
           </span>
         </div>
 
-        <div className="relative z-10 flex items-center justify-center pb-12 text-center">
+        <div className="relative z-10 mt-10 grid gap-10 text-left xl:grid-cols-[minmax(0,1fr)_26rem]">
           <motion.div
-            initial={false}
-            animate={showMascotIntro ? { opacity: 0, y: 18 } : { opacity: 1, y: 0 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-            className="w-full max-w-5xl"
+            className="flex flex-col"
           >
-            <p className="mb-4 text-xl font-normal text-zinc-500">
+            <p className="mb-4 text-lg font-normal text-zinc-500">
               {workspaceLabel} Workspace
             </p>
 
-            <h1 className="text-5xl font-light leading-[1.08] tracking-[-0.04em] text-zinc-950 sm:text-6xl 2xl:text-7xl">
-              {greeting}, {displayName}. Here is where {workLabel} work starts.
+            <h1 className="text-[2.125rem] leading-[1.1] tracking-[-0.04em] text-zinc-950 sm:text-[2.75rem]">
+              <span className="font-medium">{greeting}, {displayName}.</span> <span className="font-light">“{manifesto}”</span>
             </h1>
 
-            <p className="mt-6 text-xl font-light leading-relaxed text-zinc-500">
-              Choose an event, run NizoAI, upload leads, or move directly into the lead sheet.
+            <p className="mt-6 max-w-3xl text-xl font-light leading-relaxed text-zinc-500">
+              Your performance summary across all outreach efforts.
             </p>
+
+            <CampaignHeadsUp
+              items={eventHeadsUp}
+              statuses={workflowStatuses}
+              loading={loadingEventHeadsUp}
+            />
           </motion.div>
+
+          <div className="h-fit">
+            <SalesMarathon runners={salesRunners} loading={loadingSalesMarathon} />
+          </div>
         </div>
       </header>
     </div>
