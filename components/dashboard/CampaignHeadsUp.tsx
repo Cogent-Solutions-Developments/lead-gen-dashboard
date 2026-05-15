@@ -14,10 +14,28 @@ interface CampaignHeadsUpProps {
   loading: boolean;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; barColor: string; hex: string }> = {
-  "follow-up":     { label: "Follow Up",   barColor: "bg-amber-500",   hex: "#f59e0b" },
-  "proposal-sent": { label: "Proposals",   barColor: "bg-indigo-500",  hex: "#6366f1" },
-  "deal-closed":   { label: "Closed",      barColor: "bg-emerald-500", hex: "#10b981" },
+const STATUS_CONFIG: Record<string, { label: string; subtitle: string; accentColor: string; bgGradient: string; iconPath: string }> = {
+  "follow-up": {
+    label: "Follow Ups",
+    subtitle: "Leads awaiting your next touchpoint",
+    accentColor: "#f59e0b",
+    bgGradient: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+    iconPath: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
+  },
+  "proposal-sent": {
+    label: "Proposals Sent",
+    subtitle: "Proposals delivered and pending review",
+    accentColor: "#6366f1",
+    bgGradient: "linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)",
+    iconPath: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+  },
+  "deal-closed": {
+    label: "Closed Deals",
+    subtitle: "Successfully converted deals",
+    accentColor: "#10b981",
+    bgGradient: "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)",
+    iconPath: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
+  },
 };
 
 export function CampaignHeadsUp({
@@ -27,11 +45,19 @@ export function CampaignHeadsUp({
 }: CampaignHeadsUpProps) {
   if (loading) {
     return (
-      <section className="relative mt-10 overflow-hidden border border-zinc-200 bg-white px-8 py-8 shadow-sm">
-        <div className="flex h-48 items-center justify-center">
-          <p className="text-sm font-light italic text-zinc-400">
-            Aggregating your pipeline...
-          </p>
+      <section className="relative mt-10 flex flex-1 flex-col justify-end">
+        <div className="grid grid-cols-3 gap-4">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="animate-pulse rounded-2xl border border-zinc-200 bg-white p-6"
+              style={{ minHeight: "11rem" }}
+            >
+              <div className="h-3 w-16 rounded bg-zinc-100" />
+              <div className="mt-6 h-10 w-12 rounded bg-zinc-100" />
+              <div className="mt-4 h-2 w-24 rounded bg-zinc-100" />
+            </div>
+          ))}
         </div>
       </section>
     );
@@ -46,17 +72,16 @@ export function CampaignHeadsUp({
   }, {} as Record<string, number>);
 
   const totalLeads = items.reduce((sum, item) => sum + (item.event.leadCount || 0), 0);
-  const maxCount = Math.max(...Object.values(totals), 1);
 
   return (
-    <section className="relative mt-10 overflow-hidden border border-zinc-200 bg-white px-8 py-8 shadow-sm">
-      {/* Header — matches Daily KPI Tracker style */}
-      <div className="relative flex items-baseline justify-between gap-6 border-b border-zinc-100 pb-6">
+    <section className="relative mt-10 flex flex-1 flex-col justify-end">
+      {/* Header */}
+      <div className="mb-6 flex items-baseline justify-between">
         <div>
-          <h2 className="text-4xl font-extralight tracking-tight text-zinc-950">
-            Your Pipeline
+          <h2 className="text-2xl font-extralight tracking-tight text-zinc-950">
+            Your Stats
           </h2>
-          <p className="mt-3 text-sm font-light text-zinc-500">
+          <p className="mt-1 text-sm font-light text-zinc-400">
             Lead status breakdown across all active events.
           </p>
         </div>
@@ -64,68 +89,91 @@ export function CampaignHeadsUp({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="shrink-0 text-3xl font-extralight tabular-nums tracking-tight text-zinc-950"
+          className="shrink-0 text-2xl font-extralight tabular-nums tracking-tight text-zinc-950"
         >
           {totalLeads.toLocaleString()}
-          <span className="ml-2 text-sm font-light text-zinc-400">total</span>
+          <span className="ml-1.5 text-xs font-light text-zinc-400">total</span>
         </motion.span>
       </div>
 
-      {/* Status rows — horizontal bar chart style */}
-      <div className="mt-10 space-y-0">
+      {/* Cards grid */}
+      <div className="grid grid-cols-3 gap-4">
         {statuses.map((status, index) => {
           const count = totals[status.statusKey] || 0;
           const config = STATUS_CONFIG[status.statusKey] || {
             label: status.label,
-            barColor: "bg-zinc-400",
-            hex: "#a1a1aa",
+            subtitle: "Pipeline status",
+            accentColor: "#a1a1aa",
+            bgGradient: "linear-gradient(135deg, #fafafa 0%, #f4f4f5 100%)",
+            iconPath: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
           };
-          const fillPercent = maxCount > 0 ? (count / maxCount) * 100 : 0;
 
           return (
             <motion.div
               key={status.statusKey}
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.06, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className="group grid grid-cols-[8rem_minmax(0,1fr)_4rem] items-center gap-6 border-b border-zinc-100 py-5 last:border-b-0"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                delay: index * 0.1,
+                duration: 0.55,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+              className="group relative overflow-hidden rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:border-zinc-300"
             >
-              {/* Label */}
-              <span className="text-sm font-light text-zinc-500 transition-colors group-hover:text-zinc-950">
-                {config.label}
-              </span>
+              {/* Subtle accent bar at top */}
+              <div
+                className="absolute inset-x-0 top-0 h-[3px] opacity-80 transition-opacity group-hover:opacity-100"
+                style={{ backgroundColor: config.accentColor }}
+              />
 
-              {/* Bar */}
-              <div className="relative h-7 w-full overflow-hidden bg-zinc-100">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${fillPercent}%` }}
-                  transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1], delay: index * 0.06 + 0.2 }}
-                  className={`absolute inset-y-0 left-0 ${config.barColor}`}
-                />
-                {/* Grid markers */}
-                <div className="absolute inset-0 flex justify-between pointer-events-none">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="h-full w-[1px] bg-white/20" />
-                  ))}
-                </div>
+              {/* Icon */}
+              <div
+                className="flex h-9 w-9 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110"
+                style={{ background: config.bgGradient }}
+              >
+                <svg
+                  className="h-4 w-4"
+                  style={{ color: config.accentColor }}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d={config.iconPath}
+                  />
+                </svg>
               </div>
 
               {/* Count */}
-              <span className="text-right text-2xl font-extralight tabular-nums tracking-tight text-zinc-950">
+              <motion.p
+                className="mt-5 text-4xl font-extralight tabular-nums tracking-tight text-zinc-950"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{
+                  delay: index * 0.1 + 0.25,
+                  duration: 0.5,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+              >
                 {count.toLocaleString()}
-              </span>
+              </motion.p>
+
+              {/* Label + subtitle */}
+              <p className="mt-2 text-sm font-medium text-zinc-950">
+                {config.label}
+              </p>
+              <p className="mt-0.5 text-[11px] font-light leading-snug text-zinc-400">
+                {config.subtitle}
+              </p>
             </motion.div>
           );
         })}
       </div>
 
-      {/* Footer */}
-      <div className="mt-8 border-t border-zinc-100 pt-6">
-        <p className="text-[10px] leading-relaxed text-zinc-400">
-          * Showing leads where you are the last workflow contributor or manually added the record.
-        </p>
-      </div>
+     
     </section>
   );
 }

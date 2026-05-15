@@ -353,7 +353,7 @@ export default function DashboardPage() {
           </span>
         </div>
 
-        <div className="relative z-10 mt-10 grid gap-10 text-left xl:grid-cols-[minmax(0,1fr)_26rem]">
+        <div className="relative z-10 mt-10 grid items-stretch gap-10 text-left xl:grid-cols-[minmax(0,1fr)_26rem]">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -379,7 +379,7 @@ export default function DashboardPage() {
             />
           </motion.div>
 
-          <div className="h-fit">
+          <div>
             <SalesMarathon runners={salesRunners} loading={loadingSalesMarathon} />
           </div>
         </div>
