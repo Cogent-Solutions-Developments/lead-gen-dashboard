@@ -351,8 +351,8 @@ export default function DashboardPage() {
               {workspaceLabel} Workspace
             </p>
 
-            <h1 className="text-[2.125rem] font-light leading-[1.1] tracking-[-0.04em] text-zinc-950 sm:text-[2.75rem]">
-              {greeting}, {displayName}. {manifesto}
+            <h1 className="text-[2.125rem] leading-[1.1] tracking-[-0.04em] text-zinc-950 sm:text-[2.75rem]">
+              <span className="font-medium">{greeting}, {displayName}.</span> <span className="font-light">“{manifesto}”</span>
             </h1>
 
             <p className="mt-6 max-w-3xl text-xl font-light leading-relaxed text-zinc-500">
