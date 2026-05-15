@@ -70,6 +70,19 @@ async function listSalesMarathonLeaderboard() {
 // Disabled for now. Flip this back to true when the dashboard mascot intro is ready to use.
 const ENABLE_DASHBOARD_MASCOT_INTRO = false;
 
+function PixelAvatar({ colorHex, seed }: { colorHex: string; seed: string }) {
+  const url = `https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(seed)}&rowColor=${colorHex.replace('#', '')}&backgroundColor=transparent`;
+  return (
+    <div className="w-6 h-6 overflow-hidden">
+      <img 
+        src={url} 
+        alt="Identicon" 
+        className="w-full h-full object-contain"
+      />
+    </div>
+  );
+}
+
 function SalesMarathon({
   runners,
   loading,
@@ -78,14 +91,14 @@ function SalesMarathon({
   loading: boolean;
 }) {
   const dailyTarget = 5;
-  const barColors = [
-    "bg-[#2977e7]", // Royal Blue
-    "bg-emerald-500", // Emerald Green
-    "bg-amber-500",   // Amber Gold
-    "bg-rose-500",    // Rose Red
-    "bg-indigo-500",  // Deep Indigo
-    "bg-teal-500",    // Vibrant Teal
-    "bg-orange-500",  // Warm Orange
+  const barPalette = [
+    { bg: "bg-[#2977e7]", hex: "2977e7" },
+    { bg: "bg-emerald-500", hex: "10b981" },
+    { bg: "bg-amber-500", hex: "f59e0b" },
+    { bg: "bg-rose-500", hex: "f43f5e" },
+    { bg: "bg-indigo-500", hex: "6366f1" },
+    { bg: "bg-teal-500", hex: "14b8a6" },
+    { bg: "bg-orange-500", hex: "f97316" },
   ];
 
   return (
@@ -113,7 +126,7 @@ function SalesMarathon({
         ) : (
           runners.map((runner, index) => {
             const progress = Math.min(runner.proposalCount / dailyTarget, 1);
-            const barColor = barColors[index % barColors.length];
+            const colorItem = barPalette[index % barPalette.length];
             return (
               <div key={runner.id} className="group relative flex h-full flex-1 flex-col items-center justify-end">
                 <div className="mb-4 flex flex-col items-center gap-1">
@@ -127,7 +140,7 @@ function SalesMarathon({
                     initial={{ height: 0 }}
                     animate={{ height: `${progress * 100}%` }}
                     transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
-                    className={`absolute bottom-0 w-full ${barColor}`}
+                    className={`absolute bottom-0 w-full ${colorItem.bg}`}
                   />
                   {/* Grid markers */}
                   <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
@@ -137,8 +150,9 @@ function SalesMarathon({
                   </div>
                 </div>
 
-                <div className="mt-4 w-full text-center">
-                  <h3 className="truncate text-[10px] font-medium tracking-wide text-zinc-950">
+                <div className="mt-6 flex flex-col items-center gap-3">
+                  <PixelAvatar colorHex={colorItem.hex} seed={runner.id} />
+                  <h3 className="max-w-[4.5rem] truncate text-[10px] font-medium tracking-wide text-zinc-950 text-center">
                     {runner.name.split(' ')[0]}
                   </h3>
                 </div>
