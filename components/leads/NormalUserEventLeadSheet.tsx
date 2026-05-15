@@ -359,12 +359,14 @@ function LeadSheetDialog({
   description,
   onClose,
   children,
+  sidebarContent,
 }: {
   open: boolean;
   title: string;
   description: string;
   onClose: () => void;
   children: ReactNode;
+  sidebarContent?: ReactNode;
 }) {
   if (!open) return null;
 
@@ -379,19 +381,25 @@ function LeadSheetDialog({
 
       <div className="relative z-[1] h-[min(42rem,calc(100dvh-3rem))] w-full max-w-3xl overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
         <div className="relative grid h-full min-h-0 md:grid-cols-[17rem_minmax(0,1fr)]">
-          <aside className="border-b border-zinc-300 bg-zinc-50/70 p-8 md:border-b-0 md:border-r">
-            <div>
-              <p className="text-sm font-medium text-zinc-400">Lead Sheet Updates</p>
-              <h2 className="mt-8 text-4xl font-light leading-none tracking-tighter text-zinc-950">
+          <aside className="relative flex flex-col justify-between overflow-hidden border-b border-zinc-300 bg-zinc-50/70 p-8 md:border-b-0 md:border-r">
+            <div className={cn("relative z-10", sidebarContent && "text-zinc-50")}>
+              <p className={cn("text-sm font-medium", sidebarContent ? "text-zinc-300" : "text-zinc-400")}>
+                Lead Sheet Updates
+              </p>
+              <h2 className="mt-8 text-4xl font-light leading-none tracking-tighter">
                 {title}
               </h2>
-              <p className="mt-5 text-sm font-light leading-relaxed text-zinc-500">{description}</p>
+              <p className={cn("mt-5 text-sm font-light leading-relaxed", sidebarContent ? "text-zinc-200" : "text-zinc-500")}>
+                {description}
+              </p>
             </div>
+
+            {sidebarContent && <div className="absolute inset-0 z-0">{sidebarContent}</div>}
 
             <Button
               type="button"
               variant="ghost"
-              className="absolute right-5 top-5 h-10 w-10 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+              className="absolute right-5 top-5 z-20 h-10 w-10 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
               onClick={onClose}
             >
               <X className="h-4 w-4" />
@@ -1277,6 +1285,21 @@ export function NormalUserEventLeadSheet() {
           title="Status Note"
           description="Add a short comment for this state change so the next person can understand the context."
           onClose={closeStatusCommentDialog}
+          sidebarContent={
+            canUseDealBellFlow && pendingStatusChange.nextStatus === "deal-closed" ? (
+              <div className="absolute inset-0">
+                <div className="absolute inset-0 z-10 bg-zinc-950/40" />
+                <video
+                  src="/videos/magnific_recreate-the-scene-with-t_2982250313.mp4"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            ) : null
+          }
         >
           <div className="space-y-8">
             <div className="border-b border-zinc-100 pb-6">

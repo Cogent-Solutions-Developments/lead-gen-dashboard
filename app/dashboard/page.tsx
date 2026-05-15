@@ -1,13 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 import { getAuthHeader, getCachedAuthUserDisplayName } from "@/lib/auth";
+import {
+  listEvents,
+  listEventLeads,
+  listWorkflowStatuses,
+  type EventLeadListItem,
+  type EventSummaryItem,
+  type WorkflowStatusDefinitionItem,
+} from "@/lib/apiRouter";
 
 import { getDailyManifesto } from "@/lib/manifesto";
+import { CampaignHeadsUp } from "@/components/dashboard/CampaignHeadsUp";
 
 type SalesMarathonRunner = {
   id: string;
@@ -15,6 +24,62 @@ type SalesMarathonRunner = {
   initials: string;
   proposalCount: number;
 };
+
+type EventHeadsUpItem = {
+  event: EventSummaryItem;
+  statusCounts: Record<string, number>;
+};
+
+const FALLBACK_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
+  {
+    id: "dashboard-new",
+    statusKey: "new",
+    label: "New",
+    isSystemDefault: true,
+    sortOrder: 10,
+    isActive: true,
+  },
+  {
+    id: "dashboard-first-call",
+    statusKey: "first-call",
+    label: "First Call",
+    isSystemDefault: true,
+    sortOrder: 20,
+    isActive: true,
+  },
+  {
+    id: "dashboard-follow-up",
+    statusKey: "follow-up",
+    label: "Follow Up",
+    isSystemDefault: true,
+    sortOrder: 30,
+    isActive: true,
+  },
+  {
+    id: "dashboard-proposal-sent",
+    statusKey: "proposal-sent",
+    label: "Proposal Sent",
+    isSystemDefault: true,
+    sortOrder: 40,
+    isActive: true,
+  },
+  {
+    id: "dashboard-deal-closed",
+    statusKey: "deal-closed",
+    label: "Deal Closed",
+    isSystemDefault: true,
+    sortOrder: 50,
+    isActive: true,
+  },
+  {
+    id: "dashboard-deal-dead",
+    statusKey: "deal-dead",
+    label: "Deal Dead",
+    isSystemDefault: true,
+    sortOrder: 60,
+    isActive: true,
+  },
+];
 
 function getDisplayName(user: ReturnType<typeof useAuth>["user"]) {
   const values = [user?.fullName, getCachedAuthUserDisplayName(user), user?.username]
@@ -68,9 +133,6 @@ async function listSalesMarathonLeaderboard() {
   const data = await response.json() as { runners?: SalesMarathonRunner[] };
   return Array.isArray(data.runners) ? data.runners : [];
 }
-
-// Disabled for now. Flip this back to true when the dashboard mascot intro is ready to use.
-const ENABLE_DASHBOARD_MASCOT_INTRO = false;
 
 function PixelAvatar({ colorHex, seed }: { colorHex: string; seed: string }) {
   const url = `https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(seed)}&rowColor=${colorHex.replace('#', '')}&backgroundColor=transparent`;
@@ -173,123 +235,18 @@ function SalesMarathon({
   );
 }
 
-function DashboardMascotIntro() {
-  return (
-    <motion.div
-      className="pointer-events-none absolute inset-x-0 bottom-0 z-0 overflow-hidden"
-      style={{ height: "100%" }}
-      initial={{ opacity: 0, y: 70, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 80, scale: 0.985 }}
-      transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
-      aria-hidden="true"
-    >
-      {/* Outer halo */}
-      <div
-        className="absolute bottom-0 rounded-full"
-        style={{
-          width: "74vw",
-          aspectRatio: "1",
-          left: "50%",
-          transform: "translate(-50%, 58%)",
-        }}
-      >
-        <div className="dashboard-mascot-halo h-full w-full rounded-full bg-[rgba(41,119,231,0.16)]" />
-      </div>
-      {/* Middle halo */}
-      <div
-        className="absolute bottom-0 rounded-full"
-        style={{
-          width: "58vw",
-          aspectRatio: "1",
-          left: "50%",
-          transform: "translate(-50%, 58%)",
-        }}
-      >
-        <div className="dashboard-mascot-halo dashboard-mascot-halo-secondary h-full w-full rounded-full bg-[rgba(41,119,231,0.28)]" />
-      </div>
-      {/* Inner face */}
-      <div
-        className="absolute bottom-0 rounded-full"
-        style={{
-          width: "47vw",
-          aspectRatio: "1",
-          left: "50%",
-          transform: "translate(-50%, 58%)",
-        }}
-      >
-        <div className="dashboard-mascot-face h-full w-full rounded-full bg-[#2977e7]" />
-      </div>
-
-      {/* Face features (eyes + smile) */}
-      <svg
-        viewBox="-80 -42 160 105"
-        className="dashboard-mascot absolute"
-        style={{
-          bottom: "12%",
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: "clamp(140px, 13vw, 220px)",
-        }}
-        role="img"
-      >
-        <g className="dashboard-mascot-expression">
-          <g>
-            {/* Left eye */}
-            <g transform="translate(-30 0)">
-              <g className="dashboard-mascot-eye">
-                <circle cx="0" cy="0" r="29" fill="#ffffff" stroke="#050505" strokeWidth="3" />
-                <g className="dashboard-mascot-pupil">
-                  <circle cx="6" cy="0" r="17" fill="#050505" />
-                  <circle cx="0" cy="-7" r="4.5" fill="#ffffff" opacity="0.92" />
-                </g>
-              </g>
-            </g>
-            {/* Right eye */}
-            <g transform="translate(30 0)">
-              <g className="dashboard-mascot-eye dashboard-mascot-eye-right">
-                <circle cx="0" cy="0" r="29" fill="#ffffff" stroke="#050505" strokeWidth="3" />
-                <g className="dashboard-mascot-pupil dashboard-mascot-pupil-right">
-                  <circle cx="6" cy="0" r="17" fill="#050505" />
-                  <circle cx="0" cy="-7" r="4.5" fill="#ffffff" opacity="0.92" />
-                </g>
-              </g>
-            </g>
-          </g>
-          {/* Smile */}
-          <motion.path
-            className="dashboard-mascot-smile"
-            d="M-22 42C-8 56 8 56 22 42"
-            animate={{
-              d: [
-                "M-20 43C-8 52 8 52 20 43",
-                "M-26 40C-10 62 10 62 26 40",
-                "M-22 42C-8 56 8 56 22 42",
-              ],
-            }}
-            transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-            fill="none"
-            stroke="#050505"
-            strokeLinecap="round"
-            strokeWidth="5"
-          />
-        </g>
-      </svg>
-    </motion.div>
-  );
-}
-
 export default function DashboardPage() {
   const { user } = useAuth();
   const { persona } = usePersona();
   const [salesRunners, setSalesRunners] = useState<SalesMarathonRunner[]>([]);
   const [loadingSalesMarathon, setLoadingSalesMarathon] = useState(true);
-  const [showMascotIntro, setShowMascotIntro] = useState(false);
+  const [eventHeadsUp, setEventHeadsUp] = useState<EventHeadsUpItem[]>([]);
+  const [workflowStatuses, setWorkflowStatuses] = useState<WorkflowStatusDefinitionItem[]>(FALLBACK_WORKFLOW_STATUSES);
+  const [loadingEventHeadsUp, setLoadingEventHeadsUp] = useState(true);
   const displayName = firstName(getDisplayName(user));
   const greeting = getTimeGreeting();
   const manifesto = getDailyManifesto(user?.id || "");
   const workspaceLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
-  const workLabel = persona === "delegates" ? "delegate" : persona === "production" ? "production" : "sales";
 
   useEffect(() => {
     let alive = true;
@@ -298,7 +255,6 @@ export default function DashboardPage() {
       setLoadingSalesMarathon(true);
       try {
         const runners = await listSalesMarathonLeaderboard();
-
         if (!alive) return;
         setSalesRunners(runners);
       } catch (error) {
@@ -317,35 +273,128 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (!ENABLE_DASHBOARD_MASCOT_INTRO) return;
+    let alive = true;
 
-    const revealTimeout = window.setTimeout(() => setShowMascotIntro(true), 0);
-    const hideTimeout = window.setTimeout(() => setShowMascotIntro(false), 5000);
+    async function loadPersonalStats() {
+      if (!user?.id) return;
+      setLoadingEventHeadsUp(true);
+      try {
+        // 1. Fetch workflow statuses
+        let activeStatuses = FALLBACK_WORKFLOW_STATUSES;
+        try {
+          const statusResponse = await listWorkflowStatuses();
+          activeStatuses = (statusResponse.statuses || FALLBACK_WORKFLOW_STATUSES)
+            .filter((status) =>
+              ["new", "first-call", "follow-up", "proposal-sent", "deal-closed", "deal-dead"].includes(status.statusKey)
+            )
+            .sort((a, b) => {
+              const order = { "new": 1, "first-call": 2, "follow-up": 3, "proposal-sent": 4, "deal-closed": 5, "deal-dead": 6 };
+              return (order[a.statusKey as keyof typeof order] || 99) - (order[b.statusKey as keyof typeof order] || 99);
+            });
+        } catch (e) {
+          console.warn("[Dashboard] listWorkflowStatuses failed, using fallback", e);
+        }
+        setWorkflowStatuses(activeStatuses);
+        if (!alive) return;
+
+        // 2. Fetch events
+        let events: EventSummaryItem[] = [];
+        try {
+          const eventsResponse = await listEvents();
+          events = eventsResponse.events || [];
+          console.log("[Dashboard] listEvents returned", events.length, "events:", events.map(e => e.canonicalEventKey));
+        } catch (e) {
+          console.error("[Dashboard] listEvents FAILED", e);
+        }
+        if (!alive) return;
+
+        // 3. Fetch leads for each event (same API the lead sheet uses)
+        let allLeads: EventLeadListItem[] = [];
+        for (const event of events) {
+          if (!alive) return;
+          try {
+            // Call with NO optional params — just the event key, exactly like the lead sheet
+            const response = await listEventLeads(event.canonicalEventKey);
+            console.log(`[Dashboard] event "${event.canonicalEventKey}" returned ${response.items?.length ?? 0} leads (total: ${response.total})`);
+            allLeads = allLeads.concat(response.items || []);
+          } catch (e) {
+            console.error(`[Dashboard] listEventLeads FAILED for "${event.canonicalEventKey}"`, e);
+          }
+        }
+        if (!alive) return;
+
+        console.log("[Dashboard] total leads across all events:", allLeads.length);
+        console.log("[Dashboard] user.id =", user.id, "| user.username =", user.username);
+        if (allLeads.length > 0) {
+          console.log("[Dashboard] first lead sample:", JSON.stringify({
+            workflowStatus: allLeads[0].workflowStatus,
+            workflowCommentUpdatedByUserId: allLeads[0].workflowCommentUpdatedByUserId,
+            workflowCommentUpdatedByUsername: allLeads[0].workflowCommentUpdatedByUsername,
+            manualLeadAddedByUserId: allLeads[0].manualLeadAddedByUserId,
+          }));
+        }
+
+        // 4. Filter to leads this user has worked on
+        const userId = user.id;
+        const username = user.username?.toLowerCase();
+
+        const myLeads = allLeads.filter((lead) => {
+          if (lead.workflowCommentUpdatedByUserId === userId) return true;
+          if (lead.manualLeadAddedByUserId === userId) return true;
+          if (username && lead.workflowCommentUpdatedByUsername?.toLowerCase() === username) return true;
+          return false;
+        });
+
+        console.log("[Dashboard] myLeads (filtered for user):", myLeads.length);
+
+        // 5. Build status counts
+        const statusCounts: Record<string, number> = {};
+        activeStatuses.forEach((s) => {
+          statusCounts[s.statusKey] = myLeads.filter(
+            (l) => l.workflowStatus === s.statusKey
+          ).length;
+        });
+
+        setEventHeadsUp([{
+          event: {
+            canonicalEventKey: "personal",
+            canonicalEventName: "Personal Stats",
+            leadCount: myLeads.length,
+            campaignCount: 0,
+            relatedCampaignNames: [],
+          },
+          statusCounts,
+        }]);
+      } catch (error) {
+        if (!alive) return;
+        console.error("[Dashboard] loadPersonalStats CRASHED", error);
+        setEventHeadsUp([]);
+      } finally {
+        if (alive) setLoadingEventHeadsUp(false);
+      }
+    }
+
+    void loadPersonalStats();
     return () => {
-      window.clearTimeout(revealTimeout);
-      window.clearTimeout(hideTimeout);
+      alive = false;
     };
-  }, []);
+  }, [persona, user?.id]);
 
   return (
-    <div className="flex min-h-screen flex-1 flex-col overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">
-      <header className="relative isolate min-h-screen w-full overflow-hidden px-8 py-7 lg:px-12">
-        <AnimatePresence>
-          {ENABLE_DASHBOARD_MASCOT_INTRO && showMascotIntro ? <DashboardMascotIntro /> : null}
-        </AnimatePresence>
-
+    <div className="flex h-screen flex-1 flex-col overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">
+      <header className="relative isolate h-full min-h-0 w-full overflow-y-auto px-8 py-7 lg:px-12">
         <div className="relative z-10 flex w-full justify-end">
           <span className="inline-flex h-9 items-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-500">
             {getDateLabel()}
           </span>
         </div>
 
-        <div className="relative z-10 mt-16 grid items-start gap-10 text-left xl:grid-cols-[minmax(0,1fr)_26rem]">
+        <div className="relative z-10 mt-10 grid gap-10 text-left xl:grid-cols-[minmax(0,1fr)_26rem]">
           <motion.div
-            initial={false}
-            animate={showMascotIntro ? { opacity: 0, y: 18 } : { opacity: 1, y: 0 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-            className="w-full max-w-4xl"
+            className="flex flex-col"
           >
             <p className="mb-4 text-lg font-normal text-zinc-500">
               {workspaceLabel} Workspace
@@ -356,11 +405,19 @@ export default function DashboardPage() {
             </h1>
 
             <p className="mt-6 max-w-3xl text-xl font-light leading-relaxed text-zinc-500">
-              Choose an event, run NizoAI, upload leads, or move directly into the lead sheet.
+              Your performance summary across all outreach efforts.
             </p>
+
+            <CampaignHeadsUp
+              items={eventHeadsUp}
+              statuses={workflowStatuses}
+              loading={loadingEventHeadsUp}
+            />
           </motion.div>
 
-          <SalesMarathon runners={salesRunners} loading={loadingSalesMarathon} />
+          <div className="h-fit">
+            <SalesMarathon runners={salesRunners} loading={loadingSalesMarathon} />
+          </div>
         </div>
       </header>
     </div>
