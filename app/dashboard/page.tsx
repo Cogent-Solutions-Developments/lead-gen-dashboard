@@ -107,7 +107,7 @@ function SalesMarathon({
     <section className="relative min-h-[35rem] overflow-hidden border border-zinc-200 bg-white px-8 py-8 shadow-sm">
       <div className="relative flex items-baseline justify-between gap-6 border-b border-zinc-100 pb-6">
         <div>
-          <h2 className="text-4xl font-light tracking-tight text-zinc-950">
+          <h2 className="text-4xl font-extralight tracking-tight text-zinc-950">
             Daily KPI Tracker
           </h2>
           <p className="mt-3 text-sm font-light text-zinc-500">
