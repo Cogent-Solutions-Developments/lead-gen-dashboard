@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import { type EventSummaryItem, type WorkflowStatusDefinitionItem } from "@/lib/apiRouter";
-import { cn } from "@/lib/utils";
 
 type EventHeadsUpItem = {
   event: EventSummaryItem;
@@ -15,13 +14,10 @@ interface CampaignHeadsUpProps {
   loading: boolean;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; textColor: string }> = {
-  new: { label: "New Leads", color: "bg-zinc-100", textColor: "text-zinc-600" },
-  "first-call": { label: "First Call", color: "bg-blue-50", textColor: "text-blue-600" },
-  "follow-up": { label: "Follow Up", color: "bg-orange-50", textColor: "text-orange-600" },
-  "proposal-sent": { label: "Proposals", color: "bg-purple-50", textColor: "text-purple-600" },
-  "deal-closed": { label: "Closed", color: "bg-emerald-50", textColor: "text-emerald-600" },
-  "deal-dead": { label: "Dead", color: "bg-rose-50", textColor: "text-rose-600" },
+const STATUS_CONFIG: Record<string, { label: string; barColor: string; hex: string }> = {
+  "follow-up":     { label: "Follow Up",   barColor: "bg-amber-500",   hex: "#f59e0b" },
+  "proposal-sent": { label: "Proposals",   barColor: "bg-indigo-500",  hex: "#6366f1" },
+  "deal-closed":   { label: "Closed",      barColor: "bg-emerald-500", hex: "#10b981" },
 };
 
 export function CampaignHeadsUp({
@@ -31,9 +27,13 @@ export function CampaignHeadsUp({
 }: CampaignHeadsUpProps) {
   if (loading) {
     return (
-      <div className="mt-8 flex h-32 items-center justify-center border-t border-zinc-100 text-[11px] font-medium text-zinc-400">
-        Aggregating metrics...
-      </div>
+      <section className="relative mt-10 overflow-hidden border border-zinc-200 bg-white px-8 py-8 shadow-sm">
+        <div className="flex h-48 items-center justify-center">
+          <p className="text-sm font-light italic text-zinc-400">
+            Aggregating your pipeline...
+          </p>
+        </div>
+      </section>
     );
   }
 
@@ -46,51 +46,86 @@ export function CampaignHeadsUp({
   }, {} as Record<string, number>);
 
   const totalLeads = items.reduce((sum, item) => sum + (item.event.leadCount || 0), 0);
+  const maxCount = Math.max(...Object.values(totals), 1);
 
   return (
-    <div className="mt-8 border-t border-zinc-100 pt-6">
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-[11px] font-bold text-zinc-400">Your Stats</h2>
-        <span className="text-[11px] font-medium text-zinc-400">
-          {totalLeads.toLocaleString()} Total Leads
-        </span>
+    <section className="relative mt-10 overflow-hidden border border-zinc-200 bg-white px-8 py-8 shadow-sm">
+      {/* Header — matches Daily KPI Tracker style */}
+      <div className="relative flex items-baseline justify-between gap-6 border-b border-zinc-100 pb-6">
+        <div>
+          <h2 className="text-4xl font-extralight tracking-tight text-zinc-950">
+            Your Pipeline
+          </h2>
+          <p className="mt-3 text-sm font-light text-zinc-500">
+            Lead status breakdown across all active events.
+          </p>
+        </div>
+        <motion.span
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="shrink-0 text-3xl font-extralight tabular-nums tracking-tight text-zinc-950"
+        >
+          {totalLeads.toLocaleString()}
+          <span className="ml-2 text-sm font-light text-zinc-400">total</span>
+        </motion.span>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+      {/* Status rows — horizontal bar chart style */}
+      <div className="mt-10 space-y-0">
         {statuses.map((status, index) => {
           const count = totals[status.statusKey] || 0;
-          const config = STATUS_CONFIG[status.statusKey] || { label: status.label, color: "bg-zinc-50", textColor: "text-zinc-600" };
+          const config = STATUS_CONFIG[status.statusKey] || {
+            label: status.label,
+            barColor: "bg-zinc-400",
+            hex: "#a1a1aa",
+          };
+          const fillPercent = maxCount > 0 ? (count / maxCount) * 100 : 0;
 
           return (
             <motion.div
               key={status.statusKey}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className={cn(
-                "relative overflow-hidden rounded-xl border border-zinc-100/80 p-4 transition-all hover:shadow-sm",
-                config.color
-              )}
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.06, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              className="group grid grid-cols-[8rem_minmax(0,1fr)_4rem] items-center gap-6 border-b border-zinc-100 py-5 last:border-b-0"
             >
-              <div className="flex flex-col gap-1">
-                <span className="whitespace-nowrap text-[11px] font-bold text-zinc-500">
-                  {config.label}
-                </span>
-                <span className={cn(
-                  "text-3xl font-light tracking-tight tabular-nums",
-                  count > 0 ? config.textColor : "text-zinc-300"
-                )}>
-                  {count.toLocaleString()}
-                </span>
+              {/* Label */}
+              <span className="text-sm font-light text-zinc-500 transition-colors group-hover:text-zinc-950">
+                {config.label}
+              </span>
+
+              {/* Bar */}
+              <div className="relative h-7 w-full overflow-hidden bg-zinc-100">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${fillPercent}%` }}
+                  transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1], delay: index * 0.06 + 0.2 }}
+                  className={`absolute inset-y-0 left-0 ${config.barColor}`}
+                />
+                {/* Grid markers */}
+                <div className="absolute inset-0 flex justify-between pointer-events-none">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="h-full w-[1px] bg-white/20" />
+                  ))}
+                </div>
               </div>
 
-              <div className="pointer-events-none absolute -bottom-2 -right-2 select-none opacity-[0.03]">
-                <span className="text-6xl font-bold">{index + 1}</span>
-              </div>
+              {/* Count */}
+              <span className="text-right text-2xl font-extralight tabular-nums tracking-tight text-zinc-950">
+                {count.toLocaleString()}
+              </span>
             </motion.div>
           );
         })}
       </div>
-    </div>
+
+      {/* Footer */}
+      <div className="mt-8 border-t border-zinc-100 pt-6">
+        <p className="text-[10px] leading-relaxed text-zinc-400">
+          * Showing leads where you are the last workflow contributor or manually added the record.
+        </p>
+      </div>
+    </section>
   );
 }

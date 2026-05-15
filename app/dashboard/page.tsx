@@ -15,6 +15,7 @@ import {
   type WorkflowStatusDefinitionItem,
 } from "@/lib/apiRouter";
 
+
 import { getDailyManifesto } from "@/lib/manifesto";
 import { CampaignHeadsUp } from "@/components/dashboard/CampaignHeadsUp";
 
@@ -32,27 +33,11 @@ type EventHeadsUpItem = {
 
 const FALLBACK_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
   {
-    id: "dashboard-new",
-    statusKey: "new",
-    label: "New",
-    isSystemDefault: true,
-    sortOrder: 10,
-    isActive: true,
-  },
-  {
-    id: "dashboard-first-call",
-    statusKey: "first-call",
-    label: "First Call",
-    isSystemDefault: true,
-    sortOrder: 20,
-    isActive: true,
-  },
-  {
     id: "dashboard-follow-up",
     statusKey: "follow-up",
     label: "Follow Up",
     isSystemDefault: true,
-    sortOrder: 30,
+    sortOrder: 10,
     isActive: true,
   },
   {
@@ -60,7 +45,7 @@ const FALLBACK_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     statusKey: "proposal-sent",
     label: "Proposal Sent",
     isSystemDefault: true,
-    sortOrder: 40,
+    sortOrder: 20,
     isActive: true,
   },
   {
@@ -68,15 +53,7 @@ const FALLBACK_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     statusKey: "deal-closed",
     label: "Deal Closed",
     isSystemDefault: true,
-    sortOrder: 50,
-    isActive: true,
-  },
-  {
-    id: "dashboard-deal-dead",
-    statusKey: "deal-dead",
-    label: "Deal Dead",
-    isSystemDefault: true,
-    sortOrder: 60,
+    sortOrder: 30,
     isActive: true,
   },
 ];
@@ -284,11 +261,11 @@ export default function DashboardPage() {
         try {
           const statusResponse = await listWorkflowStatuses();
           activeStatuses = (statusResponse.statuses || FALLBACK_WORKFLOW_STATUSES)
-            .filter((status) =>
-              ["new", "first-call", "follow-up", "proposal-sent", "deal-closed", "deal-dead"].includes(status.statusKey)
+             .filter((status) =>
+              ["follow-up", "proposal-sent", "deal-closed"].includes(status.statusKey)
             )
             .sort((a, b) => {
-              const order = { "new": 1, "first-call": 2, "follow-up": 3, "proposal-sent": 4, "deal-closed": 5, "deal-dead": 6 };
+              const order = { "follow-up": 1, "proposal-sent": 2, "deal-closed": 3 };
               return (order[a.statusKey as keyof typeof order] || 99) - (order[b.statusKey as keyof typeof order] || 99);
             });
         } catch (e) {
@@ -297,25 +274,21 @@ export default function DashboardPage() {
         setWorkflowStatuses(activeStatuses);
         if (!alive) return;
 
-        // 2. Fetch events
+        // 2. Fetch events then leads per event (same API the lead sheet uses)
         let events: EventSummaryItem[] = [];
         try {
           const eventsResponse = await listEvents();
           events = eventsResponse.events || [];
-          console.log("[Dashboard] listEvents returned", events.length, "events:", events.map(e => e.canonicalEventKey));
         } catch (e) {
           console.error("[Dashboard] listEvents FAILED", e);
         }
         if (!alive) return;
 
-        // 3. Fetch leads for each event (same API the lead sheet uses)
         let allLeads: EventLeadListItem[] = [];
         for (const event of events) {
           if (!alive) return;
           try {
-            // Call with NO optional params — just the event key, exactly like the lead sheet
             const response = await listEventLeads(event.canonicalEventKey);
-            console.log(`[Dashboard] event "${event.canonicalEventKey}" returned ${response.items?.length ?? 0} leads (total: ${response.total})`);
             allLeads = allLeads.concat(response.items || []);
           } catch (e) {
             console.error(`[Dashboard] listEventLeads FAILED for "${event.canonicalEventKey}"`, e);
@@ -323,31 +296,22 @@ export default function DashboardPage() {
         }
         if (!alive) return;
 
-        console.log("[Dashboard] total leads across all events:", allLeads.length);
-        console.log("[Dashboard] user.id =", user.id, "| user.username =", user.username);
-        if (allLeads.length > 0) {
-          console.log("[Dashboard] first lead sample:", JSON.stringify({
-            workflowStatus: allLeads[0].workflowStatus,
-            workflowCommentUpdatedByUserId: allLeads[0].workflowCommentUpdatedByUserId,
-            workflowCommentUpdatedByUsername: allLeads[0].workflowCommentUpdatedByUsername,
-            manualLeadAddedByUserId: allLeads[0].manualLeadAddedByUserId,
-          }));
-        }
-
-        // 4. Filter to leads this user has worked on
+        // 3. Filter to leads this user has worked on
         const userId = user.id;
         const username = user.username?.toLowerCase();
+        const userDisplayName = (user.fullName || getCachedAuthUserDisplayName(user))?.toLowerCase();
 
         const myLeads = allLeads.filter((lead) => {
           if (lead.workflowCommentUpdatedByUserId === userId) return true;
           if (lead.manualLeadAddedByUserId === userId) return true;
           if (username && lead.workflowCommentUpdatedByUsername?.toLowerCase() === username) return true;
+          if (userDisplayName && lead.workflowCommentUpdatedByUserDisplayName?.toLowerCase() === userDisplayName) return true;
           return false;
         });
 
         console.log("[Dashboard] myLeads (filtered for user):", myLeads.length);
 
-        // 5. Build status counts
+        // 4. Build status counts
         const statusCounts: Record<string, number> = {};
         activeStatuses.forEach((s) => {
           statusCounts[s.statusKey] = myLeads.filter(

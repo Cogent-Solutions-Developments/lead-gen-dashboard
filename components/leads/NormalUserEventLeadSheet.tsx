@@ -33,6 +33,7 @@ import {
 import { getCachedAuthUserDisplayName } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
+import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
   BellRing,
