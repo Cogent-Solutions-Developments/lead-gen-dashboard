@@ -19,6 +19,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { nizoAiChat, searchNizoAiMentions } from "@/lib/apiRouter";
 import type {
   NizoAiLeadContext,
+  NizoAiLeadSearchItem,
+  NizoAiLeadSearchResult,
   NizoAiMention,
   NizoAiSource,
 } from "@/lib/apiRouter";
@@ -28,8 +30,10 @@ type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  mode?: "chat" | "lead_search";
   sources?: NizoAiSource[];
   leadContext?: NizoAiLeadContext[];
+  leadSearch?: NizoAiLeadSearchResult | null;
   mentions?: NizoAiMention[];
 };
 
@@ -58,6 +62,19 @@ function sourceTitle(source: NizoAiSource) {
   return `${source.title || source.fileName || "Knowledge"}${page}`;
 }
 
+function leadResultDetail(item: NizoAiLeadSearchItem) {
+  return [item.title, item.company, item.campaignName || item.canonicalEventName].filter(Boolean).join(" | ");
+}
+
+function leadContactDetail(item: NizoAiLeadSearchItem) {
+  return [item.email, item.phone, item.linkedinUrl ? "LinkedIn" : ""].filter(Boolean).join(" | ");
+}
+
+function leadSearchHasMore(result?: NizoAiLeadSearchResult | null) {
+  if (!result) return false;
+  return (result.offset || 0) + (result.items?.length || 0) < result.total;
+}
+
 export default function NizoAiPage() {
   const { isSuperAdmin, isPipelineUser } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -73,6 +90,10 @@ export default function NizoAiPage() {
   const mentionQuery = useMemo(() => mentionQueryFromDraft(draft), [draft]);
   const mentionActive = useMemo(() => mentionOpen || /(^|\s)@\S*$/.test(draft), [draft, mentionOpen]);
   const canSend = draft.trim().length > 0 && !sending && isPipelineUser && !isSuperAdmin;
+  const selectedMentionKeys = useMemo(
+    () => new Set(selectedMentions.map((item) => `${item.type}:${item.id}`)),
+    [selectedMentions]
+  );
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -130,19 +151,23 @@ export default function NizoAiPage() {
     );
   }, []);
 
-  const sendMessage = useCallback(async () => {
-    const content = draft.trim();
+  const sendMessage = useCallback(async (overrideContent?: string, overrideMentions?: NizoAiMention[]) => {
+    const content = (overrideContent ?? draft).trim();
     if (!content || sending || isSuperAdmin || !isPipelineUser) return;
+    const mentionsForRequest = overrideMentions ?? selectedMentions;
+    const clearComposer = overrideContent === undefined;
 
     const userMessage: ChatMessage = {
       id: uid(),
       role: "user",
       content,
-      mentions: selectedMentions,
+      mentions: mentionsForRequest,
     };
     setMessages((current) => [...current, userMessage]);
-    setDraft("");
-    setSelectedMentions([]);
+    if (clearComposer) {
+      setDraft("");
+      setSelectedMentions([]);
+    }
     setMentionOpen(false);
     setSending(true);
 
@@ -150,7 +175,7 @@ export default function NizoAiPage() {
       const response = await nizoAiChat({
         message: content,
         sessionId,
-        mentions: selectedMentions,
+        mentions: mentionsForRequest,
       });
       setSessionId(response.sessionId);
       setMessages((current) => [
@@ -158,9 +183,11 @@ export default function NizoAiPage() {
         {
           id: uid(),
           role: "assistant",
+          mode: response.mode || "chat",
           content: response.answer,
           sources: response.sources || [],
           leadContext: response.leadContext || [],
+          leadSearch: response.leadSearch || null,
         },
       ]);
     } catch (error) {
@@ -255,6 +282,52 @@ export default function NizoAiPage() {
                       </div>
                     ) : null}
                     <div className="whitespace-pre-wrap text-sm leading-6">{message.content}</div>
+                    {message.leadSearch?.items?.length ? (
+                      <div className="mt-4 space-y-2">
+                        {message.leadSearch.items.map((item) => {
+                          const selected = selectedMentionKeys.has(`lead:${item.id}`);
+                          return (
+                            <div
+                              key={item.id}
+                              className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                            >
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-semibold text-slate-950">{item.name || item.label}</div>
+                                <div className="mt-1 truncate text-xs text-slate-600">{leadResultDetail(item) || "Local lead"}</div>
+                                {leadContactDetail(item) ? (
+                                  <div className="mt-1 truncate text-xs text-slate-500">{leadContactDetail(item)}</div>
+                                ) : null}
+                              </div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={selected ? "secondary" : "outline"}
+                                className="h-8 justify-self-start border-slate-200 bg-white text-slate-700 hover:text-slate-950 sm:justify-self-end"
+                                onClick={() => addMention(item)}
+                                disabled={selected}
+                              >
+                                <AtSign className="h-4 w-4" />
+                                {selected ? "Selected" : "Select"}
+                              </Button>
+                            </div>
+                          );
+                        })}
+                        {message.role === "assistant" &&
+                        message === messages[messages.length - 1] &&
+                        leadSearchHasMore(message.leadSearch) ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="mt-2 h-8 border-slate-200 bg-white text-slate-700 hover:text-slate-950"
+                            onClick={() => void sendMessage("show more", [])}
+                            disabled={sending}
+                          >
+                            Show more
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : null}
                     {message.role === "assistant" ? (
                       <div className="mt-4 flex flex-wrap items-center gap-2">
                         <Button

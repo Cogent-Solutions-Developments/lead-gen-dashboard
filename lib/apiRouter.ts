@@ -41,6 +41,8 @@ export type {
   NizoAiChatRequest,
   NizoAiChatResponse,
   NizoAiLeadContext,
+  NizoAiLeadSearchItem,
+  NizoAiLeadSearchResult,
   NizoAiMention,
   NizoAiMentionSearchResponse,
   NizoAiSource,

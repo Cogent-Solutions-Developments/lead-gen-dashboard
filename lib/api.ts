@@ -648,11 +648,36 @@ export type NizoAiLeadContext = {
   canonicalEventName?: string | null;
 };
 
+export type NizoAiLeadSearchItem = NizoAiMention & {
+  type: "lead";
+  name?: string | null;
+  title?: string | null;
+  company?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  linkedinUrl?: string | null;
+  companyUrl?: string | null;
+  campaignId?: string | null;
+  campaignName?: string | null;
+  canonicalEventName?: string | null;
+  matchReason?: string | null;
+};
+
+export type NizoAiLeadSearchResult = {
+  query?: string | null;
+  total: number;
+  limit: number;
+  offset?: number;
+  items: NizoAiLeadSearchItem[];
+};
+
 export type NizoAiChatResponse = {
+  mode?: "chat" | "lead_search";
   sessionId: string;
   answer: string;
   sources: NizoAiSource[];
   leadContext: NizoAiLeadContext[];
+  leadSearch?: NizoAiLeadSearchResult | null;
 };
 
 export type NizoAiMentionSearchResponse = {
