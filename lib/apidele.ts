@@ -29,6 +29,14 @@ import type {
   GlobalLeadSearchResponse,
   LeadItem,
   MessageStatus,
+  NizoAiChatRequest,
+  NizoAiChatResponse,
+  NizoAiLeadContext,
+  NizoAiLeadSearchItem,
+  NizoAiLeadSearchResult,
+  NizoAiMention,
+  NizoAiMentionSearchResponse,
+  NizoAiSource,
   RecentCampaign,
   ReplyNotification,
   StopCampaignResponse,
@@ -81,6 +89,14 @@ export type {
   GlobalLeadSearchResponse,
   LeadItem,
   MessageStatus,
+  NizoAiChatRequest,
+  NizoAiChatResponse,
+  NizoAiMention,
+  NizoAiMentionSearchResponse,
+  NizoAiSource,
+  NizoAiLeadContext,
+  NizoAiLeadSearchItem,
+  NizoAiLeadSearchResult,
   RecentCampaign,
   ReplyNotification,
   StopCampaignResponse,
@@ -295,6 +311,30 @@ export async function listEventLeads(canonicalEventKey: string, params?: EventLe
       },
     }
   );
+  return data;
+}
+
+export async function nizoAiChat(payload: NizoAiChatRequest) {
+  const { data } = await apiClientDelegate.post<NizoAiChatResponse>("/api/delegates/nizo-ai/chat", {
+    message: payload.message,
+    sessionId: payload.sessionId || undefined,
+    mentions: payload.mentions || [],
+  });
+  return data;
+}
+
+export async function searchNizoAiMentions(params?: {
+  q?: string;
+  kind?: "all" | "lead" | "event";
+  limit?: number;
+}) {
+  const { data } = await apiClientDelegate.get<NizoAiMentionSearchResponse>("/api/delegates/nizo-ai/mentions", {
+    params: {
+      q: params?.q,
+      kind: params?.kind,
+      limit: params?.limit,
+    },
+  });
   return data;
 }
 

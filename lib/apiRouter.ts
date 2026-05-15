@@ -38,6 +38,14 @@ export type {
   LeadItem,
   LeadAttachment,
   MessageStatus,
+  NizoAiChatRequest,
+  NizoAiChatResponse,
+  NizoAiLeadContext,
+  NizoAiLeadSearchItem,
+  NizoAiLeadSearchResult,
+  NizoAiMention,
+  NizoAiMentionSearchResponse,
+  NizoAiSource,
   RecentCampaign,
   ReplyNotification,
   StopCampaignResponse,
@@ -127,6 +135,12 @@ export const listEvents: typeof sales.listEvents = (...args) =>
 
 export const listEventLeads: typeof sales.listEventLeads = (...args) =>
   pickModule().listEventLeads(...args);
+
+export const nizoAiChat: typeof sales.nizoAiChat = (...args) =>
+  pickModule().nizoAiChat(...args);
+
+export const searchNizoAiMentions: typeof sales.searchNizoAiMentions = (...args) =>
+  pickModule().searchNizoAiMentions(...args);
 
 export const listWorkflowStatuses: typeof sales.listWorkflowStatuses = (...args) =>
   pickModule().listWorkflowStatuses(...args);
