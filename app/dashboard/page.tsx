@@ -52,6 +52,9 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Could not load dashboard data.";
 }
 
+// Disabled for now. Flip this back to true when the dashboard mascot intro is ready to use.
+const ENABLE_DASHBOARD_MASCOT_INTRO = false;
+
 function DashboardMascotIntro() {
   return (
     <motion.div
@@ -191,6 +194,8 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
+    if (!ENABLE_DASHBOARD_MASCOT_INTRO) return;
+
     const revealTimeout = window.setTimeout(() => setShowMascotIntro(true), 0);
     const hideTimeout = window.setTimeout(() => setShowMascotIntro(false), 5000);
     return () => {
@@ -202,7 +207,9 @@ export default function DashboardPage() {
   return (
     <div className="flex min-h-screen flex-1 flex-col overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">
       <header className="relative isolate grid min-h-screen w-full grid-rows-[auto_1fr] overflow-hidden">
-        <AnimatePresence>{showMascotIntro ? <DashboardMascotIntro /> : null}</AnimatePresence>
+        <AnimatePresence>
+          {ENABLE_DASHBOARD_MASCOT_INTRO && showMascotIntro ? <DashboardMascotIntro /> : null}
+        </AnimatePresence>
 
         <div className="relative z-10 flex w-full justify-center pt-6">
           <span className="inline-flex h-9 items-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-500">
