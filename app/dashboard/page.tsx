@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
@@ -52,10 +52,117 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Could not load dashboard data.";
 }
 
+function DashboardMascotIntro() {
+  return (
+    <motion.div
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-0 overflow-hidden"
+      style={{ height: "100%" }}
+      initial={{ opacity: 0, y: 70, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 80, scale: 0.985 }}
+      transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+      aria-hidden="true"
+    >
+      {/* Outer halo */}
+      <div
+        className="absolute bottom-0 rounded-full"
+        style={{
+          width: "74vw",
+          aspectRatio: "1",
+          left: "50%",
+          transform: "translate(-50%, 58%)",
+        }}
+      >
+        <div className="dashboard-mascot-halo h-full w-full rounded-full bg-[rgba(41,119,231,0.16)]" />
+      </div>
+      {/* Middle halo */}
+      <div
+        className="absolute bottom-0 rounded-full"
+        style={{
+          width: "58vw",
+          aspectRatio: "1",
+          left: "50%",
+          transform: "translate(-50%, 58%)",
+        }}
+      >
+        <div className="dashboard-mascot-halo dashboard-mascot-halo-secondary h-full w-full rounded-full bg-[rgba(41,119,231,0.28)]" />
+      </div>
+      {/* Inner face */}
+      <div
+        className="absolute bottom-0 rounded-full"
+        style={{
+          width: "47vw",
+          aspectRatio: "1",
+          left: "50%",
+          transform: "translate(-50%, 58%)",
+        }}
+      >
+        <div className="dashboard-mascot-face h-full w-full rounded-full bg-[#2977e7]" />
+      </div>
+
+      {/* Face features (eyes + smile) */}
+      <svg
+        viewBox="-80 -42 160 105"
+        className="dashboard-mascot absolute"
+        style={{
+          bottom: "12%",
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: "clamp(140px, 13vw, 220px)",
+        }}
+        role="img"
+      >
+        <g className="dashboard-mascot-expression">
+          <g>
+            {/* Left eye */}
+            <g transform="translate(-30 0)">
+              <g className="dashboard-mascot-eye">
+                <circle cx="0" cy="0" r="29" fill="#ffffff" stroke="#050505" strokeWidth="4" />
+                <g className="dashboard-mascot-pupil">
+                  <circle cx="6" cy="0" r="17" fill="#050505" />
+                  <circle cx="0" cy="-7" r="4.5" fill="#ffffff" opacity="0.92" />
+                </g>
+              </g>
+            </g>
+            {/* Right eye */}
+            <g transform="translate(30 0)">
+              <g className="dashboard-mascot-eye dashboard-mascot-eye-right">
+                <circle cx="0" cy="0" r="29" fill="#ffffff" stroke="#050505" strokeWidth="4" />
+                <g className="dashboard-mascot-pupil dashboard-mascot-pupil-right">
+                  <circle cx="6" cy="0" r="17" fill="#050505" />
+                  <circle cx="0" cy="-7" r="4.5" fill="#ffffff" opacity="0.92" />
+                </g>
+              </g>
+            </g>
+          </g>
+          {/* Smile */}
+          <motion.path
+            className="dashboard-mascot-smile"
+            d="M-22 42C-8 56 8 56 22 42"
+            animate={{
+              d: [
+                "M-20 43C-8 52 8 52 20 43",
+                "M-26 40C-10 62 10 62 26 40",
+                "M-22 42C-8 56 8 56 22 42",
+              ],
+            }}
+            transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+            fill="none"
+            stroke="#050505"
+            strokeLinecap="round"
+            strokeWidth="5"
+          />
+        </g>
+      </svg>
+    </motion.div>
+  );
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const { persona } = usePersona();
-  const [events, setEvents] = useState<EventSummaryItem[]>([]);
+  const [, setEvents] = useState<EventSummaryItem[]>([]);
+  const [showMascotIntro, setShowMascotIntro] = useState(false);
   const displayName = firstName(getDisplayName(user));
   const greeting = getTimeGreeting();
   const workspaceLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
@@ -83,24 +190,31 @@ export default function DashboardPage() {
     };
   }, []);
 
-  const totalProspects = useMemo(
-    () => events.reduce((sum, event) => sum + Number(event.leadCount || 0), 0),
-    [events]
-  );
+  useEffect(() => {
+    const revealTimeout = window.setTimeout(() => setShowMascotIntro(true), 0);
+    const hideTimeout = window.setTimeout(() => setShowMascotIntro(false), 5000);
+    return () => {
+      window.clearTimeout(revealTimeout);
+      window.clearTimeout(hideTimeout);
+    };
+  }, []);
 
   return (
-    <div className="flex min-h-[calc(100dvh-3rem)] flex-1 flex-col overflow-hidden bg-[#f7f7f7] p-1 font-sans text-zinc-950">
-      <header className="grid min-h-[calc(100dvh-4.5rem)] w-full grid-rows-[auto_1fr]">
-        <div className="flex w-full justify-center">
+    <div className="flex min-h-screen flex-1 flex-col overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">
+      <header className="relative isolate grid min-h-screen w-full grid-rows-[auto_1fr] overflow-hidden">
+        <AnimatePresence>{showMascotIntro ? <DashboardMascotIntro /> : null}</AnimatePresence>
+
+        <div className="relative z-10 flex w-full justify-center pt-6">
           <span className="inline-flex h-9 items-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-500">
             {getDateLabel()}
           </span>
         </div>
 
-        <div className="flex items-center justify-center pb-12 text-center">
+        <div className="relative z-10 flex items-center justify-center pb-12 text-center">
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={false}
+            animate={showMascotIntro ? { opacity: 0, y: 18 } : { opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             className="w-full max-w-5xl"
           >
             <p className="mb-4 text-xl font-normal text-zinc-500">

@@ -41,7 +41,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isChooser = pathname === "/" || pathname === "/choose-persona";
   const isAuthRoute = pathname === "/sign-in";
   const isAdminAreaRoute = isAdminAreaPath(pathname);
-  const isFlushContentRoute = pathname === "/nizo-ai";
+  const isFlushContentRoute = pathname === "/nizo-ai" || pathname === "/dashboard";
   const [selected, setSelected] = useState<boolean>(() => hasPersona());
   const [session, setSession] = useState<AuthSession | null>(() => getStoredAuthSession());
   const [authChecked, setAuthChecked] = useState(false);
