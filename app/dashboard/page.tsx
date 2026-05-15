@@ -7,6 +7,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 import { getAuthHeader, getCachedAuthUserDisplayName } from "@/lib/auth";
 
+import { getDailyManifesto } from "@/lib/manifesto";
+
 type SalesMarathonRunner = {
   id: string;
   name: string;
@@ -135,7 +137,7 @@ function SalesMarathon({
                   </span>
                 </div>
 
-                <div className="relative w-full flex-1 bg-zinc-100">
+                <div className="relative h-full w-8 bg-zinc-100 overflow-hidden">
                   <motion.div
                     initial={{ height: 0 }}
                     animate={{ height: `${progress * 100}%` }}
@@ -285,6 +287,7 @@ export default function DashboardPage() {
   const [showMascotIntro, setShowMascotIntro] = useState(false);
   const displayName = firstName(getDisplayName(user));
   const greeting = getTimeGreeting();
+  const manifesto = getDailyManifesto(user?.id || "");
   const workspaceLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
   const workLabel = persona === "delegates" ? "delegate" : persona === "production" ? "production" : "sales";
 
@@ -337,7 +340,7 @@ export default function DashboardPage() {
           </span>
         </div>
 
-        <div className="relative z-10 mt-16 grid items-start gap-10 text-left xl:grid-cols-[minmax(0,1fr)_32rem]">
+        <div className="relative z-10 mt-16 grid items-start gap-10 text-left xl:grid-cols-[minmax(0,1fr)_26rem]">
           <motion.div
             initial={false}
             animate={showMascotIntro ? { opacity: 0, y: 18 } : { opacity: 1, y: 0 }}
@@ -348,8 +351,8 @@ export default function DashboardPage() {
               {workspaceLabel} Workspace
             </p>
 
-            <h1 className="text-5xl font-light leading-[1.08] tracking-[-0.04em] text-zinc-950 sm:text-6xl">
-              {greeting}, {displayName}. Here is where {workLabel} work starts.
+            <h1 className="text-[2.125rem] font-light leading-[1.1] tracking-[-0.04em] text-zinc-950 sm:text-[2.75rem]">
+              {greeting}, {displayName}. {manifesto}
             </h1>
 
             <p className="mt-6 max-w-3xl text-xl font-light leading-relaxed text-zinc-500">
