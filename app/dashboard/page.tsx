@@ -117,7 +117,7 @@ function DashboardMascotIntro() {
             {/* Left eye */}
             <g transform="translate(-30 0)">
               <g className="dashboard-mascot-eye">
-                <circle cx="0" cy="0" r="29" fill="#ffffff" stroke="#050505" strokeWidth="4" />
+                <circle cx="0" cy="0" r="29" fill="#ffffff" stroke="#050505" strokeWidth="3" />
                 <g className="dashboard-mascot-pupil">
                   <circle cx="6" cy="0" r="17" fill="#050505" />
                   <circle cx="0" cy="-7" r="4.5" fill="#ffffff" opacity="0.92" />
@@ -127,7 +127,7 @@ function DashboardMascotIntro() {
             {/* Right eye */}
             <g transform="translate(30 0)">
               <g className="dashboard-mascot-eye dashboard-mascot-eye-right">
-                <circle cx="0" cy="0" r="29" fill="#ffffff" stroke="#050505" strokeWidth="4" />
+                <circle cx="0" cy="0" r="29" fill="#ffffff" stroke="#050505" strokeWidth="3" />
                 <g className="dashboard-mascot-pupil dashboard-mascot-pupil-right">
                   <circle cx="6" cy="0" r="17" fill="#050505" />
                   <circle cx="0" cy="-7" r="4.5" fill="#ffffff" opacity="0.92" />
