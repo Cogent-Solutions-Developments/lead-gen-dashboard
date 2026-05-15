@@ -382,8 +382,8 @@ function LeadSheetDialog({
 
       <div className="relative z-[1] h-[min(42rem,calc(100dvh-3rem))] w-full max-w-3xl overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
         <div className="relative grid h-full min-h-0 md:grid-cols-[17rem_minmax(0,1fr)]">
-          <aside className="relative flex flex-col justify-between overflow-hidden border-b border-zinc-300 bg-zinc-50/70 p-8 md:border-b-0 md:border-r">
-            <div className={cn("relative z-10", sidebarContent && "text-zinc-50")}>
+          <aside className="relative flex flex-col justify-end overflow-hidden border-b border-zinc-300 bg-zinc-50/70 p-8 md:border-b-0 md:border-r">
+            <div className={cn("relative z-10 mt-auto", sidebarContent && "text-zinc-50")}>
               <p className={cn("text-sm font-medium", sidebarContent ? "text-zinc-300" : "text-zinc-400")}>
                 Lead Sheet Updates
               </p>
