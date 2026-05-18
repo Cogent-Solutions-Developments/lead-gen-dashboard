@@ -18,6 +18,7 @@ type BackendEvent = {
 
 type BackendLead = {
   id?: string;
+  workflowStatus?: string | null;
   workflowCommentUpdatedAt?: string | null;
   workflowCommentUpdatedByUserId?: string | null;
   workflowCommentUpdatedByUsername?: string | null;
@@ -50,6 +51,10 @@ function isToday(value?: string | null) {
   );
 }
 
+function isConfirmedStatus(value?: string | null) {
+  return ["confirmed", "confirmed-2", "complete"].includes(String(value || "").trim().toLowerCase());
+}
+
 async function fetchJson<T>(url: string, apiKey: string): Promise<T> {
   const response = await fetch(url, {
     headers: { "x-api-key": apiKey },
@@ -70,7 +75,7 @@ async function fetchConfirmedLeadsForEvent(baseUrl: string, apiKey: string, even
   const limit = 200;
 
   while (true) {
-    const url = `${baseUrl}/api/delegates/events/${encodeURIComponent(eventKey)}/leads?workflowStatus=confirmed&includeManual=true&limit=${limit}&offset=${offset}`;
+    const url = `${baseUrl}/api/delegates/events/${encodeURIComponent(eventKey)}/leads?includeManual=true&limit=${limit}&offset=${offset}`;
     const data = await fetchJson<{ items?: BackendLead[]; hasMore?: boolean }>(url, apiKey);
     leads.push(...(Array.isArray(data.items) ? data.items : []));
 
@@ -144,6 +149,7 @@ export async function GET(request: NextRequest) {
     );
 
     leadGroups.flat().forEach((lead) => {
+      if (!isConfirmedStatus(lead.workflowStatus)) return;
       if (!isToday(lead.workflowCommentUpdatedAt)) return;
       const contributorId = [
         lead.workflowCommentUpdatedByUserId,

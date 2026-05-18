@@ -60,7 +60,7 @@ function writeSessionCache<T>(key: string, value: T) {
 }
 
 function personalStatsCacheKey(persona: string, userId?: string) {
-  return `dashboard:personal-stats:${persona}:${userId || "anonymous"}`;
+  return `dashboard:personal-stats:v4:${persona}:${userId || "anonymous"}`;
 }
 
 const FALLBACK_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
@@ -92,27 +92,11 @@ const FALLBACK_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
 
 const DELEGATE_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
   {
-    id: "dashboard-delegate-new",
-    statusKey: "new",
-    label: "New",
-    isSystemDefault: true,
-    sortOrder: 0,
-    isActive: true,
-  },
-  {
-    id: "dashboard-delegate-first-call",
-    statusKey: "first-call",
-    label: "First Call",
-    isSystemDefault: true,
-    sortOrder: 1,
-    isActive: true,
-  },
-  {
     id: "dashboard-delegate-follow-up",
     statusKey: "follow-up",
-    label: "Followup",
+    label: "Followups",
     isSystemDefault: true,
-    sortOrder: 2,
+    sortOrder: 0,
     isActive: true,
   },
   {
@@ -120,7 +104,7 @@ const DELEGATE_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     statusKey: "pending",
     label: "Pending",
     isSystemDefault: true,
-    sortOrder: 3,
+    sortOrder: 1,
     isActive: true,
   },
   {
@@ -128,13 +112,20 @@ const DELEGATE_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     statusKey: "confirmed",
     label: "Confirmed",
     isSystemDefault: true,
-    sortOrder: 4,
+    sortOrder: 2,
     isActive: true,
   },
 ];
 
 function dashboardStatusesForPersona(persona: string) {
   return persona === "delegates" ? DELEGATE_WORKFLOW_STATUSES : FALLBACK_WORKFLOW_STATUSES;
+}
+
+function dashboardStatusAliases(persona: string, statusKey: string) {
+  if (persona === "delegates" && statusKey === "confirmed") {
+    return ["confirmed", "confirmed-2", "complete"];
+  }
+  return [statusKey];
 }
 
 function getDisplayName(user: ReturnType<typeof useAuth>["user"]) {
@@ -362,7 +353,7 @@ export default function DashboardPage() {
   const kpiCopy = persona === "delegates"
     ? {
         title: "Daily KPI Tracker",
-        subtitle: "3 delegate confirmations a day keeps the pipeline moving.",
+        subtitle: "3 delegate confirmations per day is the team target.",
         target: 3,
         footnote: "* This data reflects delegate confirmations recorded today.",
       }
@@ -449,8 +440,8 @@ export default function DashboardPage() {
         try {
           const eventsResponse = await listEvents();
           events = eventsResponse.events || [];
-        } catch (e) {
-          console.error("[Dashboard] listEvents FAILED", e);
+        } catch {
+          console.warn("[Dashboard] listEvents failed; stats will use an empty event set.");
         }
 
         let allLeads: EventLeadListItem[] = [];
@@ -458,8 +449,8 @@ export default function DashboardPage() {
           try {
             const response = await listEventLeads(event.canonicalEventKey);
             allLeads = allLeads.concat(response.items || []);
-          } catch (e) {
-            console.error(`[Dashboard] listEventLeads FAILED for "${event.canonicalEventKey}"`, e);
+          } catch {
+            console.warn(`[Dashboard] skipped stats for event "${event.canonicalEventKey}" because its leads could not be loaded.`);
           }
         }
 
@@ -480,8 +471,9 @@ export default function DashboardPage() {
         // 4. Build status counts
         const statusCounts: Record<string, number> = {};
         activeStatuses.forEach((s) => {
+          const aliases = dashboardStatusAliases(persona, s.statusKey);
           statusCounts[s.statusKey] = myLeads.filter(
-            (l) => l.workflowStatus === s.statusKey
+            (l) => aliases.includes(String(l.workflowStatus || ""))
           ).length;
         });
 
@@ -501,8 +493,8 @@ export default function DashboardPage() {
           items: nextItems,
           statuses: activeStatuses,
         });
-      } catch (error) {
-        console.error("[Dashboard] loadPersonalStats CRASHED", error);
+      } catch {
+        console.warn("[Dashboard] personal stats could not be refreshed.");
         if (mode === "initial") setEventHeadsUp([]);
       } finally {
         setLoadingEventHeadsUp(false);

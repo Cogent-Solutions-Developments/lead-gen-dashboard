@@ -27,7 +27,7 @@ const STATUS_CONFIG: Record<string, { label: string; subtitle: string }> = {
     subtitle: "Initial calls completed",
   },
   "follow-up": {
-    label: "Follow Ups",
+    label: "Followups",
     subtitle: "Leads awaiting your next touchpoint",
   },
   pending: {
