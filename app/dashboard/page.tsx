@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { RefreshCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
@@ -30,6 +31,36 @@ type EventHeadsUpItem = {
   event: EventSummaryItem;
   statusCounts: Record<string, number>;
 };
+
+type PersonalStatsCache = {
+  items: EventHeadsUpItem[];
+  statuses: WorkflowStatusDefinitionItem[];
+};
+
+const SALES_MARATHON_CACHE_KEY = "dashboard:sales-marathon";
+
+function readSessionCache<T>(key: string): T | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSessionCache<T>(key: string, value: T) {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Cache writes are best-effort only.
+  }
+}
+
+function personalStatsCacheKey(persona: string, userId?: string) {
+  return `dashboard:personal-stats:${persona}:${userId || "anonymous"}`;
+}
 
 const FALLBACK_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
   {
@@ -127,9 +158,13 @@ function PixelAvatar({ colorHex, seed }: { colorHex: string; seed: string }) {
 function SalesMarathon({
   runners,
   loading,
+  refreshing,
+  onRefresh,
 }: {
   runners: SalesMarathonRunner[];
   loading: boolean;
+  refreshing: boolean;
+  onRefresh: () => void;
 }) {
   const dailyTarget = 5;
   const loadingBars = [68, 44, 82, 56, 72, 36, 62];
@@ -154,6 +189,16 @@ function SalesMarathon({
             5 proposals a day keeps the sales stress far away.
           </p>
         </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={refreshing}
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center border border-zinc-200 bg-white text-zinc-500 transition-colors hover:border-blue-600 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label="Refresh KPI tracker"
+          title="Refresh KPI tracker"
+        >
+          <RefreshCcw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+        </button>
       </div>
 
       <div className="relative mt-12 flex h-80 items-end justify-between gap-4">
@@ -237,44 +282,64 @@ export default function DashboardPage() {
   const { persona } = usePersona();
   const [salesRunners, setSalesRunners] = useState<SalesMarathonRunner[]>([]);
   const [loadingSalesMarathon, setLoadingSalesMarathon] = useState(true);
+  const [refreshingSalesMarathon, setRefreshingSalesMarathon] = useState(false);
   const [eventHeadsUp, setEventHeadsUp] = useState<EventHeadsUpItem[]>([]);
   const [workflowStatuses, setWorkflowStatuses] = useState<WorkflowStatusDefinitionItem[]>(FALLBACK_WORKFLOW_STATUSES);
   const [loadingEventHeadsUp, setLoadingEventHeadsUp] = useState(true);
+  const [refreshingEventHeadsUp, setRefreshingEventHeadsUp] = useState(false);
+  const userId = user?.id;
+  const username = user?.username;
+  const userFullName = user?.fullName;
+  const cachedUserDisplayName = getCachedAuthUserDisplayName(user);
   const displayName = firstName(getDisplayName(user));
   const greeting = getTimeGreeting();
   const manifesto = getDailyManifesto(user?.id || "");
   const workspaceLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
 
-  useEffect(() => {
-    let alive = true;
-
-    async function loadDashboard() {
-      setLoadingSalesMarathon(true);
-      try {
-        const runners = await listSalesMarathonLeaderboard();
-        if (!alive) return;
-        setSalesRunners(runners);
-      } catch (error) {
-        if (!alive) return;
-        toast.error("Dashboard sync failed", { description: getErrorMessage(error) });
-        setSalesRunners([]);
-      } finally {
-        if (alive) setLoadingSalesMarathon(false);
+  const loadSalesMarathon = useCallback(async (mode: "initial" | "refresh") => {
+    if (mode === "initial") {
+      const cached = readSessionCache<SalesMarathonRunner[]>(SALES_MARATHON_CACHE_KEY);
+      if (cached) {
+        setSalesRunners(cached);
+        setLoadingSalesMarathon(false);
+        return;
       }
+      setLoadingSalesMarathon(true);
+    } else {
+      setRefreshingSalesMarathon(true);
     }
 
-    void loadDashboard();
-    return () => {
-      alive = false;
-    };
+    try {
+      const runners = await listSalesMarathonLeaderboard();
+      setSalesRunners(runners);
+      writeSessionCache(SALES_MARATHON_CACHE_KEY, runners);
+    } catch (error) {
+      toast.error("Dashboard sync failed", { description: getErrorMessage(error) });
+      if (mode === "initial") setSalesRunners([]);
+    } finally {
+      setLoadingSalesMarathon(false);
+      setRefreshingSalesMarathon(false);
+    }
   }, []);
 
-  useEffect(() => {
-    let alive = true;
+  const loadPersonalStats = useCallback(async (mode: "initial" | "refresh") => {
+      if (!userId) {
+        setLoadingEventHeadsUp(false);
+        return;
+      }
+      const cacheKey = personalStatsCacheKey(persona, userId);
+      if (mode === "initial") {
+        const cached = readSessionCache<PersonalStatsCache>(cacheKey);
+        if (cached) {
+          setWorkflowStatuses(cached.statuses.length ? cached.statuses : FALLBACK_WORKFLOW_STATUSES);
+          setEventHeadsUp(cached.items);
+          setLoadingEventHeadsUp(false);
+          return;
+        }
+      }
 
-    async function loadPersonalStats() {
-      if (!user?.id) return;
-      setLoadingEventHeadsUp(true);
+      if (mode === "initial") setLoadingEventHeadsUp(true);
+      if (mode === "refresh") setRefreshingEventHeadsUp(true);
       try {
         // 1. Fetch workflow statuses
         let activeStatuses = FALLBACK_WORKFLOW_STATUSES;
@@ -292,7 +357,6 @@ export default function DashboardPage() {
           console.warn("[Dashboard] listWorkflowStatuses failed, using fallback", e);
         }
         setWorkflowStatuses(activeStatuses);
-        if (!alive) return;
 
         // 2. Fetch events then leads per event (same API the lead sheet uses)
         let events: EventSummaryItem[] = [];
@@ -302,11 +366,9 @@ export default function DashboardPage() {
         } catch (e) {
           console.error("[Dashboard] listEvents FAILED", e);
         }
-        if (!alive) return;
 
         let allLeads: EventLeadListItem[] = [];
         for (const event of events) {
-          if (!alive) return;
           try {
             const response = await listEventLeads(event.canonicalEventKey);
             allLeads = allLeads.concat(response.items || []);
@@ -314,17 +376,15 @@ export default function DashboardPage() {
             console.error(`[Dashboard] listEventLeads FAILED for "${event.canonicalEventKey}"`, e);
           }
         }
-        if (!alive) return;
 
         // 3. Filter to leads this user has worked on
-        const userId = user.id;
-        const username = user.username?.toLowerCase();
-        const userDisplayName = (user.fullName || getCachedAuthUserDisplayName(user))?.toLowerCase();
+        const normalizedUsername = username?.toLowerCase();
+        const userDisplayName = (userFullName || cachedUserDisplayName)?.toLowerCase();
 
         const myLeads = allLeads.filter((lead) => {
           if (lead.workflowCommentUpdatedByUserId === userId) return true;
           if (lead.manualLeadAddedByUserId === userId) return true;
-          if (username && lead.workflowCommentUpdatedByUsername?.toLowerCase() === username) return true;
+          if (normalizedUsername && lead.workflowCommentUpdatedByUsername?.toLowerCase() === normalizedUsername) return true;
           if (userDisplayName && lead.workflowCommentUpdatedByUserDisplayName?.toLowerCase() === userDisplayName) return true;
           return false;
         });
@@ -339,7 +399,7 @@ export default function DashboardPage() {
           ).length;
         });
 
-        setEventHeadsUp([{
+        const nextItems: EventHeadsUpItem[] = [{
           event: {
             canonicalEventKey: "personal",
             canonicalEventName: "Personal Stats",
@@ -348,21 +408,29 @@ export default function DashboardPage() {
             relatedCampaignNames: [],
           },
           statusCounts,
-        }]);
-      } catch (error) {
-        if (!alive) return;
-        console.error("[Dashboard] loadPersonalStats CRASHED", error);
-        setEventHeadsUp([]);
-      } finally {
-        if (alive) setLoadingEventHeadsUp(false);
-      }
-    }
+        }];
 
-    void loadPersonalStats();
-    return () => {
-      alive = false;
-    };
-  }, [persona, user?.id]);
+        setEventHeadsUp(nextItems);
+        writeSessionCache(cacheKey, {
+          items: nextItems,
+          statuses: activeStatuses,
+        });
+      } catch (error) {
+        console.error("[Dashboard] loadPersonalStats CRASHED", error);
+        if (mode === "initial") setEventHeadsUp([]);
+      } finally {
+        setLoadingEventHeadsUp(false);
+        setRefreshingEventHeadsUp(false);
+      }
+    }, [cachedUserDisplayName, persona, userFullName, userId, username]);
+
+  useEffect(() => {
+    void loadSalesMarathon("initial");
+  }, [loadSalesMarathon]);
+
+  useEffect(() => {
+    void loadPersonalStats("initial");
+  }, [loadPersonalStats]);
 
   return (
     <div className="flex h-screen flex-1 flex-col overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">
@@ -396,11 +464,18 @@ export default function DashboardPage() {
               items={eventHeadsUp}
               statuses={workflowStatuses}
               loading={loadingEventHeadsUp}
+              refreshing={refreshingEventHeadsUp}
+              onRefresh={() => void loadPersonalStats("refresh")}
             />
           </motion.div>
 
           <div>
-            <SalesMarathon runners={salesRunners} loading={loadingSalesMarathon} />
+            <SalesMarathon
+              runners={salesRunners}
+              loading={loadingSalesMarathon}
+              refreshing={refreshingSalesMarathon}
+              onRefresh={() => void loadSalesMarathon("refresh")}
+            />
           </div>
         </div>
       </header>
