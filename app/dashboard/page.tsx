@@ -363,14 +363,14 @@ export default function DashboardPage() {
   const kpiCopy = persona === "delegates"
     ? {
         title: "Daily KPI Tracker",
-        subtitle: "3 delegate confirmations per day is the team target.",
+        subtitle: "3 delegate confirmations a day keeps the event worries away.",
         target: 3,
         footnote: "* This data reflects delegate confirmations recorded today.",
       }
     : persona === "production"
       ? {
           title: "Daily KPI Tracker",
-          subtitle: "3 speaker confirmations per day is the production team target.",
+          subtitle: "3 speaker confirmations a day keeps the event worries away.",
           target: 3,
           footnote: "* This data reflects speaker confirmations recorded today.",
         }
