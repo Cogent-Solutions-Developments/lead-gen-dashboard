@@ -38,6 +38,7 @@ type PersonalStatsCache = {
 };
 
 const SALES_MARATHON_CACHE_KEY = "dashboard:sales-marathon";
+const DELEGATE_KPI_CACHE_KEY = "dashboard:delegate-kpi";
 
 function readSessionCache<T>(key: string): T | null {
   if (typeof window === "undefined") return null;
@@ -88,6 +89,53 @@ const FALLBACK_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     isActive: true,
   },
 ];
+
+const DELEGATE_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
+  {
+    id: "dashboard-delegate-new",
+    statusKey: "new",
+    label: "New",
+    isSystemDefault: true,
+    sortOrder: 0,
+    isActive: true,
+  },
+  {
+    id: "dashboard-delegate-first-call",
+    statusKey: "first-call",
+    label: "First Call",
+    isSystemDefault: true,
+    sortOrder: 1,
+    isActive: true,
+  },
+  {
+    id: "dashboard-delegate-follow-up",
+    statusKey: "follow-up",
+    label: "Followup",
+    isSystemDefault: true,
+    sortOrder: 2,
+    isActive: true,
+  },
+  {
+    id: "dashboard-delegate-pending",
+    statusKey: "pending",
+    label: "Pending",
+    isSystemDefault: true,
+    sortOrder: 3,
+    isActive: true,
+  },
+  {
+    id: "dashboard-delegate-confirmed",
+    statusKey: "confirmed",
+    label: "Confirmed",
+    isSystemDefault: true,
+    sortOrder: 4,
+    isActive: true,
+  },
+];
+
+function dashboardStatusesForPersona(persona: string) {
+  return persona === "delegates" ? DELEGATE_WORKFLOW_STATUSES : FALLBACK_WORKFLOW_STATUSES;
+}
 
 function getDisplayName(user: ReturnType<typeof useAuth>["user"]) {
   const values = [user?.fullName, getCachedAuthUserDisplayName(user), user?.username]
@@ -142,6 +190,15 @@ async function listSalesMarathonLeaderboard() {
   return Array.isArray(data.runners) ? data.runners : [];
 }
 
+async function listDelegateKpiLeaderboard() {
+  const response = await fetch("/api/delegate-kpi/leaderboard", {
+    headers: getAuthHeader(),
+  });
+  if (!response.ok) throw new Error("Failed to load delegate KPI.");
+  const data = await response.json() as { runners?: SalesMarathonRunner[] };
+  return Array.isArray(data.runners) ? data.runners : [];
+}
+
 function PixelAvatar({ colorHex, seed }: { colorHex: string; seed: string }) {
   const url = `https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(seed)}&rowColor=${colorHex.replace('#', '')}&backgroundColor=transparent`;
   return (
@@ -160,13 +217,20 @@ function SalesMarathon({
   loading,
   refreshing,
   onRefresh,
+  title,
+  subtitle,
+  target,
+  footnote,
 }: {
   runners: SalesMarathonRunner[];
   loading: boolean;
   refreshing: boolean;
   onRefresh: () => void;
+  title: string;
+  subtitle: string;
+  target: number;
+  footnote: string;
 }) {
-  const dailyTarget = 5;
   const loadingBars = [68, 44, 82, 56, 72, 36, 62];
   const barPalette = [
     { bg: "bg-[#2977e7]", hex: "2977e7" },
@@ -183,10 +247,10 @@ function SalesMarathon({
       <div className="relative flex items-baseline justify-between gap-6 border-b border-zinc-100 pb-6">
         <div>
           <h2 className="text-4xl font-extralight tracking-tight text-zinc-950">
-            Daily KPI Tracker
+            {title}
           </h2>
           <p className="mt-3 text-sm font-light text-zinc-500">
-            5 proposals a day keeps the sales stress far away.
+            {subtitle}
           </p>
         </div>
         <button
@@ -231,7 +295,7 @@ function SalesMarathon({
           </div>
         ) : (
           runners.map((runner, index) => {
-            const progress = Math.min(runner.proposalCount / dailyTarget, 1);
+            const progress = Math.min(runner.proposalCount / target, 1);
             const colorItem = barPalette[index % barPalette.length];
             return (
               <div key={runner.id} className="group relative flex h-full flex-1 flex-col items-center justify-end">
@@ -270,7 +334,7 @@ function SalesMarathon({
 
       <div className="mt-12 border-t border-zinc-100 pt-6">
         <p className="text-[10px] leading-relaxed text-zinc-400">
-          * This data reflects the total number of proposals sent within the last 24-hour cycle.
+          {footnote}
         </p>
       </div>
     </section>
@@ -295,10 +359,24 @@ export default function DashboardPage() {
   const greeting = getTimeGreeting();
   const manifesto = getDailyManifesto(user?.id || "");
   const workspaceLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
+  const kpiCopy = persona === "delegates"
+    ? {
+        title: "Daily KPI Tracker",
+        subtitle: "3 delegate confirmations a day keeps the pipeline moving.",
+        target: 3,
+        footnote: "* This data reflects delegate confirmations recorded today.",
+      }
+    : {
+        title: "Daily KPI Tracker",
+        subtitle: "5 proposals a day keeps the sales stress far away.",
+        target: 5,
+        footnote: "* This data reflects the total number of proposals sent within the last 24-hour cycle.",
+      };
 
   const loadSalesMarathon = useCallback(async (mode: "initial" | "refresh") => {
+    const cacheKey = persona === "delegates" ? DELEGATE_KPI_CACHE_KEY : SALES_MARATHON_CACHE_KEY;
     if (mode === "initial") {
-      const cached = readSessionCache<SalesMarathonRunner[]>(SALES_MARATHON_CACHE_KEY);
+      const cached = readSessionCache<SalesMarathonRunner[]>(cacheKey);
       if (cached) {
         setSalesRunners(cached);
         setLoadingSalesMarathon(false);
@@ -310,9 +388,11 @@ export default function DashboardPage() {
     }
 
     try {
-      const runners = await listSalesMarathonLeaderboard();
+      const runners = persona === "delegates"
+        ? await listDelegateKpiLeaderboard()
+        : await listSalesMarathonLeaderboard();
       setSalesRunners(runners);
-      writeSessionCache(SALES_MARATHON_CACHE_KEY, runners);
+      writeSessionCache(cacheKey, runners);
     } catch (error) {
       toast.error("Dashboard sync failed", { description: getErrorMessage(error) });
       if (mode === "initial") setSalesRunners([]);
@@ -320,7 +400,7 @@ export default function DashboardPage() {
       setLoadingSalesMarathon(false);
       setRefreshingSalesMarathon(false);
     }
-  }, []);
+  }, [persona]);
 
   const loadPersonalStats = useCallback(async (mode: "initial" | "refresh") => {
       if (!userId) {
@@ -342,16 +422,22 @@ export default function DashboardPage() {
       if (mode === "refresh") setRefreshingEventHeadsUp(true);
       try {
         // 1. Fetch workflow statuses
-        let activeStatuses = FALLBACK_WORKFLOW_STATUSES;
+        const fixedStatuses = dashboardStatusesForPersona(persona);
+        const fixedStatusKeys = fixedStatuses.map((status) => status.statusKey);
+        const fixedOrder = new Map(fixedStatusKeys.map((statusKey, index) => [statusKey, index]));
+        let activeStatuses = fixedStatuses;
         try {
           const statusResponse = await listWorkflowStatuses();
-          activeStatuses = (statusResponse.statuses || FALLBACK_WORKFLOW_STATUSES)
+          const backendStatuses = statusResponse.statuses || fixedStatuses;
+          activeStatuses = fixedStatuses.map((fixedStatus) => {
+            const backendStatus = backendStatuses.find((status) => status.statusKey === fixedStatus.statusKey);
+            return backendStatus ? { ...backendStatus, label: fixedStatus.label } : fixedStatus;
+          })
              .filter((status) =>
-              ["follow-up", "proposal-sent", "deal-closed"].includes(status.statusKey)
+              fixedStatusKeys.includes(status.statusKey)
             )
             .sort((a, b) => {
-              const order = { "follow-up": 1, "proposal-sent": 2, "deal-closed": 3 };
-              return (order[a.statusKey as keyof typeof order] || 99) - (order[b.statusKey as keyof typeof order] || 99);
+              return (fixedOrder.get(a.statusKey) ?? 99) - (fixedOrder.get(b.statusKey) ?? 99);
             });
         } catch (e) {
           console.warn("[Dashboard] listWorkflowStatuses failed, using fallback", e);
@@ -475,6 +561,10 @@ export default function DashboardPage() {
               loading={loadingSalesMarathon}
               refreshing={refreshingSalesMarathon}
               onRefresh={() => void loadSalesMarathon("refresh")}
+              title={kpiCopy.title}
+              subtitle={kpiCopy.subtitle}
+              target={kpiCopy.target}
+              footnote={kpiCopy.footnote}
             />
           </div>
         </div>

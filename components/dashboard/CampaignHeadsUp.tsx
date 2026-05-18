@@ -18,9 +18,25 @@ interface CampaignHeadsUpProps {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; subtitle: string }> = {
+  new: {
+    label: "New",
+    subtitle: "Fresh delegate records",
+  },
+  "first-call": {
+    label: "First Call",
+    subtitle: "Initial calls completed",
+  },
   "follow-up": {
     label: "Follow Ups",
     subtitle: "Leads awaiting your next touchpoint",
+  },
+  pending: {
+    label: "Pending",
+    subtitle: "Awaiting delegate confirmation",
+  },
+  confirmed: {
+    label: "Confirmed",
+    subtitle: "Delegate confirmations completed",
   },
   "proposal-sent": {
     label: "Proposals Sent",

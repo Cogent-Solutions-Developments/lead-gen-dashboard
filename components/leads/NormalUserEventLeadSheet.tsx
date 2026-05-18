@@ -247,6 +247,49 @@ const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
   },
 ];
 
+const DELEGATE_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
+  {
+    id: "workflow-delegate-new",
+    statusKey: "new",
+    label: "New",
+    isSystemDefault: true,
+    sortOrder: 0,
+    isActive: true,
+  },
+  {
+    id: "workflow-delegate-first-call",
+    statusKey: "first-call",
+    label: "First Call",
+    isSystemDefault: true,
+    sortOrder: 1,
+    isActive: true,
+  },
+  {
+    id: "workflow-delegate-follow-up",
+    statusKey: "follow-up",
+    label: "Followup",
+    isSystemDefault: true,
+    sortOrder: 2,
+    isActive: true,
+  },
+  {
+    id: "workflow-delegate-pending",
+    statusKey: "pending",
+    label: "Pending",
+    isSystemDefault: true,
+    sortOrder: 3,
+    isActive: true,
+  },
+  {
+    id: "workflow-delegate-confirmed",
+    statusKey: "confirmed",
+    label: "Confirmed",
+    isSystemDefault: true,
+    sortOrder: 4,
+    isActive: true,
+  },
+];
+
 const STATUS_DOT_CLASS: Record<string, string> = {
   new: "bg-[#0aefff] shadow-[0_0_0_3px_rgba(10,239,255,0.20)]",
   "first-call": "bg-[#147df5] shadow-[0_0_0_3px_rgba(20,125,245,0.20)]",
@@ -254,6 +297,8 @@ const STATUS_DOT_CLASS: Record<string, string> = {
   "proposal-sent": "bg-[#a855f7] shadow-[0_0_0_3px_rgba(168,85,247,0.20)]",
   "deal-closed": "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
   "deal-dead": "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]",
+  pending: "bg-[#a855f7] shadow-[0_0_0_3px_rgba(168,85,247,0.20)]",
+  confirmed: "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
 };
 const DEFAULT_PAGE_SIZE = 100;
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
@@ -346,13 +391,16 @@ function mergeWorkflowStatuses(items: WorkflowStatusDefinitionItem[]) {
   return sortWorkflowStatuses(Array.from(byKey.values()));
 }
 
-function buildFixedWorkflowStatuses(items: WorkflowStatusDefinitionItem[]) {
-  const merged = mergeWorkflowStatuses([...items, ...FIXED_WORKFLOW_STATUSES]);
+function buildFixedWorkflowStatuses(
+  items: WorkflowStatusDefinitionItem[],
+  fixedStatuses: WorkflowStatusDefinitionItem[]
+) {
+  const merged = mergeWorkflowStatuses([...items, ...fixedStatuses]);
   const byKey = new Map<string, WorkflowStatusDefinitionItem>();
   for (const item of merged) {
     byKey.set(item.statusKey, item);
   }
-  return FIXED_WORKFLOW_STATUSES.map((item) => byKey.get(item.statusKey) ?? item);
+  return fixedStatuses.map((item) => byKey.get(item.statusKey) ?? item);
 }
 
 function getStatusDotClass(status: string) {
@@ -464,7 +512,7 @@ function LeadSheetDialog({
 }
 
 export function NormalUserEventLeadSheet() {
-  usePersona();
+  const { persona } = usePersona();
   const { role, user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -510,9 +558,14 @@ export function NormalUserEventLeadSheet() {
     return lookup;
   }, [workflowStatuses]);
 
+  const fixedWorkflowStatuses = useMemo(
+    () => persona === "delegates" ? DELEGATE_WORKFLOW_STATUSES : FIXED_WORKFLOW_STATUSES,
+    [persona]
+  );
+
   const statusOptions = useMemo(() => {
-    return workflowStatuses.length > 0 ? workflowStatuses : FIXED_WORKFLOW_STATUSES;
-  }, [workflowStatuses]);
+    return workflowStatuses.length > 0 ? workflowStatuses : fixedWorkflowStatuses;
+  }, [fixedWorkflowStatuses, workflowStatuses]);
   const canUseDealBellFlow = role === "sales_user";
   const signedInFirstName = firstName(getUserDisplayName(user)) || "there";
 
@@ -526,7 +579,7 @@ export function NormalUserEventLeadSheet() {
       let finalStatuses = Array.isArray(initialStatusResponse.statuses)
         ? initialStatusResponse.statuses
         : [];
-      const missingFixedStatuses = FIXED_WORKFLOW_STATUSES.filter(
+      const missingFixedStatuses = fixedWorkflowStatuses.filter(
         (item) => !finalStatuses.some((status) => status.statusKey === item.statusKey)
       );
 
@@ -549,18 +602,18 @@ export function NormalUserEventLeadSheet() {
       }
 
       setEvents(eventsResponse.events || []);
-      setWorkflowStatuses(buildFixedWorkflowStatuses(finalStatuses));
+      setWorkflowStatuses(buildFixedWorkflowStatuses(finalStatuses, fixedWorkflowStatuses));
     } catch (error: unknown) {
       toast.error("Failed to load lead sheet", {
         description: getErrorMessage(error),
       });
       setEvents([]);
       setLeadPage(null);
-      setWorkflowStatuses(FIXED_WORKFLOW_STATUSES);
+      setWorkflowStatuses(fixedWorkflowStatuses);
     } finally {
       setLoadingEvents(false);
     }
-  }, []);
+  }, [fixedWorkflowStatuses]);
 
   useEffect(() => {
     void loadInitialData();
