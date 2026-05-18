@@ -114,6 +114,62 @@ const LinkedInIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+function LeadFinderSkeleton() {
+  return (
+    <div className="min-h-screen bg-transparent p-1 font-sans">
+      <div className="relative overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-white/70 px-4 pb-4 pt-3 shadow-[0_0_0_1px_rgba(255,255,255,0.82)]">
+        <div className="animate-pulse">
+          <div className="h-11 w-56 bg-zinc-100" />
+          <div className="mt-4 h-5 w-full max-w-xl bg-zinc-100" />
+        </div>
+      </div>
+
+      <Card className="mt-3 rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-white/70 p-4 shadow-none">
+        <div className="flex animate-pulse flex-wrap items-center gap-2">
+          <div className="h-9 min-w-64 flex-1 bg-zinc-100" />
+          <div className="h-9 w-40 bg-zinc-100" />
+          <div className="h-9 w-32 bg-zinc-100" />
+          <div className="h-9 w-36 bg-zinc-100" />
+          <div className="h-9 w-24 bg-zinc-100" />
+        </div>
+      </Card>
+
+      <Card className="mt-3 overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-white/70 shadow-none">
+        <div className="flex animate-pulse items-center justify-between border-b border-zinc-100 px-4 py-3">
+          <div className="h-4 w-28 bg-zinc-100" />
+          <div className="flex gap-2">
+            <div className="h-6 w-20 bg-zinc-100" />
+            <div className="h-6 w-20 bg-zinc-100" />
+          </div>
+        </div>
+
+        <div className="overflow-x-auto px-4 pb-2 pt-2">
+          <div className="min-w-[1180px] animate-pulse">
+            <div className="grid grid-cols-[1.1fr_1fr_1fr_1.1fr_1.2fr_0.8fr_0.45fr_0.45fr_0.6fr] gap-4 border-b border-zinc-100 py-3">
+              {Array.from({ length: 9 }).map((_, index) => (
+                <div key={index} className="h-3 bg-zinc-100" />
+              ))}
+            </div>
+            {Array.from({ length: 8 }).map((_, rowIndex) => (
+              <div
+                key={rowIndex}
+                className="grid grid-cols-[1.1fr_1fr_1fr_1.1fr_1.2fr_0.8fr_0.45fr_0.45fr_0.6fr] gap-4 border-b border-zinc-100 py-4"
+              >
+                {Array.from({ length: 9 }).map((_, cellIndex) => (
+                  <div key={cellIndex} className="space-y-2">
+                    <div className="h-4 bg-zinc-100" />
+                    {cellIndex < 4 ? <div className="h-3 w-2/3 bg-zinc-100" /> : null}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 function asText(value: unknown) {
   if (typeof value === "string") return value;
   if (value == null) return "";
@@ -978,11 +1034,7 @@ function SuperAdminTotalLeads() {
       : Math.min((currentPage - 1) * itemsPerPage + paginatedLeads.length, totalLeads);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
-      </div>
-    );
+    return <LeadFinderSkeleton />;
   }
 
   return (

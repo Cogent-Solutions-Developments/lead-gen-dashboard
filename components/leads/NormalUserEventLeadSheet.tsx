@@ -149,6 +149,53 @@ const EmailIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+function LeadSheetRowsSkeleton() {
+  return (
+    <div className="w-full animate-pulse">
+      <div className="grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-3">
+        <div className="h-4 w-28 bg-zinc-100" />
+        <div className="h-4 w-32 bg-zinc-100" />
+        <div className="h-4 w-20 bg-zinc-100" />
+      </div>
+
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div
+          key={index}
+          className="grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-6"
+        >
+          <div className="space-y-3 pr-8">
+            <div className="h-6 w-56 bg-zinc-100" />
+            <div className="h-4 w-72 max-w-full bg-zinc-100" />
+            <div className="h-3 w-40 bg-zinc-100" />
+          </div>
+
+          <div className="space-y-3 pr-8">
+            <div className="flex items-center gap-4">
+              <div className="h-3.5 w-3.5 bg-zinc-100" />
+              <div className="h-4 w-52 bg-zinc-100" />
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="h-3.5 w-3.5 bg-zinc-100" />
+              <div className="h-4 w-36 bg-zinc-100" />
+            </div>
+            <div className="flex gap-5 pt-3">
+              <div className="h-4 w-16 bg-zinc-100" />
+              <div className="h-4 w-16 bg-zinc-100" />
+              <div className="h-4 w-20 bg-zinc-100" />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="h-10 w-full border-b border-zinc-200 bg-zinc-100" />
+            <div className="h-10 w-full border-l border-zinc-200 bg-zinc-100" />
+            <div className="h-4 w-28 bg-zinc-100" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
   {
     id: "workflow-default-new",
@@ -200,6 +247,49 @@ const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
   },
 ];
 
+const DELEGATE_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
+  {
+    id: "workflow-delegate-new",
+    statusKey: "new",
+    label: "New",
+    isSystemDefault: true,
+    sortOrder: 0,
+    isActive: true,
+  },
+  {
+    id: "workflow-delegate-first-call",
+    statusKey: "first-call",
+    label: "First Call",
+    isSystemDefault: true,
+    sortOrder: 1,
+    isActive: true,
+  },
+  {
+    id: "workflow-delegate-follow-up",
+    statusKey: "follow-up",
+    label: "Followup",
+    isSystemDefault: true,
+    sortOrder: 2,
+    isActive: true,
+  },
+  {
+    id: "workflow-delegate-pending",
+    statusKey: "pending",
+    label: "Pending",
+    isSystemDefault: true,
+    sortOrder: 3,
+    isActive: true,
+  },
+  {
+    id: "workflow-delegate-confirmed",
+    statusKey: "confirmed",
+    label: "Confirmed",
+    isSystemDefault: true,
+    sortOrder: 4,
+    isActive: true,
+  },
+];
+
 const STATUS_DOT_CLASS: Record<string, string> = {
   new: "bg-[#0aefff] shadow-[0_0_0_3px_rgba(10,239,255,0.20)]",
   "first-call": "bg-[#147df5] shadow-[0_0_0_3px_rgba(20,125,245,0.20)]",
@@ -207,6 +297,8 @@ const STATUS_DOT_CLASS: Record<string, string> = {
   "proposal-sent": "bg-[#a855f7] shadow-[0_0_0_3px_rgba(168,85,247,0.20)]",
   "deal-closed": "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
   "deal-dead": "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]",
+  pending: "bg-[#a855f7] shadow-[0_0_0_3px_rgba(168,85,247,0.20)]",
+  confirmed: "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
 };
 const DEFAULT_PAGE_SIZE = 100;
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
@@ -299,13 +391,16 @@ function mergeWorkflowStatuses(items: WorkflowStatusDefinitionItem[]) {
   return sortWorkflowStatuses(Array.from(byKey.values()));
 }
 
-function buildFixedWorkflowStatuses(items: WorkflowStatusDefinitionItem[]) {
-  const merged = mergeWorkflowStatuses([...items, ...FIXED_WORKFLOW_STATUSES]);
+function buildFixedWorkflowStatuses(
+  items: WorkflowStatusDefinitionItem[],
+  fixedStatuses: WorkflowStatusDefinitionItem[]
+) {
+  const merged = mergeWorkflowStatuses([...items, ...fixedStatuses]);
   const byKey = new Map<string, WorkflowStatusDefinitionItem>();
   for (const item of merged) {
     byKey.set(item.statusKey, item);
   }
-  return FIXED_WORKFLOW_STATUSES.map((item) => byKey.get(item.statusKey) ?? item);
+  return fixedStatuses.map((item) => byKey.get(item.statusKey) ?? item);
 }
 
 function getStatusDotClass(status: string) {
@@ -417,7 +512,7 @@ function LeadSheetDialog({
 }
 
 export function NormalUserEventLeadSheet() {
-  usePersona();
+  const { persona } = usePersona();
   const { role, user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -463,9 +558,14 @@ export function NormalUserEventLeadSheet() {
     return lookup;
   }, [workflowStatuses]);
 
+  const fixedWorkflowStatuses = useMemo(
+    () => persona === "delegates" || persona === "production" ? DELEGATE_WORKFLOW_STATUSES : FIXED_WORKFLOW_STATUSES,
+    [persona]
+  );
+
   const statusOptions = useMemo(() => {
-    return workflowStatuses.length > 0 ? workflowStatuses : FIXED_WORKFLOW_STATUSES;
-  }, [workflowStatuses]);
+    return workflowStatuses.length > 0 ? workflowStatuses : fixedWorkflowStatuses;
+  }, [fixedWorkflowStatuses, workflowStatuses]);
   const canUseDealBellFlow = role === "sales_user";
   const signedInFirstName = firstName(getUserDisplayName(user)) || "there";
 
@@ -479,7 +579,7 @@ export function NormalUserEventLeadSheet() {
       let finalStatuses = Array.isArray(initialStatusResponse.statuses)
         ? initialStatusResponse.statuses
         : [];
-      const missingFixedStatuses = FIXED_WORKFLOW_STATUSES.filter(
+      const missingFixedStatuses = fixedWorkflowStatuses.filter(
         (item) => !finalStatuses.some((status) => status.statusKey === item.statusKey)
       );
 
@@ -502,18 +602,18 @@ export function NormalUserEventLeadSheet() {
       }
 
       setEvents(eventsResponse.events || []);
-      setWorkflowStatuses(buildFixedWorkflowStatuses(finalStatuses));
+      setWorkflowStatuses(buildFixedWorkflowStatuses(finalStatuses, fixedWorkflowStatuses));
     } catch (error: unknown) {
       toast.error("Failed to load lead sheet", {
         description: getErrorMessage(error),
       });
       setEvents([]);
       setLeadPage(null);
-      setWorkflowStatuses(FIXED_WORKFLOW_STATUSES);
+      setWorkflowStatuses(fixedWorkflowStatuses);
     } finally {
       setLoadingEvents(false);
     }
-  }, []);
+  }, [fixedWorkflowStatuses]);
 
   useEffect(() => {
     void loadInitialData();
@@ -1062,10 +1162,7 @@ export function NormalUserEventLeadSheet() {
           <main className="flex min-h-0 flex-col overflow-hidden xl:border-l xl:border-zinc-300 xl:pl-16">
             <div className="min-h-0 flex-1 overflow-auto pr-4 scrollbar-modern">
               {isLoading ? (
-                <div className="flex h-40 items-center justify-center text-zinc-400 font-light">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Accessing Intelligence...
-                </div>
+                <LeadSheetRowsSkeleton />
               ) : visibleEventLeads.length === 0 ? (
                 <div className="flex h-40 items-center justify-center border-y border-zinc-100 text-zinc-400 font-light">
                   {searchQuery || activeFilterCount > 0 ? "No matching records found." : "Workspace is currently empty."}

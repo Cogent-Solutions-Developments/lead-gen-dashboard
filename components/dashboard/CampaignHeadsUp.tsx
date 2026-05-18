@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { RefreshCcw } from "lucide-react";
 import { type EventSummaryItem, type WorkflowStatusDefinitionItem } from "@/lib/apiRouter";
 
 type EventHeadsUpItem = {
@@ -12,36 +13,122 @@ interface CampaignHeadsUpProps {
   items: EventHeadsUpItem[];
   statuses: WorkflowStatusDefinitionItem[];
   loading: boolean;
+  refreshing: boolean;
+  onRefresh: () => void;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; subtitle: string; accentColor: string; bgGradient: string; iconPath: string }> = {
+const STATUS_CONFIG: Record<string, { label: string; subtitle: string }> = {
+  new: {
+    label: "New",
+    subtitle: "Fresh delegate records",
+  },
+  "first-call": {
+    label: "First Call",
+    subtitle: "Initial calls completed",
+  },
   "follow-up": {
-    label: "Follow Ups",
+    label: "Followups",
     subtitle: "Leads awaiting your next touchpoint",
-    accentColor: "#f59e0b",
-    bgGradient: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
-    iconPath: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
+  },
+  pending: {
+    label: "Pending",
+    subtitle: "Awaiting delegate confirmation",
+  },
+  confirmed: {
+    label: "Confirmed",
+    subtitle: "Delegate confirmations completed",
   },
   "proposal-sent": {
     label: "Proposals Sent",
     subtitle: "Proposals delivered and pending review",
-    accentColor: "#6366f1",
-    bgGradient: "linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)",
-    iconPath: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
   },
   "deal-closed": {
     label: "Closed Deals",
     subtitle: "Successfully converted deals",
-    accentColor: "#10b981",
-    bgGradient: "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)",
-    iconPath: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
   },
 };
+
+function IsometricCardBackground({ statusKey }: { statusKey: string }) {
+  const grid = (
+    <path
+      d="M198 176h190M248 144h162M308 112h112"
+      stroke="currentColor"
+      strokeOpacity="0.035"
+      strokeWidth="1"
+    />
+  );
+
+  return (
+    <svg
+      className="pointer-events-none absolute inset-0 h-full w-full text-blue-600"
+      viewBox="0 0 420 176"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      <g fill="none" strokeLinecap="round" strokeLinejoin="round">
+        {grid}
+        {statusKey === "follow-up" ? (
+          <>
+            <g stroke="#d5dbe3" strokeOpacity="0.34" strokeWidth="1">
+              <path d="M276 34h86v54h-86z" />
+              <path d="M276 39l43 30 43-30" />
+              <path d="M276 88l31-26M362 88l-31-26" />
+              <path d="M314 110h72v45h-72z" />
+              <path d="M314 114l36 25 36-25" />
+              <path d="M314 155l26-22M386 155l-26-22" />
+            </g>
+            <g stroke="currentColor" strokeOpacity="0.07" strokeWidth="1.2">
+              <path d="M70 88h82v52H70z" />
+              <path d="M70 93l41 29 41-29" />
+              <path d="M70 140l30-25M152 140l-30-25" />
+              <path d="M128 55h62v39h-62z" />
+              <path d="M128 59l31 22 31-22" />
+            </g>
+          </>
+        ) : statusKey === "proposal-sent" ? (
+          <>
+            <g stroke="#d5dbe3" strokeOpacity="0.34" strokeWidth="1">
+              <path d="M282 16h70l22 22v90h-92V16z" />
+              <path d="M352 16v22h22" />
+              <path d="M302 64h52M302 84h42M302 104h50" />
+            </g>
+            <g stroke="currentColor" strokeOpacity="0.07" strokeWidth="1.2">
+              <path d="M74 65h76l24 24v72H74V65z" />
+              <path d="M150 65v24h24" />
+              <path d="M94 103h58M94 124h42M94 145h54" />
+              <path d="M96 48h70" strokeOpacity="0.045" />
+              <path d="M112 31h70" strokeOpacity="0.035" />
+            </g>
+          </>
+        ) : (
+          <>
+            <g stroke="#d5dbe3" strokeOpacity="0.34" strokeWidth="1">
+              <path d="M284 52h92v78h-92z" />
+              <path d="M304 78l12 12 24-29" />
+              <path d="M352 75h12" />
+              <path d="M304 108l12 12 24-29" />
+              <path d="M352 105h12" />
+            </g>
+            <g stroke="currentColor" strokeOpacity="0.07" strokeWidth="1.2">
+              <path d="M78 78h112v84H78z" />
+              <path d="M101 106l14 14 28-34" />
+              <path d="M155 101h18" />
+              <path d="M101 139l14 14 28-34" />
+              <path d="M155 134h18" />
+            </g>
+          </>
+        )}
+      </g>
+    </svg>
+  );
+}
 
 export function CampaignHeadsUp({
   items,
   statuses,
   loading,
+  refreshing,
+  onRefresh,
 }: CampaignHeadsUpProps) {
   if (loading) {
     return (
@@ -71,41 +158,37 @@ export function CampaignHeadsUp({
     return acc;
   }, {} as Record<string, number>);
 
-  const totalLeads = items.reduce((sum, item) => sum + (item.event.leadCount || 0), 0);
-
   return (
     <section className="relative mt-10 flex flex-1 flex-col justify-end">
-      {/* Header */}
-      <div className="mb-6 flex items-baseline justify-between">
+      <div className="mb-6 flex items-end justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-extralight tracking-tight text-zinc-950">
+          <h2 className="text-2xl font-normal tracking-tight text-zinc-950">
             Your Stats
           </h2>
-          <p className="mt-1 text-sm font-light text-zinc-400">
+          <p className="mt-1 text-sm font-normal text-zinc-500">
             Lead status breakdown across all active events.
           </p>
         </div>
-        <motion.span
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="shrink-0 text-2xl font-extralight tabular-nums tracking-tight text-zinc-950"
-        >
-          {totalLeads.toLocaleString()}
-          <span className="ml-1.5 text-xs font-light text-zinc-400">total</span>
-        </motion.span>
+        <div className="flex shrink-0 items-center">
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={refreshing}
+            className="inline-flex h-8 w-8 items-center justify-center border border-zinc-200 bg-white text-zinc-500 transition-colors hover:border-blue-600 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Refresh stats"
+            title="Refresh stats"
+          >
+            <RefreshCcw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
+        </div>
       </div>
 
-      {/* Cards grid */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid gap-4 md:grid-cols-3">
         {statuses.map((status, index) => {
           const count = totals[status.statusKey] || 0;
           const config = STATUS_CONFIG[status.statusKey] || {
             label: status.label,
             subtitle: "Pipeline status",
-            accentColor: "#a1a1aa",
-            bgGradient: "linear-gradient(135deg, #fafafa 0%, #f4f4f5 100%)",
-            iconPath: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
           };
 
           return (
@@ -118,38 +201,12 @@ export function CampaignHeadsUp({
                 duration: 0.55,
                 ease: [0.22, 1, 0.36, 1],
               }}
-              className="group relative overflow-hidden border border-zinc-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:border-zinc-300"
+              className="group relative min-h-44 border border-zinc-200 bg-white p-6 shadow-[0_1px_2px_rgba(60,64,67,0.08),0_1px_3px_1px_rgba(60,64,67,0.06)] transition-all duration-200 hover:border-blue-200 hover:shadow-[0_1px_3px_rgba(60,64,67,0.16),0_4px_8px_3px_rgba(60,64,67,0.08)]"
             >
-              {/* Subtle accent bar at top */}
-              <div
-                className="absolute inset-x-0 top-0 h-[3px] opacity-80 transition-opacity group-hover:opacity-100"
-                style={{ backgroundColor: config.accentColor }}
-              />
+              <IsometricCardBackground statusKey={status.statusKey} />
 
-              {/* Icon */}
-              <div
-                className="flex h-9 w-9 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110"
-                style={{ background: config.bgGradient }}
-              >
-                <svg
-                  className="h-4 w-4"
-                  style={{ color: config.accentColor }}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1.75}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d={config.iconPath}
-                  />
-                </svg>
-              </div>
-
-              {/* Count */}
               <motion.p
-                className="mt-5 text-4xl font-extralight tabular-nums tracking-tight text-zinc-950"
+                className="relative z-10 text-6xl font-normal tabular-nums tracking-tight text-zinc-950"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{
@@ -161,11 +218,12 @@ export function CampaignHeadsUp({
                 {count.toLocaleString()}
               </motion.p>
 
-              {/* Label + subtitle */}
-              <p className="mt-2 text-sm font-medium text-zinc-950">
+              <p className="relative z-10 mt-3">
+                <span className="inline-flex bg-blue-600 px-1.5 py-0.5 text-sm font-medium leading-5 text-white">
                 {config.label}
+                </span>
               </p>
-              <p className="mt-0.5 text-[11px] font-light leading-snug text-zinc-400">
+              <p className="relative z-10 mt-1 text-xs font-normal leading-5 text-zinc-500">
                 {config.subtitle}
               </p>
             </motion.div>

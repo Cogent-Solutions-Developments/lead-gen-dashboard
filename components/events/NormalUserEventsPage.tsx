@@ -16,6 +16,47 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong.";
 }
 
+function HeaderMetricSkeleton() {
+  return (
+    <div className="space-y-2">
+      <div className="h-3 w-24 animate-pulse bg-zinc-100" />
+      <div className="h-10 w-20 animate-pulse bg-zinc-100" />
+    </div>
+  );
+}
+
+function EventRowsSkeleton() {
+  return (
+    <div className="grid grid-cols-1">
+      {[0, 1, 2].map((index) => (
+        <div
+          key={index}
+          className="animate-pulse border-b border-zinc-300 p-7 2xl:p-8"
+        >
+          <div className="flex flex-col justify-between gap-8 2xl:gap-10">
+            <div className="space-y-4">
+              <div className="h-8 w-full max-w-4xl bg-zinc-100" />
+              <div className="h-8 w-3/5 bg-zinc-100" />
+            </div>
+
+            <div className="flex items-end justify-between">
+              <div className="space-y-2">
+                <div className="h-3 w-24 bg-zinc-100" />
+                <div className="flex items-baseline gap-2">
+                  <div className="h-9 w-28 bg-zinc-100" />
+                  <div className="h-4 w-10 bg-zinc-100" />
+                </div>
+              </div>
+
+              <div className="h-11 w-11 border border-zinc-200 bg-zinc-100 2xl:h-12 2xl:w-12" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function NormalUserEventsPage() {
   const [items, setItems] = useState<EventSummaryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,18 +139,27 @@ export function NormalUserEventsPage() {
 
           <div className="flex flex-col gap-5 border-zinc-300 lg:min-w-[23rem] lg:border-l lg:pl-10">
             <div className="grid grid-cols-2 gap-10">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-zinc-400">Active events</p>
-                <p className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
-                  {items.length}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-zinc-400">Total prospect reach</p>
-                <p className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
-                  {totalLeadCount.toLocaleString()}
-                </p>
-              </div>
+              {loading ? (
+                <>
+                  <HeaderMetricSkeleton />
+                  <HeaderMetricSkeleton />
+                </>
+              ) : (
+                <>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-zinc-400">Active events</p>
+                    <p className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
+                      {items.length}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-zinc-400">Total prospect reach</p>
+                    <p className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
+                      {totalLeadCount.toLocaleString()}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-10 border-t border-zinc-300 pt-4">
@@ -158,7 +208,7 @@ export function NormalUserEventsPage() {
 
           <div className="min-h-0 flex-1 overflow-y-auto scrollbar-modern">
             {loading ? (
-              <div className="py-12 text-sm text-zinc-500">Loading events...</div>
+              <EventRowsSkeleton />
             ) : filteredItems.length === 0 ? (
               <div className="py-12 text-sm text-zinc-500">
                 {searchQuery.trim() ? "No events match this search." : "No events found."}

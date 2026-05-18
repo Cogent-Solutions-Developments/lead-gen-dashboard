@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { RefreshCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
@@ -31,6 +32,38 @@ type EventHeadsUpItem = {
   statusCounts: Record<string, number>;
 };
 
+type PersonalStatsCache = {
+  items: EventHeadsUpItem[];
+  statuses: WorkflowStatusDefinitionItem[];
+};
+
+const SALES_MARATHON_CACHE_KEY = "dashboard:sales-marathon";
+const DELEGATE_KPI_CACHE_KEY = "dashboard:delegate-kpi";
+const PRODUCTION_KPI_CACHE_KEY = "dashboard:production-kpi";
+
+function readSessionCache<T>(key: string): T | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSessionCache<T>(key: string, value: T) {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Cache writes are best-effort only.
+  }
+}
+
+function personalStatsCacheKey(persona: string, userId?: string) {
+  return `dashboard:personal-stats:v4:${persona}:${userId || "anonymous"}`;
+}
+
 const FALLBACK_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
   {
     id: "dashboard-follow-up",
@@ -57,6 +90,44 @@ const FALLBACK_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     isActive: true,
   },
 ];
+
+const DELEGATE_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
+  {
+    id: "dashboard-delegate-follow-up",
+    statusKey: "follow-up",
+    label: "Followups",
+    isSystemDefault: true,
+    sortOrder: 0,
+    isActive: true,
+  },
+  {
+    id: "dashboard-delegate-pending",
+    statusKey: "pending",
+    label: "Pending",
+    isSystemDefault: true,
+    sortOrder: 1,
+    isActive: true,
+  },
+  {
+    id: "dashboard-delegate-confirmed",
+    statusKey: "confirmed",
+    label: "Confirmed",
+    isSystemDefault: true,
+    sortOrder: 2,
+    isActive: true,
+  },
+];
+
+function dashboardStatusesForPersona(persona: string) {
+  return persona === "delegates" || persona === "production" ? DELEGATE_WORKFLOW_STATUSES : FALLBACK_WORKFLOW_STATUSES;
+}
+
+function dashboardStatusAliases(persona: string, statusKey: string) {
+  if ((persona === "delegates" || persona === "production") && statusKey === "confirmed") {
+    return ["confirmed", "confirmed-2", "complete"];
+  }
+  return [statusKey];
+}
 
 function getDisplayName(user: ReturnType<typeof useAuth>["user"]) {
   const values = [user?.fullName, getCachedAuthUserDisplayName(user), user?.username]
@@ -111,6 +182,24 @@ async function listSalesMarathonLeaderboard() {
   return Array.isArray(data.runners) ? data.runners : [];
 }
 
+async function listDelegateKpiLeaderboard() {
+  const response = await fetch("/api/delegate-kpi/leaderboard", {
+    headers: getAuthHeader(),
+  });
+  if (!response.ok) throw new Error("Failed to load delegate KPI.");
+  const data = await response.json() as { runners?: SalesMarathonRunner[] };
+  return Array.isArray(data.runners) ? data.runners : [];
+}
+
+async function listProductionKpiLeaderboard() {
+  const response = await fetch("/api/production-kpi/leaderboard", {
+    headers: getAuthHeader(),
+  });
+  if (!response.ok) throw new Error("Failed to load production KPI.");
+  const data = await response.json() as { runners?: SalesMarathonRunner[] };
+  return Array.isArray(data.runners) ? data.runners : [];
+}
+
 function PixelAvatar({ colorHex, seed }: { colorHex: string; seed: string }) {
   const url = `https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(seed)}&rowColor=${colorHex.replace('#', '')}&backgroundColor=transparent`;
   return (
@@ -127,11 +216,23 @@ function PixelAvatar({ colorHex, seed }: { colorHex: string; seed: string }) {
 function SalesMarathon({
   runners,
   loading,
+  refreshing,
+  onRefresh,
+  title,
+  subtitle,
+  target,
+  footnote,
 }: {
   runners: SalesMarathonRunner[];
   loading: boolean;
+  refreshing: boolean;
+  onRefresh: () => void;
+  title: string;
+  subtitle: string;
+  target: number;
+  footnote: string;
 }) {
-  const dailyTarget = 5;
+  const loadingBars = [68, 44, 82, 56, 72, 36, 62];
   const barPalette = [
     { bg: "bg-[#2977e7]", hex: "2977e7" },
     { bg: "bg-emerald-500", hex: "10b981" },
@@ -147,26 +248,55 @@ function SalesMarathon({
       <div className="relative flex items-baseline justify-between gap-6 border-b border-zinc-100 pb-6">
         <div>
           <h2 className="text-4xl font-extralight tracking-tight text-zinc-950">
-            Daily KPI Tracker
+            {title}
           </h2>
           <p className="mt-3 text-sm font-light text-zinc-500">
-            5 proposals a day keeps the sales stress far away.
+            {subtitle}
           </p>
         </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={refreshing}
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center border border-zinc-200 bg-white text-zinc-500 transition-colors hover:border-blue-600 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label="Refresh KPI tracker"
+          title="Refresh KPI tracker"
+        >
+          <RefreshCcw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+        </button>
       </div>
 
       <div className="relative mt-12 flex h-80 items-end justify-between gap-4">
         {loading ? (
-          <div className="absolute inset-0 flex items-center justify-center text-sm font-light text-zinc-400 italic">
-            Synchronizing records...
-          </div>
+          loadingBars.map((height, index) => (
+            <div key={index} className="flex h-full flex-1 animate-pulse flex-col items-center justify-end">
+              <div className="mb-4 h-8 w-7 bg-zinc-100" />
+
+              <div className="relative h-full w-8 overflow-hidden bg-zinc-100">
+                <div
+                  className="absolute bottom-0 w-full bg-zinc-200"
+                  style={{ height: `${height}%` }}
+                />
+                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="h-[1px] w-full bg-white/60" />
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-col items-center gap-3">
+                <div className="h-6 w-6 bg-zinc-100" />
+                <div className="h-2 w-12 bg-zinc-100" />
+              </div>
+            </div>
+          ))
         ) : runners.length === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center text-sm font-light text-zinc-400 italic">
             No active records for the current period.
           </div>
         ) : (
           runners.map((runner, index) => {
-            const progress = Math.min(runner.proposalCount / dailyTarget, 1);
+            const progress = Math.min(runner.proposalCount / target, 1);
             const colorItem = barPalette[index % barPalette.length];
             return (
               <div key={runner.id} className="group relative flex h-full flex-1 flex-col items-center justify-end">
@@ -205,7 +335,7 @@ function SalesMarathon({
 
       <div className="mt-12 border-t border-zinc-100 pt-6">
         <p className="text-[10px] leading-relaxed text-zinc-400">
-          * This data reflects the total number of proposals sent within the last 24-hour cycle.
+          {footnote}
         </p>
       </div>
     </section>
@@ -217,94 +347,146 @@ export default function DashboardPage() {
   const { persona } = usePersona();
   const [salesRunners, setSalesRunners] = useState<SalesMarathonRunner[]>([]);
   const [loadingSalesMarathon, setLoadingSalesMarathon] = useState(true);
+  const [refreshingSalesMarathon, setRefreshingSalesMarathon] = useState(false);
   const [eventHeadsUp, setEventHeadsUp] = useState<EventHeadsUpItem[]>([]);
   const [workflowStatuses, setWorkflowStatuses] = useState<WorkflowStatusDefinitionItem[]>(FALLBACK_WORKFLOW_STATUSES);
   const [loadingEventHeadsUp, setLoadingEventHeadsUp] = useState(true);
+  const [refreshingEventHeadsUp, setRefreshingEventHeadsUp] = useState(false);
+  const userId = user?.id;
+  const username = user?.username;
+  const userFullName = user?.fullName;
+  const cachedUserDisplayName = getCachedAuthUserDisplayName(user);
   const displayName = firstName(getDisplayName(user));
   const greeting = getTimeGreeting();
   const manifesto = getDailyManifesto(user?.id || "");
   const workspaceLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
-
-  useEffect(() => {
-    let alive = true;
-
-    async function loadDashboard() {
-      setLoadingSalesMarathon(true);
-      try {
-        const runners = await listSalesMarathonLeaderboard();
-        if (!alive) return;
-        setSalesRunners(runners);
-      } catch (error) {
-        if (!alive) return;
-        toast.error("Dashboard sync failed", { description: getErrorMessage(error) });
-        setSalesRunners([]);
-      } finally {
-        if (alive) setLoadingSalesMarathon(false);
+  const kpiCopy = persona === "delegates"
+    ? {
+        title: "Daily KPI Tracker",
+        subtitle: "3 delegate confirmations a day keeps the event worries away.",
+        target: 3,
+        footnote: "* This data reflects delegate confirmations recorded today.",
       }
+    : persona === "production"
+      ? {
+          title: "Daily KPI Tracker",
+          subtitle: "3 speaker confirmations a day keeps the event worries away.",
+          target: 3,
+          footnote: "* This data reflects speaker confirmations recorded today.",
+        }
+    : {
+        title: "Daily KPI Tracker",
+        subtitle: "5 proposals a day keeps the sales stress far away.",
+        target: 5,
+        footnote: "* This data reflects the total number of proposals sent within the last 24-hour cycle.",
+      };
+
+  const loadSalesMarathon = useCallback(async (mode: "initial" | "refresh") => {
+    const cacheKey =
+      persona === "delegates"
+        ? DELEGATE_KPI_CACHE_KEY
+        : persona === "production"
+          ? PRODUCTION_KPI_CACHE_KEY
+          : SALES_MARATHON_CACHE_KEY;
+    if (mode === "initial") {
+      const cached = readSessionCache<SalesMarathonRunner[]>(cacheKey);
+      if (cached) {
+        setSalesRunners(cached);
+        setLoadingSalesMarathon(false);
+        return;
+      }
+      setLoadingSalesMarathon(true);
+    } else {
+      setRefreshingSalesMarathon(true);
     }
 
-    void loadDashboard();
-    return () => {
-      alive = false;
-    };
-  }, []);
+    try {
+      const runners =
+        persona === "delegates"
+          ? await listDelegateKpiLeaderboard()
+          : persona === "production"
+            ? await listProductionKpiLeaderboard()
+            : await listSalesMarathonLeaderboard();
+      setSalesRunners(runners);
+      writeSessionCache(cacheKey, runners);
+    } catch (error) {
+      toast.error("Dashboard sync failed", { description: getErrorMessage(error) });
+      if (mode === "initial") setSalesRunners([]);
+    } finally {
+      setLoadingSalesMarathon(false);
+      setRefreshingSalesMarathon(false);
+    }
+  }, [persona]);
 
-  useEffect(() => {
-    let alive = true;
+  const loadPersonalStats = useCallback(async (mode: "initial" | "refresh") => {
+      if (!userId) {
+        setLoadingEventHeadsUp(false);
+        return;
+      }
+      const cacheKey = personalStatsCacheKey(persona, userId);
+      if (mode === "initial") {
+        const cached = readSessionCache<PersonalStatsCache>(cacheKey);
+        if (cached) {
+          setWorkflowStatuses(cached.statuses.length ? cached.statuses : FALLBACK_WORKFLOW_STATUSES);
+          setEventHeadsUp(cached.items);
+          setLoadingEventHeadsUp(false);
+          return;
+        }
+      }
 
-    async function loadPersonalStats() {
-      if (!user?.id) return;
-      setLoadingEventHeadsUp(true);
+      if (mode === "initial") setLoadingEventHeadsUp(true);
+      if (mode === "refresh") setRefreshingEventHeadsUp(true);
       try {
         // 1. Fetch workflow statuses
-        let activeStatuses = FALLBACK_WORKFLOW_STATUSES;
+        const fixedStatuses = dashboardStatusesForPersona(persona);
+        const fixedStatusKeys = fixedStatuses.map((status) => status.statusKey);
+        const fixedOrder = new Map(fixedStatusKeys.map((statusKey, index) => [statusKey, index]));
+        let activeStatuses = fixedStatuses;
         try {
           const statusResponse = await listWorkflowStatuses();
-          activeStatuses = (statusResponse.statuses || FALLBACK_WORKFLOW_STATUSES)
+          const backendStatuses = statusResponse.statuses || fixedStatuses;
+          activeStatuses = fixedStatuses.map((fixedStatus) => {
+            const backendStatus = backendStatuses.find((status) => status.statusKey === fixedStatus.statusKey);
+            return backendStatus ? { ...backendStatus, label: fixedStatus.label } : fixedStatus;
+          })
              .filter((status) =>
-              ["follow-up", "proposal-sent", "deal-closed"].includes(status.statusKey)
+              fixedStatusKeys.includes(status.statusKey)
             )
             .sort((a, b) => {
-              const order = { "follow-up": 1, "proposal-sent": 2, "deal-closed": 3 };
-              return (order[a.statusKey as keyof typeof order] || 99) - (order[b.statusKey as keyof typeof order] || 99);
+              return (fixedOrder.get(a.statusKey) ?? 99) - (fixedOrder.get(b.statusKey) ?? 99);
             });
         } catch (e) {
           console.warn("[Dashboard] listWorkflowStatuses failed, using fallback", e);
         }
         setWorkflowStatuses(activeStatuses);
-        if (!alive) return;
 
         // 2. Fetch events then leads per event (same API the lead sheet uses)
         let events: EventSummaryItem[] = [];
         try {
           const eventsResponse = await listEvents();
           events = eventsResponse.events || [];
-        } catch (e) {
-          console.error("[Dashboard] listEvents FAILED", e);
+        } catch {
+          console.warn("[Dashboard] listEvents failed; stats will use an empty event set.");
         }
-        if (!alive) return;
 
         let allLeads: EventLeadListItem[] = [];
         for (const event of events) {
-          if (!alive) return;
           try {
             const response = await listEventLeads(event.canonicalEventKey);
             allLeads = allLeads.concat(response.items || []);
-          } catch (e) {
-            console.error(`[Dashboard] listEventLeads FAILED for "${event.canonicalEventKey}"`, e);
+          } catch {
+            console.warn(`[Dashboard] skipped stats for event "${event.canonicalEventKey}" because its leads could not be loaded.`);
           }
         }
-        if (!alive) return;
 
         // 3. Filter to leads this user has worked on
-        const userId = user.id;
-        const username = user.username?.toLowerCase();
-        const userDisplayName = (user.fullName || getCachedAuthUserDisplayName(user))?.toLowerCase();
+        const normalizedUsername = username?.toLowerCase();
+        const userDisplayName = (userFullName || cachedUserDisplayName)?.toLowerCase();
 
         const myLeads = allLeads.filter((lead) => {
           if (lead.workflowCommentUpdatedByUserId === userId) return true;
           if (lead.manualLeadAddedByUserId === userId) return true;
-          if (username && lead.workflowCommentUpdatedByUsername?.toLowerCase() === username) return true;
+          if (normalizedUsername && lead.workflowCommentUpdatedByUsername?.toLowerCase() === normalizedUsername) return true;
           if (userDisplayName && lead.workflowCommentUpdatedByUserDisplayName?.toLowerCase() === userDisplayName) return true;
           return false;
         });
@@ -314,12 +496,13 @@ export default function DashboardPage() {
         // 4. Build status counts
         const statusCounts: Record<string, number> = {};
         activeStatuses.forEach((s) => {
+          const aliases = dashboardStatusAliases(persona, s.statusKey);
           statusCounts[s.statusKey] = myLeads.filter(
-            (l) => l.workflowStatus === s.statusKey
+            (l) => aliases.includes(String(l.workflowStatus || ""))
           ).length;
         });
 
-        setEventHeadsUp([{
+        const nextItems: EventHeadsUpItem[] = [{
           event: {
             canonicalEventKey: "personal",
             canonicalEventName: "Personal Stats",
@@ -328,21 +511,29 @@ export default function DashboardPage() {
             relatedCampaignNames: [],
           },
           statusCounts,
-        }]);
-      } catch (error) {
-        if (!alive) return;
-        console.error("[Dashboard] loadPersonalStats CRASHED", error);
-        setEventHeadsUp([]);
-      } finally {
-        if (alive) setLoadingEventHeadsUp(false);
-      }
-    }
+        }];
 
-    void loadPersonalStats();
-    return () => {
-      alive = false;
-    };
-  }, [persona, user?.id]);
+        setEventHeadsUp(nextItems);
+        writeSessionCache(cacheKey, {
+          items: nextItems,
+          statuses: activeStatuses,
+        });
+      } catch {
+        console.warn("[Dashboard] personal stats could not be refreshed.");
+        if (mode === "initial") setEventHeadsUp([]);
+      } finally {
+        setLoadingEventHeadsUp(false);
+        setRefreshingEventHeadsUp(false);
+      }
+    }, [cachedUserDisplayName, persona, userFullName, userId, username]);
+
+  useEffect(() => {
+    void loadSalesMarathon("initial");
+  }, [loadSalesMarathon]);
+
+  useEffect(() => {
+    void loadPersonalStats("initial");
+  }, [loadPersonalStats]);
 
   return (
     <div className="flex h-screen flex-1 flex-col overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">
@@ -376,11 +567,22 @@ export default function DashboardPage() {
               items={eventHeadsUp}
               statuses={workflowStatuses}
               loading={loadingEventHeadsUp}
+              refreshing={refreshingEventHeadsUp}
+              onRefresh={() => void loadPersonalStats("refresh")}
             />
           </motion.div>
 
           <div>
-            <SalesMarathon runners={salesRunners} loading={loadingSalesMarathon} />
+            <SalesMarathon
+              runners={salesRunners}
+              loading={loadingSalesMarathon}
+              refreshing={refreshingSalesMarathon}
+              onRefresh={() => void loadSalesMarathon("refresh")}
+              title={kpiCopy.title}
+              subtitle={kpiCopy.subtitle}
+              target={kpiCopy.target}
+              footnote={kpiCopy.footnote}
+            />
           </div>
         </div>
       </header>
