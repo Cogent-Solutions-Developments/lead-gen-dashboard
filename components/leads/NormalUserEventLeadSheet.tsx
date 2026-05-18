@@ -149,6 +149,53 @@ const EmailIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+function LeadSheetRowsSkeleton() {
+  return (
+    <div className="w-full animate-pulse">
+      <div className="grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-3">
+        <div className="h-4 w-28 bg-zinc-100" />
+        <div className="h-4 w-32 bg-zinc-100" />
+        <div className="h-4 w-20 bg-zinc-100" />
+      </div>
+
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div
+          key={index}
+          className="grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-6"
+        >
+          <div className="space-y-3 pr-8">
+            <div className="h-6 w-56 bg-zinc-100" />
+            <div className="h-4 w-72 max-w-full bg-zinc-100" />
+            <div className="h-3 w-40 bg-zinc-100" />
+          </div>
+
+          <div className="space-y-3 pr-8">
+            <div className="flex items-center gap-4">
+              <div className="h-3.5 w-3.5 bg-zinc-100" />
+              <div className="h-4 w-52 bg-zinc-100" />
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="h-3.5 w-3.5 bg-zinc-100" />
+              <div className="h-4 w-36 bg-zinc-100" />
+            </div>
+            <div className="flex gap-5 pt-3">
+              <div className="h-4 w-16 bg-zinc-100" />
+              <div className="h-4 w-16 bg-zinc-100" />
+              <div className="h-4 w-20 bg-zinc-100" />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="h-10 w-full border-b border-zinc-200 bg-zinc-100" />
+            <div className="h-10 w-full border-l border-zinc-200 bg-zinc-100" />
+            <div className="h-4 w-28 bg-zinc-100" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
   {
     id: "workflow-default-new",
@@ -1062,10 +1109,7 @@ export function NormalUserEventLeadSheet() {
           <main className="flex min-h-0 flex-col overflow-hidden xl:border-l xl:border-zinc-300 xl:pl-16">
             <div className="min-h-0 flex-1 overflow-auto pr-4 scrollbar-modern">
               {isLoading ? (
-                <div className="flex h-40 items-center justify-center text-zinc-400 font-light">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Accessing Intelligence...
-                </div>
+                <LeadSheetRowsSkeleton />
               ) : visibleEventLeads.length === 0 ? (
                 <div className="flex h-40 items-center justify-center border-y border-zinc-100 text-zinc-400 font-light">
                   {searchQuery || activeFilterCount > 0 ? "No matching records found." : "Workspace is currently empty."}
