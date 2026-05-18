@@ -34,7 +34,7 @@ function IsometricCardBackground({ statusKey }: { statusKey: string }) {
     <path
       d="M198 176h190M248 144h162M308 112h112"
       stroke="currentColor"
-      strokeOpacity="0.06"
+      strokeOpacity="0.035"
       strokeWidth="1"
     />
   );
@@ -50,7 +50,7 @@ function IsometricCardBackground({ statusKey }: { statusKey: string }) {
         {grid}
         {statusKey === "follow-up" ? (
           <>
-            <g stroke="#d5dbe3" strokeOpacity="0.58" strokeWidth="1">
+            <g stroke="#d5dbe3" strokeOpacity="0.34" strokeWidth="1">
               <path d="M276 34h86v54h-86z" />
               <path d="M276 39l43 30 43-30" />
               <path d="M276 88l31-26M362 88l-31-26" />
@@ -58,7 +58,7 @@ function IsometricCardBackground({ statusKey }: { statusKey: string }) {
               <path d="M314 114l36 25 36-25" />
               <path d="M314 155l26-22M386 155l-26-22" />
             </g>
-            <g stroke="currentColor" strokeOpacity="0.12" strokeWidth="1.2">
+            <g stroke="currentColor" strokeOpacity="0.07" strokeWidth="1.2">
               <path d="M70 88h82v52H70z" />
               <path d="M70 93l41 29 41-29" />
               <path d="M70 140l30-25M152 140l-30-25" />
@@ -68,29 +68,29 @@ function IsometricCardBackground({ statusKey }: { statusKey: string }) {
           </>
         ) : statusKey === "proposal-sent" ? (
           <>
-            <g stroke="#d5dbe3" strokeOpacity="0.58" strokeWidth="1">
+            <g stroke="#d5dbe3" strokeOpacity="0.34" strokeWidth="1">
               <path d="M282 16h70l22 22v90h-92V16z" />
               <path d="M352 16v22h22" />
               <path d="M302 64h52M302 84h42M302 104h50" />
             </g>
-            <g stroke="currentColor" strokeOpacity="0.12" strokeWidth="1.2">
+            <g stroke="currentColor" strokeOpacity="0.07" strokeWidth="1.2">
               <path d="M74 65h76l24 24v72H74V65z" />
               <path d="M150 65v24h24" />
               <path d="M94 103h58M94 124h42M94 145h54" />
-              <path d="M96 48h70" strokeOpacity="0.08" />
-              <path d="M112 31h70" strokeOpacity="0.06" />
+              <path d="M96 48h70" strokeOpacity="0.045" />
+              <path d="M112 31h70" strokeOpacity="0.035" />
             </g>
           </>
         ) : (
           <>
-            <g stroke="#d5dbe3" strokeOpacity="0.58" strokeWidth="1">
+            <g stroke="#d5dbe3" strokeOpacity="0.34" strokeWidth="1">
               <path d="M284 52h92v78h-92z" />
               <path d="M304 78l12 12 24-29" />
               <path d="M352 75h12" />
               <path d="M304 108l12 12 24-29" />
               <path d="M352 105h12" />
             </g>
-            <g stroke="currentColor" strokeOpacity="0.12" strokeWidth="1.2">
+            <g stroke="currentColor" strokeOpacity="0.07" strokeWidth="1.2">
               <path d="M78 78h112v84H78z" />
               <path d="M101 106l14 14 28-34" />
               <path d="M155 101h18" />
