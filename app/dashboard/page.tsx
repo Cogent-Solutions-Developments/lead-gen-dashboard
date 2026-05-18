@@ -132,6 +132,7 @@ function SalesMarathon({
   loading: boolean;
 }) {
   const dailyTarget = 5;
+  const loadingBars = [68, 44, 82, 56, 72, 36, 62];
   const barPalette = [
     { bg: "bg-[#2977e7]", hex: "2977e7" },
     { bg: "bg-emerald-500", hex: "10b981" },
@@ -157,9 +158,28 @@ function SalesMarathon({
 
       <div className="relative mt-12 flex h-80 items-end justify-between gap-4">
         {loading ? (
-          <div className="absolute inset-0 flex items-center justify-center text-sm font-light text-zinc-400 italic">
-            Synchronizing records...
-          </div>
+          loadingBars.map((height, index) => (
+            <div key={index} className="flex h-full flex-1 animate-pulse flex-col items-center justify-end">
+              <div className="mb-4 h-8 w-7 bg-zinc-100" />
+
+              <div className="relative h-full w-8 overflow-hidden bg-zinc-100">
+                <div
+                  className="absolute bottom-0 w-full bg-zinc-200"
+                  style={{ height: `${height}%` }}
+                />
+                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="h-[1px] w-full bg-white/60" />
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-col items-center gap-3">
+                <div className="h-6 w-6 bg-zinc-100" />
+                <div className="h-2 w-12 bg-zinc-100" />
+              </div>
+            </div>
+          ))
         ) : runners.length === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center text-sm font-light text-zinc-400 italic">
             No active records for the current period.
