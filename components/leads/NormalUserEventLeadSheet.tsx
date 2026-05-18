@@ -559,7 +559,7 @@ export function NormalUserEventLeadSheet() {
   }, [workflowStatuses]);
 
   const fixedWorkflowStatuses = useMemo(
-    () => persona === "delegates" ? DELEGATE_WORKFLOW_STATUSES : FIXED_WORKFLOW_STATUSES,
+    () => persona === "delegates" || persona === "production" ? DELEGATE_WORKFLOW_STATUSES : FIXED_WORKFLOW_STATUSES,
     [persona]
   );
 

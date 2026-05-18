@@ -39,6 +39,7 @@ type PersonalStatsCache = {
 
 const SALES_MARATHON_CACHE_KEY = "dashboard:sales-marathon";
 const DELEGATE_KPI_CACHE_KEY = "dashboard:delegate-kpi";
+const PRODUCTION_KPI_CACHE_KEY = "dashboard:production-kpi";
 
 function readSessionCache<T>(key: string): T | null {
   if (typeof window === "undefined") return null;
@@ -118,11 +119,11 @@ const DELEGATE_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
 ];
 
 function dashboardStatusesForPersona(persona: string) {
-  return persona === "delegates" ? DELEGATE_WORKFLOW_STATUSES : FALLBACK_WORKFLOW_STATUSES;
+  return persona === "delegates" || persona === "production" ? DELEGATE_WORKFLOW_STATUSES : FALLBACK_WORKFLOW_STATUSES;
 }
 
 function dashboardStatusAliases(persona: string, statusKey: string) {
-  if (persona === "delegates" && statusKey === "confirmed") {
+  if ((persona === "delegates" || persona === "production") && statusKey === "confirmed") {
     return ["confirmed", "confirmed-2", "complete"];
   }
   return [statusKey];
@@ -186,6 +187,15 @@ async function listDelegateKpiLeaderboard() {
     headers: getAuthHeader(),
   });
   if (!response.ok) throw new Error("Failed to load delegate KPI.");
+  const data = await response.json() as { runners?: SalesMarathonRunner[] };
+  return Array.isArray(data.runners) ? data.runners : [];
+}
+
+async function listProductionKpiLeaderboard() {
+  const response = await fetch("/api/production-kpi/leaderboard", {
+    headers: getAuthHeader(),
+  });
+  if (!response.ok) throw new Error("Failed to load production KPI.");
   const data = await response.json() as { runners?: SalesMarathonRunner[] };
   return Array.isArray(data.runners) ? data.runners : [];
 }
@@ -357,6 +367,13 @@ export default function DashboardPage() {
         target: 3,
         footnote: "* This data reflects delegate confirmations recorded today.",
       }
+    : persona === "production"
+      ? {
+          title: "Daily KPI Tracker",
+          subtitle: "3 speaker confirmations per day is the production team target.",
+          target: 3,
+          footnote: "* This data reflects speaker confirmations recorded today.",
+        }
     : {
         title: "Daily KPI Tracker",
         subtitle: "5 proposals a day keeps the sales stress far away.",
@@ -365,7 +382,12 @@ export default function DashboardPage() {
       };
 
   const loadSalesMarathon = useCallback(async (mode: "initial" | "refresh") => {
-    const cacheKey = persona === "delegates" ? DELEGATE_KPI_CACHE_KEY : SALES_MARATHON_CACHE_KEY;
+    const cacheKey =
+      persona === "delegates"
+        ? DELEGATE_KPI_CACHE_KEY
+        : persona === "production"
+          ? PRODUCTION_KPI_CACHE_KEY
+          : SALES_MARATHON_CACHE_KEY;
     if (mode === "initial") {
       const cached = readSessionCache<SalesMarathonRunner[]>(cacheKey);
       if (cached) {
@@ -379,9 +401,12 @@ export default function DashboardPage() {
     }
 
     try {
-      const runners = persona === "delegates"
-        ? await listDelegateKpiLeaderboard()
-        : await listSalesMarathonLeaderboard();
+      const runners =
+        persona === "delegates"
+          ? await listDelegateKpiLeaderboard()
+          : persona === "production"
+            ? await listProductionKpiLeaderboard()
+            : await listSalesMarathonLeaderboard();
       setSalesRunners(runners);
       writeSessionCache(cacheKey, runners);
     } catch (error) {
