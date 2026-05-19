@@ -35,6 +35,8 @@ export type {
   EventSummaryItem,
   EventSummaryResponse,
   ForceDeleteCampaignResponse,
+  LeadEmailGenerationRequest,
+  LeadEmailGenerationResponse,
   LeadItem,
   LeadAttachment,
   MessageStatus,
@@ -159,6 +161,9 @@ export const rejectLead: typeof sales.rejectLead = (...args) =>
 
 export const updateLeadContent: typeof sales.updateLeadContent = (...args) =>
   pickModule().updateLeadContent(...args);
+
+export const generateLeadEmailContent: typeof sales.generateLeadEmailContent = (...args) =>
+  pickModule().generateLeadEmailContent(...args);
 
 export const updateLeadWorkflowStatus: typeof sales.updateLeadWorkflowStatus = (...args) =>
   pickModule().updateLeadWorkflowStatus(...args);

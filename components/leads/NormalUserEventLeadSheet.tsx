@@ -17,6 +17,7 @@ import {
 import {
   addEventLead,
   createWorkflowStatus,
+  generateLeadEmailContent,
   getLeadWorkflowStatusHistory,
   listEventLeads,
   listEvents,
@@ -26,6 +27,7 @@ import {
   type EventLeadListItem,
   type EventLeadListResponse,
   type EventSummaryItem,
+  type LeadEmailGenerationResponse,
   type WorkflowStatus,
   type WorkflowStatusDefinitionItem,
   type WorkflowStatusHistoryItem,
@@ -44,11 +46,13 @@ import {
   Headset,
   History,
   Loader2,
+  Mail,
   MessageSquare,
   Plus,
   RefreshCcw,
   Search,
   SlidersHorizontal,
+  Sparkles,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -73,6 +77,8 @@ type LeadSheetRow = {
   workflowCommentUpdatedByUserDisplayName: string;
   workflowCommentHistoryCount: number;
   isManualLead: boolean;
+  isSuppressed: boolean;
+  contactReadOnly: boolean;
 };
 
 type AddLeadFormState = {
@@ -101,6 +107,19 @@ type PhoneChoiceLead = {
   phone: string;
   telHref: string;
   whatsappHref: string;
+};
+
+type EmailGenerationDialogState = {
+  requestId: number;
+  lead: LeadSheetRow;
+  loading: boolean;
+  subject: string;
+  body: string;
+  feedback: string;
+  generatedAt: string;
+  model: string;
+  error: string;
+  copiedAction: "subject" | "body" | "full" | null;
 };
 
 const LinkedInIcon = ({ className }: { className?: string }) => (
@@ -438,6 +457,8 @@ function mapLeadItem(item: EventLeadListItem, labelLookup: Map<string, string>):
     workflowCommentUpdatedByUserDisplayName: asText(item.workflowCommentUpdatedByUserDisplayName),
     workflowCommentHistoryCount: Number(item.workflowCommentHistoryCount || 0),
     isManualLead: Boolean(item.isManualLead),
+    isSuppressed: Boolean(item.isSuppressed),
+    contactReadOnly: Boolean(item.contactReadOnly || item.isSuppressed),
   };
 }
 
@@ -456,6 +477,7 @@ function LeadSheetDialog({
   onClose,
   children,
   sidebarContent,
+  eyebrow = "Lead Sheet Updates",
 }: {
   open: boolean;
   title: string;
@@ -463,6 +485,7 @@ function LeadSheetDialog({
   onClose: () => void;
   children: ReactNode;
   sidebarContent?: ReactNode;
+  eyebrow?: string;
 }) {
   if (!open) return null;
 
@@ -480,7 +503,7 @@ function LeadSheetDialog({
           <aside className="relative flex flex-col justify-end overflow-hidden border-b border-zinc-300 bg-zinc-50/70 p-8 md:border-b-0 md:border-r">
             <div className={cn("relative z-10 mt-auto", sidebarContent && "text-zinc-50")}>
               <p className={cn("text-sm font-medium", sidebarContent ? "text-zinc-300" : "text-zinc-400")}>
-                Lead Sheet Updates
+                {eyebrow}
               </p>
               <h2 className="mt-8 text-4xl font-light leading-none tracking-tighter">
                 {title}
@@ -548,7 +571,9 @@ export function NormalUserEventLeadSheet() {
   const [historyItems, setHistoryItems] = useState<WorkflowStatusHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const [emailDialog, setEmailDialog] = useState<EmailGenerationDialogState | null>(null);
   const targetLeadRowRef = useRef<HTMLDivElement | null>(null);
+  const emailGenerationRequestRef = useRef(0);
 
   const workflowStatusLabelLookup = useMemo(() => {
     const lookup = new Map<string, string>();
@@ -953,6 +978,108 @@ export function NormalUserEventLeadSheet() {
     }
   };
 
+  const closeEmailDialog = () => {
+    setEmailDialog(null);
+  };
+
+  const openEmailGenerator = async (item: LeadSheetRow, options: { feedback?: string } = {}) => {
+    if (item.contactReadOnly) {
+      toast.error("Lead is read-only");
+      return;
+    }
+
+    const feedback = asText(options.feedback).slice(0, 1200);
+    const requestId = emailGenerationRequestRef.current + 1;
+    emailGenerationRequestRef.current = requestId;
+    setEmailDialog({
+      requestId,
+      lead: item,
+      loading: true,
+      subject: "",
+      body: "",
+      feedback,
+      generatedAt: "",
+      model: "",
+      error: "",
+      copiedAction: null,
+    });
+
+    try {
+      const response: LeadEmailGenerationResponse = await generateLeadEmailContent(
+        item.id,
+        feedback.trim() ? { feedback: feedback.trim() } : undefined
+      );
+      const subject = asText(response.contentEmailSubject);
+      const body = asText(response.contentEmail);
+      if (!subject || !body) {
+        throw new Error("Generated content was empty.");
+      }
+      setEmailDialog((current) =>
+        current?.requestId === requestId
+          ? {
+              ...current,
+              loading: false,
+              subject,
+              body,
+              generatedAt: asText(response.generatedAt),
+              model: asText(response.model),
+              error: "",
+              copiedAction: null,
+            }
+          : current
+      );
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      setEmailDialog((current) =>
+        current?.requestId === requestId
+          ? {
+              ...current,
+              loading: false,
+              error: message,
+            }
+          : current
+      );
+      toast.error("Email generation failed", { description: message });
+    }
+  };
+
+  const updateEmailDraftField = (field: "subject" | "body", value: string) => {
+    setEmailDialog((current) => (current ? { ...current, [field]: value } : current));
+  };
+
+  const updateEmailFeedback = (value: string) => {
+    setEmailDialog((current) => (current ? { ...current, feedback: value.slice(0, 1200) } : current));
+  };
+
+  const copyEmailDraft = async (mode: "subject" | "body" | "full") => {
+    if (!emailDialog || emailDialog.loading || emailDialog.error) return;
+    const subject = emailDialog.subject.trim();
+    const body = emailDialog.body.trim();
+    const text =
+      mode === "subject"
+        ? subject
+        : mode === "body"
+          ? body
+          : [`Subject: ${subject}`, "", body].join("\n");
+    if (!text.trim()) {
+      toast.error("Nothing to copy");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setEmailDialog((current) => (current ? { ...current, copiedAction: mode } : current));
+      window.setTimeout(() => {
+        setEmailDialog((current) =>
+          current?.copiedAction === mode ? { ...current, copiedAction: null } : current
+        );
+      }, 1500);
+      toast.success(mode === "full" ? "Email copied" : "Content copied");
+    } catch (error: unknown) {
+      toast.error("Failed to copy", { description: getErrorMessage(error) });
+    }
+  };
+
   const closeAddLeadDialog = (force = false) => {
     if (addingLead && !force) return;
     setAddLeadOpen(false);
@@ -1278,6 +1405,22 @@ export function NormalUserEventLeadSheet() {
                                     {copiedLeadId === item.id ? "Copied" : "Copy lead"}
                                   </span>
                                 </button>
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-zinc-400 transition-colors hover:border-blue-600 hover:text-zinc-950 disabled:pointer-events-none disabled:opacity-40"
+                                  onClick={() => void openEmailGenerator(item)}
+                                  disabled={item.contactReadOnly || (emailDialog?.loading && emailDialog.lead.id === item.id)}
+                                  title={item.contactReadOnly ? "Lead is read-only" : "Generate email content"}
+                                >
+                                  {emailDialog?.loading && emailDialog.lead.id === item.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Mail className="h-3.5 w-3.5" />
+                                  )}
+                                  <span className="text-xs font-medium">
+                                    {emailDialog?.loading && emailDialog.lead.id === item.id ? "Generating" : "Generate email"}
+                                  </span>
+                                </button>
                               </div>
                             </div>
                           </div>
@@ -1482,6 +1625,153 @@ export function NormalUserEventLeadSheet() {
               </Button>
             </div>
           </div>
+        </LeadSheetDialog>
+      ) : null}
+
+      {emailDialog ? (
+        <LeadSheetDialog
+          open
+          eyebrow="Email Workspace"
+          title="Email Draft"
+          description={
+            emailDialog.loading
+              ? "Generating content for this lead."
+              : "Review, edit, and copy the personalized email."
+          }
+          onClose={closeEmailDialog}
+        >
+          {emailDialog.loading ? (
+            <div className="flex min-h-[24rem] flex-col items-center justify-center text-center">
+              <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-zinc-200 bg-white">
+                <Loader2 className="h-7 w-7 animate-spin text-blue-600" />
+              </div>
+              <h3 className="mt-6 text-2xl font-light tracking-tight text-zinc-950">Generating content</h3>
+              <p className="mt-2 max-w-sm text-sm font-light leading-6 text-zinc-500">
+                Building a sales narrative from the lead, company, and event context.
+              </p>
+              <div className="mt-8 w-full max-w-md space-y-3">
+                {[0, 1, 2].map((item) => (
+                  <div key={item} className="h-3 overflow-hidden bg-zinc-100">
+                    <div
+                      className="h-full w-1/2 animate-pulse bg-blue-600/70"
+                      style={{ marginLeft: `${item * 16}%` }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : emailDialog.error ? (
+            <div className="space-y-6">
+              <div className="border border-red-200 bg-red-50 p-5">
+                <p className="text-sm font-medium text-red-700">Generation failed</p>
+                <p className="mt-2 text-sm font-light leading-6 text-red-700">{emailDialog.error}</p>
+              </div>
+              <div className="flex justify-end gap-3 border-t border-zinc-100 pt-6">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={closeEmailDialog}
+                  className="h-10 rounded-none border border-zinc-300 bg-white px-5 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                >
+                  Close
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => void openEmailGenerator(emailDialog.lead, { feedback: emailDialog.feedback })}
+                  className="h-10 gap-2 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
+                >
+                  <RefreshCcw className="h-4 w-4" />
+                  Try Again
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-7">
+              <div className="border-b border-zinc-100 pb-6">
+                <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Selected profile</p>
+                <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
+                  {emailDialog.lead.employeeName || "-"}
+                </h3>
+                <p className="mt-1 text-sm font-light leading-6 text-zinc-500">
+                  {[emailDialog.lead.title, emailDialog.lead.company].filter(Boolean).join(" at ") || "-"}
+                </p>
+              </div>
+
+              <label className="block space-y-3">
+                <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Subject</span>
+                <Input
+                  value={emailDialog.subject}
+                  onChange={(event) => updateEmailDraftField("subject", event.target.value.slice(0, 180))}
+                  className="h-12 rounded-none border-zinc-300 bg-white text-base font-light shadow-none focus-visible:ring-1 focus-visible:ring-zinc-900"
+                />
+              </label>
+
+              <label className="block space-y-3">
+                <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Mail body</span>
+                <Textarea
+                  value={emailDialog.body}
+                  onChange={(event) => updateEmailDraftField("body", event.target.value.slice(0, 5000))}
+                  className="min-h-72 rounded-none border-zinc-300 bg-white text-sm font-light leading-7 shadow-none focus-visible:ring-1 focus-visible:ring-zinc-900"
+                />
+                <span className="block text-right text-xs font-light text-zinc-400">
+                  {emailDialog.body.length}/5000
+                </span>
+              </label>
+
+              <label className="block space-y-3 border-t border-zinc-100 pt-6">
+                <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Feedback for regenerate</span>
+                <Textarea
+                  value={emailDialog.feedback}
+                  onChange={(event) => updateEmailFeedback(event.target.value)}
+                  placeholder="Example: Make it shorter, stronger, and focus on sponsor ROI."
+                  className="min-h-24 rounded-none border-zinc-300 bg-white text-sm font-light leading-6 shadow-none focus-visible:ring-1 focus-visible:ring-zinc-900"
+                />
+                <span className="block text-right text-xs font-light text-zinc-400">
+                  {emailDialog.feedback.length}/1200
+                </span>
+              </label>
+
+              <div className="flex flex-col gap-3 border-t border-zinc-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => void openEmailGenerator(emailDialog.lead, { feedback: emailDialog.feedback })}
+                  className="h-10 gap-2 rounded-none border border-zinc-300 bg-white px-4 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  {emailDialog.feedback.trim() ? "Regenerate with Feedback" : "Regenerate"}
+                </Button>
+                <div className="flex flex-wrap justify-end gap-3">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => void copyEmailDraft("subject")}
+                    className="h-10 gap-2 rounded-none border border-zinc-300 bg-white px-4 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                  >
+                    <Copy className="h-4 w-4" />
+                    {emailDialog.copiedAction === "subject" ? "Copied" : "Subject"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => void copyEmailDraft("body")}
+                    className="h-10 gap-2 rounded-none border border-zinc-300 bg-white px-4 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                  >
+                    <Copy className="h-4 w-4" />
+                    {emailDialog.copiedAction === "body" ? "Copied" : "Body"}
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => void copyEmailDraft("full")}
+                    className="h-10 gap-2 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
+                  >
+                    <Copy className="h-4 w-4" />
+                    {emailDialog.copiedAction === "full" ? "Copied" : "Copy Email"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </LeadSheetDialog>
       ) : null}
 

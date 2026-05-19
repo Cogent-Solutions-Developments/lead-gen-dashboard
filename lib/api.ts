@@ -567,6 +567,21 @@ export type EventLeadListItem = {
   manualLeadAddedAt?: string | null;
 };
 
+export type LeadEmailGenerationRequest = {
+  feedback?: string;
+};
+
+export type LeadEmailGenerationResponse = {
+  id: string;
+  contentEmailSubject: string;
+  contentEmail: string;
+  contentSource?: string | null;
+  persisted?: boolean;
+  model?: string | null;
+  feedbackApplied?: boolean;
+  generatedAt?: string | null;
+};
+
 export type EventLeadListParams = {
   limit?: number;
   offset?: number;
@@ -1029,6 +1044,14 @@ export async function updateLeadContent(id: string, payload: {
   contentWhatsapp: string;
 }) {
   const { data } = await apiClient.put(`/api/leads/${id}/content`, payload);
+  return data;
+}
+
+export async function generateLeadEmailContent(id: string, payload?: LeadEmailGenerationRequest) {
+  const { data } = await apiClient.post<LeadEmailGenerationResponse>(
+    `/api/leads/${id}/email-content/generate`,
+    payload ?? {}
+  );
   return data;
 }
 
