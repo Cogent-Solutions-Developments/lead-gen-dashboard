@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { RefreshCcw } from "lucide-react";
 import { type EventSummaryItem, type WorkflowStatusDefinitionItem } from "@/lib/apiRouter";
 
 type EventHeadsUpItem = {
@@ -13,8 +12,6 @@ interface CampaignHeadsUpProps {
   items: EventHeadsUpItem[];
   statuses: WorkflowStatusDefinitionItem[];
   loading: boolean;
-  refreshing: boolean;
-  onRefresh: () => void;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; subtitle: string }> = {
@@ -127,8 +124,6 @@ export function CampaignHeadsUp({
   items,
   statuses,
   loading,
-  refreshing,
-  onRefresh,
 }: CampaignHeadsUpProps) {
   if (loading) {
     return (
@@ -168,18 +163,6 @@ export function CampaignHeadsUp({
           <p className="mt-1 text-sm font-normal text-zinc-500">
             Lead status breakdown across all active events.
           </p>
-        </div>
-        <div className="flex shrink-0 items-center">
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={refreshing}
-            className="inline-flex h-8 w-8 items-center justify-center border border-zinc-200 bg-white text-zinc-500 transition-colors hover:border-blue-600 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
-            aria-label="Refresh stats"
-            title="Refresh stats"
-          >
-            <RefreshCcw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
-          </button>
         </div>
       </div>
 

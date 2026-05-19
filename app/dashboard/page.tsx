@@ -2,17 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { RefreshCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
-import { getAuthHeader, getCachedAuthUserDisplayName } from "@/lib/auth";
+import { getCachedAuthUserDisplayName } from "@/lib/auth";
 import {
-  listEvents,
-  listEventLeads,
-  listWorkflowStatuses,
-  type EventLeadListItem,
-  type EventSummaryItem,
+  getDashboardKpiLeaderboard,
+  getDashboardPersonalSummary,
+  type DashboardKpiRunner,
+  type DashboardPersonalStatsItem,
   type WorkflowStatusDefinitionItem,
 } from "@/lib/apiRouter";
 
@@ -20,17 +18,9 @@ import {
 import { getDailyManifesto } from "@/lib/manifesto";
 import { CampaignHeadsUp } from "@/components/dashboard/CampaignHeadsUp";
 
-type SalesMarathonRunner = {
-  id: string;
-  name: string;
-  initials: string;
-  proposalCount: number;
-};
+type SalesMarathonRunner = DashboardKpiRunner;
 
-type EventHeadsUpItem = {
-  event: EventSummaryItem;
-  statusCounts: Record<string, number>;
-};
+type EventHeadsUpItem = DashboardPersonalStatsItem;
 
 type PersonalStatsCache = {
   items: EventHeadsUpItem[];
@@ -40,6 +30,7 @@ type PersonalStatsCache = {
 const SALES_MARATHON_CACHE_KEY = "dashboard:sales-marathon";
 const DELEGATE_KPI_CACHE_KEY = "dashboard:delegate-kpi";
 const PRODUCTION_KPI_CACHE_KEY = "dashboard:production-kpi";
+const DASHBOARD_AUTO_REFRESH_MS = 60_000;
 
 function readSessionCache<T>(key: string): T | null {
   if (typeof window === "undefined") return null;
@@ -122,13 +113,6 @@ function dashboardStatusesForPersona(persona: string) {
   return persona === "delegates" || persona === "production" ? DELEGATE_WORKFLOW_STATUSES : FALLBACK_WORKFLOW_STATUSES;
 }
 
-function dashboardStatusAliases(persona: string, statusKey: string) {
-  if ((persona === "delegates" || persona === "production") && statusKey === "confirmed") {
-    return ["confirmed", "confirmed-2", "complete"];
-  }
-  return [statusKey];
-}
-
 function getDisplayName(user: ReturnType<typeof useAuth>["user"]) {
   const values = [user?.fullName, getCachedAuthUserDisplayName(user), user?.username]
     .map((value) => value?.trim())
@@ -159,6 +143,14 @@ function getDateLabel() {
   }).format(new Date());
 }
 
+function getLocalDateParam() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function getTimeGreeting() {
   const hour = new Date().getHours();
 
@@ -174,30 +166,8 @@ function getErrorMessage(error: unknown) {
 }
 
 async function listSalesMarathonLeaderboard() {
-  const response = await fetch("/api/sales-marathon/leaderboard", {
-    headers: getAuthHeader(),
-  });
-  if (!response.ok) throw new Error("Failed to load sales marathon.");
-  const data = await response.json() as { runners?: SalesMarathonRunner[] };
-  return Array.isArray(data.runners) ? data.runners : [];
-}
-
-async function listDelegateKpiLeaderboard() {
-  const response = await fetch("/api/delegate-kpi/leaderboard", {
-    headers: getAuthHeader(),
-  });
-  if (!response.ok) throw new Error("Failed to load delegate KPI.");
-  const data = await response.json() as { runners?: SalesMarathonRunner[] };
-  return Array.isArray(data.runners) ? data.runners : [];
-}
-
-async function listProductionKpiLeaderboard() {
-  const response = await fetch("/api/production-kpi/leaderboard", {
-    headers: getAuthHeader(),
-  });
-  if (!response.ok) throw new Error("Failed to load production KPI.");
-  const data = await response.json() as { runners?: SalesMarathonRunner[] };
-  return Array.isArray(data.runners) ? data.runners : [];
+  const summary = await getDashboardKpiLeaderboard({ date: getLocalDateParam() });
+  return summary.runners;
 }
 
 function PixelAvatar({ colorHex, seed }: { colorHex: string; seed: string }) {
@@ -216,8 +186,6 @@ function PixelAvatar({ colorHex, seed }: { colorHex: string; seed: string }) {
 function SalesMarathon({
   runners,
   loading,
-  refreshing,
-  onRefresh,
   title,
   subtitle,
   target,
@@ -225,8 +193,6 @@ function SalesMarathon({
 }: {
   runners: SalesMarathonRunner[];
   loading: boolean;
-  refreshing: boolean;
-  onRefresh: () => void;
   title: string;
   subtitle: string;
   target: number;
@@ -254,16 +220,6 @@ function SalesMarathon({
             {subtitle}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onRefresh}
-          disabled={refreshing}
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center border border-zinc-200 bg-white text-zinc-500 transition-colors hover:border-blue-600 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
-          aria-label="Refresh KPI tracker"
-          title="Refresh KPI tracker"
-        >
-          <RefreshCcw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-        </button>
       </div>
 
       <div className="relative mt-12 flex h-80 items-end justify-between gap-4">
@@ -347,15 +303,10 @@ export default function DashboardPage() {
   const { persona } = usePersona();
   const [salesRunners, setSalesRunners] = useState<SalesMarathonRunner[]>([]);
   const [loadingSalesMarathon, setLoadingSalesMarathon] = useState(true);
-  const [refreshingSalesMarathon, setRefreshingSalesMarathon] = useState(false);
   const [eventHeadsUp, setEventHeadsUp] = useState<EventHeadsUpItem[]>([]);
   const [workflowStatuses, setWorkflowStatuses] = useState<WorkflowStatusDefinitionItem[]>(FALLBACK_WORKFLOW_STATUSES);
   const [loadingEventHeadsUp, setLoadingEventHeadsUp] = useState(true);
-  const [refreshingEventHeadsUp, setRefreshingEventHeadsUp] = useState(false);
   const userId = user?.id;
-  const username = user?.username;
-  const userFullName = user?.fullName;
-  const cachedUserDisplayName = getCachedAuthUserDisplayName(user);
   const displayName = firstName(getDisplayName(user));
   const greeting = getTimeGreeting();
   const manifesto = getDailyManifesto(user?.id || "");
@@ -388,144 +339,63 @@ export default function DashboardPage() {
         : persona === "production"
           ? PRODUCTION_KPI_CACHE_KEY
           : SALES_MARATHON_CACHE_KEY;
-    if (mode === "initial") {
-      const cached = readSessionCache<SalesMarathonRunner[]>(cacheKey);
-      if (cached) {
-        setSalesRunners(cached);
-        setLoadingSalesMarathon(false);
-        return;
+      if (mode === "initial") {
+        const cached = readSessionCache<SalesMarathonRunner[]>(cacheKey);
+        if (cached) {
+          setSalesRunners(cached);
+          setLoadingSalesMarathon(false);
+        } else {
+          setLoadingSalesMarathon(true);
+        }
       }
-      setLoadingSalesMarathon(true);
-    } else {
-      setRefreshingSalesMarathon(true);
+
+      try {
+        const runners = await listSalesMarathonLeaderboard();
+        setSalesRunners(runners);
+        writeSessionCache(cacheKey, runners);
+      } catch (error) {
+        toast.error("Dashboard sync failed", { description: getErrorMessage(error) });
+        if (mode === "initial") setSalesRunners([]);
+      } finally {
+        setLoadingSalesMarathon(false);
+      }
+    }, [persona]);
+
+  const loadPersonalStats = useCallback(async (mode: "initial" | "refresh") => {
+    if (!userId) {
+      setLoadingEventHeadsUp(false);
+      return;
+    }
+
+    const cacheKey = personalStatsCacheKey(persona, userId);
+    if (mode === "initial") {
+      const cached = readSessionCache<PersonalStatsCache>(cacheKey);
+      if (cached) {
+        setWorkflowStatuses(cached.statuses.length ? cached.statuses : dashboardStatusesForPersona(persona));
+        setEventHeadsUp(cached.items);
+        setLoadingEventHeadsUp(false);
+      } else {
+        setLoadingEventHeadsUp(true);
+      }
     }
 
     try {
-      const runners =
-        persona === "delegates"
-          ? await listDelegateKpiLeaderboard()
-          : persona === "production"
-            ? await listProductionKpiLeaderboard()
-            : await listSalesMarathonLeaderboard();
-      setSalesRunners(runners);
-      writeSessionCache(cacheKey, runners);
+      const summary = await getDashboardPersonalSummary();
+      const activeStatuses = summary.statuses.length ? summary.statuses : dashboardStatusesForPersona(persona);
+      const nextItems = summary.items || [];
+      setWorkflowStatuses(activeStatuses);
+      setEventHeadsUp(nextItems);
+      writeSessionCache(cacheKey, {
+        items: nextItems,
+        statuses: activeStatuses,
+      });
     } catch (error) {
       toast.error("Dashboard sync failed", { description: getErrorMessage(error) });
-      if (mode === "initial") setSalesRunners([]);
+      if (mode === "initial") setEventHeadsUp([]);
     } finally {
-      setLoadingSalesMarathon(false);
-      setRefreshingSalesMarathon(false);
+      setLoadingEventHeadsUp(false);
     }
-  }, [persona]);
-
-  const loadPersonalStats = useCallback(async (mode: "initial" | "refresh") => {
-      if (!userId) {
-        setLoadingEventHeadsUp(false);
-        return;
-      }
-      const cacheKey = personalStatsCacheKey(persona, userId);
-      if (mode === "initial") {
-        const cached = readSessionCache<PersonalStatsCache>(cacheKey);
-        if (cached) {
-          setWorkflowStatuses(cached.statuses.length ? cached.statuses : FALLBACK_WORKFLOW_STATUSES);
-          setEventHeadsUp(cached.items);
-          setLoadingEventHeadsUp(false);
-          return;
-        }
-      }
-
-      if (mode === "initial") setLoadingEventHeadsUp(true);
-      if (mode === "refresh") setRefreshingEventHeadsUp(true);
-      try {
-        // 1. Fetch workflow statuses
-        const fixedStatuses = dashboardStatusesForPersona(persona);
-        const fixedStatusKeys = fixedStatuses.map((status) => status.statusKey);
-        const fixedOrder = new Map(fixedStatusKeys.map((statusKey, index) => [statusKey, index]));
-        let activeStatuses = fixedStatuses;
-        try {
-          const statusResponse = await listWorkflowStatuses();
-          const backendStatuses = statusResponse.statuses || fixedStatuses;
-          activeStatuses = fixedStatuses.map((fixedStatus) => {
-            const backendStatus = backendStatuses.find((status) => status.statusKey === fixedStatus.statusKey);
-            return backendStatus ? { ...backendStatus, label: fixedStatus.label } : fixedStatus;
-          })
-             .filter((status) =>
-              fixedStatusKeys.includes(status.statusKey)
-            )
-            .sort((a, b) => {
-              return (fixedOrder.get(a.statusKey) ?? 99) - (fixedOrder.get(b.statusKey) ?? 99);
-            });
-        } catch (e) {
-          console.warn("[Dashboard] listWorkflowStatuses failed, using fallback", e);
-        }
-        setWorkflowStatuses(activeStatuses);
-
-        // 2. Fetch events then leads per event (same API the lead sheet uses)
-        let events: EventSummaryItem[] = [];
-        try {
-          const eventsResponse = await listEvents();
-          events = eventsResponse.events || [];
-        } catch {
-          console.warn("[Dashboard] listEvents failed; stats will use an empty event set.");
-        }
-
-        let allLeads: EventLeadListItem[] = [];
-        for (const event of events) {
-          try {
-            const response = await listEventLeads(event.canonicalEventKey);
-            allLeads = allLeads.concat(response.items || []);
-          } catch {
-            console.warn(`[Dashboard] skipped stats for event "${event.canonicalEventKey}" because its leads could not be loaded.`);
-          }
-        }
-
-        // 3. Filter to leads this user has worked on
-        const normalizedUsername = username?.toLowerCase();
-        const userDisplayName = (userFullName || cachedUserDisplayName)?.toLowerCase();
-
-        const myLeads = allLeads.filter((lead) => {
-          if (lead.workflowCommentUpdatedByUserId === userId) return true;
-          if (lead.manualLeadAddedByUserId === userId) return true;
-          if (normalizedUsername && lead.workflowCommentUpdatedByUsername?.toLowerCase() === normalizedUsername) return true;
-          if (userDisplayName && lead.workflowCommentUpdatedByUserDisplayName?.toLowerCase() === userDisplayName) return true;
-          return false;
-        });
-
-        console.log("[Dashboard] myLeads (filtered for user):", myLeads.length);
-
-        // 4. Build status counts
-        const statusCounts: Record<string, number> = {};
-        activeStatuses.forEach((s) => {
-          const aliases = dashboardStatusAliases(persona, s.statusKey);
-          statusCounts[s.statusKey] = myLeads.filter(
-            (l) => aliases.includes(String(l.workflowStatus || ""))
-          ).length;
-        });
-
-        const nextItems: EventHeadsUpItem[] = [{
-          event: {
-            canonicalEventKey: "personal",
-            canonicalEventName: "Personal Stats",
-            leadCount: myLeads.length,
-            campaignCount: 0,
-            relatedCampaignNames: [],
-          },
-          statusCounts,
-        }];
-
-        setEventHeadsUp(nextItems);
-        writeSessionCache(cacheKey, {
-          items: nextItems,
-          statuses: activeStatuses,
-        });
-      } catch {
-        console.warn("[Dashboard] personal stats could not be refreshed.");
-        if (mode === "initial") setEventHeadsUp([]);
-      } finally {
-        setLoadingEventHeadsUp(false);
-        setRefreshingEventHeadsUp(false);
-      }
-    }, [cachedUserDisplayName, persona, userFullName, userId, username]);
+  }, [persona, userId]);
 
   useEffect(() => {
     void loadSalesMarathon("initial");
@@ -534,6 +404,28 @@ export default function DashboardPage() {
   useEffect(() => {
     void loadPersonalStats("initial");
   }, [loadPersonalStats]);
+
+  useEffect(() => {
+    const refreshDashboard = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      void loadSalesMarathon("refresh");
+      void loadPersonalStats("refresh");
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") refreshDashboard();
+    };
+
+    window.addEventListener("focus", refreshDashboard);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    const intervalId = window.setInterval(refreshDashboard, DASHBOARD_AUTO_REFRESH_MS);
+
+    return () => {
+      window.removeEventListener("focus", refreshDashboard);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.clearInterval(intervalId);
+    };
+  }, [loadPersonalStats, loadSalesMarathon]);
 
   return (
     <div className="flex h-screen flex-1 flex-col overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">
@@ -567,8 +459,6 @@ export default function DashboardPage() {
               items={eventHeadsUp}
               statuses={workflowStatuses}
               loading={loadingEventHeadsUp}
-              refreshing={refreshingEventHeadsUp}
-              onRefresh={() => void loadPersonalStats("refresh")}
             />
           </motion.div>
 
@@ -576,8 +466,6 @@ export default function DashboardPage() {
             <SalesMarathon
               runners={salesRunners}
               loading={loadingSalesMarathon}
-              refreshing={refreshingSalesMarathon}
-              onRefresh={() => void loadSalesMarathon("refresh")}
               title={kpiCopy.title}
               subtitle={kpiCopy.subtitle}
               target={kpiCopy.target}
