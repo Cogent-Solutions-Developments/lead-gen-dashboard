@@ -79,6 +79,7 @@ export default function AdminAgendasPage() {
   const [uploading, setUploading] = useState(false);
   const [downloadingId, setDownloadingId] = useState("");
   const [deletingId, setDeletingId] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<EventAgendaItem | null>(null);
   const [agendas, setAgendas] = useState<EventAgendaItem[]>([]);
   const [agendaError, setAgendaError] = useState("");
   const [eventPickerOpen, setEventPickerOpen] = useState(false);
@@ -228,18 +229,25 @@ export default function AdminAgendasPage() {
     }
   };
 
-  const handleDelete = async (agenda: EventAgendaItem) => {
-    const confirmed = window.confirm(
-      'Delete "' + (agenda.name || "this agenda") + '" from this event? This removes the PDF from the system.'
-    );
-    if (!confirmed) return;
+  const openDeleteDialog = (agenda: EventAgendaItem) => {
+    setDeleteTarget(agenda);
+  };
 
-    setDeletingId(agenda.id);
+  const closeDeleteDialog = () => {
+    if (deletingId) return;
+    setDeleteTarget(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+
+    setDeletingId(deleteTarget.id);
     try {
-      await deleteEventAgenda(agenda.id);
+      await deleteEventAgenda(deleteTarget.id);
       toast.success("Agenda deleted", {
-        description: (agenda.name || "Agenda") + " was removed from this event.",
+        description: (deleteTarget.name || "Agenda") + " was removed from this event.",
       });
+      setDeleteTarget(null);
       if (selectedEventId) await loadAgendas(selectedEventId);
     } catch (deleteError: unknown) {
       toast.error("Agenda delete failed", { description: getErrorMessage(deleteError) });
@@ -468,7 +476,7 @@ export default function AdminAgendasPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => void handleDelete(latestAgenda)}
+                    onClick={() => openDeleteDialog(latestAgenda)}
                     disabled={deletingId === latestAgenda.id || downloadingId === latestAgenda.id}
                     className="h-10 border-red-200 bg-white px-4 text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
                   >
@@ -547,7 +555,7 @@ export default function AdminAgendasPage() {
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={() => void handleDelete(agenda)}
+                          onClick={() => openDeleteDialog(agenda)}
                           disabled={deletingId === agenda.id || downloadingId === agenda.id}
                           className="h-9 border-red-200 bg-white px-3 text-xs font-semibold text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
                         >
@@ -573,6 +581,57 @@ export default function AdminAgendasPage() {
           </div>
         </Card>
       </div>
+
+      {deleteTarget ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-zinc-950/55 px-4 py-6">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="agenda-delete-title"
+            className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_28px_80px_-30px_rgba(2,10,27,0.6)]"
+          >
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-600">
+                <Trash2 className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold uppercase tracking-wider text-red-600">Delete agenda PDF</p>
+                <h2 id="agenda-delete-title" className="mt-1 text-lg font-semibold tracking-tight text-zinc-950">
+                  Remove this document?
+                </h2>
+                <p className="mt-2 break-words text-sm leading-6 text-zinc-500">
+                  {deleteTarget.name || "This agenda"} will be removed from the selected event and can no longer be downloaded.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={closeDeleteDialog}
+                disabled={Boolean(deletingId)}
+                className="h-10 border-zinc-300 bg-white px-4 text-zinc-700 hover:bg-zinc-50"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => void confirmDelete()}
+                disabled={deletingId === deleteTarget.id}
+                className="h-10 bg-red-600 px-4 text-white hover:bg-red-700 disabled:opacity-60"
+              >
+                {deletingId === deleteTarget.id ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-2 h-4 w-4" />
+                )}
+                Delete PDF
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
