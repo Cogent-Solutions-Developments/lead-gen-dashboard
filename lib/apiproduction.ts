@@ -27,6 +27,8 @@ import type {
   ForceDeleteCampaignResponse,
   GlobalLeadSearchParams,
   GlobalLeadSearchResponse,
+  LeadEmailGenerationRequest,
+  LeadEmailGenerationResponse,
   LeadItem,
   MessageStatus,
   NizoAiChatRequest,
@@ -87,6 +89,8 @@ export type {
   ForceDeleteCampaignResponse,
   GlobalLeadSearchParams,
   GlobalLeadSearchResponse,
+  LeadEmailGenerationRequest,
+  LeadEmailGenerationResponse,
   LeadItem,
   MessageStatus,
   NizoAiChatRequest,
@@ -381,6 +385,14 @@ export async function updateLeadContent(
   }
 ) {
   const { data } = await apiClientProduction.put(`/api/productions/leads/${id}/content`, payload);
+  return data;
+}
+
+export async function generateLeadEmailContent(id: string, payload?: LeadEmailGenerationRequest) {
+  const { data } = await apiClientProduction.post<LeadEmailGenerationResponse>(
+    `/api/productions/leads/${id}/email-content/generate`,
+    payload ?? {}
+  );
   return data;
 }
 

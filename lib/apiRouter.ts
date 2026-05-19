@@ -30,11 +30,16 @@ export type {
   EventLeadListItem,
   EventLeadListParams,
   EventLeadListResponse,
+  EventAgendaItem,
+  EventAgendaListResponse,
+  EventAgendaUploadResponse,
   GlobalLeadSearchParams,
   GlobalLeadSearchResponse,
   EventSummaryItem,
   EventSummaryResponse,
   ForceDeleteCampaignResponse,
+  LeadEmailGenerationRequest,
+  LeadEmailGenerationResponse,
   LeadItem,
   LeadAttachment,
   MessageStatus,
@@ -136,6 +141,12 @@ export const listEvents: typeof sales.listEvents = (...args) =>
 export const listEventLeads: typeof sales.listEventLeads = (...args) =>
   pickModule().listEventLeads(...args);
 
+export const listEventAgendas: typeof sales.listEventAgendas = (...args) =>
+  sales.listEventAgendas(...args);
+
+export const downloadEventAgendaFile: typeof sales.downloadEventAgendaFile = (...args) =>
+  sales.downloadEventAgendaFile(...args);
+
 export const nizoAiChat: typeof sales.nizoAiChat = (...args) =>
   pickModule().nizoAiChat(...args);
 
@@ -159,6 +170,9 @@ export const rejectLead: typeof sales.rejectLead = (...args) =>
 
 export const updateLeadContent: typeof sales.updateLeadContent = (...args) =>
   pickModule().updateLeadContent(...args);
+
+export const generateLeadEmailContent: typeof sales.generateLeadEmailContent = (...args) =>
+  pickModule().generateLeadEmailContent(...args);
 
 export const updateLeadWorkflowStatus: typeof sales.updateLeadWorkflowStatus = (...args) =>
   pickModule().updateLeadWorkflowStatus(...args);
