@@ -834,6 +834,7 @@ export function NormalUserEventLeadSheet() {
   const hasMore = Boolean(leadPage?.hasMore);
   const isLoading = loadingEvents || (loadingLeads && !leadPage && Boolean(selectedEventKey));
   const latestAgenda = agendaState.agendas[0] ?? null;
+  const previousAgendas = agendaState.agendas.slice(1);
 
   const refreshData = useCallback(async () => {
     await loadInitialData();
@@ -1352,37 +1353,34 @@ export function NormalUserEventLeadSheet() {
                             Upload history
                           </span>
                           <span className="shrink-0 text-[11px] font-light text-zinc-400">
-                            {agendaState.agendas.length} version{agendaState.agendas.length === 1 ? "" : "s"}
+                            {previousAgendas.length} previous version{previousAgendas.length === 1 ? "" : "s"}
                           </span>
                         </button>
 
                         {agendaHistoryOpen ? (
                           <div className="max-h-48 overflow-y-auto pr-1 scrollbar-hide">
-                            {agendaState.agendas.map((agenda, index) => (
-                              <div key={agenda.id} className="relative border-l border-zinc-200 pb-4 pl-4 last:pb-0">
-                                <span className="absolute -left-[5px] top-1 h-2.5 w-2.5 rounded-full border border-zinc-300 bg-white" />
-                                <button
-                                  type="button"
-                                  onClick={() => void handleAgendaDownload(agenda)}
-                                  disabled={agendaState.downloadingId === agenda.id}
-                                  className="group flex w-full min-w-0 items-start justify-between gap-3 text-left disabled:opacity-60"
-                                >
-                                  <span className="min-w-0">
-                                    <span className="block truncate text-xs font-medium text-zinc-700 group-hover:text-zinc-950">
-                                      {index === 0 ? "Latest - " : ""}{agenda.name}
+                            {previousAgendas.length > 0 ? (
+                              previousAgendas.map((agenda) => (
+                                <div key={agenda.id} className="relative border-l border-zinc-200 pb-4 pl-4 last:pb-0">
+                                  <span className="absolute -left-[5px] top-1 h-2.5 w-2.5 rounded-full border border-zinc-300 bg-white" />
+                                  <div className="flex w-full min-w-0 items-start justify-between gap-3 text-left">
+                                    <span className="min-w-0">
+                                      <span className="block truncate text-xs font-medium text-zinc-700">{agenda.name}</span>
+                                      <span className="mt-1 block text-[11px] font-light leading-5 text-zinc-400">
+                                        {formatBytes(agenda.sizeBytes)} - {agenda.uploadedByUsername || "admin"} - {formatDateTime(agenda.createdAt) || "-"}
+                                      </span>
                                     </span>
-                                    <span className="mt-1 block text-[11px] font-light leading-5 text-zinc-400">
-                                      {formatBytes(agenda.sizeBytes)} - {agenda.uploadedByUsername || "admin"} - {formatDateTime(agenda.createdAt) || "-"}
+                                    <span className="mt-0.5 shrink-0 rounded-full bg-zinc-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+                                      History
                                     </span>
-                                  </span>
-                                  {agendaState.downloadingId === agenda.id ? (
-                                    <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-zinc-400" />
-                                  ) : (
-                                    <Download className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-400 group-hover:text-zinc-950" />
-                                  )}
-                                </button>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="border-l border-zinc-200 pl-4 text-xs font-light leading-5 text-zinc-400">
+                                No previous agenda versions.
                               </div>
-                            ))}
+                            )}
                           </div>
                         ) : null}
                       </div>
