@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import {
   Activity,
   CalendarDays,
+  FileText,
   LayoutDashboard,
   LogOut,
   MessageSquare,
@@ -39,6 +40,12 @@ const adminTabs = [
     href: "/admin/events",
     icon: CalendarDays,
     match: (pathname: string) => pathname === "/admin/events",
+  },
+  {
+    name: "Agenda Library",
+    href: "/admin/agendas",
+    icon: FileText,
+    match: (pathname: string) => pathname === "/admin/agendas",
   },
   {
     name: "Replies",

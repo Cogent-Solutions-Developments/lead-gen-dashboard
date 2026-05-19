@@ -6,6 +6,7 @@ import {
   Activity,
   ArrowRight,
   CalendarDays,
+  FileText,
   MessageSquare,
   ServerCog,
   Settings,
@@ -29,6 +30,13 @@ const adminTasks = [
     href: "/admin/events",
     icon: CalendarDays,
     metric: "Events",
+  },
+  {
+    title: "Agenda Library",
+    description: "Upload the latest event agenda PDF and review every previous version by event.",
+    href: "/admin/agendas",
+    icon: FileText,
+    metric: "PDFs",
   },
   {
     title: "Replies",
@@ -90,7 +98,7 @@ export default function AdminDashboardPage() {
         </Link>
       </motion.div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         {adminTasks.map((task) => (
           <Link key={task.title} href={task.href}>
             <div className="h-full rounded-2xl border border-zinc-300 bg-white/88 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:bg-white">

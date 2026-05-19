@@ -526,6 +526,7 @@ export type WorkflowStatusHistoryResponse = {
 export type EventSummaryItem = {
   canonicalEventKey: string;
   canonicalEventName: string;
+  eventRegistryId?: string | null;
   leadCount: number;
   campaignCount: number;
   relatedCampaignNames: string[];
@@ -580,6 +581,46 @@ export type LeadEmailGenerationResponse = {
   model?: string | null;
   feedbackApplied?: boolean;
   generatedAt?: string | null;
+};
+
+export type EventAgendaItem = {
+  id: string;
+  eventRegistryId: string;
+  eventKey?: string | null;
+  eventName?: string | null;
+  name: string;
+  mime?: string | null;
+  sizeBytes: number;
+  downloadUrl?: string | null;
+  uploadedByUserId?: string | null;
+  uploadedByUsername?: string | null;
+  createdAt?: string | null;
+  isLatest?: boolean;
+};
+
+export type EventAgendaListResponse = {
+  event?: {
+    id: string;
+    eventKey: string;
+    eventName: string;
+    location?: string | null;
+    date?: string | null;
+    isActive?: boolean;
+  } | null;
+  latest?: EventAgendaItem | null;
+  agendas: EventAgendaItem[];
+  total: number;
+};
+
+export type EventAgendaUploadResponse = {
+  event: NonNullable<EventAgendaListResponse["event"]>;
+  agenda: EventAgendaItem;
+};
+
+export type EventAgendaDeleteResponse = {
+  ok: boolean;
+  agenda: EventAgendaItem;
+  fileDeleted?: boolean;
 };
 
 export type EventLeadListParams = {
@@ -981,6 +1022,77 @@ export async function listEventLeads(canonicalEventKey: string, params?: EventLe
     }
   );
   return data;
+}
+
+function normalizeEventAgenda(raw: unknown): EventAgendaItem {
+  const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  return {
+    id: String(source.id || ""),
+    eventRegistryId: String(source.eventRegistryId || ""),
+    eventKey: source.eventKey == null ? null : String(source.eventKey),
+    eventName: source.eventName == null ? null : String(source.eventName),
+    name: String(source.name || "Agenda.pdf"),
+    mime: source.mime == null ? null : String(source.mime),
+    sizeBytes: Number(source.sizeBytes || 0),
+    downloadUrl: source.downloadUrl == null ? null : String(source.downloadUrl),
+    uploadedByUserId: source.uploadedByUserId == null ? null : String(source.uploadedByUserId),
+    uploadedByUsername: source.uploadedByUsername == null ? null : String(source.uploadedByUsername),
+    createdAt: source.createdAt == null ? null : String(source.createdAt),
+    isLatest: Boolean(source.isLatest),
+  };
+}
+
+export async function listEventAgendas(params: { eventId?: string | null; eventKey?: string | null }) {
+  const query = new URLSearchParams();
+  const eventId = String(params.eventId || "").trim();
+  const eventKey = String(params.eventKey || "").trim();
+  if (eventId) query.set("eventId", eventId);
+  if (!eventId && eventKey) query.set("eventKey", eventKey);
+  const suffix = query.toString() ? "?" + query.toString() : "";
+  const { data } = await apiClient.get<EventAgendaListResponse>("/api/event-agendas" + suffix);
+  const agendas = Array.isArray(data.agendas) ? data.agendas.map(normalizeEventAgenda) : [];
+  return {
+    ...data,
+    agendas,
+    latest: data.latest ? normalizeEventAgenda(data.latest) : agendas[0] ?? null,
+    total: Number(data.total ?? agendas.length),
+  };
+}
+
+export async function uploadEventAgenda(eventId: string, file: File) {
+  const formData = new FormData();
+  formData.append("eventId", eventId);
+  formData.append("file", file);
+  const { data } = await apiClient.post<EventAgendaUploadResponse>("/api/admin/event-agendas", formData);
+  return {
+    ...data,
+    agenda: normalizeEventAgenda(data.agenda),
+  };
+}
+
+export async function deleteEventAgenda(agendaId: string) {
+  const { data } = await apiClient.delete<EventAgendaDeleteResponse>(
+    "/api/admin/event-agendas/" + encodeURIComponent(agendaId)
+  );
+  return {
+    ...data,
+    agenda: normalizeEventAgenda(data.agenda),
+  };
+}
+
+export async function downloadEventAgendaFile(agendaId: string, fileName = "agenda.pdf") {
+  const { data } = await apiClient.get<Blob>(
+    "/api/event-agendas/" + encodeURIComponent(agendaId) + "/download",
+    { responseType: "blob" }
+  );
+  const url = window.URL.createObjectURL(data);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName || "agenda.pdf";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => window.URL.revokeObjectURL(url), 500);
 }
 
 export async function nizoAiChat(payload: NizoAiChatRequest) {

@@ -17,8 +17,10 @@ import {
 import {
   addEventLead,
   createWorkflowStatus,
+  downloadEventAgendaFile,
   generateLeadEmailContent,
   getLeadWorkflowStatusHistory,
+  listEventAgendas,
   listEventLeads,
   listEvents,
   listWorkflowStatuses,
@@ -27,6 +29,7 @@ import {
   type EventLeadListItem,
   type EventLeadListResponse,
   type EventSummaryItem,
+  type EventAgendaItem,
   type LeadEmailGenerationResponse,
   type WorkflowStatus,
   type WorkflowStatusDefinitionItem,
@@ -43,6 +46,8 @@ import {
   ChevronRight,
   Clock3,
   Copy,
+  Download,
+  FileText,
   Headset,
   History,
   Loader2,
@@ -365,6 +370,22 @@ function formatDateTime(value?: string | null) {
   return parsed.toLocaleString();
 }
 
+function formatBytes(value?: number | null) {
+  const bytes = Number(value || 0);
+  if (!Number.isFinite(bytes) || bytes <= 0) return "-";
+  const units = [
+    { label: "MB", value: 1024 * 1024 },
+    { label: "KB", value: 1024 },
+  ];
+  for (const unit of units) {
+    if (bytes >= unit.value) {
+      const precision = bytes >= unit.value * 10 ? 0 : 1;
+      return (bytes / unit.value).toFixed(precision) + " " + unit.label;
+    }
+  }
+  return bytes + " B";
+}
+
 function normalizeDialPhone(value: string) {
   const digits = value.replace(/\D/g, "");
   return digits.length >= 8 ? `900${digits}` : "";
@@ -572,6 +593,13 @@ export function NormalUserEventLeadSheet() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [emailDialog, setEmailDialog] = useState<EmailGenerationDialogState | null>(null);
+  const [agendaState, setAgendaState] = useState<{
+    loading: boolean;
+    agendas: EventAgendaItem[];
+    error: string;
+    downloadingId: string;
+  }>({ loading: false, agendas: [], error: "", downloadingId: "" });
+  const [agendaHistoryOpen, setAgendaHistoryOpen] = useState(false);
   const targetLeadRowRef = useRef<HTMLDivElement | null>(null);
   const emailGenerationRequestRef = useRef(0);
 
@@ -723,6 +751,40 @@ export function NormalUserEventLeadSheet() {
         : events.find((item) => item.canonicalEventKey === selectedEventKey) ?? null,
     [events, leadPage, selectedEventKey]
   );
+  const selectedAgendaEventId = asText(selectedEvent?.eventRegistryId);
+  const selectedAgendaEventKey = asText(selectedEvent?.canonicalEventKey || selectedEventKey);
+
+  const loadSelectedEventAgendas = useCallback(async () => {
+    if (!selectedAgendaEventId && !selectedAgendaEventKey) {
+      setAgendaState((current) => ({ ...current, loading: false, agendas: [], error: "" }));
+      return;
+    }
+
+    setAgendaState((current) => ({ ...current, loading: true, error: "" }));
+    try {
+      const response = await listEventAgendas({
+        eventId: selectedAgendaEventId || undefined,
+        eventKey: selectedAgendaEventId ? undefined : selectedAgendaEventKey,
+      });
+      setAgendaState((current) => ({
+        ...current,
+        loading: false,
+        agendas: Array.isArray(response.agendas) ? response.agendas : [],
+        error: "",
+      }));
+    } catch (error: unknown) {
+      setAgendaState((current) => ({
+        ...current,
+        loading: false,
+        agendas: [],
+        error: getErrorMessage(error),
+      }));
+    }
+  }, [selectedAgendaEventId, selectedAgendaEventKey]);
+
+  useEffect(() => {
+    void loadSelectedEventAgendas();
+  }, [loadSelectedEventAgendas]);
 
   const eventLeads = useMemo(() => {
     return (leadPage?.items || [])
@@ -771,22 +833,38 @@ export function NormalUserEventLeadSheet() {
   const pageTotal = leadPage?.total ?? 0;
   const hasMore = Boolean(leadPage?.hasMore);
   const isLoading = loadingEvents || (loadingLeads && !leadPage && Boolean(selectedEventKey));
+  const latestAgenda = agendaState.agendas[0] ?? null;
 
   const refreshData = useCallback(async () => {
     await loadInitialData();
     if (selectedEventKey) {
       await loadEventPage(selectedEventKey, pageOffset, searchQuery);
+      await loadSelectedEventAgendas();
     }
-  }, [loadEventPage, loadInitialData, pageOffset, searchQuery, selectedEventKey]);
+  }, [loadEventPage, loadInitialData, loadSelectedEventAgendas, pageOffset, searchQuery, selectedEventKey]);
 
   const handleEventChange = (value: string) => {
     setPageOffset(0);
+    setAgendaHistoryOpen(false);
     router.replace(updateSearchParam(pathname, new URLSearchParams(searchParams.toString()), "event", value));
   };
 
   const handlePageSizeChange = (value: number) => {
     setPageOffset(0);
     setPageSize(value);
+  };
+
+  const handleAgendaDownload = async (agenda: EventAgendaItem) => {
+    if (!agenda.id) return;
+    setAgendaState((current) => ({ ...current, downloadingId: agenda.id }));
+    try {
+      await downloadEventAgendaFile(agenda.id, agenda.name || "agenda.pdf");
+      toast.success("Agenda download started");
+    } catch (error: unknown) {
+      toast.error("Failed to download agenda", { description: getErrorMessage(error) });
+    } finally {
+      setAgendaState((current) => ({ ...current, downloadingId: "" }));
+    }
   };
 
   const handleWorkflowStatusChange = useCallback(
@@ -1214,6 +1292,107 @@ export function NormalUserEventLeadSheet() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="border-t border-zinc-100 pt-8">
+                <label className="text-xs font-medium text-zinc-400">Event agenda</label>
+                <div className="mt-5 space-y-4">
+                  {agendaState.loading ? (
+                    <div className="flex items-center gap-3 py-4 text-sm font-light text-zinc-500">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading agenda library
+                    </div>
+                  ) : agendaState.error ? (
+                    <div className="border-l border-zinc-200 pl-4 text-sm font-light leading-6 text-zinc-400">
+                      No agenda found for this event.
+                    </div>
+                  ) : latestAgenda ? (
+                    <>
+                      <div className="space-y-3 border-l border-zinc-200 pl-4">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-red-100 bg-red-50 text-red-600">
+                            <FileText className="h-4 w-4" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="truncate text-sm font-medium text-zinc-900">{latestAgenda.name}</p>
+                              <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                                Latest
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs font-light text-zinc-400">
+                              {formatBytes(latestAgenda.sizeBytes)} · {formatDateTime(latestAgenda.createdAt) || "Time unavailable"}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void handleAgendaDownload(latestAgenda)}
+                          disabled={agendaState.downloadingId === latestAgenda.id}
+                          className="inline-flex h-9 items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-700 transition-colors hover:border-zinc-900 hover:text-zinc-950 disabled:opacity-60"
+                        >
+                          {agendaState.downloadingId === latestAgenda.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Download className="h-3.5 w-3.5" />
+                          )}
+                          Download latest
+                        </button>
+                      </div>
+
+                      <div className="space-y-3 border-t border-zinc-100 pt-4">
+                        <button
+                          type="button"
+                          onClick={() => setAgendaHistoryOpen((open) => !open)}
+                          className="group flex w-full items-center justify-between gap-3 text-left"
+                          aria-expanded={agendaHistoryOpen}
+                        >
+                          <span className="inline-flex min-w-0 items-center gap-2 text-xs font-medium text-zinc-500 group-hover:text-zinc-900">
+                            <ChevronRight className={agendaHistoryOpen ? "h-3.5 w-3.5 rotate-90 transition-transform" : "h-3.5 w-3.5 transition-transform"} />
+                            Upload history
+                          </span>
+                          <span className="shrink-0 text-[11px] font-light text-zinc-400">
+                            {agendaState.agendas.length} version{agendaState.agendas.length === 1 ? "" : "s"}
+                          </span>
+                        </button>
+
+                        {agendaHistoryOpen ? (
+                          <div className="max-h-48 overflow-y-auto pr-1 scrollbar-hide">
+                            {agendaState.agendas.map((agenda, index) => (
+                              <div key={agenda.id} className="relative border-l border-zinc-200 pb-4 pl-4 last:pb-0">
+                                <span className="absolute -left-[5px] top-1 h-2.5 w-2.5 rounded-full border border-zinc-300 bg-white" />
+                                <button
+                                  type="button"
+                                  onClick={() => void handleAgendaDownload(agenda)}
+                                  disabled={agendaState.downloadingId === agenda.id}
+                                  className="group flex w-full min-w-0 items-start justify-between gap-3 text-left disabled:opacity-60"
+                                >
+                                  <span className="min-w-0">
+                                    <span className="block truncate text-xs font-medium text-zinc-700 group-hover:text-zinc-950">
+                                      {index === 0 ? "Latest - " : ""}{agenda.name}
+                                    </span>
+                                    <span className="mt-1 block text-[11px] font-light leading-5 text-zinc-400">
+                                      {formatBytes(agenda.sizeBytes)} - {agenda.uploadedByUsername || "admin"} - {formatDateTime(agenda.createdAt) || "-"}
+                                    </span>
+                                  </span>
+                                  {agendaState.downloadingId === agenda.id ? (
+                                    <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-zinc-400" />
+                                  ) : (
+                                    <Download className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-400 group-hover:text-zinc-950" />
+                                  )}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="border-l border-zinc-200 pl-4 text-sm font-light leading-6 text-zinc-400">
+                      No agenda has been uploaded for this event yet.
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
