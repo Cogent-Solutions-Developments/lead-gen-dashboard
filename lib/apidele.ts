@@ -336,6 +336,7 @@ export async function listEventLeads(canonicalEventKey: string, params?: EventLe
         offset: params?.offset,
         search: params?.search,
         workflowStatus: params?.workflowStatus,
+        category: params?.category,
         includeManual: params?.includeManual,
         sort: params?.sort,
       },

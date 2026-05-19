@@ -557,6 +557,12 @@ export type EventSummaryItem = {
   campaignCount: number;
   relatedCampaignNames: string[];
   hostIcpRunId?: string | null;
+  categoryCounts?: EventLeadCategoryCount[];
+};
+
+export type EventLeadCategoryCount = {
+  category: string;
+  count: number;
 };
 
 export type EventSummaryResponse = {
@@ -577,6 +583,7 @@ export type EventLeadListItem = {
   phone?: string | null;
   linkedinUrl?: string | null;
   companyUrl?: string | null;
+  category?: string | null;
   workflowStatus: WorkflowStatus;
   workflowStatusLabel?: string | null;
   workflowComment?: string | null;
@@ -654,6 +661,7 @@ export type EventLeadListParams = {
   offset?: number;
   search?: string;
   workflowStatus?: WorkflowStatus;
+  category?: string;
   includeManual?: boolean;
   sort?: string;
 };
@@ -1061,6 +1069,7 @@ export async function listEventLeads(canonicalEventKey: string, params?: EventLe
         offset: params?.offset,
         search: params?.search,
         workflowStatus: params?.workflowStatus,
+        category: params?.category,
         includeManual: params?.includeManual,
         sort: params?.sort,
       },

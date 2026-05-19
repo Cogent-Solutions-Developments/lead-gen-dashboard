@@ -74,6 +74,7 @@ type LeadSheetRow = {
   phone: string;
   linkedinUrl: string;
   companyUrl: string;
+  category: string;
   workflowStatus: WorkflowStatus;
   workflowStatusLabel: string;
   workflowComment: string;
@@ -100,6 +101,13 @@ type LeadFilterState = {
   status: string;
   contact: "all" | "email" | "phone" | "complete" | "missing-contact" | "linkedin" | "website";
   source: "all" | "manual" | "imported";
+  category: string;
+};
+
+type LeadCategoryOption = {
+  value: string;
+  label: string;
+  count: number;
 };
 
 type PendingStatusChange = {
@@ -343,6 +351,7 @@ const EMPTY_FILTERS: LeadFilterState = {
   status: "all",
   contact: "all",
   source: "all",
+  category: "all",
 };
 
 function getErrorMessage(error: unknown) {
@@ -351,6 +360,10 @@ function getErrorMessage(error: unknown) {
 
 function asText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeLeadCategory(value: unknown) {
+  return asText(value) || "Other";
 }
 
 function humanizeStatusLabel(value: string) {
@@ -470,6 +483,7 @@ function mapLeadItem(item: EventLeadListItem, labelLookup: Map<string, string>):
     phone: asText(item.phone),
     linkedinUrl: asText(item.linkedinUrl),
     companyUrl: asText(item.companyUrl),
+    category: normalizeLeadCategory(item.category),
     workflowStatus,
     workflowStatusLabel,
     workflowComment: asText(item.workflowComment),
@@ -583,6 +597,7 @@ export function NormalUserEventLeadSheet() {
   const [copiedLeadId, setCopiedLeadId] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [filters, setFilters] = useState<LeadFilterState>(EMPTY_FILTERS);
+  const [categorySearch, setCategorySearch] = useState("");
   const [pendingStatusChange, setPendingStatusChange] = useState<PendingStatusChange | null>(null);
   const [statusComment, setStatusComment] = useState("");
   const [ringBellConfirmOpen, setRingBellConfirmOpen] = useState(false);
@@ -602,6 +617,12 @@ export function NormalUserEventLeadSheet() {
   const [agendaHistoryOpen, setAgendaHistoryOpen] = useState(false);
   const targetLeadRowRef = useRef<HTMLDivElement | null>(null);
   const emailGenerationRequestRef = useRef(0);
+  const previousSelectedEventKeyRef = useRef("");
+
+  const resetFilters = useCallback(() => {
+    setFilters(EMPTY_FILTERS);
+    setCategorySearch("");
+  }, []);
 
   const workflowStatusLabelLookup = useMemo(() => {
     const lookup = new Map<string, string>();
@@ -682,7 +703,7 @@ export function NormalUserEventLeadSheet() {
 
   useEffect(() => {
     setPageOffset(0);
-  }, [filters.status, filters.contact, filters.source]);
+  }, [filters.status, filters.contact, filters.source, filters.category]);
 
   useEffect(() => {
     const nextSearch = searchParams.get("search") || "";
@@ -706,6 +727,32 @@ export function NormalUserEventLeadSheet() {
     );
   }, [eventParam, events.length, pathname, router, searchParams, selectedEventKey]);
 
+  useEffect(() => {
+    if (!selectedEventKey) {
+      previousSelectedEventKeyRef.current = "";
+      return;
+    }
+
+    if (!previousSelectedEventKeyRef.current) {
+      previousSelectedEventKeyRef.current = selectedEventKey;
+      return;
+    }
+
+    if (previousSelectedEventKeyRef.current !== selectedEventKey) {
+      previousSelectedEventKeyRef.current = selectedEventKey;
+      resetFilters();
+      setSearchInput("");
+      setSearchQuery("");
+      setPageOffset(0);
+      const nextParams = new URLSearchParams(searchParams.toString());
+      if (nextParams.has("search")) {
+        nextParams.delete("search");
+        const nextQuery = nextParams.toString();
+        router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+      }
+    }
+  }, [pathname, resetFilters, router, searchParams, selectedEventKey]);
+
   const loadEventPage = useCallback(async (canonicalEventKey: string, nextOffset: number, query: string) => {
     setLoadingLeads(true);
     try {
@@ -714,6 +761,7 @@ export function NormalUserEventLeadSheet() {
         offset: nextOffset,
         search: query || undefined,
         workflowStatus: filters.status === "all" ? undefined : filters.status,
+        category: filters.category === "all" ? undefined : filters.category,
         includeManual: true,
         sort: "createdAt:desc",
       });
@@ -733,7 +781,7 @@ export function NormalUserEventLeadSheet() {
     } finally {
       setLoadingLeads(false);
     }
-  }, [filters.status, pageSize]);
+  }, [filters.category, filters.status, pageSize]);
 
   useEffect(() => {
     if (!selectedEventKey) {
@@ -751,6 +799,7 @@ export function NormalUserEventLeadSheet() {
         : events.find((item) => item.canonicalEventKey === selectedEventKey) ?? null,
     [events, leadPage, selectedEventKey]
   );
+
   const selectedAgendaEventId = asText(selectedEvent?.eventRegistryId);
   const selectedAgendaEventKey = asText(selectedEvent?.canonicalEventKey || selectedEventKey);
 
@@ -792,6 +841,53 @@ export function NormalUserEventLeadSheet() {
       .filter((item): item is LeadSheetRow => Boolean(item));
   }, [leadPage, workflowStatusLabelLookup]);
 
+  const categoryOptions = useMemo<LeadCategoryOption[]>(() => {
+    const byKey = new Map<string, LeadCategoryOption>();
+    const counts = Array.isArray(selectedEvent?.categoryCounts) ? selectedEvent.categoryCounts : [];
+
+    for (const item of counts) {
+      const label = normalizeLeadCategory(item.category);
+      const key = label.toLowerCase();
+      const count = Number(item.count || 0);
+      const existing = byKey.get(key);
+      if (existing) existing.count += count;
+      else byKey.set(key, { value: label, label, count });
+    }
+
+    if (byKey.size === 0) {
+      for (const lead of eventLeads) {
+        const label = normalizeLeadCategory(lead.category);
+        const key = label.toLowerCase();
+        const existing = byKey.get(key);
+        if (existing) existing.count += 1;
+        else byKey.set(key, { value: label, label, count: 1 });
+      }
+    }
+
+    if (filters.category !== "all") {
+      const label = normalizeLeadCategory(filters.category);
+      const key = label.toLowerCase();
+      if (!byKey.has(key)) byKey.set(key, { value: label, label, count: 0 });
+    }
+
+    return Array.from(byKey.values()).sort((a, b) => {
+      if (a.label === "Other") return 1;
+      if (b.label === "Other") return -1;
+      return a.label.localeCompare(b.label);
+    });
+  }, [eventLeads, filters.category, selectedEvent]);
+
+  const filteredCategoryOptions = useMemo(() => {
+    const query = categorySearch.trim().toLowerCase();
+    if (!query) return categoryOptions;
+    return categoryOptions.filter((option) => option.label.toLowerCase().includes(query));
+  }, [categoryOptions, categorySearch]);
+
+  const allCategoryCount = useMemo(
+    () => categoryOptions.reduce((total, option) => total + option.count, 0),
+    [categoryOptions]
+  );
+
   const visibleEventLeads = useMemo(() => {
     return eventLeads.filter((item) => {
       if (filters.source === "manual" && !item.isManualLead) return false;
@@ -813,6 +909,7 @@ export function NormalUserEventLeadSheet() {
       filters.status !== EMPTY_FILTERS.status,
       filters.contact !== EMPTY_FILTERS.contact,
       filters.source !== EMPTY_FILTERS.source,
+      filters.category !== EMPTY_FILTERS.category,
     ].filter(Boolean).length;
   }, [filters]);
 
@@ -845,9 +942,16 @@ export function NormalUserEventLeadSheet() {
   }, [loadEventPage, loadInitialData, loadSelectedEventAgendas, pageOffset, searchQuery, selectedEventKey]);
 
   const handleEventChange = (value: string) => {
+    resetFilters();
+    setSearchInput("");
+    setSearchQuery("");
     setPageOffset(0);
     setAgendaHistoryOpen(false);
-    router.replace(updateSearchParam(pathname, new URLSearchParams(searchParams.toString()), "event", value));
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("event", value);
+    nextParams.delete("search");
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
   };
 
   const handlePageSizeChange = (value: number) => {
@@ -1424,7 +1528,7 @@ export function NormalUserEventLeadSheet() {
                 {activeFilterCount > 0 ? (
                   <button
                     type="button"
-                    onClick={() => setFilters(EMPTY_FILTERS)}
+                    onClick={resetFilters}
                     className="border-b border-transparent pb-1 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950"
                   >
                     Clear filter model
@@ -2152,7 +2256,7 @@ export function NormalUserEventLeadSheet() {
             onClick={() => setFilterOpen(false)}
           />
 
-          <div className="relative z-[1] grid w-full max-w-4xl overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)] md:grid-cols-[18rem_minmax(0,1fr)]">
+          <div className="relative z-[1] grid max-h-[calc(100dvh-3rem)] w-full max-w-4xl overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)] md:grid-cols-[18rem_minmax(0,1fr)]">
             <aside className="border-b border-zinc-300 bg-white p-8 md:border-b-0 md:border-r">
               <p className="text-sm font-medium text-zinc-400">Lead Sheet Updates</p>
               <h2 className="mt-8 text-4xl font-light leading-none tracking-tighter text-zinc-950">
@@ -2173,7 +2277,7 @@ export function NormalUserEventLeadSheet() {
                 <X className="h-4 w-4" />
               </Button>
 
-              <div className="max-w-xl space-y-10 pr-12">
+              <div className="max-h-[calc(100dvh-12rem)] max-w-xl space-y-10 overflow-y-auto pb-28 pr-12 scrollbar-modern">
                 <div>
                   <label className="mb-3 block text-xs font-medium text-zinc-400">Status model</label>
                   <Select
@@ -2263,13 +2367,72 @@ export function NormalUserEventLeadSheet() {
                     ))}
                   </div>
                 </div>
+
+                <div className="space-y-4">
+                  <label className="block text-sm font-semibold text-zinc-950">By campaign category:</label>
+                  <div className="border border-zinc-200 bg-white p-3">
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                      <Input
+                        value={categorySearch}
+                        onChange={(event) => setCategorySearch(event.target.value)}
+                        placeholder="Search categories..."
+                        className="h-10 rounded-full border-zinc-300 bg-white pl-9 text-sm shadow-none focus-visible:ring-blue-600"
+                      />
+                    </div>
+
+                    <div className="mt-3 max-h-36 overflow-y-auto pr-1 scrollbar-modern">
+                      <div className="flex flex-wrap gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => setFilters((prev) => ({ ...prev, category: "all" }))}
+                          className={`inline-flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-all ${
+                            filters.category === "all"
+                              ? "border-blue-600 bg-white text-blue-600 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.85)]"
+                              : "border-zinc-300 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
+                          }`}
+                        >
+                          <span>All categories</span>
+                          {allCategoryCount > 0 ? (
+                            <span className="text-xs font-medium tabular-nums text-zinc-400">
+                              {allCategoryCount.toLocaleString()}
+                            </span>
+                          ) : null}
+                        </button>
+
+                        {filteredCategoryOptions.map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            title={option.label}
+                            onClick={() => setFilters((prev) => ({ ...prev, category: option.value }))}
+                            className={`inline-flex h-10 max-w-full items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-all ${
+                              filters.category === option.value
+                                ? "border-blue-600 bg-white text-blue-600 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.85)]"
+                                : "border-zinc-300 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
+                            }`}
+                          >
+                            <span className="max-w-[13rem] truncate">{option.label}</span>
+                            <span className="text-xs font-medium tabular-nums text-zinc-400">
+                              {option.count.toLocaleString()}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+
+                      {filteredCategoryOptions.length === 0 ? (
+                        <p className="py-3 text-sm font-light text-zinc-400">No matching categories.</p>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="absolute bottom-8 left-8 right-8 flex items-center justify-between border-t border-zinc-100 pt-6">
                 <button
                   type="button"
                   className="border-b border-transparent pb-1 text-sm font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950"
-                  onClick={() => setFilters(EMPTY_FILTERS)}
+                  onClick={resetFilters}
                 >
                   Reset model
                 </button>
