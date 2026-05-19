@@ -24,6 +24,10 @@ export type {
   DeleteBlocker,
   DeleteCampaignResponse,
   DashboardStats,
+  DashboardKpiLeaderboard,
+  DashboardKpiRunner,
+  DashboardPersonalStatsItem,
+  DashboardPersonalSummary,
   DeleteCampaignResult,
   EventLeadCreateRequest,
   EventLeadCreateResponse,
@@ -95,6 +99,12 @@ const pickModule = (persona?: Persona) => {
 
 export const getDashboardStats: typeof sales.getDashboardStats = (...args) =>
   pickModule().getDashboardStats(...args);
+
+export const getDashboardPersonalSummary: typeof sales.getDashboardPersonalSummary = (...args) =>
+  pickModule().getDashboardPersonalSummary(...args);
+
+export const getDashboardKpiLeaderboard: typeof sales.getDashboardKpiLeaderboard = (...args) =>
+  pickModule().getDashboardKpiLeaderboard(...args);
 
 export const getDashboardDistribution: typeof sales.getDashboardDistribution = (...args) =>
   pickModule().getDashboardDistribution(...args);

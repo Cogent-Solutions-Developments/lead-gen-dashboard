@@ -25,6 +25,32 @@ export type DashboardStats = {
   leadsContacted: number;
 };
 
+export type DashboardPersonalStatsItem = {
+  event: EventSummaryItem;
+  statusCounts: Record<string, number>;
+};
+
+export type DashboardPersonalSummary = {
+  pipeline?: string;
+  generatedAt?: string | null;
+  statuses: WorkflowStatusDefinitionItem[];
+  items: DashboardPersonalStatsItem[];
+};
+
+export type DashboardKpiRunner = {
+  id: string;
+  name: string;
+  initials: string;
+  proposalCount: number;
+};
+
+export type DashboardKpiLeaderboard = {
+  pipeline?: string;
+  date?: string;
+  generatedAt?: string | null;
+  runners: DashboardKpiRunner[];
+};
+
 export type RecentCampaign = {
   id: string;
   name: string;
@@ -889,6 +915,25 @@ function getWhatsAppHeaders() {
 export async function getDashboardStats() {
   const { data } = await apiClient.get<DashboardStats>("/api/dashboard/stats");
   return data;
+}
+
+export async function getDashboardPersonalSummary() {
+  const { data } = await apiClient.get<DashboardPersonalSummary>("/api/dashboard/personal-summary");
+  return {
+    ...data,
+    statuses: Array.isArray(data.statuses) ? data.statuses : [],
+    items: Array.isArray(data.items) ? data.items : [],
+  };
+}
+
+export async function getDashboardKpiLeaderboard(params?: { date?: string }) {
+  const { data } = await apiClient.get<DashboardKpiLeaderboard>("/api/dashboard/kpi-leaderboard", {
+    params: { date: params?.date },
+  });
+  return {
+    ...data,
+    runners: Array.isArray(data.runners) ? data.runners : [],
+  };
 }
 
 export async function getDashboardDistribution() {

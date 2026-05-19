@@ -16,6 +16,8 @@ import type {
   CreateCampaignResponse,
   DeleteBlockedDetail,
   DeleteCampaignResponse,
+  DashboardKpiLeaderboard,
+  DashboardPersonalSummary,
   DashboardStats,
   DeleteCampaignResult,
   DeleteBlocker,
@@ -78,6 +80,8 @@ export type {
   CreateCampaignResponse,
   DeleteBlockedDetail,
   DeleteCampaignResponse,
+  DashboardKpiLeaderboard,
+  DashboardPersonalSummary,
   DashboardStats,
   DeleteCampaignResult,
   DeleteBlocker,
@@ -164,6 +168,28 @@ export async function getDashboardStats() {
     "/api/delegates/dashboard/stats"
   );
   return data;
+}
+
+export async function getDashboardPersonalSummary() {
+  const { data } = await apiClientDelegate.get<DashboardPersonalSummary>(
+    "/api/delegates/dashboard/personal-summary"
+  );
+  return {
+    ...data,
+    statuses: Array.isArray(data.statuses) ? data.statuses : [],
+    items: Array.isArray(data.items) ? data.items : [],
+  };
+}
+
+export async function getDashboardKpiLeaderboard(params?: { date?: string }) {
+  const { data } = await apiClientDelegate.get<DashboardKpiLeaderboard>(
+    "/api/delegates/dashboard/kpi-leaderboard",
+    { params: { date: params?.date } }
+  );
+  return {
+    ...data,
+    runners: Array.isArray(data.runners) ? data.runners : [],
+  };
 }
 
 export async function getDashboardDistribution() {
