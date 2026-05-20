@@ -73,6 +73,67 @@ export type AdminEventUpdateInput = {
   syncLinkedCampaigns?: boolean;
 };
 
+export type AdminCategoryAlias = {
+  id: string;
+  categoryId: string;
+  aliasText: string;
+  normalizedAlias: string;
+  isActive: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type AdminCategoryItem = {
+  id: string;
+  name: string;
+  slug: string;
+  normalizedName: string;
+  isSystem: boolean;
+  isActive: boolean;
+  aliases: AdminCategoryAlias[];
+  aliasCount: number;
+  campaignCount: number;
+  leadCount: number;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type AdminRawCategoryItem = {
+  rawCategory: string;
+  displayCategory: string;
+  normalizedCategory: string;
+  canonicalCategoryId?: string | null;
+  canonicalCategoryName?: string | null;
+  status: "unmapped" | "mapped" | "canonical" | "system" | string;
+  campaignCount: number;
+  leadCount: number;
+  lastUsedAt?: string | null;
+};
+
+export type AdminCategorySummary = {
+  categoryCount: number;
+  activeCategoryCount: number;
+  rawCategoryCount: number;
+  unmappedRawCategoryCount: number;
+  mappedRawCategoryCount: number;
+};
+
+export type AdminCategoryCatalog = {
+  categories: AdminCategoryItem[];
+  rawCategories: AdminRawCategoryItem[];
+  summary: AdminCategorySummary;
+};
+
+export type AdminCategoryCreateInput = {
+  name: string;
+  isActive?: boolean;
+};
+
+export type AdminCategoryUpdateInput = {
+  name?: string;
+  isActive?: boolean;
+};
+
 export type SystemMonitorStatus = "ok" | "warning" | "critical" | string;
 
 export type SystemMonitorCheck = {
@@ -683,6 +744,69 @@ function normalizeAdminEvent(raw: unknown): AdminEventItem {
   };
 }
 
+function normalizeAdminCategoryAlias(raw: unknown): AdminCategoryAlias {
+  const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  return {
+    id: String(source.id || ""),
+    categoryId: String(source.categoryId || ""),
+    aliasText: String(source.aliasText || ""),
+    normalizedAlias: String(source.normalizedAlias || ""),
+    isActive: source.isActive !== false,
+    createdAt: source.createdAt == null ? null : String(source.createdAt),
+    updatedAt: source.updatedAt == null ? null : String(source.updatedAt),
+  };
+}
+
+function normalizeAdminCategory(raw: unknown): AdminCategoryItem {
+  const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const aliases = Array.isArray(source.aliases) ? source.aliases.map(normalizeAdminCategoryAlias) : [];
+  return {
+    id: String(source.id || ""),
+    name: String(source.name || ""),
+    slug: String(source.slug || ""),
+    normalizedName: String(source.normalizedName || ""),
+    isSystem: Boolean(source.isSystem),
+    isActive: source.isActive !== false,
+    aliases,
+    aliasCount: Number(source.aliasCount ?? aliases.length) || 0,
+    campaignCount: Number(source.campaignCount ?? 0) || 0,
+    leadCount: Number(source.leadCount ?? 0) || 0,
+    createdAt: source.createdAt == null ? null : String(source.createdAt),
+    updatedAt: source.updatedAt == null ? null : String(source.updatedAt),
+  };
+}
+
+function normalizeAdminRawCategory(raw: unknown): AdminRawCategoryItem {
+  const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  return {
+    rawCategory: String(source.rawCategory || ""),
+    displayCategory: String(source.displayCategory || "Competing Events"),
+    normalizedCategory: String(source.normalizedCategory || ""),
+    canonicalCategoryId: source.canonicalCategoryId == null ? null : String(source.canonicalCategoryId),
+    canonicalCategoryName: source.canonicalCategoryName == null ? null : String(source.canonicalCategoryName),
+    status: String(source.status || "unmapped"),
+    campaignCount: Number(source.campaignCount ?? 0) || 0,
+    leadCount: Number(source.leadCount ?? 0) || 0,
+    lastUsedAt: source.lastUsedAt == null ? null : String(source.lastUsedAt),
+  };
+}
+
+function normalizeAdminCategoryCatalog(raw: unknown): AdminCategoryCatalog {
+  const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const summary = (source.summary && typeof source.summary === "object" ? source.summary : {}) as Record<string, unknown>;
+  return {
+    categories: Array.isArray(source.categories) ? source.categories.map(normalizeAdminCategory) : [],
+    rawCategories: Array.isArray(source.rawCategories) ? source.rawCategories.map(normalizeAdminRawCategory) : [],
+    summary: {
+      categoryCount: Number(summary.categoryCount ?? 0) || 0,
+      activeCategoryCount: Number(summary.activeCategoryCount ?? 0) || 0,
+      rawCategoryCount: Number(summary.rawCategoryCount ?? 0) || 0,
+      unmappedRawCategoryCount: Number(summary.unmappedRawCategoryCount ?? 0) || 0,
+      mappedRawCategoryCount: Number(summary.mappedRawCategoryCount ?? 0) || 0,
+    },
+  };
+}
+
 export async function listAdminEvents(includeInactive = true) {
   const params = new URLSearchParams();
   if (includeInactive) params.set("includeInactive", "true");
@@ -710,6 +834,69 @@ export async function updateAdminEvent(eventId: string, payload: AdminEventUpdat
     body: JSON.stringify(payload),
   });
   return normalizeAdminEvent(data.event);
+}
+
+export async function listAdminCategories() {
+  const data = await authRequest<AdminCategoryCatalog>("/api/admin/categories");
+  return normalizeAdminCategoryCatalog(data);
+}
+
+export async function createAdminCategory(payload: AdminCategoryCreateInput) {
+  const data = await authRequest<{ category: AdminCategoryItem }>("/api/admin/categories", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return normalizeAdminCategory(data.category);
+}
+
+export async function updateAdminCategory(categoryId: string, payload: AdminCategoryUpdateInput) {
+  const data = await authRequest<{ category: AdminCategoryItem }>(`/api/admin/categories/${categoryId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  return normalizeAdminCategory(data.category);
+}
+
+export async function upsertAdminCategoryAlias(categoryId: string, aliasText: string) {
+  const data = await authRequest<{ alias: AdminCategoryAlias }>(`/api/admin/categories/${categoryId}/aliases`, {
+    method: "POST",
+    body: JSON.stringify({ aliasText }),
+  });
+  return normalizeAdminCategoryAlias(data.alias);
+}
+
+export async function deleteAdminCategoryAlias(aliasId: string) {
+  const data = await authRequest<{ alias: AdminCategoryAlias; deleted: boolean }>(
+    `/api/admin/categories/aliases/${aliasId}`,
+    { method: "DELETE" }
+  );
+  return normalizeAdminCategoryAlias(data.alias);
+}
+
+export async function downloadAdminCategoryExport() {
+  const response = await fetch(`${getBaseUrl()}/api/admin/categories/export`, {
+    headers: {
+      ...getAuthHeader(),
+      ...getLocalDevNgrokHeaders(),
+    },
+  });
+  if (!response.ok) {
+    await parseResponse<never>(response);
+    return;
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="?([^"]+)"?/i);
+  const filename = match?.[1] || "campaign-category-mapping.xlsx";
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
 }
 
 export async function fetchSystemMonitorSnapshot() {

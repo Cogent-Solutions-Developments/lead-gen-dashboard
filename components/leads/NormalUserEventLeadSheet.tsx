@@ -353,6 +353,7 @@ const EMPTY_FILTERS: LeadFilterState = {
   source: "all",
   category: "all",
 };
+const UNCATEGORIZED_CATEGORY_LABEL = "Competing Events";
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong.";
@@ -363,7 +364,9 @@ function asText(value: unknown) {
 }
 
 function normalizeLeadCategory(value: unknown) {
-  return asText(value) || "Other";
+  const label = asText(value);
+  if (!label || label.toLowerCase() === "other") return UNCATEGORIZED_CATEGORY_LABEL;
+  return label;
 }
 
 function humanizeStatusLabel(value: string) {
@@ -871,8 +874,8 @@ export function NormalUserEventLeadSheet() {
     }
 
     return Array.from(byKey.values()).sort((a, b) => {
-      if (a.label === "Other") return 1;
-      if (b.label === "Other") return -1;
+      if (a.label === UNCATEGORIZED_CATEGORY_LABEL) return 1;
+      if (b.label === UNCATEGORIZED_CATEGORY_LABEL) return -1;
       return a.label.localeCompare(b.label);
     });
   }, [eventLeads, filters.category, selectedEvent]);
