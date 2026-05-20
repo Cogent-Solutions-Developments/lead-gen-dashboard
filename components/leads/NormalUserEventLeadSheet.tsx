@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/select";
 import {
   addEventLead,
+  createCampaignFromUpload,
+  downloadLeadTemplateFile,
   createWorkflowStatus,
   downloadEventAgendaFile,
   generateLeadEmailContent,
@@ -25,28 +27,34 @@ import {
   listEvents,
   listWorkflowStatuses,
   updateLeadWorkflowStatus,
+  validateLeadTemplateUpload,
   type EventLeadCreateRequest,
   type EventLeadListItem,
   type EventLeadListResponse,
   type EventSummaryItem,
   type EventAgendaItem,
   type LeadEmailGenerationResponse,
+  type LeadTemplateValidationResponse,
   type WorkflowStatus,
   type WorkflowStatusDefinitionItem,
   type WorkflowStatusHistoryItem,
 } from "@/lib/apiRouter";
 import { getCachedAuthUserDisplayName } from "@/lib/auth";
+import { persistCampaignUploadSummary } from "@/lib/campaignUploadSummary";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
+  AlertTriangle,
   BellRing,
   ChevronLeft,
   ChevronRight,
+  CheckCircle2,
   Clock3,
   Copy,
   Download,
+  FileSpreadsheet,
   FileText,
   Headset,
   History,
@@ -58,6 +66,7 @@ import {
   Search,
   SlidersHorizontal,
   Sparkles,
+  UploadCloud,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -133,6 +142,15 @@ type EmailGenerationDialogState = {
   model: string;
   error: string;
   copiedAction: "subject" | "body" | "full" | null;
+};
+
+type TemplateUploadState = {
+  file: File | null;
+  validating: boolean;
+  validation: LeadTemplateValidationResponse | null;
+  error: string;
+  submitting: boolean;
+  selectedEventKey: string;
 };
 
 const LinkedInIcon = ({ className }: { className?: string }) => (
@@ -353,10 +371,30 @@ const EMPTY_FILTERS: LeadFilterState = {
   source: "all",
   category: "all",
 };
+const EMPTY_TEMPLATE_UPLOAD: TemplateUploadState = {
+  file: null,
+  validating: false,
+  validation: null,
+  error: "",
+  submitting: false,
+  selectedEventKey: "",
+};
+const LEAD_TEMPLATE_ACCEPT = ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const LEAD_TEMPLATE_HEADERS = "Company | Full Name | Job Title | Telephone Number | Mobile | Email | comments";
 const UNCATEGORIZED_CATEGORY_LABEL = "Competing Events";
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Something went wrong.";
+  const message = error instanceof Error ? error.message.trim() : "";
+  if (!message) return "Something went wrong.";
+  if (message.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(message) as { detail?: string; message?: string };
+      return parsed.detail || parsed.message || message;
+    } catch {
+      return message;
+    }
+  }
+  return message;
 }
 
 function asText(value: unknown) {
@@ -581,6 +619,7 @@ export function NormalUserEventLeadSheet() {
   const eventParam = searchParams.get("event") || "";
   const targetLeadId = searchParams.get("lead") || "";
   const initialSearch = searchParams.get("search") || "";
+  const uploadParam = searchParams.get("upload") || "";
 
   const [events, setEvents] = useState<EventSummaryItem[]>([]);
   const [leadPage, setLeadPage] = useState<EventLeadListResponse | null>(null);
@@ -601,6 +640,8 @@ export function NormalUserEventLeadSheet() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [filters, setFilters] = useState<LeadFilterState>(EMPTY_FILTERS);
   const [categorySearch, setCategorySearch] = useState("");
+  const [templateUploadOpen, setTemplateUploadOpen] = useState(false);
+  const [templateUpload, setTemplateUpload] = useState<TemplateUploadState>(EMPTY_TEMPLATE_UPLOAD);
   const [pendingStatusChange, setPendingStatusChange] = useState<PendingStatusChange | null>(null);
   const [statusComment, setStatusComment] = useState("");
   const [ringBellConfirmOpen, setRingBellConfirmOpen] = useState(false);
@@ -644,6 +685,7 @@ export function NormalUserEventLeadSheet() {
     return workflowStatuses.length > 0 ? workflowStatuses : fixedWorkflowStatuses;
   }, [fixedWorkflowStatuses, workflowStatuses]);
   const canUseDealBellFlow = role === "sales_user";
+  const canUseTemplateUpload = role === "sales_user" || role === "delegate_user" || role === "production_user";
   const signedInFirstName = firstName(getUserDisplayName(user)) || "there";
 
   const loadInitialData = useCallback(async () => {
@@ -756,6 +798,15 @@ export function NormalUserEventLeadSheet() {
     }
   }, [pathname, resetFilters, router, searchParams, selectedEventKey]);
 
+  useEffect(() => {
+    if (uploadParam !== "1" || !canUseTemplateUpload) return;
+    setTemplateUploadOpen(true);
+    setTemplateUpload((prev) => ({
+      ...prev,
+      selectedEventKey: prev.selectedEventKey || selectedEventKey,
+    }));
+  }, [canUseTemplateUpload, selectedEventKey, uploadParam]);
+
   const loadEventPage = useCallback(async (canonicalEventKey: string, nextOffset: number, query: string) => {
     setLoadingLeads(true);
     try {
@@ -801,6 +852,13 @@ export function NormalUserEventLeadSheet() {
         ? leadPage.event
         : events.find((item) => item.canonicalEventKey === selectedEventKey) ?? null,
     [events, leadPage, selectedEventKey]
+  );
+
+  const selectedTemplateUploadEvent = useMemo(
+    () =>
+      events.find((item) => item.canonicalEventKey === templateUpload.selectedEventKey) ??
+      selectedEvent,
+    [events, selectedEvent, templateUpload.selectedEventKey]
   );
 
   const selectedAgendaEventId = asText(selectedEvent?.eventRegistryId);
@@ -943,6 +1001,145 @@ export function NormalUserEventLeadSheet() {
       await loadSelectedEventAgendas();
     }
   }, [loadEventPage, loadInitialData, loadSelectedEventAgendas, pageOffset, searchQuery, selectedEventKey]);
+
+  const clearUploadRouteFlag = useCallback(() => {
+    if (uploadParam !== "1") return;
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("upload");
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+  }, [pathname, router, searchParams, uploadParam]);
+
+  const openTemplateUploadDialog = () => {
+    setTemplateUpload({
+      ...EMPTY_TEMPLATE_UPLOAD,
+      selectedEventKey,
+    });
+    setTemplateUploadOpen(true);
+  };
+
+  const closeTemplateUploadDialog = () => {
+    if (templateUpload.submitting) return;
+    setTemplateUploadOpen(false);
+    setTemplateUpload({
+      ...EMPTY_TEMPLATE_UPLOAD,
+      selectedEventKey,
+    });
+    clearUploadRouteFlag();
+  };
+
+  const handleTemplateDownload = async () => {
+    try {
+      await downloadLeadTemplateFile();
+      toast.success("Template download started");
+    } catch (error: unknown) {
+      toast.error("Template download failed", { description: getErrorMessage(error) });
+    }
+  };
+
+  const handleTemplateFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith(".xlsx")) {
+      setTemplateUpload((prev) => ({
+        ...prev,
+        file,
+        validation: null,
+        validating: false,
+        error: "Use the Excel template file (.xlsx) for this upload.",
+      }));
+      return;
+    }
+
+    setTemplateUpload((prev) => ({
+      ...prev,
+      file,
+      validation: null,
+      validating: true,
+      error: "",
+      selectedEventKey: prev.selectedEventKey || selectedEventKey,
+    }));
+
+    try {
+      const validation = await validateLeadTemplateUpload(file);
+      setTemplateUpload((prev) => ({
+        ...prev,
+        validation,
+        validating: false,
+        error: "",
+        selectedEventKey: prev.selectedEventKey || selectedEventKey,
+      }));
+      toast.success("Template checked", {
+        description: `${validation.importRows.toLocaleString()} leads ready across ${validation.sheetCount.toLocaleString()} categories.`,
+      });
+    } catch (error: unknown) {
+      setTemplateUpload((prev) => ({
+        ...prev,
+        validation: null,
+        validating: false,
+        error: getErrorMessage(error),
+      }));
+    }
+  };
+
+  const handleTemplateUploadSubmit = async () => {
+    if (!templateUpload.file || !templateUpload.validation) {
+      toast.error("Choose a valid template first.");
+      return;
+    }
+
+    const uploadEvent = selectedTemplateUploadEvent;
+    const eventRegistryId = asText(uploadEvent?.eventRegistryId);
+    if (!uploadEvent || !eventRegistryId) {
+      toast.error("Select a registered event before submitting.");
+      return;
+    }
+
+    setTemplateUpload((prev) => ({ ...prev, submitting: true, error: "" }));
+    try {
+      const response = await createCampaignFromUpload({
+        name: uploadEvent.canonicalEventName,
+        eventRegistryId,
+        icp: `Template upload for ${uploadEvent.canonicalEventName}`,
+        leadSheet: templateUpload.file,
+      });
+      const createdCampaigns = response.createdCampaigns?.length ? response.createdCampaigns : [response];
+      createdCampaigns.forEach((campaign) => {
+        persistCampaignUploadSummary(campaign.id, campaign.importSummary ?? response.importSummary);
+      });
+      toast.success("Leads uploaded", {
+        description:
+          createdCampaigns.length > 1
+            ? `${response.importSummary.importedLeads.toLocaleString()} leads created across ${createdCampaigns.length.toLocaleString()} category campaigns.`
+            : `${response.importSummary.importedLeads.toLocaleString()} leads added to ${uploadEvent.canonicalEventName}.`,
+      });
+      setTemplateUploadOpen(false);
+      setTemplateUpload({
+        ...EMPTY_TEMPLATE_UPLOAD,
+        selectedEventKey: uploadEvent.canonicalEventKey,
+      });
+
+      const nextParams = new URLSearchParams(searchParams.toString());
+      nextParams.set("event", uploadEvent.canonicalEventKey);
+      nextParams.delete("upload");
+      nextParams.delete("search");
+      const nextQuery = nextParams.toString();
+      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+      resetFilters();
+      setSearchInput("");
+      setSearchQuery("");
+      setPageOffset(0);
+      await refreshData();
+    } catch (error: unknown) {
+      setTemplateUpload((prev) => ({
+        ...prev,
+        submitting: false,
+        error: getErrorMessage(error),
+      }));
+      toast.error("Upload failed", { description: getErrorMessage(error) });
+    }
+  };
 
   const handleEventChange = (value: string) => {
     resetFilters();
@@ -1314,6 +1511,11 @@ export function NormalUserEventLeadSheet() {
     }
   };
 
+  const templateValidation = templateUpload.validation;
+  const templateUploadEventKey =
+    selectedTemplateUploadEvent?.canonicalEventKey || templateUpload.selectedEventKey || selectedEventKey;
+  const templateUploadReady = Boolean(templateUpload.file && templateValidation && selectedTemplateUploadEvent);
+
   return (
     <>
       <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
@@ -1354,7 +1556,7 @@ export function NormalUserEventLeadSheet() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-6 border-t border-zinc-300 pt-4">
+              <div className="flex flex-wrap items-center gap-4 border-t border-zinc-300 pt-4">
                 <button
                   type="button"
                   className="inline-flex h-10 w-fit items-center justify-start gap-4 border-b border-transparent text-sm font-medium text-zinc-500 transition-all hover:border-zinc-900 hover:text-zinc-950 active:scale-[0.98] disabled:opacity-50"
@@ -1368,6 +1570,18 @@ export function NormalUserEventLeadSheet() {
                   )}
                   Refresh
                 </button>
+
+                {canUseTemplateUpload ? (
+                  <button
+                    type="button"
+                    onClick={openTemplateUploadDialog}
+                    disabled={!events.length}
+                    className="inline-flex h-10 w-fit items-center justify-center gap-3 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-950 transition-all hover:border-blue-600 hover:text-blue-600 active:scale-[0.98] disabled:opacity-50"
+                  >
+                    <UploadCloud className="h-4 w-4" />
+                    Upload leads
+                  </button>
+                ) : null}
 
                 <button
                   type="button"
@@ -2451,6 +2665,194 @@ export function NormalUserEventLeadSheet() {
           </div>
         </div>
       ) : null}
+
+      <LeadSheetDialog
+        open={templateUploadOpen}
+        title="Upload Leads"
+        description="Check the Excel template, choose the event, then add the leads."
+        eyebrow="Template Upload"
+        onClose={closeTemplateUploadDialog}
+      >
+        <div className="space-y-7">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[
+              { label: "Template", active: !templateValidation },
+              { label: "Categories", active: Boolean(templateValidation) },
+              { label: "Submit", active: Boolean(templateValidation && selectedTemplateUploadEvent) },
+            ].map((step, index) => (
+              <div
+                key={step.label}
+                className={cn(
+                  "border px-4 py-3 text-sm font-semibold",
+                  step.active ? "border-blue-600 text-blue-600" : "border-zinc-200 text-zinc-400"
+                )}
+              >
+                <span className="mr-2 text-xs tabular-nums">{index + 1}</span>
+                {step.label}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <label
+              htmlFor="normal-lead-template-upload"
+              className={cn(
+                "group flex min-h-36 cursor-pointer flex-col items-center justify-center border border-dashed p-6 text-center transition-all",
+                templateUpload.error
+                  ? "border-red-300 bg-red-50/40"
+                  : "border-zinc-300 hover:border-blue-600 hover:bg-blue-50/30"
+              )}
+            >
+              {templateUpload.validating ? (
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              ) : templateValidation ? (
+                <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+              ) : (
+                <FileSpreadsheet className="h-8 w-8 text-zinc-400 transition-colors group-hover:text-blue-600" />
+              )}
+              <span className="mt-4 text-base font-semibold text-zinc-950">
+                {templateUpload.file?.name || "Choose Excel template"}
+              </span>
+              <span className="mt-1 text-sm font-light text-zinc-500">
+                {templateUpload.validating
+                  ? "Checking workbook"
+                  : templateValidation
+                    ? "Template is ready"
+                    : "Only .xlsx files are accepted"}
+              </span>
+              <input
+                id="normal-lead-template-upload"
+                type="file"
+                accept={LEAD_TEMPLATE_ACCEPT}
+                className="sr-only"
+                disabled={templateUpload.validating || templateUpload.submitting}
+                onChange={(event) => void handleTemplateFileChange(event)}
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={() => void handleTemplateDownload()}
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-950 transition-colors hover:border-blue-600 hover:text-blue-600"
+            >
+              <Download className="h-4 w-4" />
+              Template
+            </button>
+          </div>
+
+          {templateUpload.error ? (
+            <div className="flex gap-3 border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <p className="font-semibold">Template check failed</p>
+                <p className="mt-1 font-light leading-6">{templateUpload.error}</p>
+                <p className="mt-2 text-xs font-medium text-red-500">Expected headers: {LEAD_TEMPLATE_HEADERS}</p>
+              </div>
+            </div>
+          ) : null}
+
+          {templateValidation ? (
+            <div className="space-y-5">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="border border-zinc-200 p-4">
+                  <p className="text-xs font-medium text-zinc-400">Sheets</p>
+                  <p className="mt-2 text-2xl font-light tabular-nums text-zinc-950">
+                    {templateValidation.sheetCount.toLocaleString()}
+                  </p>
+                </div>
+                <div className="border border-zinc-200 p-4">
+                  <p className="text-xs font-medium text-zinc-400">Leads ready</p>
+                  <p className="mt-2 text-2xl font-light tabular-nums text-zinc-950">
+                    {templateValidation.importRows.toLocaleString()}
+                  </p>
+                </div>
+                <div className="border border-zinc-200 p-4">
+                  <p className="text-xs font-medium text-zinc-400">Skipped rows</p>
+                  <p className="mt-2 text-2xl font-light tabular-nums text-zinc-950">
+                    {templateValidation.invalidRows.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-3 block text-xs font-medium text-zinc-400">Detected categories</label>
+                <div className="max-h-36 space-y-2 overflow-y-auto pr-1 scrollbar-modern">
+                  {templateValidation.categories.map((category) => (
+                    <div
+                      key={category.name}
+                      className="flex items-center justify-between gap-4 border border-zinc-200 px-4 py-3"
+                    >
+                      <span className="min-w-0 truncate text-sm font-semibold text-zinc-950">
+                        {category.name}
+                      </span>
+                      <span className="shrink-0 text-xs font-medium text-zinc-400">
+                        {category.validRows.toLocaleString()} leads
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {templateValidation.invalidReasons.length > 0 ? (
+                <div className="border-l border-amber-300 pl-4 text-sm font-light leading-6 text-amber-700">
+                  {templateValidation.invalidReasons[0]}
+                </div>
+              ) : null}
+
+              <div>
+                <label className="mb-3 block text-xs font-medium text-zinc-400">Related event</label>
+                <Select
+                  value={templateUploadEventKey}
+                  onValueChange={(value) =>
+                    setTemplateUpload((prev) => ({ ...prev, selectedEventKey: value }))
+                  }
+                >
+                  <SelectTrigger className="!h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
+                    <SelectValue placeholder="Select event" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[120] rounded-none border-zinc-300 bg-white shadow-2xl">
+                    {events.map((item) => (
+                      <SelectItem key={item.canonicalEventKey} value={item.canonicalEventKey}>
+                        {item.canonicalEventName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="flex items-center justify-between border-t border-zinc-100 pt-5">
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 rounded-none border-b border-transparent px-0 text-sm font-medium text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-transparent hover:text-zinc-950"
+              onClick={closeTemplateUploadDialog}
+              disabled={templateUpload.submitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-zinc-950 px-7 text-sm font-semibold text-white shadow-none hover:bg-blue-600"
+              onClick={() => void handleTemplateUploadSubmit()}
+              disabled={!templateUploadReady || templateUpload.validating || templateUpload.submitting}
+            >
+              {templateUpload.submitting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <UploadCloud className="h-3.5 w-3.5" />
+                  Add leads
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </LeadSheetDialog>
 
       <LeadSheetDialog
         open={addLeadOpen}

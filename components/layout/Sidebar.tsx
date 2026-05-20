@@ -27,7 +27,7 @@ const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Campaigns", normalLabel: "Events", href: "/campaigns", icon: Rocket },
   { name: "New Campaign", href: "/campaigns/new", icon: Plus, superOnly: true },
-  { name: "Upload Campaign", normalLabel: "Upload Leads", href: "/campaigns/upload", icon: Upload },
+  { name: "Upload Campaign", href: "/campaigns/upload", icon: Upload, superOnly: true },
   // { name: "Completed", href: "/completed", icon: CheckCircle },
   { name: "Nizo Finder", normalLabel: "Lead Sheet", href: "/leads", icon: TrainFront },
   { name: "NizoAI", href: "/nizo-ai", icon: Brain, normalOnly: true },
