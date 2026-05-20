@@ -45,6 +45,8 @@ export type {
   ForceDeleteCampaignResponse,
   LeadEmailGenerationRequest,
   LeadEmailGenerationResponse,
+  LeadTemplateCategorySummary,
+  LeadTemplateValidationResponse,
   LeadItem,
   LeadAttachment,
   MessageStatus,
@@ -121,6 +123,12 @@ export const createCampaign: typeof sales.createCampaign = (...args) =>
 
 export const createCampaignFromUpload: typeof sales.createCampaignFromUpload = (...args) =>
   pickModule().createCampaignFromUpload(...args);
+
+export const validateLeadTemplateUpload: typeof sales.validateLeadTemplateUpload = (...args) =>
+  pickModule().validateLeadTemplateUpload(...args);
+
+export const downloadLeadTemplateFile: typeof sales.downloadLeadTemplateFile = (...args) =>
+  pickModule().downloadLeadTemplateFile(...args);
 
 export const getCampaign: typeof sales.getCampaign = (...args) =>
   pickModule().getCampaign(...args);

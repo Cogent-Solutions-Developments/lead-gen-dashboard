@@ -13,6 +13,7 @@ import {
   ServerCog,
   Settings,
   ShieldCheck,
+  Tags,
   UserRound,
   Webhook,
 } from "lucide-react";
@@ -40,6 +41,12 @@ const adminTabs = [
     href: "/admin/events",
     icon: CalendarDays,
     match: (pathname: string) => pathname === "/admin/events",
+  },
+  {
+    name: "Category Registry",
+    href: "/admin/categories",
+    icon: Tags,
+    match: (pathname: string) => pathname === "/admin/categories",
   },
   {
     name: "Agenda Library",

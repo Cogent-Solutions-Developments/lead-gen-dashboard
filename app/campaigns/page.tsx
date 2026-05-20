@@ -96,10 +96,12 @@ function statusUI(status: string) {
 function isManualUploadCampaign(
   campaign: Pick<CampaignListItem, "campaignType" | "manualUpload" | "campaignSource">
 ) {
+  const campaignSource = String(campaign.campaignSource || "").toLowerCase();
   return (
     campaign.campaignType === "manual_upload" ||
     campaign.manualUpload === true ||
-    String(campaign.campaignSource || "").toLowerCase() === "manual_csv_upload"
+    campaignSource === "manual_csv_upload" ||
+    campaignSource === "manual_template_upload"
   );
 }
 
@@ -746,6 +748,10 @@ function SuperAdminCampaignsPage() {
                 const category = campaign.category || campaignInfo?.category;
                 const location = campaign.location || campaignInfo?.location;
                 const eventDate = campaign.date || campaignInfo?.date;
+                const creatorName = campaign.createdByUserDisplayName || campaign.createdByUsername || "";
+                const creatorText = creatorName
+                  ? `${isManualUploadCampaign(campaign) ? "Uploaded" : "Created"} by ${creatorName}`
+                  : "Creator not recorded";
 
                 return (
                   <motion.div
@@ -784,6 +790,12 @@ function SuperAdminCampaignsPage() {
                             {campaign.name}
                           </h3>
                         </Link>
+
+                        {isSuperAdmin ? (
+                          <p className="mt-1 truncate text-xs font-medium text-zinc-500">
+                            {creatorText}
+                          </p>
+                        ) : null}
 
                         {(displayStatus === "processing" || displayStatus === "content_generating") && (
                           <div className="mt-3 max-w-xs">

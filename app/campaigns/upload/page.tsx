@@ -100,6 +100,11 @@ export default function UploadCampaignPage() {
   const [currentStep, setCurrentStep] = useState<UploadStep>("event");
 
   useEffect(() => {
+    if (!user || isSuperAdmin) return;
+    router.replace("/leads?upload=1");
+  }, [isSuperAdmin, router, user]);
+
+  useEffect(() => {
     let active = true;
     const loadEvents = async () => {
       setEventsLoading(true);
@@ -472,7 +477,7 @@ export default function UploadCampaignPage() {
                   <input
                     ref={leadSheetInputRef}
                     type="file"
-                    accept=".csv,text/csv"
+                    accept={leadSheetAccept}
                     className="hidden"
                     onChange={handleLeadSheetChange}
                   />
@@ -493,10 +498,10 @@ export default function UploadCampaignPage() {
                         </div>
                         <div className="text-left">
                           <p className="text-2xl font-light tracking-tight text-zinc-950">
-                            {leadSheet ? leadSheet.name : "Choose CSV directory"}
+                            {leadSheet ? leadSheet.name : "Choose lead sheet"}
                           </p>
                           <p className="text-sm font-light text-zinc-500">
-                            {leadSheet ? formatBytes(leadSheet.size) : "Standard CSV format accepted"}
+                            {leadSheet ? formatBytes(leadSheet.size) : "CSV or XLSX accepted"}
                           </p>
                         </div>
                       </div>

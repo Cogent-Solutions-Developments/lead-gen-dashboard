@@ -11,6 +11,7 @@ import {
   ServerCog,
   Settings,
   ShieldCheck,
+  Tags,
   UsersRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,13 @@ const adminTasks = [
     href: "/admin/events",
     icon: CalendarDays,
     metric: "Events",
+  },
+  {
+    title: "Category Registry",
+    description: "Normalize campaign category variants into one clean filter model.",
+    href: "/admin/categories",
+    icon: Tags,
+    metric: "Categories",
   },
   {
     title: "Agenda Library",

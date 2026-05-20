@@ -31,6 +31,7 @@ import type {
   GlobalLeadSearchResponse,
   LeadEmailGenerationRequest,
   LeadEmailGenerationResponse,
+  LeadTemplateValidationResponse,
   LeadItem,
   MessageStatus,
   NizoAiChatRequest,
@@ -95,6 +96,7 @@ export type {
   GlobalLeadSearchResponse,
   LeadEmailGenerationRequest,
   LeadEmailGenerationResponse,
+  LeadTemplateValidationResponse,
   LeadItem,
   MessageStatus,
   NizoAiChatRequest,
@@ -248,6 +250,36 @@ export async function createCampaignFromUpload(payload: UploadCampaignRequest) {
     formData
   );
   return data;
+}
+
+export async function validateLeadTemplateUpload(file: File | Blob) {
+  const formData = new FormData();
+  const fileName =
+    typeof File !== "undefined" && file instanceof File && file.name
+      ? file.name
+      : "lead-upload-template.xlsx";
+
+  formData.append("leadSheet", file, fileName);
+
+  const { data } = await apiClientProduction.post<LeadTemplateValidationResponse>(
+    "/api/productions/campaigns/lead-template/validate",
+    formData
+  );
+  return data;
+}
+
+export async function downloadLeadTemplateFile(fileName = "lead-upload-template.xlsx") {
+  const { data } = await apiClientProduction.get<Blob>("/api/productions/campaigns/lead-template", {
+    responseType: "blob",
+  });
+  const url = window.URL.createObjectURL(data);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName || "lead-upload-template.xlsx";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => window.URL.revokeObjectURL(url), 500);
 }
 
 export async function getCampaign(id: string) {

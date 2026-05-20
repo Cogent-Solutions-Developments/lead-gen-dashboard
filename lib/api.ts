@@ -62,6 +62,9 @@ export type RecentCampaign = {
   campaignType?: CampaignType;
   manualUpload?: boolean;
   campaignSource?: string | null;
+  createdByUserId?: string | null;
+  createdByUsername?: string | null;
+  createdByUserDisplayName?: string | null;
 };
 
 export type CampaignType = "manual_upload" | "generated";
@@ -77,6 +80,9 @@ export type CampaignListItem = {
   campaignType?: CampaignType;
   manualUpload?: boolean;
   campaignSource?: string | null;
+  createdByUserId?: string | null;
+  createdByUsername?: string | null;
+  createdByUserDisplayName?: string | null;
   category?: string | null;
   location?: string | null;
   date?: string | null;
@@ -97,6 +103,9 @@ export type CampaignDetail = {
   campaignType?: CampaignType;
   manualUpload?: boolean;
   campaignSource?: string | null;
+  createdByUserId?: string | null;
+  createdByUsername?: string | null;
+  createdByUserDisplayName?: string | null;
   category?: string | null;
   location?: string | null;
   date?: string | null;
@@ -131,6 +140,9 @@ export type CreateCampaignResponse = {
   campaignType?: CampaignType;
   manualUpload?: boolean;
   campaignSource?: string | null;
+  createdByUserId?: string | null;
+  createdByUsername?: string | null;
+  createdByUserDisplayName?: string | null;
   progress: number;
   createdAt: string;
 };
@@ -142,6 +154,8 @@ export type CampaignImportSummary = {
   invalidRows: number;
   duplicatesCollapsed: number;
   rejectedRows: number;
+  categoryCounts?: { category: string; count: number }[];
+  categories?: { name: string; rows: number; validRows: number; invalidRows: number }[];
 };
 
 export type UploadCampaignRequest = {
@@ -156,6 +170,29 @@ export type UploadCampaignRequest = {
 
 export type UploadCampaignResponse = CreateCampaignResponse & {
   importSummary: CampaignImportSummary;
+  campaignIds?: string[];
+  createdCampaigns?: Array<CreateCampaignResponse & { category?: string | null; importSummary: CampaignImportSummary }>;
+};
+
+export type LeadTemplateCategorySummary = {
+  name: string;
+  rows: number;
+  validRows: number;
+  invalidRows: number;
+};
+
+export type LeadTemplateValidationResponse = {
+  ok: boolean;
+  fileName: string;
+  sheetCount: number;
+  rawRows: number;
+  importRows: number;
+  invalidRows: number;
+  duplicatesCollapsed: number;
+  invalidReasons: string[];
+  categories: LeadTemplateCategorySummary[];
+  categoryCounts: { category: string; count: number }[];
+  expectedHeaders: string[];
 };
 
 export type EmailTemplateContentSource = "template" | "generated" | "manual" | "empty" | "unknown";
@@ -991,6 +1028,36 @@ export async function createCampaignFromUpload(payload: UploadCampaignRequest) {
 
   const { data } = await apiClient.post<UploadCampaignResponse>("/api/campaigns", formData);
   return data;
+}
+
+export async function validateLeadTemplateUpload(file: File | Blob) {
+  const formData = new FormData();
+  const fileName =
+    typeof File !== "undefined" && file instanceof File && file.name
+      ? file.name
+      : "lead-upload-template.xlsx";
+
+  formData.append("leadSheet", file, fileName);
+
+  const { data } = await apiClient.post<LeadTemplateValidationResponse>(
+    "/api/campaigns/lead-template/validate",
+    formData
+  );
+  return data;
+}
+
+export async function downloadLeadTemplateFile(fileName = "lead-upload-template.xlsx") {
+  const { data } = await apiClient.get<Blob>("/api/campaigns/lead-template", {
+    responseType: "blob",
+  });
+  const url = window.URL.createObjectURL(data);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName || "lead-upload-template.xlsx";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => window.URL.revokeObjectURL(url), 500);
 }
 
 export async function getCampaign(id: string) {
