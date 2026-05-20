@@ -856,9 +856,8 @@ export function NormalUserEventLeadSheet() {
 
   const selectedTemplateUploadEvent = useMemo(
     () =>
-      events.find((item) => item.canonicalEventKey === templateUpload.selectedEventKey) ??
-      selectedEvent,
-    [events, selectedEvent, templateUpload.selectedEventKey]
+      events.find((item) => item.canonicalEventKey === templateUpload.selectedEventKey) ?? null,
+    [events, templateUpload.selectedEventKey]
   );
 
   const selectedAgendaEventId = asText(selectedEvent?.eventRegistryId);
@@ -1013,7 +1012,6 @@ export function NormalUserEventLeadSheet() {
   const openTemplateUploadDialog = () => {
     setTemplateUpload({
       ...EMPTY_TEMPLATE_UPLOAD,
-      selectedEventKey,
     });
     setTemplateUploadOpen(true);
   };
@@ -1023,7 +1021,6 @@ export function NormalUserEventLeadSheet() {
     setTemplateUploadOpen(false);
     setTemplateUpload({
       ...EMPTY_TEMPLATE_UPLOAD,
-      selectedEventKey,
     });
     clearUploadRouteFlag();
   };
@@ -1040,6 +1037,11 @@ export function NormalUserEventLeadSheet() {
   const handleTemplateFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     if (!file) return;
+    if (!templateUpload.selectedEventKey) {
+      event.target.value = "";
+      toast.error("Select the event before uploading the Excel file.");
+      return;
+    }
 
     if (!file.name.toLowerCase().endsWith(".xlsx")) {
       setTemplateUpload((prev) => ({
@@ -1058,7 +1060,6 @@ export function NormalUserEventLeadSheet() {
       validation: null,
       validating: true,
       error: "",
-      selectedEventKey: prev.selectedEventKey || selectedEventKey,
     }));
 
     try {
@@ -1068,7 +1069,6 @@ export function NormalUserEventLeadSheet() {
         validation,
         validating: false,
         error: "",
-        selectedEventKey: prev.selectedEventKey || selectedEventKey,
       }));
       toast.success("Template checked", {
         description: `${validation.importRows.toLocaleString()} leads ready across ${validation.sheetCount.toLocaleString()} categories.`,
@@ -1513,7 +1513,7 @@ export function NormalUserEventLeadSheet() {
 
   const templateValidation = templateUpload.validation;
   const templateUploadEventKey =
-    selectedTemplateUploadEvent?.canonicalEventKey || templateUpload.selectedEventKey || selectedEventKey;
+    selectedTemplateUploadEvent?.canonicalEventKey || templateUpload.selectedEventKey;
   const templateUploadReady = Boolean(templateUpload.file && templateValidation && selectedTemplateUploadEvent);
 
   return (
@@ -2669,15 +2669,15 @@ export function NormalUserEventLeadSheet() {
       <LeadSheetDialog
         open={templateUploadOpen}
         title="Upload Leads"
-        description="Check the Excel template, choose the event, then add the leads."
+        description="Choose the event, upload the Excel template, then add the leads."
         eyebrow="Template Upload"
         onClose={closeTemplateUploadDialog}
       >
         <div className="space-y-7">
           <div className="grid gap-3 sm:grid-cols-3">
             {[
-              { label: "Template", active: !templateValidation },
-              { label: "Categories", active: Boolean(templateValidation) },
+              { label: "Event Selection", active: !selectedTemplateUploadEvent },
+              { label: "Upload", active: Boolean(selectedTemplateUploadEvent && !templateValidation) },
               { label: "Submit", active: Boolean(templateValidation && selectedTemplateUploadEvent) },
             ].map((step, index) => (
               <div
@@ -2693,12 +2693,35 @@ export function NormalUserEventLeadSheet() {
             ))}
           </div>
 
+          <div>
+            <label className="mb-3 block text-xs font-medium text-zinc-400">Related event</label>
+            <Select
+              value={templateUploadEventKey}
+              onValueChange={(value) =>
+                setTemplateUpload((prev) => ({ ...prev, selectedEventKey: value }))
+              }
+            >
+              <SelectTrigger className="!h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
+                <SelectValue placeholder="Select event" />
+              </SelectTrigger>
+              <SelectContent className="z-[120] rounded-none border-zinc-300 bg-white shadow-2xl">
+                {events.map((item) => (
+                  <SelectItem key={item.canonicalEventKey} value={item.canonicalEventKey}>
+                    {item.canonicalEventName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
             <label
               htmlFor="normal-lead-template-upload"
               className={cn(
                 "group flex min-h-36 cursor-pointer flex-col items-center justify-center border border-dashed p-6 text-center transition-all",
-                templateUpload.error
+                !selectedTemplateUploadEvent
+                  ? "cursor-not-allowed border-zinc-200 bg-zinc-50 opacity-60"
+                  : templateUpload.error
                   ? "border-red-300 bg-red-50/40"
                   : "border-zinc-300 hover:border-blue-600 hover:bg-blue-50/30"
               )}
@@ -2711,10 +2734,14 @@ export function NormalUserEventLeadSheet() {
                 <FileSpreadsheet className="h-8 w-8 text-zinc-400 transition-colors group-hover:text-blue-600" />
               )}
               <span className="mt-4 text-base font-semibold text-zinc-950">
-                {templateUpload.file?.name || "Choose Excel template"}
+                {!selectedTemplateUploadEvent
+                  ? "Select event first"
+                  : templateUpload.file?.name || "Choose Excel template"}
               </span>
               <span className="mt-1 text-sm font-light text-zinc-500">
-                {templateUpload.validating
+                {!selectedTemplateUploadEvent
+                  ? "Only .xlsx files are accepted"
+                  : templateUpload.validating
                   ? "Checking workbook"
                   : templateValidation
                     ? "Template is ready"
@@ -2725,7 +2752,7 @@ export function NormalUserEventLeadSheet() {
                 type="file"
                 accept={LEAD_TEMPLATE_ACCEPT}
                 className="sr-only"
-                disabled={templateUpload.validating || templateUpload.submitting}
+                disabled={!selectedTemplateUploadEvent || templateUpload.validating || templateUpload.submitting}
                 onChange={(event) => void handleTemplateFileChange(event)}
               />
             </label>
@@ -2798,27 +2825,6 @@ export function NormalUserEventLeadSheet() {
                   {templateValidation.invalidReasons[0]}
                 </div>
               ) : null}
-
-              <div>
-                <label className="mb-3 block text-xs font-medium text-zinc-400">Related event</label>
-                <Select
-                  value={templateUploadEventKey}
-                  onValueChange={(value) =>
-                    setTemplateUpload((prev) => ({ ...prev, selectedEventKey: value }))
-                  }
-                >
-                  <SelectTrigger className="!h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
-                    <SelectValue placeholder="Select event" />
-                  </SelectTrigger>
-                  <SelectContent className="z-[120] rounded-none border-zinc-300 bg-white shadow-2xl">
-                    {events.map((item) => (
-                      <SelectItem key={item.canonicalEventKey} value={item.canonicalEventKey}>
-                        {item.canonicalEventName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           ) : null}
 
