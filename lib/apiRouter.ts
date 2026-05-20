@@ -31,6 +31,7 @@ export type {
   DeleteCampaignResult,
   EventLeadCreateRequest,
   EventLeadCreateResponse,
+  EventLeadCategoryCount,
   EventLeadListItem,
   EventLeadListParams,
   EventLeadListResponse,
