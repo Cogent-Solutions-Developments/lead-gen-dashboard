@@ -19,7 +19,7 @@ import {
   downloadLeadTemplateFile,
   createWorkflowStatus,
   downloadEventAgendaFile,
-  generateLeadEmailContent,
+  generateLeadContent,
   getLeadWorkflowStatusHistory,
   listEventAgendas,
   listEventLeads,
@@ -32,7 +32,8 @@ import {
   type EventLeadListResponse,
   type EventSummaryItem,
   type EventAgendaItem,
-  type LeadEmailGenerationResponse,
+  type LeadContentGenerationResponse,
+  type LeadContentPlatform,
   type LeadTemplateValidationResponse,
   type WorkflowStatus,
   type WorkflowStatusDefinitionItem,
@@ -132,6 +133,7 @@ type PhoneChoiceLead = {
 type EmailGenerationDialogState = {
   requestId: number;
   lead: LeadSheetRow;
+  platform: LeadContentPlatform | null;
   loading: boolean;
   subject: string;
   body: string;
@@ -1368,7 +1370,34 @@ export function NormalUserEventLeadSheet() {
     setEmailDialog(null);
   };
 
-  const openEmailGenerator = async (item: LeadSheetRow, options: { feedback?: string } = {}) => {
+  const openEmailGenerator = (item: LeadSheetRow) => {
+    if (item.contactReadOnly) {
+      toast.error("Lead is read-only");
+      return;
+    }
+
+    const requestId = emailGenerationRequestRef.current + 1;
+    emailGenerationRequestRef.current = requestId;
+    setEmailDialog({
+      requestId,
+      lead: item,
+      platform: null,
+      loading: false,
+      subject: "",
+      body: "",
+      feedback: "",
+      generatedAt: "",
+      model: "",
+      error: "",
+      copiedAction: null,
+    });
+  };
+
+  const generateContentForPlatform = async (
+    item: LeadSheetRow,
+    platform: LeadContentPlatform,
+    options: { feedback?: string } = {}
+  ) => {
     if (item.contactReadOnly) {
       toast.error("Lead is read-only");
       return;
@@ -1380,6 +1409,7 @@ export function NormalUserEventLeadSheet() {
     setEmailDialog({
       requestId,
       lead: item,
+      platform,
       loading: true,
       subject: "",
       body: "",
@@ -1391,13 +1421,16 @@ export function NormalUserEventLeadSheet() {
     });
 
     try {
-      const response: LeadEmailGenerationResponse = await generateLeadEmailContent(
+      const response: LeadContentGenerationResponse = await generateLeadContent(
         item.id,
-        feedback.trim() ? { feedback: feedback.trim() } : undefined
+        {
+          platform,
+          ...(feedback.trim() ? { feedback: feedback.trim() } : {}),
+        }
       );
       const subject = asText(response.contentEmailSubject);
-      const body = asText(response.contentEmail);
-      if (!subject || !body) {
+      const body = platform === "whatsapp" ? asText(response.contentWhatsapp) : asText(response.contentEmail);
+      if ((platform === "email" && !subject) || !body) {
         throw new Error("Generated content was empty.");
       }
       setEmailDialog((current) =>
@@ -1405,6 +1438,7 @@ export function NormalUserEventLeadSheet() {
           ? {
               ...current,
               loading: false,
+              platform,
               subject,
               body,
               generatedAt: asText(response.generatedAt),
@@ -1425,7 +1459,7 @@ export function NormalUserEventLeadSheet() {
             }
           : current
       );
-      toast.error("Email generation failed", { description: message });
+      toast.error("Content generation failed", { description: message });
     }
   };
 
@@ -1442,7 +1476,9 @@ export function NormalUserEventLeadSheet() {
     const subject = emailDialog.subject.trim();
     const body = emailDialog.body.trim();
     const text =
-      mode === "subject"
+      emailDialog.platform === "whatsapp"
+        ? body
+        : mode === "subject"
         ? subject
         : mode === "body"
           ? body
@@ -1460,7 +1496,7 @@ export function NormalUserEventLeadSheet() {
           current?.copiedAction === mode ? { ...current, copiedAction: null } : current
         );
       }, 1500);
-      toast.success(mode === "full" ? "Email copied" : "Content copied");
+      toast.success(emailDialog.platform === "whatsapp" ? "WhatsApp content copied" : mode === "full" ? "Email copied" : "Content copied");
     } catch (error: unknown) {
       toast.error("Failed to copy", { description: getErrorMessage(error) });
     }
@@ -1876,42 +1912,24 @@ export function NormalUserEventLeadSheet() {
                                     {copiedLeadId === item.id ? "Copied" : "Copy lead"}
                                   </span>
                                 </button>
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-zinc-400 transition-colors hover:border-blue-600 hover:text-zinc-950 disabled:pointer-events-none disabled:opacity-40"
+                                  onClick={() => void openEmailGenerator(item)}
+                                  disabled={item.contactReadOnly || (emailDialog?.loading && emailDialog.lead.id === item.id)}
+                                  title={item.contactReadOnly ? "Lead is read-only" : "Generate email content"}
+                                >
+                                  {emailDialog?.loading && emailDialog.lead.id === item.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Mail className="h-3.5 w-3.5" />
+                                  )}
+                                  <span className="text-xs font-medium">
+                                    {emailDialog?.loading && emailDialog.lead.id === item.id ? "Generating" : "Generate email"}
+                                  </span>
+                                </button>
                               </div>
                             </div>
-                          </div>
-
-                          <div className="flex justify-start pl-5">
-                            {(() => {
-                              const generating = Boolean(emailDialog?.loading && emailDialog.lead.id === item.id);
-                              return (
-                            <button
-                              type="button"
-                              className={cn("generate-email-btn", generating && "is-generating")}
-                              onClick={() => void openEmailGenerator(item)}
-                              disabled={item.contactReadOnly || generating}
-                              title={item.contactReadOnly ? "Lead is read-only" : "Generate email content"}
-                              aria-label={generating ? "Generating email content" : "Generate email content"}
-                            >
-                              <Zap className="generate-email-btn__icon" />
-                              <span className="generate-email-btn__text" aria-hidden="true">
-                                <span className="generate-email-btn__label generate-email-btn__label--idle">
-                                  {"Generate".split("").map((letter, letterIndex) => (
-                                    <span key={`${letter}-${letterIndex}`} className="generate-email-btn__letter">
-                                      {letter}
-                                    </span>
-                                  ))}
-                                </span>
-                                <span className="generate-email-btn__label generate-email-btn__label--loading">
-                                  {"Generating".split("").map((letter, letterIndex) => (
-                                    <span key={`${letter}-${letterIndex}`} className="generate-email-btn__letter">
-                                      {letter}
-                                    </span>
-                                  ))}
-                                </span>
-                              </span>
-                            </button>
-                              );
-                            })()}
                           </div>
 
                           <div>
@@ -2120,28 +2138,42 @@ export function NormalUserEventLeadSheet() {
       {emailDialog ? (
         <LeadSheetDialog
           open
-          eyebrow="Email Workspace"
-          title="Email Draft"
+          eyebrow="Outreach Workspace"
+          title={
+            emailDialog.platform === "whatsapp"
+              ? "WhatsApp Draft"
+              : emailDialog.platform === "email"
+                ? "Email Draft"
+                : "Generate Content"
+          }
           description={
             emailDialog.loading
               ? "Generating content for this lead."
-              : "Review, edit, and copy the personalized email."
+              : emailDialog.platform
+                ? "Review, edit, and copy the personalized content."
+                : "Choose the channel before generation starts."
           }
           onClose={closeEmailDialog}
           hideSidebar
         >
           {emailDialog.loading ? (
-            <div className="flex h-full min-h-[34rem] items-center justify-center text-center">
-              <div className="flex flex-col items-center">
-              <DotLottieReact
-                src={EMAIL_GENERATING_ANIMATION_SRC}
-                loop
-                autoplay
-                className="h-24 w-24"
-              />
-              <h3 className="ai-generating-text mt-4 text-2xl font-light tracking-tight">
-                Generating content...
-              </h3>
+            <div className="flex min-h-[24rem] flex-col items-center justify-center text-center">
+              <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-zinc-200 bg-white">
+                <Loader2 className="h-7 w-7 animate-spin text-blue-600" />
+              </div>
+              <h3 className="mt-6 text-2xl font-light tracking-tight text-zinc-950">Generating content</h3>
+              <p className="mt-2 max-w-sm text-sm font-light leading-6 text-zinc-500">
+                Building a sales narrative from the lead, company, and event context.
+              </p>
+              <div className="mt-8 w-full max-w-md space-y-3">
+                {[0, 1, 2].map((item) => (
+                  <div key={item} className="h-3 overflow-hidden bg-zinc-100">
+                    <div
+                      className="h-full w-1/2 animate-pulse bg-blue-600/70"
+                      style={{ marginLeft: `${item * 16}%` }}
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           ) : emailDialog.error ? (
@@ -2161,7 +2193,11 @@ export function NormalUserEventLeadSheet() {
                 </Button>
                 <Button
                   type="button"
-                  onClick={() => void openEmailGenerator(emailDialog.lead, { feedback: emailDialog.feedback })}
+                  onClick={() =>
+                    void generateContentForPlatform(emailDialog.lead, emailDialog.platform || "email", {
+                      feedback: emailDialog.feedback,
+                    })
+                  }
                   className="h-10 gap-2 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
                 >
                   <RefreshCcw className="h-4 w-4" />
@@ -2181,21 +2217,28 @@ export function NormalUserEventLeadSheet() {
                 </p>
               </div>
 
-              <label className="block space-y-3">
-                <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Subject</span>
-                <Input
-                  value={emailDialog.subject}
-                  onChange={(event) => updateEmailDraftField("subject", event.target.value.slice(0, 180))}
-                  className="h-12 rounded-none border-zinc-300 bg-white text-base font-light shadow-none focus-visible:ring-1 focus-visible:ring-zinc-900"
-                />
-              </label>
+              {emailDialog.platform === "email" ? (
+                <label className="block space-y-3">
+                  <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Subject</span>
+                  <Input
+                    value={emailDialog.subject}
+                    onChange={(event) => updateEmailDraftField("subject", event.target.value.slice(0, 180))}
+                    className="h-12 rounded-none border-zinc-300 bg-white text-base font-light shadow-none focus-visible:ring-1 focus-visible:ring-zinc-900"
+                  />
+                </label>
+              ) : null}
 
               <label className="block space-y-3">
-                <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Mail body</span>
+                <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                  {emailDialog.platform === "whatsapp" ? "WhatsApp message" : "Mail body"}
+                </span>
                 <Textarea
                   value={emailDialog.body}
                   onChange={(event) => updateEmailDraftField("body", event.target.value.slice(0, 5000))}
-                  className="min-h-72 rounded-none border-zinc-300 bg-white text-sm font-light leading-7 shadow-none focus-visible:ring-1 focus-visible:ring-zinc-900"
+                  className={cn(
+                    "rounded-none border-zinc-300 bg-white text-sm font-light leading-7 shadow-none focus-visible:ring-1 focus-visible:ring-zinc-900",
+                    emailDialog.platform === "whatsapp" ? "min-h-40" : "min-h-72"
+                  )}
                 />
                 <span className="block text-right text-xs font-light text-zinc-400">
                   {emailDialog.body.length}/5000
@@ -2219,22 +2262,28 @@ export function NormalUserEventLeadSheet() {
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => void openEmailGenerator(emailDialog.lead, { feedback: emailDialog.feedback })}
+                  onClick={() =>
+                    void generateContentForPlatform(emailDialog.lead, emailDialog.platform || "email", {
+                      feedback: emailDialog.feedback,
+                    })
+                  }
                   className="h-10 gap-2 rounded-none border border-zinc-300 bg-white px-4 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
                 >
                   <Sparkles className="h-4 w-4" />
                   {emailDialog.feedback.trim() ? "Regenerate with Feedback" : "Regenerate"}
                 </Button>
                 <div className="flex flex-wrap justify-end gap-3">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => void copyEmailDraft("subject")}
-                    className="h-10 gap-2 rounded-none border border-zinc-300 bg-white px-4 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
-                  >
-                    <Copy className="h-4 w-4" />
-                    {emailDialog.copiedAction === "subject" ? "Copied" : "Subject"}
-                  </Button>
+                  {emailDialog.platform === "email" ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => void copyEmailDraft("subject")}
+                      className="h-10 gap-2 rounded-none border border-zinc-300 bg-white px-4 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                    >
+                      <Copy className="h-4 w-4" />
+                      {emailDialog.copiedAction === "subject" ? "Copied" : "Subject"}
+                    </Button>
+                  ) : null}
                   <Button
                     type="button"
                     variant="ghost"
@@ -2242,7 +2291,11 @@ export function NormalUserEventLeadSheet() {
                     className="h-10 gap-2 rounded-none border border-zinc-300 bg-white px-4 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
                   >
                     <Copy className="h-4 w-4" />
-                    {emailDialog.copiedAction === "body" ? "Copied" : "Body"}
+                    {emailDialog.copiedAction === "body"
+                      ? "Copied"
+                      : emailDialog.platform === "whatsapp"
+                        ? "Message"
+                        : "Body"}
                   </Button>
                   <Button
                     type="button"
@@ -2250,7 +2303,11 @@ export function NormalUserEventLeadSheet() {
                     className="h-10 gap-2 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
                   >
                     <Copy className="h-4 w-4" />
-                    {emailDialog.copiedAction === "full" ? "Copied" : "Copy Email"}
+                    {emailDialog.copiedAction === "full"
+                      ? "Copied"
+                      : emailDialog.platform === "whatsapp"
+                        ? "Copy WhatsApp"
+                        : "Copy Email"}
                   </Button>
                 </div>
               </div>

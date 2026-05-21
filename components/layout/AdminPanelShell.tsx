@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import {
   Activity,
   CalendarDays,
+  BrainCircuit,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -53,6 +54,12 @@ const adminTabs = [
     href: "/admin/agendas",
     icon: FileText,
     match: (pathname: string) => pathname === "/admin/agendas",
+  },
+  {
+    name: "Knowledge Library",
+    href: "/admin/knowledge",
+    icon: BrainCircuit,
+    match: (pathname: string) => pathname === "/admin/knowledge",
   },
   {
     name: "Replies",

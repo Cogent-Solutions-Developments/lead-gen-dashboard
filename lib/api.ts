@@ -642,6 +642,13 @@ export type LeadEmailGenerationRequest = {
   feedback?: string;
 };
 
+export type LeadContentPlatform = "email" | "whatsapp";
+
+export type LeadContentGenerationRequest = {
+  platform: LeadContentPlatform;
+  feedback?: string;
+};
+
 export type LeadEmailGenerationResponse = {
   id: string;
   contentEmailSubject: string;
@@ -651,6 +658,25 @@ export type LeadEmailGenerationResponse = {
   model?: string | null;
   feedbackApplied?: boolean;
   generatedAt?: string | null;
+};
+
+export type LeadContentGenerationResponse = {
+  id: string;
+  platform: LeadContentPlatform;
+  contentEmailSubject?: string | null;
+  contentEmail?: string | null;
+  contentWhatsapp?: string | null;
+  contentSource?: string | null;
+  persisted?: boolean;
+  model?: string | null;
+  feedbackApplied?: boolean;
+  generatedAt?: string | null;
+  rag?: {
+    mode?: string | null;
+    eventKey?: string | null;
+    category?: string | null;
+    sources?: Array<Record<string, unknown>>;
+  } | null;
 };
 
 export type EventAgendaItem = {
@@ -811,6 +837,46 @@ export type NizoAiChatResponse = {
 export type NizoAiMentionSearchResponse = {
   items: NizoAiMention[];
   total: number;
+};
+
+export type NizoAiKnowledgeCollection = {
+  value: string;
+  label: string;
+};
+
+export type NizoAiKnowledgeDocument = {
+  id: string;
+  title: string;
+  sourceType?: string | null;
+  documentType: string;
+  fileName: string;
+  storagePath?: string | null;
+  contentHash?: string | null;
+  pipelineScope: string;
+  status: string;
+  error?: string | null;
+  meta?: Record<string, unknown>;
+  createdByUserId?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  chunkCount?: number;
+  sizeBytes?: number;
+};
+
+export type NizoAiKnowledgeListResponse = {
+  documents: NizoAiKnowledgeDocument[];
+  total: number;
+  limit: number;
+  offset: number;
+  collections?: NizoAiKnowledgeCollection[];
+};
+
+export type NizoAiKnowledgeUploadParams = {
+  file: File;
+  scope?: string;
+  documentType?: string;
+  eventKey?: string;
+  category?: string;
 };
 
 export type WorkflowStatusDefinitionItem = {
@@ -1180,11 +1246,25 @@ export async function listEventAgendas(params: { eventId?: string | null; eventK
   };
 }
 
+const AGENDA_UPLOAD_MIN_TIMEOUT_MS = 60000;
+const AGENDA_UPLOAD_MAX_TIMEOUT_MS = 300000;
+const AGENDA_UPLOAD_TIMEOUT_PER_MB_MS = 15000;
+
+function getAgendaUploadTimeoutMs(file: File) {
+  const sizeMb = Math.ceil(file.size / (1024 * 1024));
+  return Math.min(
+    AGENDA_UPLOAD_MAX_TIMEOUT_MS,
+    Math.max(AGENDA_UPLOAD_MIN_TIMEOUT_MS, sizeMb * AGENDA_UPLOAD_TIMEOUT_PER_MB_MS)
+  );
+}
+
 export async function uploadEventAgenda(eventId: string, file: File) {
   const formData = new FormData();
   formData.append("eventId", eventId);
   formData.append("file", file);
-  const { data } = await apiClient.post<EventAgendaUploadResponse>("/api/admin/event-agendas", formData);
+  const { data } = await apiClient.post<EventAgendaUploadResponse>("/api/admin/event-agendas", formData, {
+    timeout: getAgendaUploadTimeoutMs(file),
+  });
   return {
     ...data,
     agenda: normalizeEventAgenda(data.agenda),
@@ -1210,6 +1290,98 @@ export async function downloadEventAgendaFile(agendaId: string, fileName = "agen
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = fileName || "agenda.pdf";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => window.URL.revokeObjectURL(url), 500);
+}
+
+function normalizeNizoAiKnowledgeDocument(raw: unknown): NizoAiKnowledgeDocument {
+  const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const meta = source.meta && typeof source.meta === "object" ? (source.meta as Record<string, unknown>) : {};
+  return {
+    id: String(source.id || ""),
+    title: String(source.title || source.fileName || "Knowledge document"),
+    sourceType: source.sourceType == null ? null : String(source.sourceType),
+    documentType: String(source.documentType || "general"),
+    fileName: String(source.fileName || "knowledge.md"),
+    storagePath: source.storagePath == null ? null : String(source.storagePath),
+    contentHash: source.contentHash == null ? null : String(source.contentHash),
+    pipelineScope: String(source.pipelineScope || "global"),
+    status: String(source.status || "indexed"),
+    error: source.error == null ? null : String(source.error),
+    meta,
+    createdByUserId: source.createdByUserId == null ? null : String(source.createdByUserId),
+    createdAt: source.createdAt == null ? null : String(source.createdAt),
+    updatedAt: source.updatedAt == null ? null : String(source.updatedAt),
+    chunkCount: Number(source.chunkCount || 0),
+    sizeBytes: source.sizeBytes == null ? undefined : Number(source.sizeBytes || 0),
+  };
+}
+
+export async function listNizoAiKnowledge(params?: {
+  scope?: string;
+  documentType?: string;
+  status?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const { data } = await apiClient.get<NizoAiKnowledgeListResponse>("/api/admin/nizo-ai/knowledge", {
+    params: {
+      scope: params?.scope || undefined,
+      documentType: params?.documentType || undefined,
+      status: params?.status || "all",
+      search: params?.search || undefined,
+      limit: params?.limit,
+      offset: params?.offset,
+    },
+  });
+  const documents = Array.isArray(data.documents) ? data.documents.map(normalizeNizoAiKnowledgeDocument) : [];
+  return {
+    ...data,
+    documents,
+    total: Number(data.total ?? documents.length),
+    limit: Number(data.limit ?? params?.limit ?? 50),
+    offset: Number(data.offset ?? params?.offset ?? 0),
+    collections: Array.isArray(data.collections) ? data.collections : [],
+  };
+}
+
+export async function uploadNizoAiKnowledge(params: NizoAiKnowledgeUploadParams) {
+  const formData = new FormData();
+  formData.append("file", params.file);
+  formData.append("scope", params.scope || "global");
+  formData.append("documentType", params.documentType || "auto");
+  formData.append("eventKey", params.eventKey || "");
+  formData.append("category", params.category || "");
+  const { data } = await apiClient.post<{
+    document: NizoAiKnowledgeDocument;
+    collections?: NizoAiKnowledgeCollection[];
+  }>("/api/admin/nizo-ai/knowledge", formData);
+  return {
+    ...data,
+    document: normalizeNizoAiKnowledgeDocument(data.document),
+    collections: Array.isArray(data.collections) ? data.collections : [],
+  };
+}
+
+export async function archiveNizoAiKnowledge(documentId: string) {
+  const { data } = await apiClient.post<{ document: NizoAiKnowledgeDocument; archived: boolean }>(
+    "/api/admin/nizo-ai/knowledge/" + encodeURIComponent(documentId) + "/archive"
+  );
+  return { ...data, document: normalizeNizoAiKnowledgeDocument(data.document) };
+}
+
+export async function downloadNizoAiKnowledgeFile(documentId: string, fileName = "knowledge.md") {
+  const { data } = await apiClient.get<Blob>(
+    "/api/admin/nizo-ai/knowledge/" + encodeURIComponent(documentId) + "/download",
+    { responseType: "blob" }
+  );
+  const url = window.URL.createObjectURL(data);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName || "knowledge.md";
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
@@ -1284,6 +1456,14 @@ export async function generateLeadEmailContent(id: string, payload?: LeadEmailGe
   const { data } = await apiClient.post<LeadEmailGenerationResponse>(
     `/api/leads/${id}/email-content/generate`,
     payload ?? {}
+  );
+  return data;
+}
+
+export async function generateLeadContent(id: string, payload: LeadContentGenerationRequest) {
+  const { data } = await apiClient.post<LeadContentGenerationResponse>(
+    `/api/leads/${id}/content/generate`,
+    payload
   );
   return data;
 }
