@@ -29,6 +29,9 @@ import type {
   ForceDeleteCampaignResponse,
   GlobalLeadSearchParams,
   GlobalLeadSearchResponse,
+  LeadContentGenerationRequest,
+  LeadContentGenerationResponse,
+  LeadContentPlatform,
   LeadEmailGenerationRequest,
   LeadEmailGenerationResponse,
   LeadTemplateValidationResponse,
@@ -94,6 +97,9 @@ export type {
   ForceDeleteCampaignResponse,
   GlobalLeadSearchParams,
   GlobalLeadSearchResponse,
+  LeadContentGenerationRequest,
+  LeadContentGenerationResponse,
+  LeadContentPlatform,
   LeadEmailGenerationRequest,
   LeadEmailGenerationResponse,
   LeadTemplateValidationResponse,
@@ -451,6 +457,14 @@ export async function generateLeadEmailContent(id: string, payload?: LeadEmailGe
   const { data } = await apiClientDelegate.post<LeadEmailGenerationResponse>(
     `/api/delegates/leads/${id}/email-content/generate`,
     payload ?? {}
+  );
+  return data;
+}
+
+export async function generateLeadContent(id: string, payload: LeadContentGenerationRequest) {
+  const { data } = await apiClientDelegate.post<LeadContentGenerationResponse>(
+    `/api/delegates/leads/${id}/content/generate`,
+    payload
   );
   return data;
 }
