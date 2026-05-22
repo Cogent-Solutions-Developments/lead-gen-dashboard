@@ -198,18 +198,23 @@ const EmailIcon = ({ className }: { className?: string }) => (
 );
 
 function LeadSheetRowsSkeleton() {
+  const rowGridClass = "grid grid-cols-[minmax(18rem,0.78fr)_minmax(24rem,0.62fr)_minmax(3rem,0.16fr)_12rem_minmax(3rem,0.16fr)_10rem]";
+
   return (
     <div className="w-full animate-pulse">
-      <div className="grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-3">
+      <div className={`${rowGridClass} border-b border-zinc-300 py-3`}>
         <div className="h-4 w-28 bg-zinc-100" />
         <div className="h-4 w-32 bg-zinc-100" />
+        <div />
+        <div className="h-4 w-20 bg-zinc-100" />
+        <div />
         <div className="h-4 w-20 bg-zinc-100" />
       </div>
 
       {Array.from({ length: 6 }).map((_, index) => (
         <div
           key={index}
-          className="grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-6"
+          className={`${rowGridClass} border-b border-zinc-300 py-6`}
         >
           <div className="space-y-3 pr-8">
             <div className="h-6 w-56 bg-zinc-100" />
@@ -217,7 +222,7 @@ function LeadSheetRowsSkeleton() {
             <div className="h-3 w-40 bg-zinc-100" />
           </div>
 
-          <div className="space-y-3 pr-8">
+          <div className="space-y-3 pr-10">
             <div className="flex items-center gap-4">
               <div className="h-3.5 w-3.5 bg-zinc-100" />
               <div className="h-4 w-52 bg-zinc-100" />
@@ -232,6 +237,14 @@ function LeadSheetRowsSkeleton() {
               <div className="h-4 w-20 bg-zinc-100" />
             </div>
           </div>
+
+          <div />
+
+          <div>
+            <div className="h-10 w-28 rounded-full bg-zinc-100" />
+          </div>
+
+          <div />
 
           <div className="space-y-4">
             <div className="h-10 w-full border-b border-zinc-200 bg-zinc-100" />
@@ -1513,6 +1526,8 @@ export function NormalUserEventLeadSheet() {
   const templateUploadEventKey =
     selectedTemplateUploadEvent?.canonicalEventKey || templateUpload.selectedEventKey;
   const templateUploadReady = Boolean(templateUpload.file && templateValidation && selectedTemplateUploadEvent);
+  const leadSheetRowGridClass =
+    "grid grid-cols-[minmax(18rem,0.78fr)_minmax(24rem,0.62fr)_minmax(3rem,0.16fr)_12rem_minmax(3rem,0.16fr)_10rem]";
 
   return (
     <>
@@ -1759,9 +1774,12 @@ export function NormalUserEventLeadSheet() {
                 </div>
               ) : (
                 <div className="w-full">
-                  <div className="grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-3 text-sm font-light text-zinc-500">
+                  <div className={`${leadSheetRowGridClass} border-b border-zinc-300 py-3 text-sm font-light text-zinc-500`}>
                     <div>Identity details</div>
                     <div>Contact channels</div>
+                    <div />
+                    <div>Content</div>
+                    <div />
                     <div>Status</div>
                   </div>
 
@@ -1782,7 +1800,7 @@ export function NormalUserEventLeadSheet() {
                           key={updateKey}
                           ref={isTargetLead ? targetLeadRowRef : undefined}
                           id={`lead-${item.id}`}
-                          className={`group grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-6 transition-all duration-300 ${
+                          className={`group ${leadSheetRowGridClass} border-b border-zinc-300 py-6 transition-all duration-300 ${
                             isTargetLead ? "bg-blue-50/35" : "hover:bg-zinc-50/60"
                           }`}
                         >
@@ -1799,7 +1817,7 @@ export function NormalUserEventLeadSheet() {
                             </div>
                           </div>
 
-                          <div className="pr-8">
+                          <div className="pr-10">
                             <div className="flex flex-col gap-2">
                               <div className="flex items-center gap-4">
                                 {item.email ? (
@@ -1868,25 +1886,30 @@ export function NormalUserEventLeadSheet() {
                                     {copiedLeadId === item.id ? "Copied" : "Copy lead"}
                                   </span>
                                 </button>
-                                <button
-                                  type="button"
-                                  className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-zinc-400 transition-colors hover:border-blue-600 hover:text-zinc-950 disabled:pointer-events-none disabled:opacity-40"
-                                  onClick={() => void openEmailGenerator(item)}
-                                  disabled={item.contactReadOnly || (emailDialog?.loading && emailDialog.lead.id === item.id)}
-                                  title={item.contactReadOnly ? "Lead is read-only" : "Generate email content"}
-                                >
-                                  {emailDialog?.loading && emailDialog.lead.id === item.id ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                  ) : (
-                                    <Mail className="h-3.5 w-3.5" />
-                                  )}
-                                  <span className="text-xs font-medium">
-                                    {emailDialog?.loading && emailDialog.lead.id === item.id ? "Generating" : "Generate email"}
-                                  </span>
-                                </button>
                               </div>
                             </div>
                           </div>
+
+                          <div />
+
+                          <div>
+                            <button
+                              type="button"
+                              className="inline-flex h-10 w-28 items-center justify-center gap-2 rounded-full border border-zinc-300 bg-white px-4 text-xs font-semibold text-zinc-700 transition-all hover:border-blue-600 hover:text-blue-600 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40"
+                              onClick={() => void openEmailGenerator(item)}
+                              disabled={item.contactReadOnly || (emailDialog?.loading && emailDialog.lead.id === item.id)}
+                              title={item.contactReadOnly ? "Lead is read-only" : "Generate email content"}
+                            >
+                              {emailDialog?.loading && emailDialog.lead.id === item.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Mail className="h-3.5 w-3.5" />
+                              )}
+                              <span>{emailDialog?.loading && emailDialog.lead.id === item.id ? "Generating" : "Email"}</span>
+                            </button>
+                          </div>
+
+                          <div />
 
                           <div>
                             <div className="flex items-center gap-4">
