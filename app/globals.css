@@ -625,6 +625,201 @@
 
 }
 
+@layer components {
+  .generate-email-btn {
+    --generate-email-highlight: 210deg;
+    position: relative;
+    isolation: isolate;
+    display: inline-flex;
+    height: 2.5rem;
+    width: 7.75rem;
+    user-select: none;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    overflow: visible;
+    border: 1px solid rgb(255 255 255 / 0.14);
+    border-radius: 999px;
+    background: linear-gradient(148deg, #3f82ee 0%, #195ed5 58%, #1a62d2 100%);
+    padding: 0.5rem 0.62rem 0.5rem 0.72rem;
+    color: white;
+    box-shadow:
+      inset 0 1px 1px rgb(255 255 255 / 0.2),
+      inset 0 2px 2px rgb(255 255 255 / 0.14),
+      inset 0 5px 8px rgb(255 255 255 / 0.07),
+      0 14px 24px -20px rgb(8 28 70 / 0.86);
+    cursor: pointer;
+    transition:
+      border-color 220ms ease,
+      background-color 220ms ease,
+      box-shadow 220ms ease,
+      transform 160ms ease;
+  }
+
+  .generate-email-btn::before {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    z-index: -2;
+    border-radius: inherit;
+    background: linear-gradient(0deg, rgb(8 28 70 / 0.22), rgb(8 28 70 / 0.42));
+    box-shadow:
+      1px 1px 1px rgb(255 255 255 / 0.14),
+      -1px -1px 1px rgb(0 0 0 / 0.14);
+    transition: box-shadow 220ms ease;
+  }
+
+  .generate-email-btn::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background-image: linear-gradient(
+      0deg,
+      #fff,
+      hsl(var(--generate-email-highlight), 100%, 70%),
+      hsla(var(--generate-email-highlight), 100%, 70%, 0.5),
+      8%,
+      transparent
+    );
+    opacity: 0;
+    transition: opacity 220ms ease;
+  }
+
+  .generate-email-btn:hover,
+  .generate-email-btn.is-generating {
+    border-color: hsla(var(--generate-email-highlight), 100%, 80%, 0.45);
+    box-shadow:
+      inset 0 1px 1px rgb(255 255 255 / 0.24),
+      inset 0 5px 9px hsla(var(--generate-email-highlight), 100%, 80%, 0.18),
+      0 16px 28px -20px rgb(8 28 70 / 0.92);
+  }
+
+  .generate-email-btn:hover::before,
+  .generate-email-btn.is-generating::before {
+    box-shadow:
+      0 -8px 8px -6px rgb(255 255 255 / 0.55) inset,
+      0 -16px 16px -8px hsla(var(--generate-email-highlight), 100%, 70%, 0.28) inset,
+      1px 1px 1px rgb(255 255 255 / 0.14),
+      -1px -1px 1px rgb(0 0 0 / 0.14);
+  }
+
+  .generate-email-btn:hover::after,
+  .generate-email-btn.is-generating::after {
+    opacity: 0.7;
+    mask-image: linear-gradient(0deg, #fff, transparent);
+  }
+
+  .generate-email-btn:active {
+    transform: translateY(1px) scale(0.99);
+    border-color: hsla(var(--generate-email-highlight), 100%, 80%, 0.72);
+  }
+
+  .generate-email-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.58;
+  }
+
+  .generate-email-btn__icon {
+    height: 1.05rem;
+    width: 1.05rem;
+    flex: 0 0 auto;
+    fill: none;
+    color: rgb(232 232 232);
+    filter: drop-shadow(0 0 2px rgb(255 255 255 / 0.55));
+    animation: generate-email-flicker 2s linear infinite;
+    transition:
+      color 220ms ease,
+      filter 220ms ease,
+      opacity 220ms ease;
+  }
+
+  .generate-email-btn:hover .generate-email-btn__icon,
+  .generate-email-btn.is-generating .generate-email-btn__icon {
+    color: #fff;
+    filter:
+      drop-shadow(0 0 3px hsl(var(--generate-email-highlight), 100%, 70%))
+      drop-shadow(0 -4px 6px rgb(0 0 0 / 0.55));
+    animation-duration: 1.1s;
+  }
+
+  .generate-email-btn__text {
+    position: relative;
+    display: inline-flex;
+    min-width: 4.25rem;
+    align-items: center;
+    justify-content: flex-start;
+    line-height: 1;
+  }
+
+  .generate-email-btn__label {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    white-space: nowrap;
+  }
+
+  .generate-email-btn__label--idle {
+    opacity: 1;
+  }
+
+  .generate-email-btn__label--loading {
+    opacity: 0;
+  }
+
+  .generate-email-btn.is-generating .generate-email-btn__label--idle {
+    opacity: 0;
+  }
+
+  .generate-email-btn.is-generating .generate-email-btn__label--loading {
+    opacity: 1;
+  }
+
+  .generate-email-btn__letter {
+    position: relative;
+    display: inline-block;
+    color: rgb(255 255 255 / 0.44);
+    font-size: 0.76rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    animation: generate-email-letter 2s ease-in-out infinite;
+    transition:
+      color 220ms ease,
+      text-shadow 220ms ease;
+  }
+
+  .generate-email-btn:hover .generate-email-btn__letter,
+  .generate-email-btn.is-generating .generate-email-btn__letter {
+    color: rgb(255 255 255 / 0.72);
+  }
+
+  .generate-email-btn__letter:nth-child(1) { animation-delay: 0s; }
+  .generate-email-btn__letter:nth-child(2) { animation-delay: 0.08s; }
+  .generate-email-btn__letter:nth-child(3) { animation-delay: 0.16s; }
+  .generate-email-btn__letter:nth-child(4) { animation-delay: 0.24s; }
+  .generate-email-btn__letter:nth-child(5) { animation-delay: 0.32s; }
+  .generate-email-btn__letter:nth-child(6) { animation-delay: 0.4s; }
+  .generate-email-btn__letter:nth-child(7) { animation-delay: 0.48s; }
+  .generate-email-btn__letter:nth-child(8) { animation-delay: 0.56s; }
+  .generate-email-btn__letter:nth-child(9) { animation-delay: 0.64s; }
+  .generate-email-btn__letter:nth-child(10) { animation-delay: 0.72s; }
+
+  @keyframes generate-email-letter {
+    50% {
+      color: #fff;
+      text-shadow: 0 0 3px rgb(255 255 255 / 0.58);
+    }
+  }
+
+  @keyframes generate-email-flicker {
+    50% {
+      opacity: 0.34;
+    }
+  }
+}
+
 @layer base {
   * {
     border-color: var(--border);

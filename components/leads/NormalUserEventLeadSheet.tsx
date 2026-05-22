@@ -57,7 +57,6 @@ import {
   Headset,
   History,
   Loader2,
-  Mail,
   MessageSquare,
   Plus,
   RefreshCcw,
@@ -365,6 +364,7 @@ const DEFAULT_PAGE_SIZE = 100;
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 const SEARCH_DEBOUNCE_MS = 300;
 const DEAL_CLOSED_ANIMATION_SRC = "https://lottie.host/e872d848-c226-4c29-8108-9111e8bd8c9c/npFGm1Le6t.lottie";
+const EMAIL_GENERATING_ANIMATION_SRC = "https://lottie.host/61fd4bdb-8c4c-4501-8b6f-a92c9ca222b7/IG3HWq7eZl.lottie";
 
 const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
   fullName: "",
@@ -565,6 +565,7 @@ function LeadSheetDialog({
   children,
   sidebarContent,
   eyebrow = "Lead Sheet Updates",
+  hideSidebar = false,
 }: {
   open: boolean;
   title: string;
@@ -573,6 +574,7 @@ function LeadSheetDialog({
   children: ReactNode;
   sidebarContent?: ReactNode;
   eyebrow?: string;
+  hideSidebar?: boolean;
 }) {
   if (!open) return null;
 
@@ -586,22 +588,33 @@ function LeadSheetDialog({
       />
 
       <div className="relative z-[1] h-[min(42rem,calc(100dvh-3rem))] w-full max-w-3xl overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
-        <div className="relative grid h-full min-h-0 md:grid-cols-[17rem_minmax(0,1fr)]">
-          <aside className="relative flex flex-col justify-end overflow-hidden border-b border-zinc-300 bg-zinc-50/70 p-8 md:border-b-0 md:border-r">
-            <div className={cn("relative z-10 mt-auto", sidebarContent && "text-zinc-50")}>
-              <p className={cn("text-sm font-medium", sidebarContent ? "text-zinc-300" : "text-zinc-400")}>
-                {eyebrow}
-              </p>
-              <h2 className="mt-8 text-4xl font-light leading-none tracking-tighter">
-                {title}
-              </h2>
-              <p className={cn("mt-5 text-sm font-light leading-relaxed", sidebarContent ? "text-zinc-200" : "text-zinc-500")}>
-                {description}
-              </p>
-            </div>
+        <div className={cn("relative grid h-full min-h-0", !hideSidebar && "md:grid-cols-[17rem_minmax(0,1fr)]")}>
+          {!hideSidebar ? (
+            <aside className="relative flex flex-col justify-end overflow-hidden border-b border-zinc-300 bg-zinc-50/70 p-8 md:border-b-0 md:border-r">
+              <div className={cn("relative z-10 mt-auto", sidebarContent && "text-zinc-50")}>
+                <p className={cn("text-sm font-medium", sidebarContent ? "text-zinc-300" : "text-zinc-400")}>
+                  {eyebrow}
+                </p>
+                <h2 className="mt-8 text-4xl font-light leading-none tracking-tighter">
+                  {title}
+                </h2>
+                <p className={cn("mt-5 text-sm font-light leading-relaxed", sidebarContent ? "text-zinc-200" : "text-zinc-500")}>
+                  {description}
+                </p>
+              </div>
 
-            {sidebarContent && <div className="absolute inset-0 z-0">{sidebarContent}</div>}
+              {sidebarContent && <div className="absolute inset-0 z-0">{sidebarContent}</div>}
 
+              <Button
+                type="button"
+                variant="ghost"
+                className="absolute right-5 top-5 z-20 h-10 w-10 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                onClick={onClose}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </aside>
+          ) : (
             <Button
               type="button"
               variant="ghost"
@@ -610,9 +623,9 @@ function LeadSheetDialog({
             >
               <X className="h-4 w-4" />
             </Button>
-          </aside>
+          )}
 
-          <div className="min-h-0 overflow-y-auto p-8 scrollbar-modern">
+          <div className="h-full min-h-0 overflow-y-auto p-8 scrollbar-modern">
             {children}
           </div>
         </div>
@@ -1893,20 +1906,37 @@ export function NormalUserEventLeadSheet() {
                           <div />
 
                           <div>
+                            {(() => {
+                              const generating = Boolean(emailDialog?.loading && emailDialog.lead.id === item.id);
+                              return (
                             <button
                               type="button"
-                              className="inline-flex h-10 w-28 items-center justify-center gap-2 rounded-full border border-zinc-300 bg-white px-4 text-xs font-semibold text-zinc-700 transition-all hover:border-blue-600 hover:text-blue-600 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40"
+                              className={cn("generate-email-btn", generating && "is-generating")}
                               onClick={() => void openEmailGenerator(item)}
-                              disabled={item.contactReadOnly || (emailDialog?.loading && emailDialog.lead.id === item.id)}
+                              disabled={item.contactReadOnly || generating}
                               title={item.contactReadOnly ? "Lead is read-only" : "Generate email content"}
+                              aria-label={generating ? "Generating email content" : "Generate email content"}
                             >
-                              {emailDialog?.loading && emailDialog.lead.id === item.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Mail className="h-3.5 w-3.5" />
-                              )}
-                              <span>{emailDialog?.loading && emailDialog.lead.id === item.id ? "Generating" : "Email"}</span>
+                              <Sparkles className="generate-email-btn__icon" />
+                              <span className="generate-email-btn__text" aria-hidden="true">
+                                <span className="generate-email-btn__label generate-email-btn__label--idle">
+                                  {"Generate".split("").map((letter, letterIndex) => (
+                                    <span key={`${letter}-${letterIndex}`} className="generate-email-btn__letter">
+                                      {letter}
+                                    </span>
+                                  ))}
+                                </span>
+                                <span className="generate-email-btn__label generate-email-btn__label--loading">
+                                  {"Generating".split("").map((letter, letterIndex) => (
+                                    <span key={`${letter}-${letterIndex}`} className="generate-email-btn__letter">
+                                      {letter}
+                                    </span>
+                                  ))}
+                                </span>
+                              </span>
                             </button>
+                              );
+                            })()}
                           </div>
 
                           <div />
@@ -2125,25 +2155,20 @@ export function NormalUserEventLeadSheet() {
               : "Review, edit, and copy the personalized email."
           }
           onClose={closeEmailDialog}
+          hideSidebar
         >
           {emailDialog.loading ? (
-            <div className="flex min-h-[24rem] flex-col items-center justify-center text-center">
-              <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-zinc-200 bg-white">
-                <Loader2 className="h-7 w-7 animate-spin text-blue-600" />
-              </div>
-              <h3 className="mt-6 text-2xl font-light tracking-tight text-zinc-950">Generating content</h3>
-              <p className="mt-2 max-w-sm text-sm font-light leading-6 text-zinc-500">
-                Building a sales narrative from the lead, company, and event context.
-              </p>
-              <div className="mt-8 w-full max-w-md space-y-3">
-                {[0, 1, 2].map((item) => (
-                  <div key={item} className="h-3 overflow-hidden bg-zinc-100">
-                    <div
-                      className="h-full w-1/2 animate-pulse bg-blue-600/70"
-                      style={{ marginLeft: `${item * 16}%` }}
-                    />
-                  </div>
-                ))}
+            <div className="flex h-full min-h-[34rem] items-center justify-center text-center">
+              <div className="flex flex-col items-center">
+              <DotLottieReact
+                src={EMAIL_GENERATING_ANIMATION_SRC}
+                loop
+                autoplay
+                className="h-32 w-32"
+              />
+              <h3 className="ai-generating-text mt-4 text-2xl font-light tracking-tight">
+                Generating content
+              </h3>
               </div>
             </div>
           ) : emailDialog.error ? (
