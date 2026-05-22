@@ -65,6 +65,7 @@ import {
   Sparkles,
   UploadCloud,
   X,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -1917,7 +1918,7 @@ export function NormalUserEventLeadSheet() {
                               title={item.contactReadOnly ? "Lead is read-only" : "Generate email content"}
                               aria-label={generating ? "Generating email content" : "Generate email content"}
                             >
-                              <Sparkles className="generate-email-btn__icon" />
+                              <Zap className="generate-email-btn__icon" />
                               <span className="generate-email-btn__text" aria-hidden="true">
                                 <span className="generate-email-btn__label generate-email-btn__label--idle">
                                   {"Generate".split("").map((letter, letterIndex) => (
@@ -2164,7 +2165,7 @@ export function NormalUserEventLeadSheet() {
                 src={EMAIL_GENERATING_ANIMATION_SRC}
                 loop
                 autoplay
-                className="h-32 w-32"
+                className="h-24 w-24"
               />
               <h3 className="ai-generating-text mt-4 text-2xl font-light tracking-tight">
                 Generating content...
