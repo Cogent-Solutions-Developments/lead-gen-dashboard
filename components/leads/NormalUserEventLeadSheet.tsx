@@ -200,13 +200,14 @@ const EmailIcon = ({ className }: { className?: string }) => (
 );
 
 function LeadSheetRowsSkeleton() {
-  const rowGridClass = "grid grid-cols-[minmax(17rem,0.78fr)_minmax(14rem,0.48fr)_14rem_minmax(12rem,0.52fr)]";
-
   return (
     <div className="w-full animate-pulse">
       <div className={`${rowGridClass} border-b border-zinc-300 py-3`}>
         <div className="h-4 w-28 bg-zinc-100" />
         <div className="h-4 w-32 bg-zinc-100" />
+        <div />
+        <div className="h-4 w-20 bg-zinc-100" />
+        <div />
         <div className="h-4 w-20 bg-zinc-100" />
         <div className="h-4 w-20 bg-zinc-100" />
       </div>
@@ -222,7 +223,7 @@ function LeadSheetRowsSkeleton() {
             <div className="h-3 w-40 bg-zinc-100" />
           </div>
 
-          <div className="space-y-3 pr-2">
+          <div className="space-y-3 pr-8">
             <div className="flex items-center gap-4">
               <div className="h-3.5 w-3.5 bg-zinc-100" />
               <div className="h-4 w-52 bg-zinc-100" />
@@ -236,10 +237,6 @@ function LeadSheetRowsSkeleton() {
               <div className="h-4 w-16 bg-zinc-100" />
               <div className="h-4 w-20 bg-zinc-100" />
             </div>
-          </div>
-
-          <div className="flex justify-start pl-5">
-            <div className="h-10 w-28 rounded-full bg-zinc-100" />
           </div>
 
           <div className="space-y-4">
@@ -1574,8 +1571,6 @@ export function NormalUserEventLeadSheet() {
   const templateUploadEventKey =
     selectedTemplateUploadEvent?.canonicalEventKey || templateUpload.selectedEventKey;
   const templateUploadReady = Boolean(templateUpload.file && templateValidation && selectedTemplateUploadEvent);
-  const leadSheetRowGridClass =
-    "grid grid-cols-[minmax(17rem,0.78fr)_minmax(14rem,0.48fr)_14rem_minmax(12rem,0.52fr)]";
 
   return (
     <>
@@ -1825,7 +1820,6 @@ export function NormalUserEventLeadSheet() {
                   <div className={`${leadSheetRowGridClass} border-b border-zinc-300 py-3 text-sm font-light text-zinc-500`}>
                     <div>Identity details</div>
                     <div>Contact channels</div>
-                    <div className="pl-5">Content</div>
                     <div>Status</div>
                   </div>
 
@@ -1863,7 +1857,7 @@ export function NormalUserEventLeadSheet() {
                             </div>
                           </div>
 
-                          <div className="pr-2">
+                          <div className="pr-8">
                             <div className="flex flex-col gap-2">
                               <div className="flex items-center gap-4">
                                 {item.email ? (
@@ -1937,7 +1931,7 @@ export function NormalUserEventLeadSheet() {
                                   className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-zinc-400 transition-colors hover:border-blue-600 hover:text-zinc-950 disabled:pointer-events-none disabled:opacity-40"
                                   onClick={() => void openEmailGenerator(item)}
                                   disabled={item.contactReadOnly || (emailDialog?.loading && emailDialog.lead.id === item.id)}
-                                  title={item.contactReadOnly ? "Lead is read-only" : "Generate email content"}
+                                  title={item.contactReadOnly ? "Lead is read-only" : "Generate outreach content"}
                                 >
                                   {emailDialog?.loading && emailDialog.lead.id === item.id ? (
                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1945,12 +1939,14 @@ export function NormalUserEventLeadSheet() {
                                     <Mail className="h-3.5 w-3.5" />
                                   )}
                                   <span className="text-xs font-medium">
-                                    {emailDialog?.loading && emailDialog.lead.id === item.id ? "Generating" : "Generate email"}
+                                    {emailDialog?.loading && emailDialog.lead.id === item.id ? "Generating" : "Generate content"}
                                   </span>
                                 </button>
                               </div>
                             </div>
                           </div>
+
+                          <div />
 
                           <div>
                             <div className="flex items-center gap-4">
