@@ -198,16 +198,14 @@ const EmailIcon = ({ className }: { className?: string }) => (
 );
 
 function LeadSheetRowsSkeleton() {
-  const rowGridClass = "grid grid-cols-[minmax(18rem,0.78fr)_minmax(24rem,0.62fr)_minmax(3rem,0.16fr)_12rem_minmax(3rem,0.16fr)_10rem]";
+  const rowGridClass = "grid grid-cols-[minmax(17rem,0.78fr)_minmax(14rem,0.48fr)_14rem_minmax(12rem,0.52fr)]";
 
   return (
     <div className="w-full animate-pulse">
       <div className={`${rowGridClass} border-b border-zinc-300 py-3`}>
         <div className="h-4 w-28 bg-zinc-100" />
         <div className="h-4 w-32 bg-zinc-100" />
-        <div />
         <div className="h-4 w-20 bg-zinc-100" />
-        <div />
         <div className="h-4 w-20 bg-zinc-100" />
       </div>
 
@@ -222,7 +220,7 @@ function LeadSheetRowsSkeleton() {
             <div className="h-3 w-40 bg-zinc-100" />
           </div>
 
-          <div className="space-y-3 pr-10">
+          <div className="space-y-3 pr-2">
             <div className="flex items-center gap-4">
               <div className="h-3.5 w-3.5 bg-zinc-100" />
               <div className="h-4 w-52 bg-zinc-100" />
@@ -238,13 +236,9 @@ function LeadSheetRowsSkeleton() {
             </div>
           </div>
 
-          <div />
-
-          <div>
+          <div className="flex justify-start pl-5">
             <div className="h-10 w-28 rounded-full bg-zinc-100" />
           </div>
-
-          <div />
 
           <div className="space-y-4">
             <div className="h-10 w-full border-b border-zinc-200 bg-zinc-100" />
@@ -773,7 +767,7 @@ export function NormalUserEventLeadSheet() {
 
   useEffect(() => {
     setPageOffset(0);
-  }, [filters.status, filters.contact, filters.source, filters.category]);
+  }, [filters.status, filters.category]);
 
   useEffect(() => {
     const nextSearch = searchParams.get("search") || "";
@@ -973,27 +967,11 @@ export function NormalUserEventLeadSheet() {
     [categoryOptions]
   );
 
-  const visibleEventLeads = useMemo(() => {
-    return eventLeads.filter((item) => {
-      if (filters.source === "manual" && !item.isManualLead) return false;
-      if (filters.source === "imported" && item.isManualLead) return false;
-
-      if (filters.contact === "email" && !item.email) return false;
-      if (filters.contact === "phone" && !item.phone) return false;
-      if (filters.contact === "complete" && (!item.email || !item.phone)) return false;
-      if (filters.contact === "missing-contact" && (item.email || item.phone)) return false;
-      if (filters.contact === "linkedin" && !item.linkedinUrl) return false;
-      if (filters.contact === "website" && !item.companyUrl) return false;
-
-      return true;
-    });
-  }, [eventLeads, filters.contact, filters.source]);
+  const visibleEventLeads = eventLeads;
 
   const activeFilterCount = useMemo(() => {
     return [
       filters.status !== EMPTY_FILTERS.status,
-      filters.contact !== EMPTY_FILTERS.contact,
-      filters.source !== EMPTY_FILTERS.source,
       filters.category !== EMPTY_FILTERS.category,
     ].filter(Boolean).length;
   }, [filters]);
@@ -1541,7 +1519,7 @@ export function NormalUserEventLeadSheet() {
     selectedTemplateUploadEvent?.canonicalEventKey || templateUpload.selectedEventKey;
   const templateUploadReady = Boolean(templateUpload.file && templateValidation && selectedTemplateUploadEvent);
   const leadSheetRowGridClass =
-    "grid grid-cols-[minmax(18rem,0.78fr)_minmax(24rem,0.62fr)_minmax(3rem,0.16fr)_12rem_minmax(3rem,0.16fr)_10rem]";
+    "grid grid-cols-[minmax(17rem,0.78fr)_minmax(14rem,0.48fr)_14rem_minmax(12rem,0.52fr)]";
 
   return (
     <>
@@ -1791,9 +1769,7 @@ export function NormalUserEventLeadSheet() {
                   <div className={`${leadSheetRowGridClass} border-b border-zinc-300 py-3 text-sm font-light text-zinc-500`}>
                     <div>Identity details</div>
                     <div>Contact channels</div>
-                    <div />
-                    <div>Content</div>
-                    <div />
+                    <div className="pl-5">Content</div>
                     <div>Status</div>
                   </div>
 
@@ -1831,7 +1807,7 @@ export function NormalUserEventLeadSheet() {
                             </div>
                           </div>
 
-                          <div className="pr-10">
+                          <div className="pr-2">
                             <div className="flex flex-col gap-2">
                               <div className="flex items-center gap-4">
                                 {item.email ? (
@@ -1904,9 +1880,7 @@ export function NormalUserEventLeadSheet() {
                             </div>
                           </div>
 
-                          <div />
-
-                          <div>
+                          <div className="flex justify-start pl-5">
                             {(() => {
                               const generating = Boolean(emailDialog?.loading && emailDialog.lead.id === item.id);
                               return (
@@ -1939,8 +1913,6 @@ export function NormalUserEventLeadSheet() {
                               );
                             })()}
                           </div>
-
-                          <div />
 
                           <div>
                             <div className="flex items-center gap-4">
@@ -2494,7 +2466,7 @@ export function NormalUserEventLeadSheet() {
                 Intelligence Filters
               </h2>
               <p className="mt-5 max-w-[13rem] text-sm font-light leading-relaxed text-zinc-500">
-                Build a focused view using status, contact readiness, and source quality signals.
+                Build a focused view using status and campaign category signals.
               </p>
             </aside>
 
@@ -2535,68 +2507,6 @@ export function NormalUserEventLeadSheet() {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-
-                <div className="space-y-4">
-                  <label className="block text-sm font-semibold text-zinc-950">By contact intelligence:</label>
-                  <div className="flex flex-wrap gap-2.5">
-                    {[
-                      { value: "all", label: "All profiles" },
-                      { value: "complete", label: "Email + phone" },
-                      { value: "email", label: "Has email" },
-                      { value: "phone", label: "Has phone" },
-                      { value: "linkedin", label: "Has LinkedIn" },
-                      { value: "website", label: "Has website" },
-                      { value: "missing-contact", label: "Needs contact data" },
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() =>
-                          setFilters((prev) => ({
-                            ...prev,
-                            contact: option.value as LeadFilterState["contact"],
-                          }))
-                        }
-                        className={`inline-flex h-10 items-center rounded-full border px-4 text-sm font-semibold transition-all ${
-                          filters.contact === option.value
-                            ? "border-blue-600 bg-white text-blue-600 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.85)]"
-                            : "border-zinc-300 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <label className="block text-sm font-semibold text-zinc-950">By source quality:</label>
-                  <div className="flex flex-wrap gap-2.5">
-                    {[
-                      { value: "all", label: "All sources" },
-                      { value: "imported", label: "Imported" },
-                      { value: "manual", label: "Manual" },
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() =>
-                          setFilters((prev) => ({
-                            ...prev,
-                            source: option.value as LeadFilterState["source"],
-                          }))
-                        }
-                        className={`inline-flex h-10 items-center rounded-full border px-4 text-sm font-semibold transition-all ${
-                          filters.source === option.value
-                            ? "border-blue-600 bg-white text-blue-600 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.85)]"
-                            : "border-zinc-300 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
                 </div>
 
                 <div className="space-y-4">
