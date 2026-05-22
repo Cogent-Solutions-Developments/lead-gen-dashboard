@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { Button } from "@/components/ui/button";
@@ -45,7 +44,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 import { cn } from "@/lib/utils";
 import {
-  ArrowLeft,
   AlertTriangle,
   BellRing,
   ChevronLeft,
@@ -1522,61 +1520,28 @@ export function NormalUserEventLeadSheet() {
         <header className="shrink-0 border-b border-zinc-300 pb-12">
           <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <Link
-                href="/campaigns"
-                className="inline-flex items-center text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-950"
-              >
-                <ArrowLeft className="mr-2 h-3 w-3" />
-                Return to events
-              </Link>
-
-              <div className="mt-8">
+              <div>
                 <h1 className="max-w-5xl text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
                   {selectedEvent?.canonicalEventName || "Intelligence Registry"}
                 </h1>
-                <p className="mt-4 max-w-2xl text-lg font-light leading-relaxed text-zinc-500">
-                  Review, search, and progress event prospects through a clean lead sheet.
-                </p>
               </div>
             </div>
 
-            <div className="flex flex-col gap-5 lg:min-w-[19rem] lg:items-stretch">
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-zinc-400">Total records</p>
-                  <p className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
-                    {pageTotal.toLocaleString()}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-zinc-400">Visible now</p>
-                  <p className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
-                    {visibleEventLeads.length.toLocaleString()}
-                  </p>
-                </div>
+            <div className="flex flex-col gap-4 lg:min-w-[23rem] lg:items-stretch">
+              <div className="flex items-end justify-between border-b border-zinc-300 pb-4">
+                <p className="pb-1 text-[15px] font-medium text-zinc-500">Leads to Cover</p>
+                <p className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
+                  {pageTotal.toLocaleString()}
+                </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-4 border-t border-zinc-300 pt-4">
-                <button
-                  type="button"
-                  className="inline-flex h-10 w-fit items-center justify-start gap-4 border-b border-transparent text-sm font-medium text-zinc-500 transition-all hover:border-zinc-900 hover:text-zinc-950 active:scale-[0.98] disabled:opacity-50"
-                  onClick={() => void refreshData()}
-                  disabled={loadingEvents || loadingLeads}
-                >
-                  {loadingEvents || loadingLeads ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <RefreshCcw className="h-3.5 w-3.5" />
-                  )}
-                  Refresh
-                </button>
-
+              <div className="grid grid-cols-2 gap-3">
                 {canUseTemplateUpload ? (
                   <button
                     type="button"
                     onClick={openTemplateUploadDialog}
                     disabled={!events.length}
-                    className="inline-flex h-10 w-fit items-center justify-center gap-3 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-950 transition-all hover:border-blue-600 hover:text-blue-600 active:scale-[0.98] disabled:opacity-50"
+                    className="inline-flex h-11 w-full items-center justify-center gap-3 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-950 transition-all hover:border-blue-600 hover:text-blue-600 active:scale-[0.98] disabled:opacity-50"
                   >
                     <UploadCloud className="h-4 w-4" />
                     Upload leads
@@ -1587,10 +1552,10 @@ export function NormalUserEventLeadSheet() {
                   type="button"
                   onClick={() => setAddLeadOpen(true)}
                   disabled={!selectedEvent}
-                  className="inline-flex h-10 w-fit items-center justify-center gap-4 rounded-full bg-zinc-950 px-5 text-sm font-semibold text-white transition-all hover:bg-blue-600 active:scale-[0.98] disabled:opacity-50"
+                  className="inline-flex h-11 w-full items-center justify-center gap-3 rounded-full bg-zinc-950 px-5 text-sm font-semibold text-white transition-all hover:bg-blue-600 active:scale-[0.98] disabled:opacity-50"
                 >
                   <Plus className="h-4 w-4" />
-                  Add entry
+                  Add a lead
                 </button>
               </div>
             </div>
