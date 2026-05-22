@@ -83,8 +83,8 @@ function statusClass(status: string) {
 
 function validateKnowledgeFile(file: File) {
   const name = file.name.toLowerCase();
-  const isSupported = name.endsWith(".md") || name.endsWith(".txt") || name.endsWith(".pdf");
-  if (!isSupported) return "Only .md, .txt, and .pdf knowledge files are supported.";
+  const isSupported = name.endsWith(".md") || name.endsWith(".txt") || name.endsWith(".pdf") || name.endsWith(".docx");
+  if (!isSupported) return "Only .md, .txt, .pdf, and .docx knowledge files are supported.";
   if (file.size > MAX_KNOWLEDGE_BYTES) return "Knowledge files must be 20MB or smaller.";
   return "";
 }
@@ -292,7 +292,7 @@ export default function AdminKnowledgePage() {
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Admin upload</p>
               <h2 className="mt-1 text-lg font-semibold tracking-tight text-zinc-900">Approved RAG source</h2>
-              <p className="mt-1 text-sm leading-relaxed text-zinc-500">Markdown, text, or PDF. Maximum 20MB.</p>
+              <p className="mt-1 text-sm leading-relaxed text-zinc-500">Markdown, text, PDF, or DOCX. Maximum 20MB.</p>
             </div>
           </div>
 
@@ -357,7 +357,7 @@ export default function AdminKnowledgePage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".md,.txt,.pdf,text/markdown,text/plain,application/pdf"
+                accept=".md,.txt,.pdf,.docx,text/markdown,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 className="sr-only"
                 onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
               />
