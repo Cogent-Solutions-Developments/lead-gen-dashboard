@@ -2167,7 +2167,7 @@ export function NormalUserEventLeadSheet() {
                 className="h-32 w-32"
               />
               <h3 className="ai-generating-text mt-4 text-2xl font-light tracking-tight">
-                Generating content
+                Generating content...
               </h3>
               </div>
             </div>
