@@ -1926,24 +1926,27 @@ export function NormalUserEventLeadSheet() {
                                     {copiedLeadId === item.id ? "Copied" : "Copy lead"}
                                   </span>
                                 </button>
-                                <button
-                                  type="button"
-                                  className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-zinc-400 transition-colors hover:border-blue-600 hover:text-zinc-950 disabled:pointer-events-none disabled:opacity-40"
-                                  onClick={() => void openEmailGenerator(item)}
-                                  disabled={item.contactReadOnly || (emailDialog?.loading && emailDialog.lead.id === item.id)}
-                                  title={item.contactReadOnly ? "Lead is read-only" : "Generate outreach content"}
-                                >
-                                  {emailDialog?.loading && emailDialog.lead.id === item.id ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                  ) : (
-                                    <Mail className="h-3.5 w-3.5" />
-                                  )}
-                                  <span className="text-xs font-medium">
-                                    {emailDialog?.loading && emailDialog.lead.id === item.id ? "Generating" : "Generate content"}
-                                  </span>
-                                </button>
                               </div>
                             </div>
+                          </div>
+
+                          <div />
+
+                          <div>
+                            <button
+                              type="button"
+                              className="inline-flex h-10 w-28 items-center justify-center gap-2 rounded-full border border-zinc-300 bg-white px-4 text-xs font-semibold text-zinc-700 transition-all hover:border-blue-600 hover:text-blue-600 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40"
+                              onClick={() => void openEmailGenerator(item)}
+                              disabled={item.contactReadOnly || (emailDialog?.loading && emailDialog.lead.id === item.id)}
+                              title={item.contactReadOnly ? "Lead is read-only" : "Generate email content"}
+                            >
+                              {emailDialog?.loading && emailDialog.lead.id === item.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Mail className="h-3.5 w-3.5" />
+                              )}
+                              <span>{emailDialog?.loading && emailDialog.lead.id === item.id ? "Generating" : "Email"}</span>
+                            </button>
                           </div>
 
                           <div />
