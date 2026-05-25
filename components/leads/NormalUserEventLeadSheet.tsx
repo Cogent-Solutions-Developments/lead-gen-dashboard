@@ -1583,38 +1583,40 @@ export function NormalUserEventLeadSheet() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-5 lg:min-w-[19rem] lg:items-stretch">
-              <div className="grid grid-cols-1 gap-6">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-zinc-400">Leads To Cover</p>
-                  <p className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
-                    {pageTotal.toLocaleString()}
-                  </p>
-                </div>
+            <div className="flex flex-col gap-5 lg:min-w-[22rem] lg:max-w-[24rem] lg:items-stretch">
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-zinc-400">Leads To Cover</p>
+                <p className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
+                  {pageTotal.toLocaleString()}
+                </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-4 border-t border-zinc-300 pt-4">
-                {canUseTemplateUpload ? (
+              <div className="border-t border-zinc-300 pt-4">
+                <div className="inline-flex h-12 w-full items-center rounded-2xl border border-zinc-300 bg-zinc-900/95 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_14px_rgba(0,0,0,0.18)]">
+                  {canUseTemplateUpload ? (
+                    <button
+                      type="button"
+                      onClick={openTemplateUploadDialog}
+                      disabled={!events.length}
+                      className="inline-flex h-10 flex-1 items-center justify-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-zinc-100 transition hover:bg-white/10 disabled:opacity-50"
+                    >
+                      <UploadCloud className="h-4 w-4" />
+                      Upload leads
+                    </button>
+                  ) : (
+                    <div className="h-10 flex-1" />
+                  )}
+
                   <button
                     type="button"
-                    onClick={openTemplateUploadDialog}
-                    disabled={!events.length}
-                    className="inline-flex h-10 w-fit items-center justify-center gap-3 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-950 transition-all hover:border-blue-600 hover:text-blue-600 active:scale-[0.98] disabled:opacity-50"
+                    onClick={() => setAddLeadOpen(true)}
+                    disabled={!selectedEvent}
+                    className="inline-flex h-10 flex-1 items-center justify-center gap-2.5 rounded-xl bg-blue-600 px-3 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] transition hover:bg-blue-500 disabled:opacity-50"
                   >
-                    <UploadCloud className="h-4 w-4" />
-                    Upload leads
+                    <Plus className="h-4 w-4" />
+                    Add a lead
                   </button>
-                ) : null}
-
-                <button
-                  type="button"
-                  onClick={() => setAddLeadOpen(true)}
-                  disabled={!selectedEvent}
-                  className="inline-flex h-10 w-fit items-center justify-center gap-4 rounded-full bg-zinc-950 px-5 text-sm font-semibold text-white transition-all hover:bg-blue-600 active:scale-[0.98] disabled:opacity-50"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add entry
-                </button>
+                </div>
               </div>
             </div>
           </div>
