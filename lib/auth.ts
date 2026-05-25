@@ -13,6 +13,9 @@ export type AuthUser = {
   username: string;
   role: AuthRole;
   fullName?: string;
+  bio?: string;
+  avatarStorageObjectId?: string | null;
+  avatarUrl?: string | null;
   isActive?: boolean;
   authType?: string;
   createdAt?: string;
@@ -50,6 +53,8 @@ export type AdminEventItem = {
   location?: string | null;
   category?: string | null;
   date?: string | null;
+  logoStorageObjectId?: string | null;
+  logoUrl?: string | null;
   isActive: boolean;
   createdByUserId?: string | null;
   createdAt?: string | null;
@@ -72,6 +77,64 @@ export type AdminEventUpdateInput = {
   isActive?: boolean;
   syncLinkedCampaigns?: boolean;
 };
+
+export type MyProfile = AuthUser & {
+  bio: string;
+  avatarStorageObjectId?: string | null;
+  avatarUrl?: string | null;
+};
+
+export type AdminStorageObjectItem = {
+  id: string;
+  provider: string;
+  bucket?: string | null;
+  objectKey: string;
+  originalFilename: string;
+  mimeType?: string | null;
+  sizeBytes?: number | null;
+  checksumSha256?: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
+  ownerUserId?: string | null;
+  createdByUserId?: string | null;
+  status: string;
+  visibility: string;
+  legacyPath?: string | null;
+  meta: Record<string, unknown>;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  deletedAt?: string | null;
+};
+
+export type AdminStorageSummary = {
+  totalObjects: number;
+  activeObjects: number;
+  totalBytes: number;
+  providers: Record<string, { count: number; active: number; bytes: number; statuses: Record<string, number> }>;
+};
+
+export type AdminStorageObjectList = {
+  objects: AdminStorageObjectItem[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+type DirectDownloadResponse = {
+  fileName?: string;
+  url?: string;
+  direct?: boolean;
+  provider?: string;
+  expiresInSeconds?: number | null;
+};
+
+export type ProtectedObjectUrl = {
+  url: string;
+  direct: boolean;
+  revoke: () => void;
+};
+
+const DIRECT_OBJECT_URL_CACHE = new Map<string, { url: string; expiresAt: number }>();
 
 export type AdminCategoryAlias = {
   id: string;
@@ -438,6 +501,9 @@ function getBaseUrl() {
 function normalizeUser(raw: unknown): AuthUser {
   const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const fullName = source.fullName ?? source.full_name;
+  const bio = source.bio ?? "";
+  const avatarStorageObjectId = source.avatarStorageObjectId ?? source.avatar_storage_object_id;
+  const avatarUrl = source.avatarUrl ?? source.avatar_url;
   const isActive = source.isActive ?? source.is_active;
   const authType = source.authType ?? source.auth_type;
   const createdAt = source.createdAt ?? source.created_at;
@@ -449,6 +515,9 @@ function normalizeUser(raw: unknown): AuthUser {
     username: String(source.username || ""),
     role: normalizeAuthRole(source.role),
     fullName: fullName == null ? "" : String(fullName),
+    bio: bio == null ? "" : String(bio),
+    avatarStorageObjectId: avatarStorageObjectId == null ? null : String(avatarStorageObjectId),
+    avatarUrl: avatarUrl == null ? null : String(avatarUrl),
     isActive: typeof isActive === "boolean" ? isActive : undefined,
     authType: authType == null ? undefined : String(authType),
     createdAt: createdAt == null ? undefined : String(createdAt),
@@ -643,8 +712,9 @@ async function authRequest<T>(
   options: RequestInit & { auth?: boolean } = {}
 ): Promise<T> {
   const { auth = true, headers, ...rest } = options;
+  const isFormData = typeof FormData !== "undefined" && rest.body instanceof FormData;
   const requestHeaders: Record<string, string> = {
-    ...(rest.body ? { "Content-Type": "application/json" } : {}),
+    ...(rest.body && !isFormData ? { "Content-Type": "application/json" } : {}),
     ...(auth ? getAuthHeader() : {}),
     ...getLocalDevNgrokHeaders(),
     ...(headers as Record<string, string> | undefined),
@@ -655,6 +725,165 @@ async function authRequest<T>(
     headers: requestHeaders,
   });
   return parseResponse<T>(response);
+}
+
+function normalizeProfile(raw: unknown): MyProfile {
+  const user = normalizeUser(raw);
+  return {
+    ...user,
+    bio: user.bio || "",
+    avatarStorageObjectId: user.avatarStorageObjectId ?? null,
+    avatarUrl: user.avatarUrl ?? null,
+  };
+}
+
+function absoluteApiUrl(pathOrUrl: string) {
+  const raw = String(pathOrUrl || "").trim();
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return `${getBaseUrl()}${raw.startsWith("/") ? raw : `/${raw}`}`;
+}
+
+function triggerBrowserDownload(url: string, fileName: string) {
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName || "download";
+  anchor.rel = "noopener noreferrer";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+}
+
+export async function createAuthenticatedObjectUrl(pathOrUrl: string) {
+  const response = await fetch(absoluteApiUrl(pathOrUrl), {
+    headers: {
+      ...getAuthHeader(),
+      ...getLocalDevNgrokHeaders(),
+    },
+  });
+  if (!response.ok) {
+    await parseResponse<never>(response);
+  }
+  const blob = await response.blob();
+  return window.URL.createObjectURL(blob);
+}
+
+export function clearProtectedObjectUrlCache(match?: string) {
+  if (!match) {
+    DIRECT_OBJECT_URL_CACHE.clear();
+    return;
+  }
+  for (const key of DIRECT_OBJECT_URL_CACHE.keys()) {
+    if (key.includes(match)) DIRECT_OBJECT_URL_CACHE.delete(key);
+  }
+}
+
+export async function createProtectedObjectUrl(pathOrUrl: string, directUrlPath?: string): Promise<ProtectedObjectUrl> {
+  const cacheKey = directUrlPath ? `direct:${directUrlPath}` : "";
+  const cached = cacheKey ? DIRECT_OBJECT_URL_CACHE.get(cacheKey) : undefined;
+  if (cached && cached.expiresAt > Date.now() + 60_000) {
+    return {
+      url: cached.url,
+      direct: true,
+      revoke: () => {},
+    };
+  }
+
+  if (directUrlPath) {
+    try {
+      const direct = await authRequest<DirectDownloadResponse>(directUrlPath);
+      if (direct.direct && direct.url) {
+        const ttlMs = Math.max(60, Number(direct.expiresInSeconds || 3600)) * 1000;
+        DIRECT_OBJECT_URL_CACHE.set(cacheKey, {
+          url: direct.url,
+          expiresAt: Date.now() + ttlMs,
+        });
+        return {
+          url: direct.url,
+          direct: true,
+          revoke: () => {},
+        };
+      }
+    } catch {
+      // Keep legacy/local objects visible even when the signed-url helper is not available.
+    }
+  }
+
+  const objectUrl = await createAuthenticatedObjectUrl(pathOrUrl);
+  return {
+    url: objectUrl,
+    direct: false,
+    revoke: () => window.URL.revokeObjectURL(objectUrl),
+  };
+}
+
+export async function downloadProtectedFile(
+  downloadPath: string,
+  fileName: string,
+  directUrlPath?: string
+) {
+  if (directUrlPath) {
+    try {
+      const direct = await authRequest<DirectDownloadResponse>(directUrlPath);
+      if (direct.direct && direct.url) {
+        triggerBrowserDownload(direct.url, direct.fileName || fileName);
+        return;
+      }
+    } catch {
+      // Older API builds do not expose direct download URLs; fall back to the protected file stream.
+    }
+  }
+
+  const response = await fetch(absoluteApiUrl(downloadPath), {
+    headers: {
+      ...getAuthHeader(),
+      ...getLocalDevNgrokHeaders(),
+    },
+  });
+  if (!response.ok) {
+    await parseResponse<never>(response);
+  }
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  triggerBrowserDownload(url, fileName);
+  window.setTimeout(() => window.URL.revokeObjectURL(url), 500);
+}
+
+export async function getMyProfile() {
+  const data = await authRequest<{ profile: MyProfile }>("/api/me/profile");
+  return normalizeProfile(data.profile);
+}
+
+export async function updateMyProfile(payload: { fullName?: string; bio?: string }) {
+  const data = await authRequest<{ profile: MyProfile }>("/api/me/profile", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  const profile = normalizeProfile(data.profile);
+  updateStoredAuthUser(profile);
+  return profile;
+}
+
+export async function uploadMyProfileAvatar(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const data = await authRequest<{ profile: MyProfile; storageObjectId: string }>("/api/me/profile/avatar", {
+    method: "POST",
+    body: formData,
+  });
+  const profile = normalizeProfile(data.profile);
+  clearProtectedObjectUrlCache("/api/profile/avatar/");
+  updateStoredAuthUser(profile);
+  return { ...data, profile };
+}
+
+export async function deleteMyProfileAvatar() {
+  const data = await authRequest<{ profile: MyProfile; deleted: boolean }>("/api/me/profile/avatar", {
+    method: "DELETE",
+  });
+  const profile = normalizeProfile(data.profile);
+  clearProtectedObjectUrlCache("/api/profile/avatar/");
+  updateStoredAuthUser(profile);
+  return { ...data, profile };
 }
 
 export async function loginWithPassword(username: string, password: string) {
@@ -737,6 +966,8 @@ function normalizeAdminEvent(raw: unknown): AdminEventItem {
     location: source.location == null ? null : String(source.location),
     category: source.category == null ? null : String(source.category),
     date: source.date == null ? null : String(source.date),
+    logoStorageObjectId: source.logoStorageObjectId == null ? null : String(source.logoStorageObjectId),
+    logoUrl: source.logoUrl == null ? null : String(source.logoUrl),
     isActive: Boolean(source.isActive),
     createdByUserId: source.createdByUserId == null ? null : String(source.createdByUserId),
     createdAt: source.createdAt == null ? null : String(source.createdAt),
@@ -834,6 +1065,111 @@ export async function updateAdminEvent(eventId: string, payload: AdminEventUpdat
     body: JSON.stringify(payload),
   });
   return normalizeAdminEvent(data.event);
+}
+
+export async function uploadAdminEventLogo(eventId: string, file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const data = await authRequest<{ event: AdminEventItem; storageObjectId: string; logoUrl?: string }>(
+    `/api/admin/events/${eventId}/logo`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+  return { ...data, event: normalizeAdminEvent(data.event) };
+}
+
+export async function deleteAdminEventLogo(eventId: string) {
+  const data = await authRequest<{ event: AdminEventItem; deleted: boolean }>(`/api/admin/events/${eventId}/logo`, {
+    method: "DELETE",
+  });
+  return { ...data, event: normalizeAdminEvent(data.event) };
+}
+
+function normalizeAdminStorageObject(raw: unknown): AdminStorageObjectItem {
+  const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const meta = source.meta && typeof source.meta === "object" ? (source.meta as Record<string, unknown>) : {};
+  return {
+    id: String(source.id || ""),
+    provider: String(source.provider || "local"),
+    bucket: source.bucket == null ? null : String(source.bucket),
+    objectKey: String(source.objectKey || ""),
+    originalFilename: String(source.originalFilename || "file"),
+    mimeType: source.mimeType == null ? null : String(source.mimeType),
+    sizeBytes: source.sizeBytes == null ? null : Number(source.sizeBytes || 0),
+    checksumSha256: source.checksumSha256 == null ? null : String(source.checksumSha256),
+    entityType: source.entityType == null ? null : String(source.entityType),
+    entityId: source.entityId == null ? null : String(source.entityId),
+    ownerUserId: source.ownerUserId == null ? null : String(source.ownerUserId),
+    createdByUserId: source.createdByUserId == null ? null : String(source.createdByUserId),
+    status: String(source.status || "active"),
+    visibility: String(source.visibility || "private"),
+    legacyPath: source.legacyPath == null ? null : String(source.legacyPath),
+    meta,
+    createdAt: source.createdAt == null ? null : String(source.createdAt),
+    updatedAt: source.updatedAt == null ? null : String(source.updatedAt),
+    deletedAt: source.deletedAt == null ? null : String(source.deletedAt),
+  };
+}
+
+function normalizeAdminStorageSummary(raw: unknown): AdminStorageSummary {
+  const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const providers = source.providers && typeof source.providers === "object"
+    ? (source.providers as AdminStorageSummary["providers"])
+    : {};
+  return {
+    totalObjects: Number(source.totalObjects ?? 0) || 0,
+    activeObjects: Number(source.activeObjects ?? 0) || 0,
+    totalBytes: Number(source.totalBytes ?? 0) || 0,
+    providers,
+  };
+}
+
+export async function getAdminStorageSummary() {
+  const data = await authRequest<{ summary: AdminStorageSummary }>("/api/admin/storage/summary");
+  return normalizeAdminStorageSummary(data.summary);
+}
+
+export async function listAdminStorageObjects(params?: {
+  status?: string;
+  entityType?: string;
+  provider?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const query = new URLSearchParams();
+  if (params?.status) query.set("status", params.status);
+  if (params?.entityType) query.set("entityType", params.entityType);
+  if (params?.provider) query.set("provider", params.provider);
+  if (params?.search) query.set("search", params.search);
+  if (params?.limit) query.set("limit", String(params.limit));
+  if (params?.offset) query.set("offset", String(params.offset));
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  const data = await authRequest<AdminStorageObjectList>(`/api/admin/storage/objects${suffix}`);
+  const objects = Array.isArray(data.objects) ? data.objects.map(normalizeAdminStorageObject) : [];
+  return {
+    objects,
+    total: Number(data.total ?? objects.length),
+    limit: Number(data.limit ?? params?.limit ?? 50),
+    offset: Number(data.offset ?? params?.offset ?? 0),
+  };
+}
+
+export async function deleteAdminStorageObject(objectId: string) {
+  return authRequest<{ ok: boolean; storageObjectId: string; status: string; note?: string }>(
+    `/api/admin/storage/objects/${encodeURIComponent(objectId)}`,
+    { method: "DELETE" }
+  );
+}
+
+export async function downloadAdminStorageObjectFile(objectId: string, fileName = "file") {
+  await downloadProtectedFile(
+    `/api/admin/storage/objects/${encodeURIComponent(objectId)}/download`,
+    fileName,
+    `/api/admin/storage/objects/${encodeURIComponent(objectId)}/download-url`
+  );
 }
 
 export async function listAdminCategories() {

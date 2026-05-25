@@ -27,7 +27,6 @@ import {
   Download, 
   Mail, 
   MousePointerClick, 
-  Users, 
   TrendingUp,
   DollarSign
 } from "lucide-react";
@@ -86,17 +85,29 @@ const kpiData = [
   },
 ];
 
+type ChartTooltipEntry = {
+  color?: string;
+  name?: string;
+  value?: string | number;
+};
+
+type ChartTooltipProps = {
+  active?: boolean;
+  payload?: ChartTooltipEntry[];
+  label?: string | number;
+};
+
 // --- CUSTOM TOOLTIP COMPONENT (Premium Look) ---
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
   if (active && payload && payload.length) {
     return (
       <div className="rounded-lg border border-slate-300 bg-white p-4 shadow-xl">
         <p className="mb-2 text-xs font-semibold uppercase text-slate-500">{label}</p>
-        {payload.map((entry: any, index: number) => (
+        {payload.map((entry, index) => (
           <div key={index} className="flex items-center gap-2 text-sm">
             <div className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
             <span className="font-medium text-slate-700">
-              {entry.name.charAt(0).toUpperCase() + entry.name.slice(1)}:
+              {String(entry.name || "").charAt(0).toUpperCase() + String(entry.name || "").slice(1)}:
             </span>
             <span className="font-bold text-slate-900">{entry.value}</span>
           </div>
