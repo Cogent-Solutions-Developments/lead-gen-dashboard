@@ -17,6 +17,8 @@ function waDebugLog(event: string, payload?: unknown) {
   console.log(`[WA] ${event}`, payload);
 }
 
+const LEAD_CONTENT_GENERATION_TIMEOUT_MS = 180000;
+
 
 export type DashboardStats = {
   activeCampaigns: number;
@@ -1455,7 +1457,8 @@ export async function updateLeadContent(id: string, payload: {
 export async function generateLeadEmailContent(id: string, payload?: LeadEmailGenerationRequest) {
   const { data } = await apiClient.post<LeadEmailGenerationResponse>(
     `/api/leads/${id}/email-content/generate`,
-    payload ?? {}
+    payload ?? {},
+    { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS }
   );
   return data;
 }
@@ -1463,7 +1466,8 @@ export async function generateLeadEmailContent(id: string, payload?: LeadEmailGe
 export async function generateLeadContent(id: string, payload: LeadContentGenerationRequest) {
   const { data } = await apiClient.post<LeadContentGenerationResponse>(
     `/api/leads/${id}/content/generate`,
-    payload
+    payload,
+    { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS }
   );
   return data;
 }
