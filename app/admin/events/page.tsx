@@ -1,18 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   AlertTriangle,
   ArrowLeft,
   CalendarDays,
+  ImagePlus,
   Loader2,
   PencilLine,
   Plus,
   RefreshCw,
   ShieldCheck,
   Tags,
+  Trash2,
   UsersRound,
   X,
 } from "lucide-react";
@@ -28,12 +30,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  clearProtectedObjectUrlCache,
   createAdminEvent,
+  deleteAdminEventLogo,
   listAdminEvents,
   updateAdminEvent,
+  uploadAdminEventLogo,
   type AdminEventItem,
   type AdminEventUpdateInput,
 } from "@/lib/auth";
+import { ProtectedImage } from "@/components/storage/ProtectedImage";
+
+const EVENT_LOGO_MAX_BYTES = 20 * 1024 * 1024;
+const EVENT_LOGO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Please try again.";
@@ -56,6 +65,26 @@ function formatDate(value?: string | null) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
   return parsed.toLocaleDateString();
+}
+
+function validateEventLogo(file: File) {
+  if (!EVENT_LOGO_TYPES.includes(file.type)) return "Use a JPG, PNG, or WebP image.";
+  if (file.size > EVENT_LOGO_MAX_BYTES) return "Event logo must be 20MB or smaller.";
+  return "";
+}
+
+function EventLogoThumbnail({ event }: { event: AdminEventItem }) {
+  return (
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-zinc-300 bg-zinc-50 text-xs font-semibold text-zinc-500">
+      <ProtectedImage
+        src={event.logoUrl}
+        directUrlPath={event.logoUrl ? `${event.logoUrl}/download-url` : undefined}
+        alt=""
+        className="h-full w-full object-cover"
+        fallback={event.eventName.slice(0, 2).toUpperCase()}
+      />
+    </div>
+  );
 }
 
 type EventStatusValue = "active" | "inactive";
@@ -220,6 +249,7 @@ function StateChangeConfirmDialog({
 }
 
 export default function AdminEventsPage() {
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
   const [events, setEvents] = useState<AdminEventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -234,12 +264,15 @@ export default function AdminEventsPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [tableStatusTarget, setTableStatusTarget] = useState<TableStatusTarget | null>(null);
   const [tableStatusSavingId, setTableStatusSavingId] = useState<string | null>(null);
+  const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState("");
+  const [logoBusy, setLogoBusy] = useState(false);
 
   const generatedEventKey = useMemo(
     () => slugifyEventKey(eventName, location, date),
     [eventName, location, date]
   );
-  const isBusy = saving || editSaving || Boolean(tableStatusSavingId);
+  const isBusy = saving || editSaving || logoBusy || Boolean(tableStatusSavingId);
 
   const loadEvents = async () => {
     setLoading(true);
@@ -282,6 +315,8 @@ export default function AdminEventsPage() {
     setEditLocation(item.location ?? "");
     setEditDate(item.date ?? "");
     setEditStatus(eventStatusValue(item.isActive));
+    setSelectedLogoFile(null);
+    if (logoInputRef.current) logoInputRef.current.value = "";
   };
 
   const hasDetailChanges = useMemo(() => {
@@ -428,21 +463,87 @@ export default function AdminEventsPage() {
     }
   };
 
+  useEffect(() => {
+    let objectUrl = "";
+    if (selectedLogoFile) {
+      objectUrl = window.URL.createObjectURL(selectedLogoFile);
+      setLogoPreviewUrl(objectUrl);
+    } else {
+      setLogoPreviewUrl("");
+    }
+    return () => {
+      if (objectUrl) window.URL.revokeObjectURL(objectUrl);
+    };
+  }, [selectedLogoFile]);
+
+  const handleLogoSelect = (file: File | null) => {
+    if (!file) {
+      setSelectedLogoFile(null);
+      return;
+    }
+    const error = validateEventLogo(file);
+    if (error) {
+      toast.error("Event logo rejected", { description: error });
+      if (logoInputRef.current) logoInputRef.current.value = "";
+      return;
+    }
+    setSelectedLogoFile(file);
+  };
+
+  const handleLogoUpload = async () => {
+    if (!editingEvent || !selectedLogoFile) {
+      toast.error("Choose a logo first");
+      return;
+    }
+    setLogoBusy(true);
+    try {
+      const response = await uploadAdminEventLogo(editingEvent.id, selectedLogoFile);
+      clearProtectedObjectUrlCache(`/api/events/${editingEvent.id}/logo`);
+      setEditingEvent(response.event);
+      setEvents((prev) => sortEvents(prev.map((item) => (item.id === response.event.id ? response.event : item))));
+      setSelectedLogoFile(null);
+      if (logoInputRef.current) logoInputRef.current.value = "";
+      toast.success("Event logo updated", { description: response.event.eventName });
+    } catch (error: unknown) {
+      toast.error("Event logo upload failed", { description: getErrorMessage(error) });
+    } finally {
+      setLogoBusy(false);
+    }
+  };
+
+  const handleLogoDelete = async () => {
+    if (!editingEvent) return;
+    setLogoBusy(true);
+    try {
+      const response = await deleteAdminEventLogo(editingEvent.id);
+      clearProtectedObjectUrlCache(`/api/events/${editingEvent.id}/logo`);
+      setEditingEvent(response.event);
+      setEvents((prev) => sortEvents(prev.map((item) => (item.id === response.event.id ? response.event : item))));
+      setSelectedLogoFile(null);
+      if (logoInputRef.current) logoInputRef.current.value = "";
+      toast.success("Event logo removed", { description: response.event.eventName });
+    } catch (error: unknown) {
+      toast.error("Event logo delete failed", { description: getErrorMessage(error) });
+    } finally {
+      setLogoBusy(false);
+    }
+  };
+
   return (
-    <div className="font-sans flex min-h-[calc(100dvh-3rem)] flex-col overflow-y-auto bg-transparent p-1">
+    <div className="flex min-h-[calc(100dvh-3rem)] w-full min-w-0 flex-col overflow-y-auto bg-transparent p-1 font-sans">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
+        className="mb-5 flex flex-col gap-4 min-[1180px]:flex-row min-[1180px]:items-end min-[1180px]:justify-between"
       >
-        <div>
+        <div className="min-w-0">
           <h1 className="text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">Event Registry</h1>
           <p className="mt-4 max-w-xl text-lg font-light leading-relaxed text-zinc-500">
             Create events once, keep their base details in the registry, and switch them to active when they are ready for campaign create or upload.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link href="/admin/users">
             <Button
               type="button"
@@ -477,9 +578,9 @@ export default function AdminEventsPage() {
         </div>
       </motion.div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="min-w-0 space-y-5">
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-3">
             {[
               { label: "Total Events", value: stats.total, icon: Tags },
               { label: "Active Events", value: stats.active, icon: ShieldCheck },
@@ -509,90 +610,110 @@ export default function AdminEventsPage() {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px]">
-                <thead className="border-b border-zinc-100 bg-zinc-50/70 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                  <tr>
-                    <th className="px-5 py-3">Event</th>
-                    <th className="px-5 py-3">Location</th>
-                    <th className="px-5 py-3">Date</th>
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3">Key</th>
-                    <th className="px-5 py-3 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={6} className="px-5 py-10 text-center text-sm text-zinc-500">
-                        Loading events...
-                      </td>
-                    </tr>
-                  ) : events.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-5 py-10 text-center text-sm text-zinc-500">
-                        No events found.
-                      </td>
-                    </tr>
-                  ) : (
-                    events.map((item) => (
-                      <tr key={item.id} className="transition-colors hover:bg-zinc-50/80">
-                        <td className="px-5 py-4">
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-zinc-900">{item.eventName}</span>
-                            <span className="text-xs text-zinc-500">{item.id}</span>
+            <div className="min-w-0">
+              <div className="hidden border-b border-zinc-100 bg-zinc-50/70 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400 lg:grid lg:grid-cols-[minmax(0,2.2fr)_minmax(9rem,1fr)_7rem_9rem_minmax(8rem,1fr)_5rem] lg:gap-4">
+                <div>Event</div>
+                <div>Location</div>
+                <div>Date</div>
+                <div>Status</div>
+                <div>Key</div>
+                <div className="text-right">Action</div>
+              </div>
+
+              <div className="divide-y divide-zinc-100">
+                {loading ? (
+                  <div className="px-5 py-10 text-center text-sm text-zinc-500">Loading events...</div>
+                ) : events.length === 0 ? (
+                  <div className="px-5 py-10 text-center text-sm text-zinc-500">No events found.</div>
+                ) : (
+                  events.map((item) => (
+                    <div
+                      key={item.id}
+                      className="grid min-w-0 gap-4 px-5 py-4 transition-colors hover:bg-zinc-50/80 lg:grid-cols-[minmax(0,2.2fr)_minmax(9rem,1fr)_7rem_9rem_minmax(8rem,1fr)_5rem] lg:items-center"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <EventLogoThumbnail event={item} />
+                          <div className="min-w-0">
+                            <span className="block truncate font-semibold text-zinc-900" title={item.eventName}>
+                              {item.eventName}
+                            </span>
+                            <span className="block truncate text-xs text-zinc-500">{item.id}</span>
                           </div>
-                        </td>
-                        <td className="px-5 py-4 text-sm text-zinc-700">{item.location || "-"}</td>
-                        <td className="px-5 py-4 text-sm text-zinc-700">{formatDate(item.date)}</td>
-                        <td className="px-5 py-4">
-                          <Select
-                            value={eventStatusValue(item.isActive)}
-                            onValueChange={(value) => handleTableStatusSelection(item, value)}
-                            disabled={isBusy}
+                        </div>
+                      </div>
+
+                      <div className="min-w-0 text-sm text-zinc-700">
+                        <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400 lg:hidden">
+                          Location
+                        </span>
+                        <span className="block truncate" title={item.location || "-"}>
+                          {item.location || "-"}
+                        </span>
+                      </div>
+
+                      <div className="text-sm text-zinc-700">
+                        <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400 lg:hidden">
+                          Date
+                        </span>
+                        {formatDate(item.date)}
+                      </div>
+
+                      <div>
+                        <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400 lg:hidden">
+                          Status
+                        </span>
+                        <Select
+                          value={eventStatusValue(item.isActive)}
+                          onValueChange={(value) => handleTableStatusSelection(item, value)}
+                          disabled={isBusy}
+                        >
+                          <SelectTrigger
+                            className={`h-9 w-full border text-xs font-semibold capitalize shadow-none sm:w-44 lg:w-[8.75rem] ${
+                              item.isActive
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                : "border-amber-200 bg-amber-50 text-amber-700"
+                            }`}
                           >
-                            <SelectTrigger
-                              className={`h-9 w-[8.75rem] border text-xs font-semibold capitalize shadow-none ${
-                                item.isActive
-                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                  : "border-amber-200 bg-amber-50 text-amber-700"
-                              }`}
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="border-zinc-300 bg-white">
-                              <SelectItem value="active">Active</SelectItem>
-                              <SelectItem value="inactive">Inactive</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className="rounded-full border border-zinc-300 bg-zinc-50 px-2.5 py-1 text-[11px] font-medium text-zinc-600">
-                            {item.eventKey}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 text-right">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => openEditDialog(item)}
-                            disabled={isBusy}
-                            className="h-8 border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
-                          >
-                            <PencilLine className="mr-1.5 h-3.5 w-3.5" />
-                            Edit
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="border-zinc-300 bg-white">
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="inactive">Inactive</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="min-w-0">
+                        <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400 lg:hidden">
+                          Key
+                        </span>
+                        <span className="block max-w-full truncate rounded-full border border-zinc-300 bg-zinc-50 px-2.5 py-1 text-[11px] font-medium text-zinc-600" title={item.eventKey}>
+                          {item.eventKey}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-start lg:justify-end">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => openEditDialog(item)}
+                          disabled={isBusy}
+                          className="h-9 w-full border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 sm:w-auto lg:h-8"
+                        >
+                          <PencilLine className="mr-1.5 h-3.5 w-3.5" />
+                          Edit
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </Card>
         </div>
 
-        <Card className="h-fit rounded-2xl border border-zinc-300 bg-white/88 p-5">
+        <Card className="h-fit rounded-2xl border border-zinc-300 bg-white/88 p-5 2xl:sticky 2xl:top-6">
           <div className="mb-5 flex items-start justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold text-zinc-900">Create Event</h2>
@@ -733,6 +854,69 @@ export default function AdminEventsPage() {
 
           <div className="rounded-xl border border-zinc-300 bg-white/80 p-4 text-xs leading-relaxed text-zinc-500">
             The event key stays stable here and is not edited from the UI, so event mapping remains consistent while details are updated.
+          </div>
+
+          <div className="rounded-xl border border-zinc-300 bg-zinc-50/70 p-4">
+            <div className="flex items-start gap-4">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-zinc-300 bg-white text-sm font-semibold text-zinc-500">
+                {logoPreviewUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logoPreviewUrl} alt="" className="h-full w-full object-cover" />
+                ) : editingEvent ? (
+                  <EventLogoThumbnail event={editingEvent} />
+                ) : (
+                  "LG"
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Event Logo</p>
+                <p className="mt-1 text-sm text-zinc-600">
+                  {selectedLogoFile?.name || (editingEvent?.logoStorageObjectId ? "Logo is set for this event." : "No logo selected.")}
+                </p>
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={(event) => handleLogoSelect(event.target.files?.[0] ?? null)}
+                />
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={logoBusy || editSaving}
+                    onClick={() => logoInputRef.current?.click()}
+                    className="h-9 border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                  >
+                    <ImagePlus className="mr-1.5 h-3.5 w-3.5" />
+                    Choose Logo
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={!selectedLogoFile || logoBusy || editSaving}
+                    onClick={() => void handleLogoUpload()}
+                    className="h-9 bg-sidebar px-3 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+                  >
+                    {logoBusy && selectedLogoFile ? (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <ImagePlus className="mr-1.5 h-3.5 w-3.5" />
+                    )}
+                    Upload
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={logoBusy || editSaving || (!editingEvent?.logoStorageObjectId && !selectedLogoFile)}
+                    onClick={() => void handleLogoDelete()}
+                    className="h-9 border-red-200 bg-white px-3 text-xs font-semibold text-red-600 hover:bg-red-50"
+                  >
+                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-2">

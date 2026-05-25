@@ -7,8 +7,6 @@ export function usePersona() {
   const [persona, setPersonaState] = useState<Persona>(() => getPersona());
 
   useEffect(() => {
-    setPersonaState(getPersona());
-
     const unsubscribe = onPersonaChange((next) => {
       setPersonaState(next);
     });

@@ -21,6 +21,7 @@ import { clearPersona } from "@/lib/persona";
 import { usePersona } from "@/hooks/usePersona";
 import { clearAuthSession } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
+import { UserAvatar } from "@/components/profile/UserAvatar";
 import { toast } from "sonner";
 
 const navItems = [
@@ -295,7 +296,31 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
               </button>
             </Link>
           </motion.div>
-        ) : null}
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <Link href="/profile">
+              <button
+                className={`flex items-center text-sm font-light tracking-tight text-white/40 transition-all hover:text-white group ${
+                  isExpanded ? "gap-5 px-2" : "h-8 w-8 justify-center px-0"
+                }`}
+              >
+                <UserAvatar
+                  user={user}
+                  size="sm"
+                  className="border-white/10 bg-white/8 text-white/70 transition-colors group-hover:bg-white/12"
+                  showIconFallback
+                />
+                <span className={`whitespace-nowrap transition-all duration-200 ${isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"}`}>
+                  {user?.fullName?.trim() || user?.username || "Profile"}
+                </span>
+              </button>
+            </Link>
+          </motion.div>
+        )}
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
