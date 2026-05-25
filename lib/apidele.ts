@@ -29,6 +29,9 @@ import type {
   ForceDeleteCampaignResponse,
   GlobalLeadSearchParams,
   GlobalLeadSearchResponse,
+  LeadContentGenerationRequest,
+  LeadContentGenerationResponse,
+  LeadContentPlatform,
   LeadEmailGenerationRequest,
   LeadEmailGenerationResponse,
   LeadTemplateValidationResponse,
@@ -94,6 +97,9 @@ export type {
   ForceDeleteCampaignResponse,
   GlobalLeadSearchParams,
   GlobalLeadSearchResponse,
+  LeadContentGenerationRequest,
+  LeadContentGenerationResponse,
+  LeadContentPlatform,
   LeadEmailGenerationRequest,
   LeadEmailGenerationResponse,
   LeadTemplateValidationResponse,
@@ -130,6 +136,8 @@ export type {
   WorkflowStatusHistoryResponse,
   WorkflowStatusUpdateResponse,
 };
+
+const LEAD_CONTENT_GENERATION_TIMEOUT_MS = 180000;
 
 const apiClientDelegate = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
@@ -450,7 +458,17 @@ export async function updateLeadContent(
 export async function generateLeadEmailContent(id: string, payload?: LeadEmailGenerationRequest) {
   const { data } = await apiClientDelegate.post<LeadEmailGenerationResponse>(
     `/api/delegates/leads/${id}/email-content/generate`,
-    payload ?? {}
+    payload ?? {},
+    { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS }
+  );
+  return data;
+}
+
+export async function generateLeadContent(id: string, payload: LeadContentGenerationRequest) {
+  const { data } = await apiClientDelegate.post<LeadContentGenerationResponse>(
+    `/api/delegates/leads/${id}/content/generate`,
+    payload,
+    { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS }
   );
   return data;
 }

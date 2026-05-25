@@ -29,7 +29,7 @@ import {
 } from "@/lib/api";
 import { listAdminEvents, type AdminEventItem } from "@/lib/auth";
 
-const MAX_AGENDA_BYTES = 10 * 1024 * 1024;
+const MAX_AGENDA_BYTES = 20 * 1024 * 1024;
 type EventStatusTab = "active" | "inactive";
 
 function getErrorMessage(error: unknown) {
@@ -59,7 +59,7 @@ function validateAgendaFile(file: File) {
     return "Only PDF agenda files are supported.";
   }
   if (file.size > MAX_AGENDA_BYTES) {
-    return "Agenda PDF must be 10MB or smaller.";
+    return "Agenda PDF must be 20MB or smaller.";
   }
   return "";
 }
@@ -297,7 +297,7 @@ export default function AdminAgendasPage() {
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Admin upload</p>
               <h2 className="mt-1 text-lg font-semibold tracking-tight text-zinc-900">Latest agenda PDF</h2>
-              <p className="mt-1 text-sm leading-relaxed text-zinc-500">PDF only, maximum 10MB.</p>
+              <p className="mt-1 text-sm leading-relaxed text-zinc-500">PDF only, maximum 20MB.</p>
             </div>
           </div>
 
