@@ -6,7 +6,8 @@ import { motion } from "framer-motion";
 import { listEvents, type EventSummaryItem } from "@/lib/apiRouter";
 import {
   ArrowLeft,
-  RefreshCcw,
+  LayoutGrid,
+  List,
   Search,
   X,
 } from "lucide-react";
@@ -19,7 +20,7 @@ function getErrorMessage(error: unknown) {
 function HeaderMetricSkeleton() {
   return (
     <div className="space-y-2">
-      <div className="h-3 w-24 animate-pulse bg-zinc-100" />
+      <div className="h-3 w-32 animate-pulse bg-zinc-100" />
       <div className="h-10 w-20 animate-pulse bg-zinc-100" />
     </div>
   );
@@ -62,7 +63,7 @@ export function NormalUserEventsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [refreshTick, setRefreshTick] = useState(0);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const hasSearch = searchQuery.trim().length > 0;
 
   useEffect(() => {
@@ -90,7 +91,7 @@ export function NormalUserEventsPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshTick]);
+  }, []);
 
   const filteredItems = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -119,71 +120,53 @@ export function NormalUserEventsPage() {
       <header className="shrink-0 border-b border-zinc-300 pb-12">
         <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-950"
-            >
-              <ArrowLeft className="mr-2 h-3 w-3" />
-              Return to dashboard
-            </Link>
-
-            <div className="mt-8">
+            <div>
               <h1 className="text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
                 Events
               </h1>
-              <p className="mt-4 max-w-xl text-lg font-light leading-relaxed text-zinc-500">
-                Browse our curated event registry and access real-time prospect intelligence.
-              </p>
             </div>
           </div>
 
-          <div className="flex flex-col gap-5 border-zinc-300 lg:min-w-[23rem] lg:border-l lg:pl-10">
-            <div className="grid grid-cols-2 gap-10">
+          <div className="border-zinc-300 lg:min-w-[23rem] lg:border-l lg:pl-10">
+            <div className="flex items-end justify-between gap-6">
               {loading ? (
-                <>
-                  <HeaderMetricSkeleton />
-                  <HeaderMetricSkeleton />
-                </>
+                <HeaderMetricSkeleton />
               ) : (
-                <>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-zinc-400">Active events</p>
-                    <p className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
-                      {items.length}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-zinc-400">Total prospect reach</p>
-                    <p className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
-                      {totalLeadCount.toLocaleString()}
-                    </p>
-                  </div>
-                </>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-zinc-400">Leads To Cover</p>
+                  <p className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
+                    {totalLeadCount.toLocaleString()}
+                  </p>
+                </div>
               )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-10 border-t border-zinc-300 pt-4">
-              <button
-                type="button"
-                className={`inline-flex h-10 w-fit items-center gap-4 border-b border-transparent text-base font-medium transition-all ${
-                  hasSearch
-                    ? "border-zinc-950 text-zinc-950"
-                    : "text-zinc-500 hover:border-zinc-900 hover:text-zinc-950"
-                }`}
-                onClick={() => setSearchOpen(true)}
-              >
-                <Search className="h-4 w-4" />
-                Search
-              </button>
-
-              <button
-                type="button"
-                className="inline-flex h-10 w-fit items-center gap-3 border-b border-transparent text-base font-medium text-zinc-500 transition-all hover:border-zinc-900 hover:text-zinc-900"
-                onClick={() => setRefreshTick((value) => value + 1)}
-              >
-                <RefreshCcw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-                Refresh
-              </button>
+              <div className="inline-flex h-11 items-center rounded-2xl border border-zinc-300 bg-zinc-900/95 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_14px_rgba(0,0,0,0.18)]">
+                <button
+                  type="button"
+                  aria-label="Grid view"
+                  aria-pressed={viewMode === "grid"}
+                  onClick={() => setViewMode("grid")}
+                  className={`inline-flex h-9 w-11 items-center justify-center rounded-xl transition ${
+                    viewMode === "grid"
+                      ? "bg-zinc-700 text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
+                      : "text-zinc-400 hover:text-zinc-100"
+                  }`}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="List view"
+                  aria-pressed={viewMode === "list"}
+                  onClick={() => setViewMode("list")}
+                  className={`inline-flex h-9 w-11 items-center justify-center rounded-xl transition ${
+                    viewMode === "list"
+                      ? "bg-zinc-700 text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
+                      : "text-zinc-400 hover:text-zinc-100"
+                  }`}
+                >
+                  <List className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -213,7 +196,7 @@ export function NormalUserEventsPage() {
               <div className="py-12 text-sm text-zinc-500">
                 {searchQuery.trim() ? "No events match this search." : "No events found."}
               </div>
-            ) : (
+            ) : viewMode === "list" ? (
               <div className="grid grid-cols-1">
                 {filteredItems.map((item, index) => (
                   <motion.div
@@ -248,6 +231,47 @@ export function NormalUserEventsPage() {
                           <div className="flex h-11 w-11 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-400 transition-all group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white 2xl:h-12 2xl:w-12">
                             <ArrowLeft className="h-4 w-4 rotate-180 2xl:h-5 2xl:w-5" />
                           </div>
+                        </div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                {filteredItems.map((item, index) => (
+                  <motion.div
+                    key={item.canonicalEventKey}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.02 }}
+                    className="group"
+                  >
+                    <Link
+                      href={`/leads?event=${encodeURIComponent(item.canonicalEventKey)}`}
+                      className="flex h-full min-h-[14rem] flex-col justify-between border border-zinc-300 bg-white p-6 transition-all hover:border-zinc-900 hover:shadow-sm"
+                    >
+                      <div className="space-y-3">
+                        <h2 className="line-clamp-3 text-xl font-normal leading-tight tracking-[-0.015em] text-zinc-950 group-hover:text-blue-700">
+                          {item.canonicalEventName}
+                        </h2>
+                        <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                          {item.canonicalEventKey}
+                        </p>
+                      </div>
+
+                      <div className="mt-5 flex items-end justify-between">
+                        <div className="space-y-1">
+                          <span className="text-xs font-medium text-zinc-400">Total prospects</span>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-2xl font-light tabular-nums tracking-tight text-zinc-950">
+                              {Number(item.leadCount).toLocaleString()}
+                            </span>
+                            <span className="text-sm font-light text-zinc-500">leads</span>
+                          </div>
+                        </div>
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-400 transition-all group-hover:border-zinc-900 group-hover:bg-zinc-900 group-hover:text-white">
+                          <ArrowLeft className="h-4 w-4 rotate-180" />
                         </div>
                       </div>
                     </Link>
