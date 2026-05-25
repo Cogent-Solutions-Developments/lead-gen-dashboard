@@ -8,6 +8,7 @@ import {
   CalendarDays,
   BrainCircuit,
   FileText,
+  HardDrive,
   LayoutDashboard,
   LogOut,
   MessageSquare,
@@ -62,6 +63,12 @@ const adminTabs = [
     match: (pathname: string) => pathname === "/admin/knowledge",
   },
   {
+    name: "Storage Control",
+    href: "/admin/storage",
+    icon: HardDrive,
+    match: (pathname: string) => pathname === "/admin/storage",
+  },
+  {
     name: "Replies",
     href: "/replies",
     icon: MessageSquare,
@@ -109,7 +116,7 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
         initial={{ x: -20, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="sidebar-modern fixed left-0 top-0 z-40 flex h-screen w-72 flex-col p-5 font-sans text-sidebar-foreground"
+        className="sidebar-modern fixed left-0 top-0 z-40 hidden h-screen w-72 flex-col p-5 font-sans text-sidebar-foreground lg:flex"
       >
         <div className="mb-8 flex shrink-0 items-center gap-3 px-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sidebar-secondary text-sidebar-primary-foreground">
@@ -170,7 +177,51 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
         </div>
       </motion.aside>
 
-      <main className="ml-72 min-h-screen bg-transparent p-6">{children}</main>
+      <div className="sidebar-modern fixed inset-x-0 top-0 z-40 border-b border-white/10 px-3 py-3 text-sidebar-foreground lg:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sidebar-secondary text-sidebar-primary-foreground">
+              <Webhook className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-lg font-medium tracking-wide text-sidebar-foreground">supernizo</p>
+              <p className="text-xs text-sidebar-foreground/70">Admin Panel</p>
+            </div>
+          </div>
+
+          <Button
+            variant="ghost"
+            onClick={handleSignOut}
+            className="h-10 shrink-0 rounded-full bg-white/10 px-3 text-sidebar-foreground/80 hover:bg-white/15 hover:text-sidebar-accent-foreground"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="sr-only">Sign out</span>
+          </Button>
+        </div>
+
+        <nav className="mt-3 flex gap-2 overflow-x-auto pb-1">
+          {adminTabs.map((item) => {
+            const isActive = item.match(pathname);
+            return (
+              <Link key={item.name} href={item.href} className="shrink-0">
+                <Button
+                  variant="ghost"
+                  className={`h-10 gap-2 rounded-full border px-3 text-sm ${
+                    isActive
+                      ? "border-white/70 bg-white text-zinc-950"
+                      : "border-white/20 bg-white/10 text-sidebar-foreground/85 hover:bg-white/15 hover:text-sidebar-accent-foreground"
+                  }`}
+                >
+                  <item.icon className="h-4 w-4" />
+                  <span>{item.name}</span>
+                </Button>
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+
+      <main className="min-h-screen overflow-x-hidden bg-transparent p-4 pt-32 sm:p-5 sm:pt-32 lg:ml-72 lg:p-6">{children}</main>
     </>
   );
 }
