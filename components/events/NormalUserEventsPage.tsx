@@ -154,9 +154,6 @@ export function NormalUserEventsPage() {
                   </p>
                 </div>
               )}
-            </div>
-
-            <div className="flex items-center justify-end border-t border-zinc-300 pt-4">
               <div className="inline-flex h-11 items-center rounded-2xl border border-zinc-300 bg-zinc-900/95 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_14px_rgba(0,0,0,0.18)]">
                 <button
                   type="button"
