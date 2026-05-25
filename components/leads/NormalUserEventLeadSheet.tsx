@@ -1583,15 +1583,17 @@ export function NormalUserEventLeadSheet() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-5 lg:min-w-[22rem] lg:max-w-[24rem] lg:items-stretch">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-zinc-400">Leads To Cover</p>
-                <p className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
-                  {pageTotal.toLocaleString()}
-                </p>
+            <div className="flex flex-col gap-3 lg:min-w-[22rem] lg:max-w-[24rem] lg:items-stretch">
+              <div className="border-b border-zinc-300 pb-3">
+                <div className="flex items-end justify-between gap-4">
+                  <p className="text-sm font-medium text-zinc-400">Leads To Cover</p>
+                  <p className="text-4xl font-light tabular-nums leading-none tracking-[-0.02em] text-zinc-950">
+                    {pageTotal.toLocaleString()}
+                  </p>
+                </div>
               </div>
 
-              <div className="border-t border-zinc-300 pt-4">
+              <div className="pt-0">
                 <div className="inline-flex h-12 w-full items-center rounded-2xl border border-zinc-300 bg-zinc-900/95 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_14px_rgba(0,0,0,0.18)]">
                   {canUseTemplateUpload ? (
                     <button
