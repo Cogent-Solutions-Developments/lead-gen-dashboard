@@ -147,7 +147,7 @@ export function NormalUserEventsPage() {
                   onClick={() => setViewMode("grid")}
                   className={`inline-flex h-9 w-11 items-center justify-center rounded-xl transition ${
                     viewMode === "grid"
-                      ? "bg-zinc-700 text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
+                      ? "bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]"
                       : "text-zinc-400 hover:text-zinc-100"
                   }`}
                 >
@@ -160,7 +160,7 @@ export function NormalUserEventsPage() {
                   onClick={() => setViewMode("list")}
                   className={`inline-flex h-9 w-11 items-center justify-center rounded-xl transition ${
                     viewMode === "list"
-                      ? "bg-zinc-700 text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
+                      ? "bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]"
                       : "text-zinc-400 hover:text-zinc-100"
                   }`}
                 >
