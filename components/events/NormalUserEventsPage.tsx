@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { listEvents, type EventSummaryItem } from "@/lib/apiRouter";
+import { ProtectedImage } from "@/components/storage/ProtectedImage";
 import {
   ArrowLeft,
   LayoutGrid,
@@ -54,6 +55,20 @@ function EventRowsSkeleton() {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function EventLogoMark({ item }: { item: EventSummaryItem }) {
+  return (
+    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-zinc-300 bg-white text-sm font-semibold text-zinc-500">
+      <ProtectedImage
+        src={item.logoUrl}
+        directUrlPath={item.logoUrl ? `${item.logoUrl}/download-url` : undefined}
+        alt=""
+        className="h-full w-full object-cover"
+        fallback={item.canonicalEventName.slice(0, 2).toUpperCase()}
+      />
     </div>
   );
 }
@@ -211,10 +226,13 @@ export function NormalUserEventsPage() {
                       className="flex h-full flex-col p-7 2xl:p-8"
                     >
                       <div className="flex flex-1 flex-col justify-between gap-8 2xl:gap-10">
-                        <div className="space-y-4">
-                          <h2 className="text-2xl font-normal leading-[1.25] tracking-[-0.018em] text-zinc-950 group-hover:text-blue-700 2xl:text-3xl">
-                            {item.canonicalEventName}
-                          </h2>
+                        <div className="flex items-start gap-4">
+                          <EventLogoMark item={item} />
+                          <div className="space-y-4">
+                            <h2 className="text-2xl font-normal leading-[1.25] tracking-[-0.018em] text-zinc-950 group-hover:text-blue-700 2xl:text-3xl">
+                              {item.canonicalEventName}
+                            </h2>
+                          </div>
                         </div>
 
                         <div className="flex items-end justify-between">

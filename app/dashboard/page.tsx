@@ -17,6 +17,7 @@ import {
 
 import { getDailyManifesto } from "@/lib/manifesto";
 import { CampaignHeadsUp } from "@/components/dashboard/CampaignHeadsUp";
+import { UserAvatar } from "@/components/profile/UserAvatar";
 
 type SalesMarathonRunner = DashboardKpiRunner;
 
@@ -429,7 +430,18 @@ export default function DashboardPage() {
   return (
     <div className="flex h-screen flex-1 flex-col overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">
       <header className="relative isolate h-full min-h-0 w-full overflow-y-auto px-8 py-7 lg:px-12">
-        <div className="relative z-10 flex w-full justify-end">
+        <div className="relative z-10 flex w-full items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <UserAvatar user={user} size="lg" className="bg-white shadow-sm" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-zinc-950">
+                {getDisplayName(user) || "Profile"}
+              </p>
+              {user?.bio ? (
+                <p className="max-w-sm truncate text-xs text-zinc-500">{user.bio}</p>
+              ) : null}
+            </div>
+          </div>
           <span className="inline-flex h-9 items-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-500">
             {getDateLabel()}
           </span>

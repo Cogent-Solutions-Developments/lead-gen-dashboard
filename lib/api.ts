@@ -1,6 +1,6 @@
 import axios, { type AxiosInstance } from "axios";
 import { apiClient } from "./apiClient";
-import { attachAuthToken, getAuthHeader } from "@/lib/auth";
+import { attachAuthToken, downloadProtectedFile, getAuthHeader } from "@/lib/auth";
 import { getLocalDevNgrokHeaders } from "@/lib/devNgrok";
 
 const waDebugEnabled =
@@ -592,6 +592,8 @@ export type EventSummaryItem = {
   canonicalEventKey: string;
   canonicalEventName: string;
   eventRegistryId?: string | null;
+  logoStorageObjectId?: string | null;
+  logoUrl?: string | null;
   leadCount: number;
   campaignCount: number;
   relatedCampaignNames: string[];
@@ -1284,18 +1286,11 @@ export async function deleteEventAgenda(agendaId: string) {
 }
 
 export async function downloadEventAgendaFile(agendaId: string, fileName = "agenda.pdf") {
-  const { data } = await apiClient.get<Blob>(
+  await downloadProtectedFile(
     "/api/event-agendas/" + encodeURIComponent(agendaId) + "/download",
-    { responseType: "blob" }
+    fileName || "agenda.pdf",
+    "/api/event-agendas/" + encodeURIComponent(agendaId) + "/download-url"
   );
-  const url = window.URL.createObjectURL(data);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName || "agenda.pdf";
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  window.setTimeout(() => window.URL.revokeObjectURL(url), 500);
 }
 
 function normalizeNizoAiKnowledgeDocument(raw: unknown): NizoAiKnowledgeDocument {
@@ -1376,18 +1371,11 @@ export async function archiveNizoAiKnowledge(documentId: string) {
 }
 
 export async function downloadNizoAiKnowledgeFile(documentId: string, fileName = "knowledge.md") {
-  const { data } = await apiClient.get<Blob>(
+  await downloadProtectedFile(
     "/api/admin/nizo-ai/knowledge/" + encodeURIComponent(documentId) + "/download",
-    { responseType: "blob" }
+    fileName || "knowledge.md",
+    "/api/admin/nizo-ai/knowledge/" + encodeURIComponent(documentId) + "/download-url"
   );
-  const url = window.URL.createObjectURL(data);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName || "knowledge.md";
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  window.setTimeout(() => window.URL.revokeObjectURL(url), 500);
 }
 
 export async function nizoAiChat(payload: NizoAiChatRequest) {

@@ -58,6 +58,8 @@
 
 :root {
   --radius: 0.75rem;
+  --font-google-sans: "Google Sans", "Product Sans", Arial, sans-serif;
+  --font-jersey-10: "Jersey 10", Impact, "Arial Narrow", sans-serif;
   
   /* --- DECKO THEME: Light Mode --- */
   --background: oklch(0.98 0.00 0);
