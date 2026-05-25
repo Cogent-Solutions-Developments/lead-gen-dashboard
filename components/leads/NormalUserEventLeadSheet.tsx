@@ -396,13 +396,30 @@ function getErrorMessage(error: unknown) {
   if (!message) return "Something went wrong.";
   if (message.startsWith("{")) {
     try {
-      const parsed = JSON.parse(message) as { detail?: string; message?: string };
-      return parsed.detail || parsed.message || message;
+      return normalizeApiErrorDetail(JSON.parse(message));
     } catch {
       return message;
     }
   }
   return message;
+}
+
+function normalizeApiErrorDetail(value: unknown): string {
+  if (typeof value === "string") return value.trim() || "Something went wrong.";
+  if (!value || typeof value !== "object") return "Something went wrong.";
+
+  const record = value as Record<string, unknown>;
+  const detail = record.detail;
+  if (typeof detail === "string") return detail.trim() || "Something went wrong.";
+  if (detail && typeof detail === "object") {
+    const detailRecord = detail as Record<string, unknown>;
+    if (detailRecord.generationMode || detailRecord.missingInputs || detailRecord.qualityNotes) {
+      return "The draft was not ready on this attempt. Please try again and the system will prepare a simpler version.";
+    }
+    return asText(detailRecord.message) || "Something went wrong.";
+  }
+
+  return asText(record.message) || "Something went wrong.";
 }
 
 function asText(value: unknown) {
@@ -1459,7 +1476,7 @@ export function NormalUserEventLeadSheet() {
             }
           : current
       );
-      toast.error("Content generation failed", { description: message });
+      toast.error("Draft was not ready", { description: message });
     }
   };
 
@@ -2179,7 +2196,7 @@ export function NormalUserEventLeadSheet() {
           ) : emailDialog.error ? (
             <div className="space-y-6">
               <div className="border border-red-200 bg-red-50 p-5">
-                <p className="text-sm font-medium text-red-700">Generation failed</p>
+                <p className="text-sm font-medium text-red-700">Draft was not ready</p>
                 <p className="mt-2 text-sm font-light leading-6 text-red-700">{emailDialog.error}</p>
               </div>
               <div className="flex justify-end gap-3 border-t border-zinc-100 pt-6">
