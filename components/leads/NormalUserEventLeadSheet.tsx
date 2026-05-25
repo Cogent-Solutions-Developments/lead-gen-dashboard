@@ -388,6 +388,9 @@ const UNCATEGORIZED_CATEGORY_LABEL = "Competing Events";
 function getErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message.trim() : "";
   if (!message) return "Something went wrong.";
+  if (/timeout of \d+ms exceeded/i.test(message) || /ECONNABORTED/i.test(message)) {
+    return "The draft is taking longer than usual. Please try again in a moment.";
+  }
   if (message.startsWith("{")) {
     try {
       return normalizeApiErrorDetail(JSON.parse(message));

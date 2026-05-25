@@ -137,6 +137,8 @@ export type {
   WorkflowStatusUpdateResponse,
 };
 
+const LEAD_CONTENT_GENERATION_TIMEOUT_MS = 180000;
+
 const apiClientDelegate = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
   timeout: 60000,
@@ -456,7 +458,8 @@ export async function updateLeadContent(
 export async function generateLeadEmailContent(id: string, payload?: LeadEmailGenerationRequest) {
   const { data } = await apiClientDelegate.post<LeadEmailGenerationResponse>(
     `/api/delegates/leads/${id}/email-content/generate`,
-    payload ?? {}
+    payload ?? {},
+    { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS }
   );
   return data;
 }
@@ -464,7 +467,8 @@ export async function generateLeadEmailContent(id: string, payload?: LeadEmailGe
 export async function generateLeadContent(id: string, payload: LeadContentGenerationRequest) {
   const { data } = await apiClientDelegate.post<LeadContentGenerationResponse>(
     `/api/delegates/leads/${id}/content/generate`,
-    payload
+    payload,
+    { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS }
   );
   return data;
 }
