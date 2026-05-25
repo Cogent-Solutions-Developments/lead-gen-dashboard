@@ -123,9 +123,11 @@ type PendingStatusChange = {
   nextStatus: WorkflowStatus;
 };
 
-type PhoneChoiceLead = {
+type ContactChoiceLead = {
   name: string;
   phone: string;
+  email: string;
+  mailtoHref: string;
   telHref: string;
   whatsappHref: string;
 };
@@ -666,7 +668,7 @@ export function NormalUserEventLeadSheet() {
   const [statusComment, setStatusComment] = useState("");
   const [ringBellConfirmOpen, setRingBellConfirmOpen] = useState(false);
   const [ringingDealBell, setRingingDealBell] = useState(false);
-  const [phoneChoiceLead, setPhoneChoiceLead] = useState<PhoneChoiceLead | null>(null);
+  const [contactChoiceLead, setContactChoiceLead] = useState<ContactChoiceLead | null>(null);
   const [historyLead, setHistoryLead] = useState<LeadSheetRow | null>(null);
   const [historyItems, setHistoryItems] = useState<WorkflowStatusHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -1867,13 +1869,23 @@ export function NormalUserEventLeadSheet() {
                                 {item.email ? (
                                   <>
                                     <EmailIcon className="h-3.5 w-3.5 text-[#EF4444]" />
-                                    <a
-                                      href={`mailto:${item.email}`}
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setContactChoiceLead({
+                                          name: item.employeeName,
+                                          phone: item.phone || "",
+                                          email: item.email,
+                                          mailtoHref: `mailto:${item.email}`,
+                                          telHref,
+                                          whatsappHref,
+                                        })
+                                      }
                                       className="text-sm font-light tracking-tight text-zinc-700 transition-colors hover:text-zinc-950"
-                                      title="Open in email app"
+                                      title="Choose contact channel"
                                     >
                                       {item.email}
-                                    </a>
+                                    </button>
                                   </>
                                 ) : (
                                   <span className="text-sm font-light tracking-tight text-zinc-700">-</span>
@@ -1887,9 +1899,11 @@ export function NormalUserEventLeadSheet() {
                                       <button
                                         type="button"
                                         onClick={() =>
-                                          setPhoneChoiceLead({
+                                          setContactChoiceLead({
                                             name: item.employeeName,
                                             phone: item.phone,
+                                            email: item.email || "",
+                                            mailtoHref: item.email ? `mailto:${item.email}` : "",
                                             telHref,
                                             whatsappHref,
                                           })
@@ -2424,13 +2438,13 @@ export function NormalUserEventLeadSheet() {
         </div>
       ) : null}
 
-      {phoneChoiceLead ? (
+      {contactChoiceLead ? (
         <div className="fixed inset-0 z-[90] flex items-center justify-center p-6">
           <button
             type="button"
             aria-label="Close phone method chooser"
             className="absolute inset-0 bg-zinc-950/20 backdrop-blur-[2px]"
-            onClick={() => setPhoneChoiceLead(null)}
+            onClick={() => setContactChoiceLead(null)}
           />
 
           <div className="relative z-[1] w-full max-w-md overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_90px_-54px_rgba(2,10,27,0.82)]">
@@ -2439,18 +2453,36 @@ export function NormalUserEventLeadSheet() {
                 Choose how to reach them
               </h3>
               <p className="mt-2 max-w-sm text-sm font-light leading-6 text-zinc-500">
-                Call {phoneChoiceLead.name || "this lead"} through Linkus or WhatsApp.
+                Contact {contactChoiceLead.name || "this lead"} through Email, Linkus, or WhatsApp.
               </p>
-              <p className="mt-4 text-lg font-light tabular-nums text-zinc-950">{phoneChoiceLead.phone}</p>
+              {contactChoiceLead.phone ? (
+                <p className="mt-4 text-lg font-light tabular-nums text-zinc-950">{contactChoiceLead.phone}</p>
+              ) : null}
+              {contactChoiceLead.email ? (
+                <p className="mt-1 text-sm font-light text-zinc-600">{contactChoiceLead.email}</p>
+              ) : null}
             </div>
 
-            <div className="grid gap-3 bg-zinc-50/70 px-7 py-5 sm:grid-cols-2">
+            <div className="grid gap-3 bg-zinc-50/70 px-7 py-5 sm:grid-cols-3">
               <Button
                 type="button"
-                disabled={!phoneChoiceLead.telHref}
+                variant="ghost"
+                disabled={!contactChoiceLead.mailtoHref}
                 onClick={() => {
-                  window.location.href = phoneChoiceLead.telHref;
-                  setPhoneChoiceLead(null);
+                  window.location.href = contactChoiceLead.mailtoHref;
+                  setContactChoiceLead(null);
+                }}
+                className="h-10 gap-1.5 rounded-none border border-[#ef4444] bg-[#ef4444] px-4 text-sm text-white shadow-none hover:border-[#dc2626] hover:bg-[#dc2626] hover:text-white disabled:opacity-50"
+              >
+                <Mail className="h-3.5 w-3.5" />
+                Email
+              </Button>
+              <Button
+                type="button"
+                disabled={!contactChoiceLead.telHref}
+                onClick={() => {
+                  window.location.href = contactChoiceLead.telHref;
+                  setContactChoiceLead(null);
                 }}
                 className="h-10 gap-1.5 rounded-none bg-[#0098f0] px-4 text-sm text-white hover:bg-[#0086d4] disabled:opacity-50"
               >
@@ -2460,10 +2492,10 @@ export function NormalUserEventLeadSheet() {
               <Button
                 type="button"
                 variant="ghost"
-                disabled={!phoneChoiceLead.whatsappHref}
+                disabled={!contactChoiceLead.whatsappHref}
                 onClick={() => {
-                  window.open(phoneChoiceLead.whatsappHref, "_blank", "noopener,noreferrer");
-                  setPhoneChoiceLead(null);
+                  window.open(contactChoiceLead.whatsappHref, "_blank", "noopener,noreferrer");
+                  setContactChoiceLead(null);
                 }}
                 className="h-10 gap-1.5 rounded-none border border-[#22c55e] bg-[#22c55e] px-4 text-sm text-white shadow-none hover:border-[#16a34a] hover:bg-[#16a34a] hover:text-white disabled:opacity-50"
               >
