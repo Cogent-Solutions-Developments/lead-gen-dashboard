@@ -310,7 +310,6 @@ export default function DashboardPage() {
   const displayName = firstName(getDisplayName(user));
   const greeting = getTimeGreeting();
   const manifesto = getDailyManifesto(user?.id || "");
-  const workspaceLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
   const kpiCopy = persona === "delegates"
     ? {
         title: "Daily KPI Tracker",
@@ -443,17 +442,9 @@ export default function DashboardPage() {
             transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             className="flex flex-col"
           >
-            <p className="mb-4 text-lg font-normal text-zinc-500">
-              {workspaceLabel} Workspace
-            </p>
-
             <h1 className="text-[2.125rem] leading-[1.1] tracking-[-0.04em] text-zinc-950 sm:text-[2.75rem]">
               <span className="font-medium">{greeting}, {displayName}.</span> <span className="font-light">“{manifesto}”</span>
             </h1>
-
-            <p className="mt-6 max-w-3xl text-xl font-light leading-relaxed text-zinc-500">
-              Your performance summary across all outreach efforts.
-            </p>
 
             <CampaignHeadsUp
               items={eventHeadsUp}

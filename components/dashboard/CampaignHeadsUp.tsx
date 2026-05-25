@@ -158,11 +158,8 @@ export function CampaignHeadsUp({
       <div className="mb-6 flex items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-normal tracking-tight text-zinc-950">
-            Your Stats
+            Your Perfromance Summary
           </h2>
-          <p className="mt-1 text-sm font-normal text-zinc-500">
-            Lead status breakdown across all active events.
-          </p>
         </div>
       </div>
 
