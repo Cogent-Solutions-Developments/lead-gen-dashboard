@@ -442,9 +442,14 @@ export default function DashboardPage() {
             transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             className="flex flex-col"
           >
-            <h1 className="text-[2.125rem] leading-[1.1] tracking-[-0.04em] text-zinc-950 sm:text-[2.75rem]">
-              <span className="font-medium">{greeting}, {displayName}.</span> <span className="font-light">“{manifesto}”</span>
-            </h1>
+            <div className="max-w-5xl">
+              <h1 className="text-[2rem] leading-[1.05] tracking-[-0.035em] text-zinc-950 sm:text-[2.5rem] xl:text-[2.75rem]">
+                <span className="font-medium">{greeting}, {displayName}.</span>
+              </h1>
+              <blockquote className="mt-5 text-[1.5rem] font-light leading-[1.15] tracking-[-0.02em] text-zinc-700 sm:text-[1.8rem] xl:text-[2rem]">
+                “{manifesto}”
+              </blockquote>
+            </div>
 
             <CampaignHeadsUp
               items={eventHeadsUp}
