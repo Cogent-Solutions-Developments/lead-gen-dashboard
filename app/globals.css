@@ -132,7 +132,7 @@
 
 .dark {
   /* --- DECKO THEME: Dark Mode --- */
-  --background: oklch(0.235 0.012 260);
+  --background: oklch(0.2046 0 0);
   --foreground: oklch(0.96 0.006 255);
 
   /* Sidebar: Consistent across Light/Dark modes */
@@ -151,22 +151,22 @@
   --sidebar-ring: oklch(0.88 0.20 138);
 
   /* Shadcn Dark Utils */
-  --card: oklch(0.265 0.012 260);
+  --card: oklch(0.235 0.012 260);
   --card-foreground: oklch(0.955 0.006 255);
-  --popover: oklch(0.265 0.012 260);
+  --popover: oklch(0.235 0.012 260);
   --popover-foreground: oklch(0.955 0.006 255);
   --primary: oklch(0.929 0.013 255.508);
   --primary-foreground: oklch(0.2 0.012 260);
-  --secondary: oklch(0.315 0.014 260);
+  --secondary: oklch(0.285 0.014 260);
   --secondary-foreground: oklch(0.95 0.006 255);
-  --muted: oklch(0.315 0.014 260);
+  --muted: oklch(0.285 0.014 260);
   --muted-foreground: oklch(0.76 0.01 255);
-  --accent: oklch(0.315 0.014 260);
+  --accent: oklch(0.285 0.014 260);
   --accent-foreground: oklch(0.95 0.006 255);
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.39 0.015 260);
-  --input: oklch(0.36 0.015 260);
+  --border: oklch(0.36 0.015 260);
+  --input: oklch(0.33 0.015 260);
   --ring: oklch(0.6 0.02 255);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
@@ -175,17 +175,17 @@
   --chart-5: oklch(0.645 0.246 16.439);
 
   /* Persona semantic surfaces */
-  --persona-canvas: oklch(0.235 0.012 260);
-  --persona-panel: oklch(0.265 0.012 260);
-  --persona-panel-muted: oklch(0.3 0.013 260);
-  --persona-border-soft: oklch(0.39 0.015 260);
+  --persona-canvas: oklch(0.2046 0 0);
+  --persona-panel: oklch(0.235 0.012 260);
+  --persona-panel-muted: oklch(0.27 0.013 260);
+  --persona-border-soft: oklch(0.36 0.015 260);
   --persona-text-strong: oklch(0.95 0.01 258);
   --persona-text-body: oklch(0.86 0.01 258);
   --persona-text-muted: oklch(0.74 0.012 258);
   --persona-text-faint: oklch(0.66 0.013 258);
   --persona-zinc-50: var(--persona-panel-muted);
-  --persona-zinc-100: oklch(0.31 0.014 260);
-  --persona-zinc-200: oklch(0.345 0.015 260);
+  --persona-zinc-100: oklch(0.28 0.014 260);
+  --persona-zinc-200: oklch(0.315 0.015 260);
   --persona-zinc-300: var(--persona-border-soft);
   --persona-zinc-400: var(--persona-text-faint);
   --persona-zinc-500: var(--persona-text-muted);
