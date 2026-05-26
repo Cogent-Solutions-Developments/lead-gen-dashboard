@@ -428,7 +428,7 @@ export default function DashboardPage() {
   }, [loadPersonalStats, loadSalesMarathon]);
 
   return (
-    <div className="flex h-screen flex-1 flex-col overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">
+    <div className="flex h-screen flex-1 flex-col overflow-hidden bg-transparent font-sans text-zinc-950">
       <header className="relative isolate h-full min-h-0 w-full overflow-y-auto px-8 py-7 lg:px-12">
         <div className="relative z-10 flex w-full items-center justify-between gap-4">
           <div className="flex items-center gap-3">

@@ -151,7 +151,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (!session) {
     if (!isAuthRoute) return null;
-    return <main className="min-h-screen bg-transparent">{children}</main>;
+    return <main className="persona-theme min-h-screen bg-transparent">{children}</main>;
   }
 
   if (forcedPersona) {
@@ -160,7 +160,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (isAuthRoute || isChooser) {
-    return <main className="min-h-screen bg-transparent">{children}</main>;
+    return <main className="persona-theme min-h-screen bg-transparent">{children}</main>;
   }
 
   if (isAdminAreaRoute) {
@@ -178,7 +178,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         onPinnedChange={setSidebarPinned}
       />
       <main
-        className={`min-h-screen bg-transparent transition-[margin] duration-300 ease-out ${
+        className={`persona-theme min-h-screen bg-transparent transition-[margin] duration-300 ease-out ${
           sidebarExpanded ? "ml-72" : "ml-24"
         } ${isFlushContentRoute ? "p-0" : "p-6"}`}
       >

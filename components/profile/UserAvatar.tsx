@@ -48,7 +48,7 @@ export function UserAvatar({
 
   return (
     <div
-      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-zinc-300 bg-zinc-50 font-semibold text-zinc-600 ${SIZE_CLASS[size]} ${className}`}
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-card font-semibold text-muted-foreground ${SIZE_CLASS[size]} ${className}`}
     >
       <ProtectedImage
         src={user?.avatarUrl}

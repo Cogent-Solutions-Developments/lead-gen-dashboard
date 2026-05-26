@@ -14,8 +14,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="bg-transparent">
-      <body className="min-h-screen bg-black/3 font-sans">
+    <html lang="en">
+      <body className="min-h-screen bg-background font-sans text-foreground">
         <AppShell>{children}</AppShell>
         <Toaster position="top-right" />
       </body>
