@@ -22,7 +22,7 @@ import {
 import { getDailyManifesto } from "@/lib/manifesto";
 import { CampaignHeadsUp } from "@/components/dashboard/CampaignHeadsUp";
 import { UserAvatar } from "@/components/profile/UserAvatar";
-import { EncryptedText } from "@/components/ui/encrypted-text";
+import { TypingText } from "@/components/ui/typing-text";
 import { VariableProximity } from "@/components/ui/variable-proximity";
 
 type SalesMarathonRunner = DashboardKpiRunner;
@@ -632,13 +632,11 @@ export default function DashboardPage() {
               </motion.h1>
               <blockquote className="mt-5 text-[1.42rem] font-extralight leading-[1.16] tracking-[-0.019em] sm:text-[1.7rem] xl:text-[1.88rem]">
                 <div ref={quoteContainerRef} className="relative">
-                  <EncryptedText
+                  <TypingText
                     text={manifesto}
-                    revealDelayMs={68}
-                    flipDelayMs={90}
-                    encryptedClassName="dashboard-quote-encrypted"
-                    revealedClassName="dashboard-quote-revealed"
-                    revealedContent={
+                    characterDelayMs={115}
+                    textClassName="dashboard-quote-revealed"
+                    completedContent={
                       <VariableProximity
                         label={manifesto}
                         containerRef={quoteContainerRef}
