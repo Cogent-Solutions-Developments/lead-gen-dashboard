@@ -59,7 +59,6 @@
 :root {
   --radius: 0.75rem;
   --font-google-sans: "Google Sans", "Product Sans", Arial, sans-serif;
-  --font-jersey-10: "Jersey 10", Impact, "Arial Narrow", sans-serif;
   
   /* --- DECKO THEME: Light Mode --- */
   --background: oklch(0.98 0.00 0);
@@ -112,12 +111,10 @@
   --persona-panel: oklch(0.995 0.002 258);
   --persona-panel-muted: oklch(0.965 0.006 258);
   --persona-border-soft: oklch(0.885 0.012 258);
-  --persona-border-strong: oklch(0.79 0.015 258);
   --persona-text-strong: oklch(0.205 0.012 258);
   --persona-text-body: oklch(0.315 0.013 258);
   --persona-text-muted: oklch(0.48 0.013 258);
   --persona-text-faint: oklch(0.6 0.012 258);
-  --persona-inverse: oklch(0.99 0 0);
   --persona-zinc-50: var(--persona-panel-muted);
   --persona-zinc-100: oklch(0.94 0.008 258);
   --persona-zinc-200: oklch(0.9 0.01 258);
@@ -182,12 +179,10 @@
   --persona-panel: oklch(0.265 0.012 260);
   --persona-panel-muted: oklch(0.3 0.013 260);
   --persona-border-soft: oklch(0.39 0.015 260);
-  --persona-border-strong: oklch(0.47 0.016 260);
   --persona-text-strong: oklch(0.95 0.01 258);
   --persona-text-body: oklch(0.86 0.01 258);
   --persona-text-muted: oklch(0.74 0.012 258);
   --persona-text-faint: oklch(0.66 0.013 258);
-  --persona-inverse: oklch(0.12 0.01 258);
   --persona-zinc-50: var(--persona-panel-muted);
   --persona-zinc-100: oklch(0.31 0.014 260);
   --persona-zinc-200: oklch(0.345 0.015 260);
