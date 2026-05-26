@@ -539,20 +539,10 @@ export default function DashboardPage() {
 
       <div className="relative z-20 flex h-full min-h-0 flex-col px-6 py-6 lg:px-10 lg:py-7 xl:px-12">
         <div className="flex shrink-0 items-center justify-between gap-4">
-          <div className="inline-flex items-center">
-            <div className="h-12 w-12">
-              <Image
-                src="/logoh-v2.webp"
-                alt="supernizo HEAVY"
-                width={48}
-                height={48}
-                className="h-full w-full object-contain"
-                priority
-              />
-            </div>
-            <p className="ml-0.5 text-base tracking-[-0.015em]" style={{ color: "oklch(0.9 0.01 250)" }}>
-              <span className="font-normal">supernizo </span>
-              <span className={`${bungeeHairline.className} text-[1.08em]`}>HEAVY</span>
+          <div className="inline-flex items-baseline">
+            <p className="flex items-baseline gap-1 text-[1.18rem] leading-none" style={{ color: "oklch(0.9 0.01 250)" }}>
+              <span className="font-normal">supernizo</span>
+              <span className={`${bungeeHairline.className} text-[1.08em] leading-none`}>HEAVY</span>
             </p>
           </div>
 
