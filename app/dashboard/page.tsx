@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import Image from "next/image";
+import Link from "next/link";
+import { Bungee_Hairline } from "next/font/google";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 import { getCachedAuthUserDisplayName } from "@/lib/auth";
@@ -35,6 +37,7 @@ const SALES_MARATHON_CACHE_KEY = "dashboard:sales-marathon";
 const DELEGATE_KPI_CACHE_KEY = "dashboard:delegate-kpi";
 const PRODUCTION_KPI_CACHE_KEY = "dashboard:production-kpi";
 const DASHBOARD_AUTO_REFRESH_MS = 60_000;
+const bungeeHairline = Bungee_Hairline({ subsets: ["latin"], weight: "400" });
 
 function readSessionCache<T>(key: string): T | null {
   if (typeof window === "undefined") return null;
@@ -452,20 +455,35 @@ export default function DashboardPage() {
 
       <div className="relative z-20 flex h-full min-h-0 flex-col px-6 py-6 lg:px-10 lg:py-7 xl:px-12">
         <div className="flex shrink-0 items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <UserAvatar user={user} size="lg" className="bg-white shadow-sm" />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-zinc-950">
-                {getDisplayName(user) || "Profile"}
-              </p>
-              {user?.bio ? (
-                <p className="max-w-sm truncate text-xs text-zinc-500">{user.bio}</p>
-              ) : null}
+          <div className="inline-flex items-center">
+            <div className="h-12 w-12">
+              <Image
+                src="/logoh-v2.webp"
+                alt="supernizo HEAVY"
+                width={48}
+                height={48}
+                className="h-full w-full object-contain"
+                priority
+              />
             </div>
+            <p className="ml-0.5 text-base tracking-[-0.015em]" style={{ color: "oklch(0.9 0.01 250)" }}>
+              <span className="font-normal">supernizo </span>
+              <span className={`${bungeeHairline.className} text-[1.08em]`}>HEAVY</span>
+            </p>
           </div>
-          <span className="inline-flex h-9 items-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-500">
-            {getDateLabel()}
-          </span>
+
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-10 items-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-500">
+              {getDateLabel()}
+            </span>
+            <Link
+              href="/profile"
+              className="group inline-flex items-center rounded-full transition"
+              aria-label="Go to profile"
+            >
+              <UserAvatar user={user} size="md" className="border-0 bg-transparent shadow-none" />
+            </Link>
+          </div>
         </div>
 
         <div className="mt-8 grid min-h-0 flex-1 items-stretch gap-6 text-left">
