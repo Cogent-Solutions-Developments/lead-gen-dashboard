@@ -472,7 +472,7 @@ export default function DashboardPage() {
             transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             className="min-h-0 overflow-y-auto pr-1 scrollbar-modern"
           >
-            <div className="max-w-5xl">
+            <div className="mx-auto w-full max-w-5xl text-center">
               <h1 className="text-[2rem] leading-[1.05] tracking-[-0.035em] text-zinc-950 sm:text-[2.5rem] xl:text-[2.75rem]">
                 <span className="font-medium">{greeting}, {displayName}.</span>
               </h1>
