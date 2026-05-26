@@ -128,11 +128,12 @@
   --persona-zinc-950: var(--persona-text-strong);
   --persona-white: var(--persona-panel);
   --persona-black: oklch(0.12 0.01 258);
+  --dashboard-hero-glow: oklch(0.72 0.11 221);
 }
 
 .dark {
   /* --- DECKO THEME: Dark Mode --- */
-  --background: oklch(0.2046 0 0);
+  --background: oklch(0.1194 0.0134 247.61);
   --foreground: oklch(0.96 0.006 255);
 
   /* Sidebar: Consistent across Light/Dark modes */
@@ -175,7 +176,7 @@
   --chart-5: oklch(0.645 0.246 16.439);
 
   /* Persona semantic surfaces */
-  --persona-canvas: oklch(0.2046 0 0);
+  --persona-canvas: oklch(0.1194 0.0134 247.61);
   --persona-panel: oklch(0.235 0.012 260);
   --persona-panel-muted: oklch(0.27 0.013 260);
   --persona-border-soft: oklch(0.36 0.015 260);
@@ -196,6 +197,7 @@
   --persona-zinc-950: var(--persona-text-strong);
   --persona-white: var(--persona-panel);
   --persona-black: oklch(0.1 0.01 258);
+  --dashboard-hero-glow: oklch(0.5286 0.0926 216.82);
 }
 
 @keyframes sidebar-gradient-pan {

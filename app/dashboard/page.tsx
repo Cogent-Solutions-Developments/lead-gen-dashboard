@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 import { getCachedAuthUserDisplayName } from "@/lib/auth";
@@ -428,9 +429,26 @@ export default function DashboardPage() {
   }, [loadPersonalStats, loadSalesMarathon]);
 
   return (
-    <div className="flex h-screen flex-1 flex-col overflow-hidden bg-transparent font-sans text-zinc-950">
-      <header className="relative isolate h-full min-h-0 w-full overflow-y-auto px-8 py-7 lg:px-12">
-        <div className="relative z-10 flex w-full items-center justify-between gap-4">
+    <div className="relative h-[100dvh] max-h-[100dvh] overflow-hidden bg-transparent font-sans text-zinc-950">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center">
+        <div
+          className="absolute bottom-0 h-[52dvh] w-[54rem] max-w-[88vw] rounded-full opacity-65 blur-[84px]"
+          style={{
+            background: "radial-gradient(ellipse at center, var(--dashboard-hero-glow) 0%, transparent 72%)",
+          }}
+        />
+        <Image
+          src="/humnoid.webp"
+          alt="Humanoid"
+          width={1223}
+          height={1536}
+          priority
+          className="h-[68dvh] w-auto max-w-[88vw] object-contain object-bottom opacity-85"
+        />
+      </div>
+
+      <div className="relative z-20 flex h-full min-h-0 flex-col px-6 py-6 lg:px-10 lg:py-7 xl:px-12">
+        <div className="flex shrink-0 items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <UserAvatar user={user} size="lg" className="bg-white shadow-sm" />
             <div className="min-w-0">
@@ -447,12 +465,12 @@ export default function DashboardPage() {
           </span>
         </div>
 
-        <div className="relative z-10 mt-10 grid items-stretch gap-10 text-left xl:grid-cols-[minmax(0,1fr)_26rem]">
+        <div className="mt-8 grid min-h-0 flex-1 items-stretch gap-6 text-left">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-            className="flex flex-col"
+            className="min-h-0 overflow-y-auto pr-1 scrollbar-modern"
           >
             <div className="max-w-5xl">
               <h1 className="text-[2rem] leading-[1.05] tracking-[-0.035em] text-zinc-950 sm:text-[2.5rem] xl:text-[2.75rem]">
@@ -462,26 +480,9 @@ export default function DashboardPage() {
                 “{manifesto}”
               </blockquote>
             </div>
-
-            <CampaignHeadsUp
-              items={eventHeadsUp}
-              statuses={workflowStatuses}
-              loading={loadingEventHeadsUp}
-            />
           </motion.div>
-
-          <div>
-            <SalesMarathon
-              runners={salesRunners}
-              loading={loadingSalesMarathon}
-              title={kpiCopy.title}
-              subtitle={kpiCopy.subtitle}
-              target={kpiCopy.target}
-              footnote={kpiCopy.footnote}
-            />
-          </div>
         </div>
-      </header>
+      </div>
     </div>
   );
 }
