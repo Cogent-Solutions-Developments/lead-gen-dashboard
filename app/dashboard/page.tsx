@@ -530,13 +530,10 @@ export default function DashboardPage() {
             background: "radial-gradient(ellipse at center, var(--dashboard-hero-glow) 0%, transparent 72%)",
           }}
         />
-        <Image
-          src="/humnoid.webp"
-          alt="Humanoid"
-          width={1223}
-          height={1536}
-          priority
-          className="h-[68dvh] w-auto max-w-[88vw] object-contain object-bottom opacity-85"
+        <img
+          src="/videos/BlockchainEventPromoconverted_1-ezgif.com-optimize%20(1).gif"
+          alt="Animated dashboard visual"
+          className="h-[74dvh] w-auto max-w-[92vw] object-contain object-bottom opacity-85"
         />
       </div>
 
@@ -573,7 +570,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="mt-8 grid min-h-0 flex-1 items-stretch gap-6 text-left">
+        <div className="mt-14 grid min-h-0 flex-1 items-stretch gap-6 text-left">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
