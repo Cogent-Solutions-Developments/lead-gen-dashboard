@@ -55,10 +55,20 @@ export type AdminEventItem = {
   date?: string | null;
   logoStorageObjectId?: string | null;
   logoUrl?: string | null;
+  contentPromptTemplateId?: string | null;
+  contentPromptTemplate?: AdminContentPromptSummary | null;
   isActive: boolean;
   createdByUserId?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+};
+
+export type AdminContentPromptSummary = {
+  id: string;
+  promptKey: string;
+  displayName: string;
+  isActive: boolean;
+  isSystemDefault: boolean;
 };
 
 export type AdminEventCreateInput = {
@@ -66,6 +76,7 @@ export type AdminEventCreateInput = {
   eventKey: string;
   location: string;
   date: string;
+  contentPromptTemplateId: string;
   isActive: boolean;
 };
 
@@ -74,8 +85,34 @@ export type AdminEventUpdateInput = {
   eventKey?: string;
   location?: string;
   date?: string;
+  contentPromptTemplateId?: string;
   isActive?: boolean;
   syncLinkedCampaigns?: boolean;
+};
+
+export type AdminContentPromptItem = AdminContentPromptSummary & {
+  description?: string | null;
+  promptText: string;
+  promptPreview: string;
+  promptSha256?: string | null;
+  createdByUserId?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type AdminContentPromptCreateInput = {
+  displayName: string;
+  promptKey?: string;
+  description?: string;
+  promptText: string;
+  isActive?: boolean;
+};
+
+export type AdminContentPromptUpdateInput = {
+  displayName?: string;
+  description?: string;
+  promptText?: string;
+  isActive?: boolean;
 };
 
 export type MyProfile = AuthUser & {
@@ -968,7 +1005,34 @@ function normalizeAdminEvent(raw: unknown): AdminEventItem {
     date: source.date == null ? null : String(source.date),
     logoStorageObjectId: source.logoStorageObjectId == null ? null : String(source.logoStorageObjectId),
     logoUrl: source.logoUrl == null ? null : String(source.logoUrl),
+    contentPromptTemplateId: source.contentPromptTemplateId == null ? null : String(source.contentPromptTemplateId),
+    contentPromptTemplate: source.contentPromptTemplate == null ? null : normalizeAdminContentPromptSummary(source.contentPromptTemplate),
     isActive: Boolean(source.isActive),
+    createdByUserId: source.createdByUserId == null ? null : String(source.createdByUserId),
+    createdAt: source.createdAt == null ? null : String(source.createdAt),
+    updatedAt: source.updatedAt == null ? null : String(source.updatedAt),
+  };
+}
+
+function normalizeAdminContentPromptSummary(raw: unknown): AdminContentPromptSummary {
+  const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  return {
+    id: String(source.id || ""),
+    promptKey: String(source.promptKey || ""),
+    displayName: String(source.displayName || ""),
+    isActive: source.isActive !== false,
+    isSystemDefault: Boolean(source.isSystemDefault),
+  };
+}
+
+function normalizeAdminContentPrompt(raw: unknown): AdminContentPromptItem {
+  const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  return {
+    ...normalizeAdminContentPromptSummary(source),
+    description: source.description == null ? null : String(source.description),
+    promptText: String(source.promptText || ""),
+    promptPreview: String(source.promptPreview || ""),
+    promptSha256: source.promptSha256 == null ? null : String(source.promptSha256),
     createdByUserId: source.createdByUserId == null ? null : String(source.createdByUserId),
     createdAt: source.createdAt == null ? null : String(source.createdAt),
     updatedAt: source.updatedAt == null ? null : String(source.updatedAt),
@@ -1044,6 +1108,58 @@ export async function listAdminEvents(includeInactive = true) {
   const suffix = params.toString() ? `?${params.toString()}` : "";
   const data = await authRequest<{ events: AdminEventItem[] }>(`/api/admin/events${suffix}`);
   return Array.isArray(data.events) ? data.events.map(normalizeAdminEvent) : [];
+}
+
+export async function listAdminContentPrompts(includeInactive = true) {
+  const params = new URLSearchParams();
+  if (includeInactive) params.set("includeInactive", "true");
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  const data = await authRequest<{ prompts: AdminContentPromptItem[] }>(`/api/admin/content-prompts${suffix}`);
+  return Array.isArray(data.prompts) ? data.prompts.map(normalizeAdminContentPrompt) : [];
+}
+
+export async function createAdminContentPrompt(payload: AdminContentPromptCreateInput) {
+  const data = await authRequest<{ prompt: AdminContentPromptItem }>("/api/admin/content-prompts", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return normalizeAdminContentPrompt(data.prompt);
+}
+
+export async function updateAdminContentPrompt(promptId: string, payload: AdminContentPromptUpdateInput) {
+  const data = await authRequest<{ prompt: AdminContentPromptItem }>(
+    `/api/admin/content-prompts/${encodeURIComponent(promptId)}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }
+  );
+  return normalizeAdminContentPrompt(data.prompt);
+}
+
+export async function uploadAdminContentPrompt(
+  file: File,
+  payload: { displayName: string; promptKey?: string; description?: string; isActive?: boolean }
+) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("displayName", payload.displayName);
+  if (payload.promptKey) formData.append("promptKey", payload.promptKey);
+  if (payload.description) formData.append("description", payload.description);
+  formData.append("isActive", String(payload.isActive !== false));
+  const data = await authRequest<{ prompt: AdminContentPromptItem }>("/api/admin/content-prompts/upload", {
+    method: "POST",
+    body: formData,
+  });
+  return normalizeAdminContentPrompt(data.prompt);
+}
+
+export async function archiveAdminContentPrompt(promptId: string) {
+  const data = await authRequest<{ prompt: AdminContentPromptItem; archived: boolean }>(
+    `/api/admin/content-prompts/${encodeURIComponent(promptId)}`,
+    { method: "DELETE" }
+  );
+  return { ...data, prompt: normalizeAdminContentPrompt(data.prompt) };
 }
 
 export async function listActiveEventRegistry() {

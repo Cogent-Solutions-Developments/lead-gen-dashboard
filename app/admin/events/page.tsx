@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   CalendarDays,
+  FileText,
   ImagePlus,
   Loader2,
   PencilLine,
@@ -33,9 +34,11 @@ import {
   clearProtectedObjectUrlCache,
   createAdminEvent,
   deleteAdminEventLogo,
+  listAdminContentPrompts,
   listAdminEvents,
   updateAdminEvent,
   uploadAdminEventLogo,
+  type AdminContentPromptItem,
   type AdminEventItem,
   type AdminEventUpdateInput,
 } from "@/lib/auth";
@@ -95,6 +98,11 @@ function sortEvents(rows: AdminEventItem[]) {
 
 function eventStatusValue(isActive: boolean): EventStatusValue {
   return isActive ? "active" : "inactive";
+}
+
+function promptLabel(prompt?: AdminContentPromptItem | AdminEventItem["contentPromptTemplate"] | null) {
+  if (!prompt) return "Unmapped";
+  return prompt.displayName || prompt.promptKey || "Content Prompt";
 }
 
 type TableStatusTarget = {
@@ -251,15 +259,18 @@ function StateChangeConfirmDialog({
 export default function AdminEventsPage() {
   const logoInputRef = useRef<HTMLInputElement | null>(null);
   const [events, setEvents] = useState<AdminEventItem[]>([]);
+  const [contentPrompts, setContentPrompts] = useState<AdminContentPromptItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [eventName, setEventName] = useState("");
   const [location, setLocation] = useState("");
   const [date, setDate] = useState("");
+  const [contentPromptTemplateId, setContentPromptTemplateId] = useState("");
   const [editingEvent, setEditingEvent] = useState<AdminEventItem | null>(null);
   const [editEventName, setEditEventName] = useState("");
   const [editLocation, setEditLocation] = useState("");
   const [editDate, setEditDate] = useState("");
+  const [editContentPromptTemplateId, setEditContentPromptTemplateId] = useState("");
   const [editStatus, setEditStatus] = useState<EventStatusValue>("inactive");
   const [editSaving, setEditSaving] = useState(false);
   const [tableStatusTarget, setTableStatusTarget] = useState<TableStatusTarget | null>(null);
@@ -277,12 +288,19 @@ export default function AdminEventsPage() {
   const loadEvents = async () => {
     setLoading(true);
     try {
-      setEvents(sortEvents(await listAdminEvents(true)));
+      const [eventRows, promptRows] = await Promise.all([
+        listAdminEvents(true),
+        listAdminContentPrompts(true),
+      ]);
+      setEvents(sortEvents(eventRows));
+      setContentPrompts(promptRows);
+      setContentPromptTemplateId((current) => current || promptRows.find((prompt) => prompt.isActive)?.id || "");
     } catch (error: unknown) {
-      toast.error("Failed to load events", {
+      toast.error("Failed to load event registry", {
         description: getErrorMessage(error),
       });
       setEvents([]);
+      setContentPrompts([]);
     } finally {
       setLoading(false);
     }
@@ -295,13 +313,15 @@ export default function AdminEventsPage() {
   const stats = useMemo(() => {
     const active = events.filter((item) => item.isActive).length;
     const inactive = events.length - active;
-    return { total: events.length, active, inactive };
+    const unmapped = events.filter((item) => !item.contentPromptTemplateId).length;
+    return { total: events.length, active, inactive, unmapped };
   }, [events]);
 
   const resetForm = () => {
     setEventName("");
     setLocation("");
     setDate("");
+    setContentPromptTemplateId(contentPrompts.find((prompt) => prompt.isActive)?.id || "");
   };
 
   const closeEditDialog = (force = false) => {
@@ -314,6 +334,7 @@ export default function AdminEventsPage() {
     setEditEventName(item.eventName);
     setEditLocation(item.location ?? "");
     setEditDate(item.date ?? "");
+    setEditContentPromptTemplateId(item.contentPromptTemplateId ?? "");
     setEditStatus(eventStatusValue(item.isActive));
     setSelectedLogoFile(null);
     if (logoInputRef.current) logoInputRef.current.value = "";
@@ -327,6 +348,11 @@ export default function AdminEventsPage() {
       editDate.trim() !== (editingEvent.date ?? "")
     );
   }, [editDate, editEventName, editLocation, editingEvent]);
+
+  const hasPromptChange = useMemo(() => {
+    if (!editingEvent) return false;
+    return editContentPromptTemplateId !== (editingEvent.contentPromptTemplateId ?? "");
+  }, [editContentPromptTemplateId, editingEvent]);
 
   const hasStatusChange = useMemo(() => {
     if (!editingEvent) return false;
@@ -351,6 +377,9 @@ export default function AdminEventsPage() {
     if (nextLocation !== (editingEvent.location ?? "")) payload.location = nextLocation;
     if (nextDate !== (editingEvent.date ?? "")) payload.date = nextDate;
     if ((editStatus === "active") !== editingEvent.isActive) payload.isActive = editStatus === "active";
+    if (editContentPromptTemplateId !== (editingEvent.contentPromptTemplateId ?? "")) {
+      payload.contentPromptTemplateId = editContentPromptTemplateId;
+    }
     if (hasDetailChanges) payload.syncLinkedCampaigns = true;
 
     if (Object.keys(payload).length === 0) {
@@ -367,9 +396,11 @@ export default function AdminEventsPage() {
         description:
           hasDetailChanges
             ? `${updated.eventName} and its linked campaign snapshot details were updated.`
-            : hasStatusChange
-              ? `${updated.eventName} is now ${updated.isActive ? "active" : "inactive"}.`
-              : `${updated.eventName} details were saved.`,
+              : hasStatusChange
+                ? `${updated.eventName} is now ${updated.isActive ? "active" : "inactive"}.`
+                : hasPromptChange
+                  ? `${updated.eventName} now uses ${promptLabel(updated.contentPromptTemplate)}.`
+                  : `${updated.eventName} details were saved.`,
       });
       closeEditDialog(true);
     } catch (error: unknown) {
@@ -387,7 +418,15 @@ export default function AdminEventsPage() {
       toast.error("Event name is required");
       return;
     }
-    if (!hasDetailChanges && !hasStatusChange) {
+    if (!editContentPromptTemplateId) {
+      toast.error("Content prompt is required");
+      return;
+    }
+    if (editStatus === "active" && !editContentPromptTemplateId) {
+      toast.error("Active events require a content prompt");
+      return;
+    }
+    if (!hasDetailChanges && !hasStatusChange && !hasPromptChange) {
       toast.info("No changes to save");
       closeEditDialog();
       return;
@@ -398,6 +437,10 @@ export default function AdminEventsPage() {
   const handleTableStatusSelection = (item: AdminEventItem, value: string) => {
     const nextStatus = value as EventStatusValue;
     if (nextStatus === eventStatusValue(item.isActive)) return;
+    if (nextStatus === "active" && !item.contentPromptTemplateId) {
+      toast.error("Content prompt is required before activation");
+      return;
+    }
     setTableStatusTarget({ event: item, nextStatus });
   };
 
@@ -435,6 +478,10 @@ export default function AdminEventsPage() {
       toast.error("Date is required");
       return;
     }
+    if (!contentPromptTemplateId) {
+      toast.error("Content prompt is required");
+      return;
+    }
     if (!generatedEventKey) {
       toast.error("Unable to generate event key");
       return;
@@ -447,6 +494,7 @@ export default function AdminEventsPage() {
         eventKey: generatedEventKey,
         location: location.trim(),
         date,
+        contentPromptTemplateId,
         isActive: false,
       });
       setEvents((prev) => sortEvents([...prev, created]));
@@ -580,11 +628,12 @@ export default function AdminEventsPage() {
 
       <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="min-w-0 space-y-5">
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {[
               { label: "Total Events", value: stats.total, icon: Tags },
               { label: "Active Events", value: stats.active, icon: ShieldCheck },
               { label: "Inactive Events", value: stats.inactive, icon: CalendarDays },
+              { label: "Prompt Missing", value: stats.unmapped, icon: FileText },
             ].map((item) => (
               <Card key={item.label} className="rounded-2xl border border-zinc-300 bg-white/86 p-4">
                 <div className="flex items-center justify-between gap-3">
@@ -611,10 +660,11 @@ export default function AdminEventsPage() {
             </div>
 
             <div className="min-w-0">
-              <div className="hidden border-b border-zinc-100 bg-zinc-50/70 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400 lg:grid lg:grid-cols-[minmax(0,2.2fr)_minmax(9rem,1fr)_7rem_9rem_minmax(8rem,1fr)_5rem] lg:gap-4">
+              <div className="hidden border-b border-zinc-100 bg-zinc-50/70 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400 lg:grid lg:grid-cols-[minmax(0,2.1fr)_minmax(8rem,1fr)_7rem_minmax(9rem,1fr)_8rem_minmax(8rem,1fr)_5rem] lg:gap-4">
                 <div>Event</div>
                 <div>Location</div>
                 <div>Date</div>
+                <div>Prompt</div>
                 <div>Status</div>
                 <div>Key</div>
                 <div className="text-right">Action</div>
@@ -629,7 +679,7 @@ export default function AdminEventsPage() {
                   events.map((item) => (
                     <div
                       key={item.id}
-                      className="grid min-w-0 gap-4 px-5 py-4 transition-colors hover:bg-zinc-50/80 lg:grid-cols-[minmax(0,2.2fr)_minmax(9rem,1fr)_7rem_9rem_minmax(8rem,1fr)_5rem] lg:items-center"
+                      className="grid min-w-0 gap-4 px-5 py-4 transition-colors hover:bg-zinc-50/80 lg:grid-cols-[minmax(0,2.1fr)_minmax(8rem,1fr)_7rem_minmax(9rem,1fr)_8rem_minmax(8rem,1fr)_5rem] lg:items-center"
                     >
                       <div className="min-w-0">
                         <div className="flex min-w-0 items-center gap-3">
@@ -657,6 +707,22 @@ export default function AdminEventsPage() {
                           Date
                         </span>
                         {formatDate(item.date)}
+                      </div>
+
+                      <div className="min-w-0 text-sm text-zinc-700">
+                        <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400 lg:hidden">
+                          Prompt
+                        </span>
+                        <span
+                          className={`block truncate rounded-full border px-2.5 py-1 text-[11px] font-medium ${
+                            item.contentPromptTemplateId
+                              ? "border-blue-100 bg-blue-50 text-blue-700"
+                              : "border-red-100 bg-red-50 text-red-600"
+                          }`}
+                          title={promptLabel(item.contentPromptTemplate)}
+                        >
+                          {promptLabel(item.contentPromptTemplate)}
+                        </span>
                       </div>
 
                       <div>
@@ -757,6 +823,22 @@ export default function AdminEventsPage() {
               />
             </div>
 
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Content Prompt</label>
+              <Select value={contentPromptTemplateId} onValueChange={setContentPromptTemplateId}>
+                <SelectTrigger className="h-10 border-zinc-300 bg-white">
+                  <SelectValue placeholder="Select prompt" />
+                </SelectTrigger>
+                <SelectContent className="border-zinc-300 bg-white">
+                  {contentPrompts.filter((prompt) => prompt.isActive).map((prompt) => (
+                    <SelectItem key={prompt.id} value={prompt.id}>
+                      {prompt.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="rounded-xl border border-zinc-300 bg-zinc-50/70 p-4">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Generated Event Key</p>
               <p className="mt-2 break-all text-sm font-medium text-zinc-700">
@@ -768,7 +850,7 @@ export default function AdminEventsPage() {
             </div>
 
             <div className="rounded-xl border border-zinc-300 bg-white/80 p-4 text-xs leading-relaxed text-zinc-500">
-              Only event name, location, and date are stored here. Category stays campaign-specific and will be filled during campaign creation.
+              Event identity and content prompt mapping are stored here. Category stays campaign-specific and will be filled during campaign creation.
             </div>
 
             <Button
@@ -830,6 +912,22 @@ export default function AdminEventsPage() {
                 className="h-10 border-zinc-300 bg-white"
               />
             </div>
+
+            <div className="space-y-1.5 sm:col-span-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Content Prompt</label>
+              <Select value={editContentPromptTemplateId} onValueChange={setEditContentPromptTemplateId}>
+                <SelectTrigger className="h-10 border-zinc-300 bg-white">
+                  <SelectValue placeholder="Select prompt" />
+                </SelectTrigger>
+                <SelectContent className="border-zinc-300 bg-white">
+                  {contentPrompts.filter((prompt) => prompt.isActive || prompt.id === editingEvent?.contentPromptTemplateId).map((prompt) => (
+                    <SelectItem key={prompt.id} value={prompt.id}>
+                      {prompt.displayName}{prompt.isActive ? "" : " (inactive)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-1.5">
@@ -848,7 +946,7 @@ export default function AdminEventsPage() {
           <div className="rounded-xl border border-zinc-300 bg-zinc-50/70 p-4 text-sm leading-relaxed text-zinc-600">
             Updating name, location, or date here will also refresh the linked campaign snapshots automatically.
             <span className="mt-1 block text-xs text-zinc-500">
-              Status changes still apply only to the registry record itself.
+              Prompt mapping and status changes apply only to the registry record itself.
             </span>
           </div>
 
