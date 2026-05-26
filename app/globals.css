@@ -690,6 +690,22 @@
     background-color: var(--persona-canvas);
   }
 
+  .dashboard-quote-encrypted {
+    color: oklch(0.46 0.01 258);
+  }
+
+  .dashboard-quote-revealed {
+    color: oklch(0.22 0.01 258);
+  }
+
+  .dark .dashboard-quote-encrypted {
+    color: oklch(0.7 0.008 248);
+  }
+
+  .dark .dashboard-quote-revealed {
+    color: oklch(0.78 0.006 248);
+  }
+
 }
 
 @layer base {

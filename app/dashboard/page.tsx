@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import Image from "next/image";
@@ -19,6 +19,8 @@ import {
 import { getDailyManifesto } from "@/lib/manifesto";
 import { CampaignHeadsUp } from "@/components/dashboard/CampaignHeadsUp";
 import { UserAvatar } from "@/components/profile/UserAvatar";
+import { EncryptedText } from "@/components/ui/encrypted-text";
+import { VariableProximity } from "@/components/ui/variable-proximity";
 
 type SalesMarathonRunner = DashboardKpiRunner;
 
@@ -303,6 +305,7 @@ function SalesMarathon({
 export default function DashboardPage() {
   const { user } = useAuth();
   const { persona } = usePersona();
+  const quoteContainerRef = useRef<HTMLDivElement>(null);
   const [salesRunners, setSalesRunners] = useState<SalesMarathonRunner[]>([]);
   const [loadingSalesMarathon, setLoadingSalesMarathon] = useState(true);
   const [eventHeadsUp, setEventHeadsUp] = useState<EventHeadsUpItem[]>([]);
@@ -473,11 +476,35 @@ export default function DashboardPage() {
             className="min-h-0 overflow-y-auto pr-1 scrollbar-modern"
           >
             <div className="mx-auto w-full max-w-5xl text-center">
-              <h1 className="text-[2rem] leading-[1.05] tracking-[-0.035em] text-zinc-950 sm:text-[2.5rem] xl:text-[2.75rem]">
+              <motion.h1
+                initial={{ opacity: 0, y: 16, filter: "blur(8px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                className="text-[2rem] leading-[1.05] tracking-[-0.035em] text-zinc-950 sm:text-[2.5rem] xl:text-[2.75rem]"
+              >
                 <span className="font-medium">{greeting}, {displayName}.</span>
-              </h1>
-              <blockquote className="mt-5 text-[1.5rem] font-light leading-[1.15] tracking-[-0.02em] text-zinc-700 sm:text-[1.8rem] xl:text-[2rem]">
-                “{manifesto}”
+              </motion.h1>
+              <blockquote className="mt-5 text-[1.42rem] font-extralight leading-[1.16] tracking-[-0.019em] sm:text-[1.7rem] xl:text-[1.88rem]">
+                <div ref={quoteContainerRef} className="relative">
+                  <EncryptedText
+                    text={manifesto}
+                    revealDelayMs={68}
+                    flipDelayMs={90}
+                    encryptedClassName="dashboard-quote-encrypted"
+                    revealedClassName="dashboard-quote-revealed"
+                    revealedContent={
+                      <VariableProximity
+                        label={manifesto}
+                        containerRef={quoteContainerRef}
+                        radius={110}
+                        falloff="gaussian"
+                        fromFontVariationSettings="'wght' 220, 'opsz' 16"
+                        toFontVariationSettings="'wght' 620, 'opsz' 34"
+                        className="dashboard-quote-revealed"
+                      />
+                    }
+                  />
+                </div>
               </blockquote>
             </div>
           </motion.div>
