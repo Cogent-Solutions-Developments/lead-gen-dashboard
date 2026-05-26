@@ -1,8 +1,9 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
+  ChartNoAxesColumn,
   BellRing,
   Brain,
   LayoutDashboard,
@@ -41,6 +42,7 @@ function dockIcon(Icon: React.ComponentType<{ className?: string }>) {
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { persona } = usePersona();
   const { isSuperAdmin, user } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -102,6 +104,13 @@ export function Sidebar() {
       icon: dockIcon(item.icon),
     }));
 
+  items.push({
+    title: "Stats",
+    href: "/dashboard?stats=1",
+    icon: dockIcon(ChartNoAxesColumn),
+    active: pathname === "/dashboard" && searchParams.get("stats") === "1",
+  });
+
   if (!isSuperAdmin && persona === "sales") {
     items.push({
       title: ringingBell ? "Ringing deal bell" : "Ring the deal bell",
@@ -111,23 +120,25 @@ export function Sidebar() {
     });
   }
 
-  items.push(
-    {
-      title: isDark ? "Light mode" : "Dark mode",
-      icon: isDark ? dockIcon(Sun) : dockIcon(Moon),
-      onClick: () => setTheme(isDark ? "light" : "dark"),
-    },
-    {
-      title: isSuperAdmin ? `Workspaces - ${personaLabel}` : user?.fullName?.trim() || user?.username || "Profile",
-      href: isSuperAdmin ? "/choose-persona" : "/profile",
+  items.push({
+    title: isDark ? "Light mode" : "Dark mode",
+    icon: isDark ? dockIcon(Sun) : dockIcon(Moon),
+    onClick: () => setTheme(isDark ? "light" : "dark"),
+  });
+
+  if (isSuperAdmin) {
+    items.push({
+      title: `Workspaces - ${personaLabel}`,
+      href: "/choose-persona",
       icon: dockIcon(UserRound),
-    },
-    {
-      title: "Sign out",
-      icon: dockIcon(LogOut),
-      onClick: handleSignOut,
-    }
-  );
+    });
+  }
+
+  items.push({
+    title: "Sign out",
+    icon: dockIcon(LogOut),
+    onClick: handleSignOut,
+  });
 
   return (
     <div className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-4 md:bottom-6">

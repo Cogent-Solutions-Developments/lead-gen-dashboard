@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 import Image from "next/image";
 import Link from "next/link";
 import { Bungee_Hairline } from "next/font/google";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 import { getCachedAuthUserDisplayName } from "@/lib/auth";
@@ -308,12 +309,16 @@ function SalesMarathon({
 export default function DashboardPage() {
   const { user } = useAuth();
   const { persona } = usePersona();
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const quoteContainerRef = useRef<HTMLDivElement>(null);
   const [salesRunners, setSalesRunners] = useState<SalesMarathonRunner[]>([]);
   const [loadingSalesMarathon, setLoadingSalesMarathon] = useState(true);
   const [eventHeadsUp, setEventHeadsUp] = useState<EventHeadsUpItem[]>([]);
   const [workflowStatuses, setWorkflowStatuses] = useState<WorkflowStatusDefinitionItem[]>(FALLBACK_WORKFLOW_STATUSES);
   const [loadingEventHeadsUp, setLoadingEventHeadsUp] = useState(true);
+  const [statsOpen, setStatsOpen] = useState(false);
   const userId = user?.id;
   const displayName = firstName(getDisplayName(user));
   const greeting = getTimeGreeting();
@@ -434,8 +439,90 @@ export default function DashboardPage() {
     };
   }, [loadPersonalStats, loadSalesMarathon]);
 
+  useEffect(() => {
+    setStatsOpen(searchParams.get("stats") === "1");
+  }, [searchParams]);
+
+  const closeStatsModal = useCallback(() => {
+    setStatsOpen(false);
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("stats");
+    const query = next.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  useEffect(() => {
+    if (!statsOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeStatsModal();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [closeStatsModal, statsOpen]);
+
   return (
     <div className="relative h-[100dvh] max-h-[100dvh] overflow-hidden bg-transparent font-sans text-zinc-950">
+      <AnimatePresence>
+        {statsOpen ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[90] flex items-center justify-center bg-zinc-950/72 p-4 backdrop-blur-sm sm:p-6"
+          >
+            <button
+              type="button"
+              className="absolute inset-0"
+              aria-label="Close stats modal"
+              onClick={closeStatsModal}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 22, scale: 0.985 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.99 }}
+              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+              className="relative z-10 h-[min(88dvh,58rem)] w-full max-w-[94rem] overflow-hidden rounded-3xl border border-white/18 bg-[oklch(0.17_0.02_246)] shadow-[0_36px_90px_-32px_rgba(0,0,0,0.9)]"
+            >
+              <div className="flex h-full min-h-0 flex-col">
+                <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-6 py-4 sm:px-8">
+                  <div>
+                    <h2 className="text-xl font-medium tracking-[-0.02em] text-zinc-100">Stats</h2>
+                    <p className="mt-1 text-sm text-zinc-400">Daily KPI tracker and your performance summary</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeStatsModal}
+                    className="inline-flex h-10 items-center rounded-full border border-white/14 bg-white/5 px-4 text-sm font-medium text-zinc-200 transition hover:bg-white/10"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+                  <div className="space-y-8">
+                    <SalesMarathon
+                      runners={salesRunners}
+                      loading={loadingSalesMarathon}
+                      title={kpiCopy.title}
+                      subtitle={kpiCopy.subtitle}
+                      target={kpiCopy.target}
+                      footnote={kpiCopy.footnote}
+                    />
+                    <CampaignHeadsUp
+                      items={eventHeadsUp}
+                      statuses={workflowStatuses}
+                      loading={loadingEventHeadsUp}
+                    />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center">
         <div
           className="absolute bottom-0 h-[52dvh] w-[54rem] max-w-[88vw] rounded-full opacity-65 blur-[84px]"
