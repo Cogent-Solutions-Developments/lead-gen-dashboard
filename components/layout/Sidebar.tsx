@@ -14,7 +14,9 @@ import {
   UserRound,
   LogOut,
   ShieldCheck,
-  BellRing
+  BellRing,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { clearPersona } from "@/lib/persona";
@@ -23,6 +25,7 @@ import { clearAuthSession } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { UserAvatar } from "@/components/profile/UserAvatar";
 import { toast } from "sonner";
+import { useTheme } from "next-themes";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -47,9 +50,12 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
   const router = useRouter();
   const { persona } = usePersona();
   const { isSuperAdmin, user } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [rotation, setRotation] = useState(0);
   const [ringingBell, setRingingBell] = useState(false);
+  const [themeMounted, setThemeMounted] = useState(false);
   const personaLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
+  const isDark = theme === "dark";
 
   const handleSignOut = async () => {
     try {
@@ -110,6 +116,10 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
 
     timeoutId = setTimeout(rotateIcon, 2000);
     return () => clearTimeout(timeoutId);
+  }, []);
+
+  useEffect(() => {
+    setThemeMounted(true);
   }, []);
 
   return (
@@ -325,7 +335,34 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
+          transition={{ delay: 0.55 }}
+          className={isExpanded ? "" : "flex justify-center"}
+        >
+          <button
+            type="button"
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+            className={`flex items-center text-sm font-light tracking-tight text-white/40 transition-all hover:text-white group ${
+              isExpanded ? "gap-5 px-2" : "h-8 w-8 justify-center px-0"
+            }`}
+            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 group-hover:bg-white/10 transition-colors">
+              {themeMounted && isDark ? (
+                <Sun className="h-4 w-4 opacity-50" />
+              ) : (
+                <Moon className="h-4 w-4 opacity-50" />
+              )}
+            </div>
+            <span className={`whitespace-nowrap transition-all duration-200 ${isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"}`}>
+              {themeMounted && isDark ? "Light mode" : "Dark mode"}
+            </span>
+          </button>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.65 }}
           className={isExpanded ? "" : "flex justify-center"}
         >
           <button
