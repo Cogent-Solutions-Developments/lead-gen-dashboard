@@ -21,6 +21,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { FloatingDock, type FloatingDockItem } from "@/components/ui/floating-dock";
 import { clearAuthSession } from "@/lib/auth";
+import {
+  DASHBOARD_EXIT_NAV_DELAY_MS,
+  triggerDashboardExitTransition,
+} from "@/lib/dashboard-transition";
 import { clearPersona } from "@/lib/persona";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
@@ -49,6 +53,18 @@ export function Sidebar() {
   const [ringingBell, setRingingBell] = useState(false);
   const isDark = theme === "dark";
   const personaLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
+
+  const navigateWithDashboardTransition = (href: string) => {
+    if (pathname === "/dashboard" && !href.startsWith("/dashboard")) {
+      triggerDashboardExitTransition();
+      window.setTimeout(() => {
+        router.push(href);
+      }, DASHBOARD_EXIT_NAV_DELAY_MS);
+      return;
+    }
+
+    router.push(href);
+  };
 
   const handleSignOut = async () => {
     try {
@@ -99,14 +115,14 @@ export function Sidebar() {
     .filter((item) => (isSuperAdmin ? !item.normalOnly : !item.superOnly))
     .map((item) => ({
       title: isSuperAdmin ? item.name : item.normalLabel ?? item.name,
-      href: item.href,
+      onClick: () => navigateWithDashboardTransition(item.href),
       active: pathname === item.href,
       icon: dockIcon(item.icon),
     }));
 
   items.push({
     title: "Stats",
-    href: "/dashboard?stats=1",
+    onClick: () => navigateWithDashboardTransition("/dashboard?stats=1"),
     icon: dockIcon(ChartNoAxesColumn),
     active: pathname === "/dashboard" && searchParams.get("stats") === "1",
   });
@@ -129,7 +145,7 @@ export function Sidebar() {
   if (isSuperAdmin) {
     items.push({
       title: `Workspaces - ${personaLabel}`,
-      href: "/choose-persona",
+      onClick: () => navigateWithDashboardTransition("/choose-persona"),
       icon: dockIcon(UserRound),
     });
   }

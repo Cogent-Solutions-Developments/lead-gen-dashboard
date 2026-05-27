@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type MouseEvent, useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -22,6 +22,12 @@ import {
 import { getDailyManifesto } from "@/lib/manifesto";
 import { CampaignHeadsUp } from "@/components/dashboard/CampaignHeadsUp";
 import { UserAvatar } from "@/components/profile/UserAvatar";
+import {
+  DASHBOARD_EXIT_DURATION_MS,
+  DASHBOARD_EXIT_EVENT,
+  DASHBOARD_EXIT_NAV_DELAY_MS,
+  triggerDashboardExitTransition,
+} from "@/lib/dashboard-transition";
 import { TypingText } from "@/components/ui/typing-text";
 import { VariableProximity } from "@/components/ui/variable-proximity";
 
@@ -373,6 +379,7 @@ export default function DashboardPage() {
   const [workflowStatuses, setWorkflowStatuses] = useState<WorkflowStatusDefinitionItem[]>(FALLBACK_WORKFLOW_STATUSES);
   const [loadingEventHeadsUp, setLoadingEventHeadsUp] = useState(true);
   const [statsOpen, setStatsOpen] = useState(false);
+  const [dashboardLeaving, setDashboardLeaving] = useState(false);
   const userId = user?.id;
   const displayName = firstName(getDisplayName(user));
   const greeting = getTimeGreeting();
@@ -516,6 +523,35 @@ export default function DashboardPage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [closeStatsModal, statsOpen]);
 
+  useEffect(() => {
+    const handleDashboardExit = () => {
+      setDashboardLeaving(true);
+      window.setTimeout(() => {
+        setDashboardLeaving(false);
+      }, DASHBOARD_EXIT_DURATION_MS + 160);
+    };
+
+    window.addEventListener(DASHBOARD_EXIT_EVENT, handleDashboardExit);
+    return () => {
+      window.removeEventListener(DASHBOARD_EXIT_EVENT, handleDashboardExit);
+    };
+  }, []);
+
+  const handleProfileNavigation = useCallback(
+    (event: MouseEvent<HTMLAnchorElement>) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+        return;
+      }
+
+      event.preventDefault();
+      triggerDashboardExitTransition();
+      window.setTimeout(() => {
+        router.push("/profile");
+      }, DASHBOARD_EXIT_NAV_DELAY_MS);
+    },
+    [router]
+  );
+
   return (
     <div className="relative h-[100dvh] max-h-[100dvh] overflow-hidden bg-transparent font-sans text-zinc-950">
       <AnimatePresence>
@@ -578,16 +614,30 @@ export default function DashboardPage() {
       </AnimatePresence>
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center">
-        <div
+        <motion.div
           className="absolute bottom-0 h-[52dvh] w-[54rem] max-w-[88vw] rounded-full opacity-65 blur-[84px]"
           style={{
             background: "radial-gradient(ellipse at center, var(--dashboard-hero-glow) 0%, transparent 72%)",
           }}
+          animate={{
+            opacity: dashboardLeaving ? 0.82 : [0.58, 0.67, 0.58],
+            scale: dashboardLeaving ? 1.15 : [0.98, 1.02, 0.98],
+          }}
+          transition={
+            dashboardLeaving
+              ? { duration: DASHBOARD_EXIT_DURATION_MS / 1000, ease: [0.22, 1, 0.36, 1] }
+              : { duration: 6.8, repeat: Infinity, ease: "easeInOut" }
+          }
         />
-        <img
+        <motion.img
           src="/videos/BlockchainEventPromoconverted_1-ezgif.com-optimize%20(1).gif"
           alt="Animated dashboard visual"
-          className="h-[74dvh] w-auto max-w-[92vw] object-contain object-bottom opacity-85"
+          className="h-[74dvh] w-auto max-w-[92vw] origin-bottom object-contain object-bottom opacity-85"
+          animate={{
+            scale: dashboardLeaving ? 0.94 : 1,
+            opacity: dashboardLeaving ? 0.52 : 0.85,
+          }}
+          transition={{ duration: (DASHBOARD_EXIT_DURATION_MS + 180) / 1000, ease: [0.22, 1, 0.36, 1] }}
         />
       </div>
 
@@ -608,6 +658,7 @@ export default function DashboardPage() {
               href="/profile"
               className="group inline-flex items-center rounded-full transition"
               aria-label="Go to profile"
+              onClick={handleProfileNavigation}
             >
               <UserAvatar user={user} size="md" className="border-0 bg-transparent shadow-none" />
             </Link>
@@ -621,7 +672,15 @@ export default function DashboardPage() {
             transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             className="min-h-0 overflow-y-auto pr-1 scrollbar-modern"
           >
-            <div className="mx-auto w-full max-w-5xl text-center">
+            <motion.div
+              className="mx-auto w-full max-w-5xl text-center"
+              animate={{
+                opacity: dashboardLeaving ? 0.72 : 1,
+                y: dashboardLeaving ? -3 : 0,
+                filter: dashboardLeaving ? "blur(2px)" : "blur(0px)",
+              }}
+              transition={{ duration: DASHBOARD_EXIT_DURATION_MS / 1000, ease: [0.22, 1, 0.36, 1] }}
+            >
               <motion.h1
                 initial={{ opacity: 0, y: 16, filter: "blur(8px)" }}
                 animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
@@ -650,7 +709,7 @@ export default function DashboardPage() {
                   />
                 </div>
               </blockquote>
-            </div>
+            </motion.div>
           </motion.div>
         </div>
       </div>
