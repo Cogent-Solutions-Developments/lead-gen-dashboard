@@ -5,7 +5,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Bungee_Hairline } from "next/font/google";
-import { Activity, Target, Trophy } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
@@ -184,17 +183,15 @@ async function listSalesMarathonLeaderboard() {
   return summary.runners;
 }
 
-function PixelAvatar({ seed }: { seed: string }) {
-  const initials = seed
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "NA";
-
+function PixelAvatar({ colorHex, seed }: { colorHex: string; seed: string }) {
+  const url = `https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(seed)}&rowColor=${colorHex.replace("#", "")}&backgroundColor=transparent`;
   return (
-    <div className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-[10px] font-medium text-zinc-300">
-      {initials}
+    <div className="h-6 w-6 overflow-hidden">
+      <img
+        src={url}
+        alt="Identicon"
+        className="h-full w-full object-contain"
+      />
     </div>
   );
 }
@@ -214,151 +211,98 @@ function SalesMarathon({
   target: number;
   footnote: string;
 }) {
-  const loadingBars = [68, 44, 82, 56, 72];
-  const displayedRunners = runners.slice(0, 5);
-  const totalClosed = runners.reduce((sum, runner) => sum + runner.proposalCount, 0);
-  const leadRunner = runners[0];
-  const averageClosed = runners.length ? (totalClosed / runners.length).toFixed(1) : "0.0";
-  const targetGap = Math.max(target - totalClosed, 0);
+  const loadingBars = [68, 44, 82, 56, 72, 36, 62];
+  const barPalette = [
+    { bg: "bg-[#2977e7]", hex: "2977e7" },
+    { bg: "bg-emerald-500", hex: "10b981" },
+    { bg: "bg-amber-500", hex: "f59e0b" },
+    { bg: "bg-rose-500", hex: "f43f5e" },
+    { bg: "bg-indigo-500", hex: "6366f1" },
+    { bg: "bg-teal-500", hex: "14b8a6" },
+    { bg: "bg-orange-500", hex: "f97316" },
+  ];
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-white/8 bg-[linear-gradient(180deg,rgba(17,19,24,0.98),rgba(12,14,18,0.98))] shadow-[0_30px_70px_-40px_rgba(0,0,0,0.9)]">
-      <div className="border-b border-white/8 px-8 py-7">
-        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-          <div className="max-w-3xl">
-            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">
-              Daily operations
-            </p>
-            <h2 className="mt-3 text-[2rem] font-medium text-zinc-50">
-              {title}
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-zinc-400">
-              {subtitle}
-            </p>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-4">
-            <div className="rounded-xl border border-white/8 bg-white/[0.02] px-4 py-4">
-              <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-zinc-500">
-                <Target className="h-3.5 w-3.5" />
-                Daily target
-              </div>
-              <div className="mt-3 text-2xl font-medium text-zinc-50">{target}</div>
-            </div>
-            <div className="rounded-xl border border-white/8 bg-white/[0.02] px-4 py-4">
-              <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-zinc-500">
-                <Activity className="h-3.5 w-3.5" />
-                Closed today
-              </div>
-              <div className="mt-3 text-2xl font-medium text-zinc-50">{totalClosed}</div>
-            </div>
-            <div className="rounded-xl border border-white/8 bg-white/[0.02] px-4 py-4">
-              <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-zinc-500">
-                <Trophy className="h-3.5 w-3.5" />
-                Current lead
-              </div>
-              <div className="mt-3 text-2xl font-medium text-zinc-50">{leadRunner ? leadRunner.proposalCount : 0}</div>
-            </div>
-            <div className="rounded-xl border border-white/8 bg-white/[0.02] px-4 py-4">
-              <div className="text-[11px] uppercase tracking-[0.14em] text-zinc-500">
-                Remaining gap
-              </div>
-              <div className="mt-3 text-2xl font-medium text-zinc-50">{targetGap}</div>
-            </div>
-          </div>
+    <section className="relative min-h-[35rem] overflow-hidden border border-zinc-200 bg-white px-8 py-8 shadow-sm">
+      <div className="relative flex items-baseline justify-between gap-6 border-b border-zinc-100 pb-6">
+        <div>
+          <h2 className="text-4xl font-extralight tracking-tight text-zinc-950">
+            {title}
+          </h2>
+          <p className="mt-3 text-sm font-light text-zinc-500">
+            {subtitle}
+          </p>
         </div>
       </div>
 
-      <div className="px-8 py-8">
-        <div className="mb-5 flex items-center justify-between gap-4 border-b border-white/8 pb-4">
-          <div className="text-[11px] uppercase tracking-[0.14em] text-zinc-500">
-            Leaderboard
-          </div>
-          <div className="text-xs text-zinc-500">
-            Team average: {averageClosed}
-          </div>
-        </div>
+      <div className="relative mt-12 flex h-80 items-end justify-between gap-4">
+        {loading ? (
+          loadingBars.map((height, index) => (
+            <div key={index} className="flex h-full flex-1 animate-pulse flex-col items-center justify-end">
+              <div className="mb-4 h-8 w-7 bg-zinc-100" />
 
-        <div className="grid gap-4">
-          {loading ? (
-            loadingBars.map((width, index) => (
-              <div key={index} className="grid animate-pulse grid-cols-[2.5rem_2.5rem_minmax(0,1.3fr)_minmax(0,1fr)_5rem_5rem] items-center gap-4 rounded-xl border border-white/8 bg-white/[0.02] px-4 py-4">
-                <div className="h-3 w-8 rounded-full bg-white/[0.06]" />
-                <div className="h-8 w-8 rounded-full bg-white/[0.06]" />
-                <div className="h-3 w-24 rounded-full bg-white/[0.06]" />
-                <div className="h-2.5 rounded-full bg-white/[0.04]">
-                  <div className="h-full rounded-full bg-white/[0.08]" style={{ width: `${width}%` }} />
+              <div className="relative h-full w-8 overflow-hidden bg-zinc-100">
+                <div
+                  className="absolute bottom-0 w-full bg-zinc-200"
+                  style={{ height: `${height}%` }}
+                />
+                <div className="pointer-events-none absolute inset-0 flex flex-col justify-between">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="h-[1px] w-full bg-white/60" />
+                  ))}
                 </div>
-                <div className="h-3 w-10 rounded-full bg-white/[0.06]" />
-                <div className="h-3 w-10 rounded-full bg-white/[0.06]" />
               </div>
-            ))
-          ) : displayedRunners.length === 0 ? (
-            <div className="flex min-h-72 items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.02] text-sm text-zinc-500">
-              No active records for the current period.
+
+              <div className="mt-6 flex flex-col items-center gap-3">
+                <div className="h-6 w-6 bg-zinc-100" />
+                <div className="h-2 w-12 bg-zinc-100" />
+              </div>
             </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-[2.5rem_2.5rem_minmax(0,1.3fr)_minmax(0,1fr)_5rem_5rem] items-center gap-4 px-4 text-[11px] uppercase tracking-[0.14em] text-zinc-500">
-                <span>Rank</span>
-                <span />
-                <span>Name</span>
-                <span>Completion</span>
-                <span className="text-right">Closed</span>
-                <span className="text-right">Gap</span>
-              </div>
+          ))
+        ) : runners.length === 0 ? (
+          <div className="absolute inset-0 flex items-center justify-center text-sm font-light italic text-zinc-400">
+            No active records for the current period.
+          </div>
+        ) : (
+          runners.map((runner, index) => {
+            const progress = target > 0 ? Math.min(runner.proposalCount / target, 1) : 0;
+            const colorItem = barPalette[index % barPalette.length];
+            return (
+              <div key={runner.id} className="group relative flex h-full flex-1 flex-col items-center justify-end">
+                <div className="mb-4 flex flex-col items-center gap-1">
+                  <span className="text-2xl font-extralight text-zinc-950">
+                    {runner.proposalCount}
+                  </span>
+                </div>
 
-              {displayedRunners.map((runner, index) => {
-                const progress = target > 0 ? Math.min(runner.proposalCount / target, 1) : 0;
-                const gap = Math.max(target - runner.proposalCount, 0);
-
-                return (
-                  <div key={runner.id} className="grid grid-cols-[2.5rem_2.5rem_minmax(0,1.3fr)_minmax(0,1fr)_5rem_5rem] items-center gap-4 rounded-xl border border-white/8 bg-white/[0.025] px-4 py-4">
-                    <div className="text-sm font-medium text-zinc-300">
-                      {String(index + 1).padStart(2, "0")}
-                    </div>
-                    <PixelAvatar seed={runner.name} />
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium text-zinc-100">
-                        {runner.name}
-                      </div>
-                      <div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-zinc-500">
-                        {runner.name.split(" ")[0]}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.14em] text-zinc-500">
-                        <span>{Math.round(progress * 100)}%</span>
-                        <span>{runner.proposalCount}/{target}</span>
-                      </div>
-                      <div className="h-3 overflow-hidden rounded-full bg-white/[0.05]">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${progress * 100}%` }}
-                          transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-                          className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-sky-400 to-blue-500"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="text-right text-2xl font-medium text-zinc-50">
-                      {runner.proposalCount}
-                    </div>
-
-                    <div className="text-right text-lg font-medium text-zinc-300">
-                      {gap}
-                    </div>
+                <div className="relative h-full w-8 overflow-hidden bg-zinc-100">
+                  <motion.div
+                    initial={{ height: 0 }}
+                    animate={{ height: `${progress * 100}%` }}
+                    transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+                    className={`absolute bottom-0 w-full ${colorItem.bg}`}
+                  />
+                  <div className="pointer-events-none absolute inset-0 flex flex-col justify-between">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="h-[1px] w-full bg-white/20" />
+                    ))}
                   </div>
-                );
-              })}
-            </>
-          )}
-        </div>
+                </div>
+
+                <div className="mt-6 flex flex-col items-center gap-3">
+                  <PixelAvatar colorHex={colorItem.hex} seed={runner.id} />
+                  <h3 className="max-w-[4.5rem] truncate text-center text-[10px] font-medium tracking-wide text-zinc-950">
+                    {runner.name.split(" ")[0]}
+                  </h3>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
 
-      <div className="border-t border-white/8 px-8 py-5">
-        <p className="text-[11px] leading-relaxed text-zinc-500">
+      <div className="mt-12 border-t border-zinc-100 pt-6">
+        <p className="text-[10px] leading-relaxed text-zinc-400">
           {footnote}
         </p>
       </div>
