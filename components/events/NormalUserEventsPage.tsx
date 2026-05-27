@@ -114,7 +114,7 @@ function EventLogoMark({
   const logoUrl = item.logoUrl || registryItem?.logoUrl || "";
 
   return (
-    <div className={`flex shrink-0 items-center justify-center overflow-hidden border border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.95)] text-sm font-semibold text-zinc-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_18px_34px_-26px_rgba(0,0,0,0.9)] ${className}`}>
+    <div className={`flex shrink-0 items-center justify-center overflow-hidden rounded-[1rem] border border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.95)] text-sm font-semibold text-zinc-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_18px_34px_-26px_rgba(0,0,0,0.9)] ${className}`}>
       <ProtectedImage
         src={logoUrl}
         directUrlPath={logoUrl ? `${logoUrl}/download-url` : undefined}
@@ -139,19 +139,6 @@ function CardCorner({ className = "" }: { className?: string }) {
     >
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m6-6H6" />
     </svg>
-  );
-}
-
-function LuminousCardFrame() {
-  const cornerBase = "absolute h-10 w-10 border-[rgba(255,255,255,0.16)]";
-
-  return (
-    <>
-      <div className={`${cornerBase} left-3 top-3 rounded-tl-[1.05rem] border-l border-t`} />
-      <div className={`${cornerBase} right-3 top-3 rounded-tr-[1.05rem] border-r border-t`} />
-      <div className={`${cornerBase} bottom-3 left-3 rounded-bl-[1.05rem] border-b border-l`} />
-      <div className={`${cornerBase} bottom-3 right-3 rounded-br-[1.05rem] border-b border-r`} />
-    </>
   );
 }
 
@@ -235,12 +222,7 @@ function EventCanvasCard({
       className={`group/canvas-card relative overflow-hidden ${surfaceClassName} ${className || ""}`}
     >
       {luminous ? (
-        <>
-          <LuminousCardLightLayer />
-          <div className="pointer-events-none absolute inset-0 z-[2] rounded-[1.4rem]">
-            <LuminousCardFrame />
-          </div>
-        </>
+        <LuminousCardLightLayer />
       ) : (
         <>
           <CardCorner className="absolute -left-3 -top-3 z-20 h-6 w-6 text-[rgba(255,255,255,0.35)]" />
@@ -510,7 +492,11 @@ export function NormalUserEventsPage() {
                       >
                         <div className="space-y-4">
                           <div className="flex items-start gap-4">
-                            <EventLogoMark item={item} registryItem={registryItem} />
+                            <EventLogoMark
+                              item={item}
+                              registryItem={registryItem}
+                              className="h-[5.25rem] w-[5.25rem]"
+                            />
                             <h2 className="line-clamp-3 pt-1 text-xl font-light leading-[1.15] tracking-[-0.015em] !text-[rgb(255,255,255)] [text-shadow:0_1px_18px_rgba(255,255,255,0.24),0_8px_24px_rgba(0,0,0,0.62)]">
                               {displayTitle}
                             </h2>
