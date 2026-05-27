@@ -114,7 +114,7 @@ function EventLogoMark({
   const logoUrl = item.logoUrl || registryItem?.logoUrl || "";
 
   return (
-    <div className={`flex shrink-0 items-center justify-center overflow-hidden rounded-[1rem] border border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.95)] text-sm font-semibold text-zinc-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_18px_34px_-26px_rgba(0,0,0,0.9)] ${className}`}>
+    <div className={`flex shrink-0 items-center justify-center overflow-hidden rounded-[0.8rem] border border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.95)] text-sm font-semibold text-zinc-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_18px_34px_-26px_rgba(0,0,0,0.9)] ${className}`}>
       <ProtectedImage
         src={logoUrl}
         directUrlPath={logoUrl ? `${logoUrl}/download-url` : undefined}
@@ -139,6 +139,19 @@ function CardCorner({ className = "" }: { className?: string }) {
     >
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m6-6H6" />
     </svg>
+  );
+}
+
+function LuminousCardFrame() {
+  const cornerBase = "absolute h-10 w-10 border-[rgba(255,255,255,0.16)]";
+
+  return (
+    <>
+      <div className={`${cornerBase} left-3 top-3 rounded-tl-[1.05rem] border-l border-t`} />
+      <div className={`${cornerBase} right-3 top-3 rounded-tr-[1.05rem] border-r border-t`} />
+      <div className={`${cornerBase} bottom-3 left-3 rounded-bl-[1.05rem] border-b border-l`} />
+      <div className={`${cornerBase} bottom-3 right-3 rounded-br-[1.05rem] border-b border-r`} />
+    </>
   );
 }
 
@@ -222,7 +235,12 @@ function EventCanvasCard({
       className={`group/canvas-card relative overflow-hidden ${surfaceClassName} ${className || ""}`}
     >
       {luminous ? (
-        <LuminousCardLightLayer />
+        <>
+          <LuminousCardLightLayer />
+          <div className="pointer-events-none absolute inset-0 z-[2] rounded-[1.4rem]">
+            <LuminousCardFrame />
+          </div>
+        </>
       ) : (
         <>
           <CardCorner className="absolute -left-3 -top-3 z-20 h-6 w-6 text-[rgba(255,255,255,0.35)]" />
@@ -350,7 +368,7 @@ export function NormalUserEventsPage() {
           <div>
             <div>
               <h1 className="text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
-                Events
+                Conferences
               </h1>
             </div>
           </div>
@@ -453,7 +471,7 @@ export function NormalUserEventsPage() {
 
                           <div className="flex items-end justify-between">
                             <div className="space-y-1.5">
-                              <span className="text-xs font-medium uppercase tracking-[0.14em] !text-[rgba(255,255,255,0.72)]">Total prospects</span>
+                              <span className="text-sm font-medium tracking-[0.02em] !text-[rgba(255,255,255,0.72)]">Leads To Cover</span>
                               <div className="flex items-baseline gap-2">
                                 <span className="text-4xl font-light tabular-nums tracking-tight !text-[rgb(255,255,255)] [text-shadow:0_1px_18px_rgba(255,255,255,0.22),0_8px_24px_rgba(0,0,0,0.62)] 2xl:text-5xl">
                                   {Number(item.leadCount).toLocaleString()}
@@ -505,7 +523,7 @@ export function NormalUserEventsPage() {
 
                         <div className="mt-5 flex items-end justify-between">
                           <div className="space-y-1">
-                            <span className="text-[11px] font-medium uppercase tracking-[0.14em] !text-[rgba(255,255,255,0.72)]">Total prospects</span>
+                            <span className="text-sm font-medium tracking-[0.02em] !text-[rgba(255,255,255,0.72)]">Leads To Cover</span>
                             <div className="flex items-baseline gap-2">
                               <span className="text-3xl font-light tabular-nums tracking-tight !text-[rgb(255,255,255)] [text-shadow:0_1px_18px_rgba(255,255,255,0.22),0_8px_24px_rgba(0,0,0,0.62)]">
                                 {Number(item.leadCount).toLocaleString()}

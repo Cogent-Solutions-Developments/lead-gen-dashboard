@@ -31,7 +31,7 @@ import { usePersona } from "@/hooks/usePersona";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Campaigns", normalLabel: "Events", href: "/campaigns", icon: Rocket },
+  { name: "Campaigns", normalLabel: "Conferences", href: "/campaigns", icon: Rocket },
   { name: "New Campaign", href: "/campaigns/new", icon: Plus, superOnly: true },
   { name: "Upload Campaign", href: "/campaigns/upload", icon: Upload, superOnly: true },
   { name: "Nizo Finder", normalLabel: "Lead Sheet", href: "/leads", icon: TrainFront },
