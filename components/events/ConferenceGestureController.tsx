@@ -33,8 +33,10 @@ const CLICK_HOLD_MS = 720;
 const CLICK_COOLDOWN_MS = 1800;
 const CLICK_MOVE_TOLERANCE_PX = 34;
 const PINCH_THRESHOLD = 0.038;
-const EDGE_SCROLL_ZONE_RATIO = 0.24;
-const EDGE_SCROLL_MAX_STEP = 18;
+const TOP_EDGE_SCROLL_ZONE_RATIO = 0.38;
+const BOTTOM_EDGE_SCROLL_ZONE_RATIO = 0.24;
+const EDGE_SCROLL_DOWN_MAX_STEP = 18;
+const EDGE_SCROLL_UP_MAX_STEP = 26;
 const VIEW_SWITCH_THRESHOLD = 0.28;
 const VIEW_SWITCH_COOLDOWN_MS = 1300;
 
@@ -46,18 +48,19 @@ function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
 
 function getEdgeScrollStep(container: HTMLElement, cursorY: number) {
   const rect = container.getBoundingClientRect();
-  const zoneSize = Math.max(96, rect.height * EDGE_SCROLL_ZONE_RATIO);
-  const topZoneEnd = rect.top + zoneSize;
-  const bottomZoneStart = rect.bottom - zoneSize;
+  const topZoneSize = Math.max(148, rect.height * TOP_EDGE_SCROLL_ZONE_RATIO);
+  const bottomZoneSize = Math.max(96, rect.height * BOTTOM_EDGE_SCROLL_ZONE_RATIO);
+  const topZoneEnd = rect.top + topZoneSize;
+  const bottomZoneStart = rect.bottom - bottomZoneSize;
 
   if (cursorY < topZoneEnd) {
-    const intensity = Math.min(1, (topZoneEnd - cursorY) / zoneSize);
-    return -EDGE_SCROLL_MAX_STEP * intensity;
+    const intensity = Math.min(1, (topZoneEnd - cursorY) / topZoneSize);
+    return -EDGE_SCROLL_UP_MAX_STEP * intensity;
   }
 
   if (cursorY > bottomZoneStart) {
-    const intensity = Math.min(1, (cursorY - bottomZoneStart) / zoneSize);
-    return EDGE_SCROLL_MAX_STEP * intensity;
+    const intensity = Math.min(1, (cursorY - bottomZoneStart) / bottomZoneSize);
+    return EDGE_SCROLL_DOWN_MAX_STEP * intensity;
   }
 
   return 0;
