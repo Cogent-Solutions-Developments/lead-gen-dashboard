@@ -115,12 +115,12 @@ function EventLogoMark({
   const logoUrl = item.logoUrl || registryItem?.logoUrl || "";
 
   return (
-    <div className={`flex shrink-0 items-center justify-center overflow-hidden rounded-[0.8rem] border border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.95)] text-sm font-semibold text-zinc-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_18px_34px_-26px_rgba(0,0,0,0.9)] ${className}`}>
+    <div className={`flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.04)] p-2 text-sm font-semibold text-zinc-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_34px_-26px_rgba(0,0,0,0.9)] ${className}`}>
       <ProtectedImage
         src={logoUrl}
         directUrlPath={logoUrl ? `${logoUrl}/download-url` : undefined}
         alt=""
-        className="h-full w-full object-cover"
+        className="h-full w-full object-contain"
         fallback={item.canonicalEventName.slice(0, 2).toUpperCase()}
       />
     </div>
@@ -487,26 +487,23 @@ export function NormalUserEventsPage() {
                       key={item.canonicalEventKey}
                       delay={index * 0.02}
                       variant={index}
-                      className="min-h-[8.8rem]"
+                      className="min-h-[10.2rem]"
                       luminous
                       gestureHoverId={item.canonicalEventKey}
                       forceHovered={gestureHoverKey === item.canonicalEventKey}
                     >
                       <Link
                         href={`/leads?event=${encodeURIComponent(item.canonicalEventKey)}`}
-                        className="flex h-full flex-col p-4 outline-none 2xl:p-5"
+                        className="flex h-full items-center gap-6 p-5 outline-none 2xl:gap-7 2xl:p-6"
                       >
-                        <div className="flex flex-1 flex-col justify-between gap-4 2xl:gap-5">
-                          <div className="flex items-start gap-4">
-                            <EventLogoMark item={item} registryItem={registryItem} className="h-14 w-14" />
-                            <div className="min-w-0 pt-1.5">
-                              <h2 className="text-[1.28rem] font-light leading-[1.12] tracking-[-0.015em] !text-[rgb(255,255,255)] [text-shadow:0_1px_20px_rgba(255,255,255,0.28),0_8px_24px_rgba(0,0,0,0.65)] 2xl:text-[1.45rem]">
-                                {displayTitle}
-                              </h2>
-                            </div>
-                          </div>
+                        <EventLogoMark item={item} registryItem={registryItem} className="h-[6.5rem] w-[6.5rem] 2xl:h-[7rem] 2xl:w-[7rem]" />
 
-                          <div className="flex items-end justify-between">
+                        <div className="flex min-w-0 flex-1 items-center justify-between gap-6">
+                          <div className="min-w-0 space-y-4">
+                            <h2 className="line-clamp-2 text-[1.28rem] font-light leading-[1.12] tracking-[-0.015em] !text-[rgb(255,255,255)] [text-shadow:0_1px_20px_rgba(255,255,255,0.28),0_8px_24px_rgba(0,0,0,0.65)] 2xl:text-[1.45rem]">
+                              {displayTitle}
+                            </h2>
+
                             <div className="space-y-1.5">
                               <span className="text-sm font-medium tracking-[0.02em] !text-[rgba(255,255,255,0.72)]">Leads To Cover</span>
                               <div className="flex items-baseline gap-2">
@@ -516,10 +513,10 @@ export function NormalUserEventsPage() {
                                 <span className="text-sm font-normal !text-[rgba(255,255,255,0.76)]">leads</span>
                               </div>
                             </div>
+                          </div>
 
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(255,255,255,0.28)] bg-[rgba(255,255,255,0.08)] text-[rgb(255,255,255)] shadow-[inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-10px_18px_rgba(0,0,0,0.22),0_0_24px_-12px_rgba(255,255,255,0.7)] backdrop-blur-md transition-colors group-hover/canvas-card:border-[rgba(255,255,255,0.4)] group-hover/canvas-card:bg-[rgba(255,255,255,0.12)] 2xl:h-11 2xl:w-11">
-                              <ArrowLeft className="h-4 w-4 rotate-180 2xl:h-5 2xl:w-5" />
-                            </div>
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[rgba(255,255,255,0.28)] bg-[rgba(255,255,255,0.08)] text-[rgb(255,255,255)] shadow-[inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-10px_18px_rgba(0,0,0,0.22),0_0_24px_-12px_rgba(255,255,255,0.7)] backdrop-blur-md transition-colors group-hover/canvas-card:border-[rgba(255,255,255,0.4)] group-hover/canvas-card:bg-[rgba(255,255,255,0.12)] 2xl:h-11 2xl:w-11">
+                            <ArrowLeft className="h-4 w-4 rotate-180 2xl:h-5 2xl:w-5" />
                           </div>
                         </div>
                       </Link>
