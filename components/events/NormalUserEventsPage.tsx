@@ -465,8 +465,8 @@ export function NormalUserEventsPage() {
         </div>
       </header>
 
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col pt-8 xl:pl-[25rem] 2xl:pl-[29rem]">
-        <main className="flex min-h-0 flex-col">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col pt-8 xl:pl-[31rem] 2xl:pl-[35rem]">
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {hasSearch ? (
             <div className="mb-6 flex shrink-0 items-center justify-between border-y border-zinc-100 py-4">
               <p className="text-base font-light text-zinc-500">
@@ -482,7 +482,7 @@ export function NormalUserEventsPage() {
             </div>
           ) : null}
 
-          <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto scrollbar-modern">
+          <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 scrollbar-modern">
             {loading ? (
               <EventRowsSkeleton />
             ) : filteredItems.length === 0 ? (
@@ -490,7 +490,7 @@ export function NormalUserEventsPage() {
                 {searchQuery.trim() ? "No events match this search." : "No events found."}
               </div>
             ) : viewMode === "list" ? (
-              <div className="grid grid-cols-1 gap-3 pt-3">
+              <div className="ml-auto grid max-w-full grid-cols-1 gap-3 pb-36 pt-3 xl:max-w-[76rem] 2xl:max-w-[82rem]">
                 {filteredItems.map((item, index) => {
                   const registryItem = getRegistryItem(item);
                   const displayTitle = getEventDisplayTitle(item, registryItem);
@@ -540,7 +540,7 @@ export function NormalUserEventsPage() {
                 })}
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4 pt-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="ml-auto grid max-w-full grid-cols-1 gap-4 pb-36 pt-3 sm:grid-cols-2 xl:max-w-[76rem] xl:grid-cols-2 2xl:max-w-[82rem] 2xl:grid-cols-3">
                 {filteredItems.map((item, index) => {
                   const registryItem = getRegistryItem(item);
                   const displayTitle = getEventDisplayTitle(item, registryItem);

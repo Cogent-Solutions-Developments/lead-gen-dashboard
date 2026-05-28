@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import { CameraOff, Hand } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { GestureRecognizer as MediaPipeGestureRecognizer } from "@mediapipe/tasks-vision";
@@ -397,6 +398,31 @@ export function ConferenceGestureController({
     };
   }, [enabled, onViewModeChange, scrollContainerRef, setHoverTarget, updateGestureHover]);
 
+  const overlay =
+    typeof document !== "undefined" ? createPortal(
+      <>
+        {enabled ? (
+          <div className="pointer-events-none fixed right-6 top-6 z-[240] rounded-full border border-[rgba(255,255,255,0.16)] bg-black/45 px-3 py-1 text-xs font-medium text-[rgba(255,255,255,0.76)] shadow-[0_18px_40px_-26px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+            {ready ? gestureLabel : "Starting camera"}
+          </div>
+        ) : null}
+
+        {error ? (
+          <div className="pointer-events-none fixed right-6 top-6 z-[240] max-w-xs rounded-2xl border border-rose-400/30 bg-black/64 px-3 py-2 text-xs font-medium text-rose-100 shadow-[0_18px_40px_-26px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+            {error}
+          </div>
+        ) : null}
+
+        {cursor.visible ? (
+          <div
+            className="pointer-events-none fixed z-[241] h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[rgba(255,255,255,0.74)] bg-blue-400/28 shadow-[0_0_28px_rgba(125,211,252,0.62)] backdrop-blur-sm"
+            style={{ left: cursor.x, top: cursor.y }}
+          />
+        ) : null}
+      </>,
+      document.body
+    ) : null;
+
   return (
     <>
       <button
@@ -414,24 +440,7 @@ export function ConferenceGestureController({
         {error ? <CameraOff className="h-4 w-4" /> : <Hand className="h-4 w-4" />}
       </button>
 
-      {enabled ? (
-        <div className="pointer-events-none fixed right-6 top-6 z-[120] rounded-full border border-[rgba(255,255,255,0.16)] bg-black/45 px-3 py-1 text-xs font-medium text-[rgba(255,255,255,0.76)] shadow-[0_18px_40px_-26px_rgba(0,0,0,0.9)] backdrop-blur-xl">
-          {ready ? gestureLabel : "Starting camera"}
-        </div>
-      ) : null}
-
-      {error ? (
-        <div className="pointer-events-none fixed right-6 top-6 z-[120] max-w-xs rounded-2xl border border-rose-400/30 bg-black/64 px-3 py-2 text-xs font-medium text-rose-100 shadow-[0_18px_40px_-26px_rgba(0,0,0,0.9)] backdrop-blur-xl">
-          {error}
-        </div>
-      ) : null}
-
-      {cursor.visible ? (
-        <div
-          className="pointer-events-none fixed z-[119] h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[rgba(255,255,255,0.74)] bg-blue-400/28 shadow-[0_0_28px_rgba(125,211,252,0.62)] backdrop-blur-sm"
-          style={{ left: cursor.x, top: cursor.y }}
-        />
-      ) : null}
+      {overlay}
     </>
   );
 }
