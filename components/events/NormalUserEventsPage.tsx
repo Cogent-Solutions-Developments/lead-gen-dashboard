@@ -145,9 +145,13 @@ function CardCorner({ className = "" }: { className?: string }) {
 
 function LuminousCardLightLayer() {
   return (
-    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(16,23,34,0.92)_0%,rgba(6,8,12,0.98)_58%,rgba(3,5,8,0.99)_100%)]" />
-      <div className="absolute left-[42%] top-0 h-20 w-[42%] -translate-x-1/2 bg-[radial-gradient(ellipse_at_top,rgba(125,211,252,0.11),rgba(59,130,246,0.035)_38%,transparent_74%)] blur-2xl opacity-70" />
+    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-md">
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,22,32,0.92)_0%,rgba(7,10,15,0.98)_54%,rgba(3,5,8,0.99)_100%)]" />
+      <div className="absolute left-1/2 top-0 h-20 w-[36%] -translate-x-1/2 bg-[radial-gradient(ellipse_at_top,rgba(125,211,252,0.075),rgba(59,130,246,0.025)_40%,transparent_74%)] blur-2xl opacity-70" />
+      <div className="absolute left-1/2 top-1/2 h-[72%] w-[58%] -translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(ellipse_at_center,rgba(125,211,252,0.055),rgba(59,130,246,0.026)_38%,transparent_72%)] blur-2xl opacity-70" />
+      <div className="absolute bottom-0 left-1/2 h-16 w-[46%] -translate-x-1/2 bg-[radial-gradient(ellipse_at_bottom,rgba(56,189,248,0.055),transparent_68%)] blur-2xl opacity-60" />
+      <div className="absolute inset-y-0 left-0 w-24 bg-[radial-gradient(ellipse_at_left,rgba(125,211,252,0.04),transparent_70%)]" />
+      <div className="absolute inset-y-0 right-0 w-24 bg-[radial-gradient(ellipse_at_right,rgba(125,211,252,0.04),transparent_70%)]" />
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(255,255,255,0.28)] to-transparent" />
       <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[rgba(125,211,252,0.12)] to-transparent" />
     </div>
@@ -214,7 +218,7 @@ function EventCanvasCard({
   ];
   const reveal = revealOptions[variant % revealOptions.length];
   const surfaceClassName = luminous
-    ? "isolate border border-[rgba(255,255,255,0.14)] bg-[#05080d] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),inset_0_-32px_42px_-36px_rgba(0,0,0,0.95),0_0_0_1px_rgba(125,211,252,0.05),0_16px_42px_-34px_rgba(0,0,0,0.95)] transition-[border-color,box-shadow,transform] duration-300 hover:-translate-y-px hover:border-[rgba(125,211,252,0.28)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_0_1px_rgba(125,211,252,0.12),0_18px_44px_-34px_rgba(0,0,0,0.95)]"
+    ? "isolate rounded-md border border-[rgba(255,255,255,0.14)] bg-[#05080d] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),inset_0_-32px_42px_-36px_rgba(0,0,0,0.95),0_0_0_1px_rgba(125,211,252,0.05),0_16px_42px_-34px_rgba(0,0,0,0.95)] transition-[border-color,box-shadow,transform] duration-300 hover:-translate-y-px hover:border-[rgba(125,211,252,0.28)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_0_1px_rgba(125,211,252,0.12),0_18px_44px_-34px_rgba(0,0,0,0.95)]"
     : "border border-[rgba(255,255,255,0.14)] bg-[#101113]/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_22px_-12px_rgba(125,211,252,0.46),0_18px_60px_-42px_rgba(0,0,0,0.9)] backdrop-blur-xl transition-colors duration-200 hover:border-[rgba(255,255,255,0.35)]";
 
   return (
