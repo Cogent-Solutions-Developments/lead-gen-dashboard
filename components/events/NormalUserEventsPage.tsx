@@ -174,6 +174,8 @@ function EventCanvasCard({
   y = 0,
   variant,
   luminous = false,
+  gestureHoverId,
+  forceHovered = false,
 }: {
   children: ReactNode;
   className?: string;
@@ -181,6 +183,8 @@ function EventCanvasCard({
   y?: number;
   variant: number;
   luminous?: boolean;
+  gestureHoverId?: string;
+  forceHovered?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
   const revealOptions = [
@@ -225,6 +229,7 @@ function EventCanvasCard({
   const surfaceClassName = luminous
     ? "isolate rounded-[1.4rem] border border-[rgba(255,255,255,0.16)] bg-[radial-gradient(circle_at_50%_0%,#2a2b2d_0%,#151619_48%,#06070a_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-4rem_3rem_-3.2rem_rgba(0,0,0,0.72),0_0_0_1px_rgba(255,255,255,0.07),0_0_34px_-18px_rgba(255,255,255,0.42),0_22px_52px_-34px_rgba(0,0,0,0.95)] backdrop-blur-xl transition-[border-color,box-shadow,transform] duration-300 hover:-translate-y-0.5 hover:border-[rgba(255,255,255,0.26)]"
     : "border border-[rgba(255,255,255,0.14)] bg-[#101113]/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_22px_-12px_rgba(125,211,252,0.46),0_18px_60px_-42px_rgba(0,0,0,0.9)] backdrop-blur-xl transition-colors duration-200 hover:border-[rgba(255,255,255,0.35)]";
+  const activeHover = hovered || forceHovered;
 
   return (
     <motion.div
@@ -233,6 +238,7 @@ function EventCanvasCard({
       transition={{ delay }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      data-gesture-hover-id={gestureHoverId}
       className={`group/canvas-card relative overflow-hidden ${surfaceClassName} ${className || ""}`}
     >
       {luminous ? (
@@ -252,13 +258,13 @@ function EventCanvasCard({
       )}
 
       <AnimatePresence>
-        {hovered ? (
+        {activeHover ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="absolute inset-0 z-[1]"
+            className="pointer-events-none absolute inset-0 z-[1]"
           >
             <CanvasRevealEffect
               animationSpeed={3.2}
@@ -284,6 +290,7 @@ export function NormalUserEventsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [gestureHoverKey, setGestureHoverKey] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const hasSearch = searchQuery.trim().length > 0;
 
@@ -392,6 +399,7 @@ export function NormalUserEventsPage() {
                   scrollContainerRef={scrollContainerRef}
                   viewMode={viewMode}
                   onViewModeChange={setViewMode}
+                  onHoverTargetChange={setGestureHoverKey}
                 />
                 <div className="inline-flex h-11 items-center rounded-2xl border border-zinc-300 bg-zinc-900/95 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_14px_rgba(0,0,0,0.18)]">
                   <button
@@ -463,6 +471,8 @@ export function NormalUserEventsPage() {
                       variant={index}
                       className="min-h-[14rem]"
                       luminous
+                      gestureHoverId={item.canonicalEventKey}
+                      forceHovered={gestureHoverKey === item.canonicalEventKey}
                     >
                       <Link
                         href={`/leads?event=${encodeURIComponent(item.canonicalEventKey)}`}
@@ -512,6 +522,8 @@ export function NormalUserEventsPage() {
                       variant={index}
                       className="min-h-[15rem]"
                       luminous
+                      gestureHoverId={item.canonicalEventKey}
+                      forceHovered={gestureHoverKey === item.canonicalEventKey}
                     >
                       <Link
                         href={`/leads?event=${encodeURIComponent(item.canonicalEventKey)}`}

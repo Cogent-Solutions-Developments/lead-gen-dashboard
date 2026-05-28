@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { CameraOff, Hand } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { GestureRecognizer as MediaPipeGestureRecognizer } from "@mediapipe/tasks-vision";
@@ -11,6 +11,7 @@ type ConferenceGestureControllerProps = {
   scrollContainerRef: RefObject<HTMLDivElement | null>;
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
+  onHoverTargetChange?: (targetId: string | null) => void;
 };
 
 type CursorState = {
@@ -39,6 +40,8 @@ const EDGE_SCROLL_DOWN_MAX_STEP = 18;
 const EDGE_SCROLL_UP_MAX_STEP = 26;
 const VIEW_SWITCH_THRESHOLD = 0.28;
 const VIEW_SWITCH_COOLDOWN_MS = 1300;
+const HOVER_DWELL_MS = 140;
+const HOVER_CLEAR_DELAY_MS = 220;
 
 function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
   const dx = a.x - b.x;
@@ -88,6 +91,7 @@ export function ConferenceGestureController({
   scrollContainerRef,
   viewMode,
   onViewModeChange,
+  onHoverTargetChange,
 }: ConferenceGestureControllerProps) {
   const [enabled, setEnabled] = useState(false);
   const [ready, setReady] = useState(false);
@@ -102,7 +106,40 @@ export function ConferenceGestureController({
   const lastSwitchAtRef = useRef(0);
   const lastClickAtRef = useRef(0);
   const clickIntentRef = useRef<ClickIntent | null>(null);
+  const hoverTargetRef = useRef<string | null>(null);
+  const hoverCandidateRef = useRef<{ id: string; startedAt: number } | null>(null);
+  const hoverClearAtRef = useRef<number | null>(null);
   const viewModeRef = useRef(viewMode);
+
+  const setHoverTarget = useCallback((targetId: string | null) => {
+    if (hoverTargetRef.current === targetId) return;
+    hoverTargetRef.current = targetId;
+    onHoverTargetChange?.(targetId);
+  }, [onHoverTargetChange]);
+
+  const updateGestureHover = useCallback((targetId: string | null, now: number) => {
+    if (!targetId) {
+      hoverCandidateRef.current = null;
+      if (hoverTargetRef.current && hoverClearAtRef.current === null) {
+        hoverClearAtRef.current = now + HOVER_CLEAR_DELAY_MS;
+      }
+    } else {
+      hoverClearAtRef.current = null;
+      if (hoverTargetRef.current === targetId) return;
+
+      const candidate = hoverCandidateRef.current;
+      if (!candidate || candidate.id !== targetId) {
+        hoverCandidateRef.current = { id: targetId, startedAt: now };
+      } else if (now - candidate.startedAt >= HOVER_DWELL_MS) {
+        setHoverTarget(targetId);
+      }
+    }
+
+    if (hoverClearAtRef.current !== null && now >= hoverClearAtRef.current) {
+      hoverClearAtRef.current = null;
+      setHoverTarget(null);
+    }
+  }, [setHoverTarget]);
 
   useEffect(() => {
     viewModeRef.current = viewMode;
@@ -116,6 +153,9 @@ export function ConferenceGestureController({
       lastXRef.current = null;
       lastYRef.current = null;
       clickIntentRef.current = null;
+      hoverCandidateRef.current = null;
+      hoverClearAtRef.current = null;
+      setHoverTarget(null);
       return;
     }
 
@@ -213,6 +253,7 @@ export function ConferenceGestureController({
             lastXRef.current = null;
             lastYRef.current = null;
             clickIntentRef.current = null;
+            updateGestureHover(null, performance.now());
             rafRef.current = requestAnimationFrame(tick);
             return;
           }
@@ -228,6 +269,12 @@ export function ConferenceGestureController({
           let edgeScrollLabel: string | null = null;
 
           setCursor({ x, y, visible: !isFist });
+          const gestureHoverId =
+            document
+              .elementFromPoint(x, y)
+              ?.closest<HTMLElement>("[data-gesture-hover-id]")
+              ?.dataset.gestureHoverId ?? null;
+          updateGestureHover(isFist ? null : gestureHoverId, now);
 
           if (isFist) {
             lastXRef.current = indexTip.x;
@@ -313,7 +360,7 @@ export function ConferenceGestureController({
       cancelled = true;
       stop();
     };
-  }, [enabled, onViewModeChange, scrollContainerRef]);
+  }, [enabled, onViewModeChange, scrollContainerRef, setHoverTarget, updateGestureHover]);
 
   return (
     <>
