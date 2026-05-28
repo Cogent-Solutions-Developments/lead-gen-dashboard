@@ -408,7 +408,7 @@ export function NormalUserEventsPage() {
           transition={{ duration: 6.8, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
-          className="absolute -top-16 right-8 z-[2] max-w-[22rem] rounded-lg border border-[rgba(255,255,255,0.3)] bg-[rgba(3,7,12,0.22)] px-5 py-4 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_0_1px_rgba(125,211,252,0.08),0_18px_44px_-28px_rgba(56,189,248,0.2)] backdrop-blur-[2px] 2xl:right-10 2xl:max-w-[24rem]"
+          className="absolute -top-16 right-8 z-[2] max-w-[22rem] rounded-lg border-[2.4px] border-[rgba(186,230,253,0.52)] bg-[rgba(3,7,12,0.22)] px-5 py-4 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(186,230,253,0.16),0_0_18px_rgba(103,232,249,0.16),0_18px_44px_-28px_rgba(56,189,248,0.2)] backdrop-blur-[2px] 2xl:right-10 2xl:max-w-[24rem]"
           initial={{ opacity: 0, y: 14, filter: "blur(8px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ delay: 1.3, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
