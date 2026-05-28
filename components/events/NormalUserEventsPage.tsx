@@ -426,7 +426,7 @@ export function NormalUserEventsPage() {
             aria-hidden="true"
           />
           <motion.svg
-            className="absolute right-[-3.8rem] top-[-0.5rem] h-[18rem] w-[12rem] overflow-visible text-[rgba(186,230,253,0.82)] [filter:drop-shadow(0_0_8px_rgba(103,232,249,0.22))_drop-shadow(0_0_18px_rgba(103,232,249,0.16))] 2xl:right-[-3.5rem]"
+            className="absolute right-[-3.9rem] top-[-0.5rem] h-[18rem] w-[12rem] overflow-visible text-[rgba(186,230,253,0.82)] [filter:drop-shadow(0_0_8px_rgba(103,232,249,0.22))_drop-shadow(0_0_18px_rgba(103,232,249,0.16))] 2xl:right-[-4.15rem]"
             viewBox="0 0 220 210"
             fill="none"
             initial={{ opacity: 0 }}
