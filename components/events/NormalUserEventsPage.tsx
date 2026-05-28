@@ -153,6 +153,8 @@ function LuminousCardLightLayer() {
       <div className="absolute inset-y-0 left-0 w-24 bg-[radial-gradient(ellipse_at_left,rgba(125,211,252,0.04),transparent_70%)]" />
       <div className="absolute inset-y-0 right-0 w-24 bg-[radial-gradient(ellipse_at_right,rgba(125,211,252,0.04),transparent_70%)]" />
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(255,255,255,0.28)] to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-8 border-t border-[rgba(125,211,252,0.13)] bg-[linear-gradient(180deg,rgba(4,8,14,0.16),rgba(4,8,14,0.6)),linear-gradient(90deg,rgba(125,211,252,0.018)_0%,rgba(125,211,252,0.11)_50%,rgba(125,211,252,0.018)_100%),repeating-linear-gradient(135deg,rgba(125,211,252,0.16)_0_1px,transparent_1px_8px)] opacity-80 [mask-image:linear-gradient(90deg,transparent_0%,rgba(0,0,0,0.1)_16%,rgba(0,0,0,0.76)_48%,rgba(0,0,0,0.76)_56%,rgba(0,0,0,0.1)_86%,transparent_100%)]" />
+      <div className="absolute bottom-8 left-0 right-0 h-8 bg-gradient-to-t from-[rgba(4,8,14,0.22)] to-transparent" />
       <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[rgba(125,211,252,0.12)] to-transparent" />
     </div>
   );
