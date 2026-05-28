@@ -1,12 +1,13 @@
 "use client";
 
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { listEvents, type EventSummaryItem } from "@/lib/apiRouter";
 import { listActiveEventRegistry, type AdminEventItem } from "@/lib/auth";
 import { ProtectedImage } from "@/components/storage/ProtectedImage";
 import { CanvasRevealEffect } from "@/components/ui/canvas-reveal-effect";
+import { ConferenceGestureController } from "@/components/events/ConferenceGestureController";
 import {
   ArrowLeft,
   LayoutGrid,
@@ -283,6 +284,7 @@ export function NormalUserEventsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const hasSearch = searchQuery.trim().length > 0;
 
   const registryByEvent = useMemo(() => {
@@ -385,33 +387,40 @@ export function NormalUserEventsPage() {
                   </p>
                 </div>
               )}
-              <div className="inline-flex h-11 items-center rounded-2xl border border-zinc-300 bg-zinc-900/95 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_14px_rgba(0,0,0,0.18)]">
-                <button
-                  type="button"
-                  aria-label="Grid view"
-                  aria-pressed={viewMode === "grid"}
-                  onClick={() => setViewMode("grid")}
-                  className={`inline-flex h-9 w-11 items-center justify-center rounded-xl transition ${
-                    viewMode === "grid"
-                      ? "bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]"
-                      : "text-zinc-400 hover:text-zinc-100"
-                  }`}
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="List view"
-                  aria-pressed={viewMode === "list"}
-                  onClick={() => setViewMode("list")}
-                  className={`inline-flex h-9 w-11 items-center justify-center rounded-xl transition ${
-                    viewMode === "list"
-                      ? "bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]"
-                      : "text-zinc-400 hover:text-zinc-100"
-                  }`}
-                >
-                  <List className="h-4 w-4" />
-                </button>
+              <div className="flex items-center gap-2">
+                <ConferenceGestureController
+                  scrollContainerRef={scrollContainerRef}
+                  viewMode={viewMode}
+                  onViewModeChange={setViewMode}
+                />
+                <div className="inline-flex h-11 items-center rounded-2xl border border-zinc-300 bg-zinc-900/95 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_14px_rgba(0,0,0,0.18)]">
+                  <button
+                    type="button"
+                    aria-label="Grid view"
+                    aria-pressed={viewMode === "grid"}
+                    onClick={() => setViewMode("grid")}
+                    className={`inline-flex h-9 w-11 items-center justify-center rounded-xl transition ${
+                      viewMode === "grid"
+                        ? "bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]"
+                        : "text-zinc-400 hover:text-zinc-100"
+                    }`}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="List view"
+                    aria-pressed={viewMode === "list"}
+                    onClick={() => setViewMode("list")}
+                    className={`inline-flex h-9 w-11 items-center justify-center rounded-xl transition ${
+                      viewMode === "list"
+                        ? "bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]"
+                        : "text-zinc-400 hover:text-zinc-100"
+                    }`}
+                  >
+                    <List className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -435,7 +444,7 @@ export function NormalUserEventsPage() {
             </div>
           ) : null}
 
-          <div className="min-h-0 flex-1 overflow-y-auto scrollbar-modern">
+          <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto scrollbar-modern">
             {loading ? (
               <EventRowsSkeleton />
             ) : filteredItems.length === 0 ? (
