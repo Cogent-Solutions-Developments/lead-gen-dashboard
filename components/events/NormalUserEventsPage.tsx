@@ -362,7 +362,7 @@ export function NormalUserEventsPage() {
   );
 
   return (
-    <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
+    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-transparent px-6 pb-28 pt-6 font-sans">
       <header className="shrink-0 border-b border-zinc-300 pb-12">
         <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
           <div>
