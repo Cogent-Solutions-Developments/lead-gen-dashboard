@@ -383,9 +383,9 @@ export function NormalUserEventsPage() {
 
   return (
     <div className="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-transparent px-6 pb-28 pt-6 font-sans">
-      <div className="pointer-events-none absolute bottom-0 left-0 z-30 hidden h-[70dvh] w-[28rem] overflow-hidden xl:block 2xl:w-[32rem]" aria-hidden="true">
+      <div className="pointer-events-none absolute bottom-0 left-0 z-[80] hidden h-[72dvh] w-[39rem] overflow-visible xl:block 2xl:w-[43rem]" aria-hidden="true">
         <motion.div
-          className="absolute bottom-0 left-0 h-[70%] w-full rounded-full opacity-45 blur-[58px]"
+          className="absolute bottom-0 left-0 h-[70%] w-full rounded-full opacity-42 blur-[58px]"
           style={{
             background: "radial-gradient(ellipse at center, rgba(56,189,248,0.34) 0%, transparent 70%)",
           }}
@@ -395,10 +395,10 @@ export function NormalUserEventsPage() {
         <motion.img
           src="/videos/BlockchainEventPromoconverted_1-ezgif.com-optimize%20(1).gif"
           alt=""
-          className="absolute bottom-0 left-0 h-full w-full origin-bottom-left object-cover object-bottom opacity-70 mix-blend-screen"
-          initial={{ opacity: 0, x: -18 }}
+          className="absolute bottom-0 -left-10 h-full w-full origin-bottom-left object-cover object-bottom opacity-70 mix-blend-screen 2xl:-left-12"
+          initial={{ opacity: 0, x: -28 }}
           animate={{ opacity: 0.7, x: 0 }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 1.15, ease: [0.16, 1, 0.3, 1] }}
         />
       </div>
 
@@ -465,8 +465,8 @@ export function NormalUserEventsPage() {
         </div>
       </header>
 
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col pt-8 xl:pl-[31rem] 2xl:pl-[35rem]">
-        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col pt-8 xl:pl-[39rem] 2xl:pl-[43rem]">
+        <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           {hasSearch ? (
             <div className="mb-6 flex shrink-0 items-center justify-between border-y border-zinc-100 py-4">
               <p className="text-base font-light text-zinc-500">
@@ -482,7 +482,7 @@ export function NormalUserEventsPage() {
             </div>
           ) : null}
 
-          <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 scrollbar-modern">
+          <div ref={scrollContainerRef} className="scrollbar-conferences min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
             {loading ? (
               <EventRowsSkeleton />
             ) : filteredItems.length === 0 ? (
@@ -490,7 +490,7 @@ export function NormalUserEventsPage() {
                 {searchQuery.trim() ? "No events match this search." : "No events found."}
               </div>
             ) : viewMode === "list" ? (
-              <div className="ml-auto grid max-w-full grid-cols-1 gap-3 pb-36 pt-3 xl:max-w-[76rem] 2xl:max-w-[82rem]">
+              <div className="ml-auto grid max-w-full grid-cols-1 gap-3 pb-36 pt-3 xl:max-w-[68rem] 2xl:max-w-[74rem]">
                 {filteredItems.map((item, index) => {
                   const registryItem = getRegistryItem(item);
                   const displayTitle = getEventDisplayTitle(item, registryItem);
@@ -499,20 +499,20 @@ export function NormalUserEventsPage() {
                       key={item.canonicalEventKey}
                       delay={index * 0.02}
                       variant={index}
-                      className="min-h-[10.5rem]"
+                      className="min-h-[8.8rem]"
                       luminous
                       gestureHoverId={item.canonicalEventKey}
                       forceHovered={gestureHoverKey === item.canonicalEventKey}
                     >
                       <Link
                         href={`/leads?event=${encodeURIComponent(item.canonicalEventKey)}`}
-                        className="flex h-full flex-col p-5 outline-none 2xl:p-6"
+                        className="flex h-full flex-col p-4 outline-none 2xl:p-5"
                       >
-                        <div className="flex flex-1 flex-col justify-between gap-5 2xl:gap-6">
-                          <div className="flex items-start gap-5">
-                            <EventLogoMark item={item} registryItem={registryItem} className="h-16 w-16" />
+                        <div className="flex flex-1 flex-col justify-between gap-4 2xl:gap-5">
+                          <div className="flex items-start gap-4">
+                            <EventLogoMark item={item} registryItem={registryItem} className="h-14 w-14" />
                             <div className="min-w-0 pt-1.5">
-                              <h2 className="text-[1.45rem] font-light leading-[1.12] tracking-[-0.015em] !text-[rgb(255,255,255)] [text-shadow:0_1px_20px_rgba(255,255,255,0.28),0_8px_24px_rgba(0,0,0,0.65)] 2xl:text-[1.65rem]">
+                              <h2 className="text-[1.28rem] font-light leading-[1.12] tracking-[-0.015em] !text-[rgb(255,255,255)] [text-shadow:0_1px_20px_rgba(255,255,255,0.28),0_8px_24px_rgba(0,0,0,0.65)] 2xl:text-[1.45rem]">
                                 {displayTitle}
                               </h2>
                             </div>
@@ -522,14 +522,14 @@ export function NormalUserEventsPage() {
                             <div className="space-y-1.5">
                               <span className="text-sm font-medium tracking-[0.02em] !text-[rgba(255,255,255,0.72)]">Leads To Cover</span>
                               <div className="flex items-baseline gap-2">
-                                <span className="text-3xl font-light tabular-nums tracking-tight !text-[rgb(255,255,255)] [text-shadow:0_1px_18px_rgba(255,255,255,0.22),0_8px_24px_rgba(0,0,0,0.62)] 2xl:text-4xl">
+                                <span className="text-2xl font-light tabular-nums tracking-tight !text-[rgb(255,255,255)] [text-shadow:0_1px_18px_rgba(255,255,255,0.22),0_8px_24px_rgba(0,0,0,0.62)] 2xl:text-3xl">
                                   {Number(item.leadCount).toLocaleString()}
                                 </span>
                                 <span className="text-sm font-normal !text-[rgba(255,255,255,0.76)]">leads</span>
                               </div>
                             </div>
 
-                            <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[rgba(255,255,255,0.28)] bg-[rgba(255,255,255,0.08)] text-[rgb(255,255,255)] shadow-[inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-10px_18px_rgba(0,0,0,0.22),0_0_24px_-12px_rgba(255,255,255,0.7)] backdrop-blur-md transition-colors group-hover/canvas-card:border-[rgba(255,255,255,0.4)] group-hover/canvas-card:bg-[rgba(255,255,255,0.12)] 2xl:h-12 2xl:w-12">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(255,255,255,0.28)] bg-[rgba(255,255,255,0.08)] text-[rgb(255,255,255)] shadow-[inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-10px_18px_rgba(0,0,0,0.22),0_0_24px_-12px_rgba(255,255,255,0.7)] backdrop-blur-md transition-colors group-hover/canvas-card:border-[rgba(255,255,255,0.4)] group-hover/canvas-card:bg-[rgba(255,255,255,0.12)] 2xl:h-11 2xl:w-11">
                               <ArrowLeft className="h-4 w-4 rotate-180 2xl:h-5 2xl:w-5" />
                             </div>
                           </div>
@@ -540,7 +540,7 @@ export function NormalUserEventsPage() {
                 })}
               </div>
             ) : (
-              <div className="ml-auto grid max-w-full grid-cols-1 gap-4 pb-36 pt-3 sm:grid-cols-2 xl:max-w-[76rem] xl:grid-cols-2 2xl:max-w-[82rem] 2xl:grid-cols-3">
+              <div className="ml-auto grid max-w-full grid-cols-1 gap-4 pb-36 pt-3 sm:grid-cols-2 xl:max-w-[72rem] xl:grid-cols-2 2xl:max-w-[78rem] 2xl:grid-cols-3">
                 {filteredItems.map((item, index) => {
                   const registryItem = getRegistryItem(item);
                   const displayTitle = getEventDisplayTitle(item, registryItem);
@@ -593,6 +593,7 @@ export function NormalUserEventsPage() {
               </div>
             )}
           </div>
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-24 bg-gradient-to-t from-[#03070b] via-[#03070b]/86 to-transparent" />
         </main>
       </div>
 
