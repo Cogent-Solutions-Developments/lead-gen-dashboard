@@ -27,6 +27,11 @@ type ClickIntent = {
   y: number;
 };
 
+type ViewCommandIntent = {
+  mode: ViewMode;
+  startedAt: number;
+};
+
 const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm";
 const MODEL_URL =
   "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task";
@@ -38,8 +43,8 @@ const TOP_EDGE_SCROLL_ZONE_RATIO = 0.38;
 const BOTTOM_EDGE_SCROLL_ZONE_RATIO = 0.24;
 const EDGE_SCROLL_DOWN_MAX_STEP = 18;
 const EDGE_SCROLL_UP_MAX_STEP = 26;
-const VIEW_SWITCH_THRESHOLD = 0.28;
-const VIEW_SWITCH_COOLDOWN_MS = 1300;
+const VIEW_COMMAND_HOLD_MS = 760;
+const VIEW_COMMAND_COOLDOWN_MS = 1600;
 const HOVER_DWELL_MS = 140;
 const HOVER_CLEAR_DELAY_MS = 220;
 
@@ -87,6 +92,12 @@ function getGestureErrorMessage(error: unknown) {
   }
 }
 
+function getViewCommandMode(gesture: string): ViewMode | null {
+  if (gesture === "Thumb_Up") return "list";
+  if (gesture === "Victory") return "grid";
+  return null;
+}
+
 export function ConferenceGestureController({
   scrollContainerRef,
   viewMode,
@@ -101,11 +112,10 @@ export function ConferenceGestureController({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
-  const lastYRef = useRef<number | null>(null);
-  const lastXRef = useRef<number | null>(null);
   const lastSwitchAtRef = useRef(0);
   const lastClickAtRef = useRef(0);
   const clickIntentRef = useRef<ClickIntent | null>(null);
+  const viewCommandRef = useRef<ViewCommandIntent | null>(null);
   const hoverTargetRef = useRef<string | null>(null);
   const hoverCandidateRef = useRef<{ id: string; startedAt: number } | null>(null);
   const hoverClearAtRef = useRef<number | null>(null);
@@ -150,9 +160,8 @@ export function ConferenceGestureController({
       setReady(false);
       setGestureLabel("Idle");
       setCursor((current) => ({ ...current, visible: false }));
-      lastXRef.current = null;
-      lastYRef.current = null;
       clickIntentRef.current = null;
+      viewCommandRef.current = null;
       hoverCandidateRef.current = null;
       hoverClearAtRef.current = null;
       setHoverTarget(null);
@@ -250,9 +259,8 @@ export function ConferenceGestureController({
           if (!landmarks?.length) {
             setCursor((current) => ({ ...current, visible: false }));
             setGestureLabel("Searching");
-            lastXRef.current = null;
-            lastYRef.current = null;
             clickIntentRef.current = null;
+            viewCommandRef.current = null;
             updateGestureHover(null, performance.now());
             rafRef.current = requestAnimationFrame(tick);
             return;
@@ -277,14 +285,38 @@ export function ConferenceGestureController({
           updateGestureHover(isFist ? null : gestureHoverId, now);
 
           if (isFist) {
-            lastXRef.current = indexTip.x;
-            lastYRef.current = indexTip.y;
             clickIntentRef.current = null;
+            viewCommandRef.current = null;
+            setGestureLabel("Paused");
             rafRef.current = requestAnimationFrame(tick);
             return;
           }
 
-          if (!isPinching) {
+          const commandMode = getViewCommandMode(gesture);
+
+          if (commandMode) {
+            clickIntentRef.current = null;
+            const existingCommand = viewCommandRef.current;
+            const commandLabel = commandMode === "list" ? "Hold for list" : "Hold for grid";
+
+            if (!existingCommand || existingCommand.mode !== commandMode) {
+              viewCommandRef.current = { mode: commandMode, startedAt: now };
+              setGestureLabel(commandLabel);
+            } else if (now - existingCommand.startedAt < VIEW_COMMAND_HOLD_MS) {
+              setGestureLabel(commandLabel);
+            } else if (now - lastSwitchAtRef.current > VIEW_COMMAND_COOLDOWN_MS) {
+              if (viewModeRef.current !== commandMode) {
+                onViewModeChange(commandMode);
+                viewModeRef.current = commandMode;
+              }
+              lastSwitchAtRef.current = now;
+              setGestureLabel(commandMode === "list" ? "List view" : "Grid view");
+            }
+          } else {
+            viewCommandRef.current = null;
+          }
+
+          if (!commandMode && !isPinching) {
             const scrollContainer = scrollContainerRef.current;
             if (scrollContainer) {
               const scrollStep = getEdgeScrollStep(scrollContainer, y);
@@ -298,20 +330,7 @@ export function ConferenceGestureController({
             }
           }
 
-          if (lastXRef.current !== null && now - lastSwitchAtRef.current > VIEW_SWITCH_COOLDOWN_MS) {
-            const dx = indexTip.x - lastXRef.current;
-            if (dx > VIEW_SWITCH_THRESHOLD && viewModeRef.current !== "list") {
-              onViewModeChange("list");
-              viewModeRef.current = "list";
-              lastSwitchAtRef.current = now;
-            } else if (dx < -VIEW_SWITCH_THRESHOLD && viewModeRef.current !== "grid") {
-              onViewModeChange("grid");
-              viewModeRef.current = "grid";
-              lastSwitchAtRef.current = now;
-            }
-          }
-
-          if (isPinching && now - lastClickAtRef.current > CLICK_COOLDOWN_MS) {
+          if (!commandMode && isPinching && now - lastClickAtRef.current > CLICK_COOLDOWN_MS) {
             const target = document.elementFromPoint(x, y);
             const clickable = target?.closest<HTMLAnchorElement | HTMLButtonElement>("a,button");
             const existingIntent = clickIntentRef.current;
@@ -336,13 +355,11 @@ export function ConferenceGestureController({
                 setGestureLabel("Hold to click");
               }
             }
-          } else if (!isPinching) {
+          } else if (!commandMode && !isPinching) {
             clickIntentRef.current = null;
             setGestureLabel(edgeScrollLabel ?? gesture.replaceAll("_", " "));
           }
 
-          lastXRef.current = indexTip.x;
-          lastYRef.current = indexTip.y;
           rafRef.current = requestAnimationFrame(tick);
         };
 
