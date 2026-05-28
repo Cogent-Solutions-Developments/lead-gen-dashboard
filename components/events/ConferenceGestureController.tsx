@@ -32,6 +32,11 @@ type ViewCommandIntent = {
   startedAt: number;
 };
 
+type HandLandmark = {
+  x: number;
+  y: number;
+};
+
 const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm";
 const MODEL_URL =
   "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task";
@@ -92,9 +97,22 @@ function getGestureErrorMessage(error: unknown) {
   }
 }
 
-function getViewCommandMode(gesture: string): ViewMode | null {
+function isFingerRaised(landmarks: HandLandmark[], tipIndex: number, pipIndex: number) {
+  return landmarks[tipIndex]?.y < landmarks[pipIndex]?.y - 0.025;
+}
+
+function isFourFingerCommand(landmarks: HandLandmark[]) {
+  return (
+    isFingerRaised(landmarks, 8, 6) &&
+    isFingerRaised(landmarks, 12, 10) &&
+    isFingerRaised(landmarks, 16, 14) &&
+    isFingerRaised(landmarks, 20, 18)
+  );
+}
+
+function getViewCommandMode(gesture: string, landmarks: HandLandmark[]): ViewMode | null {
   if (gesture === "Thumb_Up") return "list";
-  if (gesture === "Victory") return "grid";
+  if (isFourFingerCommand(landmarks)) return "grid";
   return null;
 }
 
@@ -292,7 +310,7 @@ export function ConferenceGestureController({
             return;
           }
 
-          const commandMode = getViewCommandMode(gesture);
+          const commandMode = getViewCommandMode(gesture, landmarks);
 
           if (commandMode) {
             clickIntentRef.current = null;

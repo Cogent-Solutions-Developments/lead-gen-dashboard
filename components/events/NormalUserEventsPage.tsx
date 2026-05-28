@@ -229,7 +229,6 @@ function EventCanvasCard({
   const surfaceClassName = luminous
     ? "isolate rounded-[1.4rem] border border-[rgba(255,255,255,0.16)] bg-[radial-gradient(circle_at_50%_0%,#2a2b2d_0%,#151619_48%,#06070a_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-4rem_3rem_-3.2rem_rgba(0,0,0,0.72),0_0_0_1px_rgba(255,255,255,0.07),0_0_34px_-18px_rgba(255,255,255,0.42),0_22px_52px_-34px_rgba(0,0,0,0.95)] backdrop-blur-xl transition-[border-color,box-shadow,transform] duration-300 hover:-translate-y-0.5 hover:border-[rgba(255,255,255,0.26)]"
     : "border border-[rgba(255,255,255,0.14)] bg-[#101113]/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_22px_-12px_rgba(125,211,252,0.46),0_18px_60px_-42px_rgba(0,0,0,0.9)] backdrop-blur-xl transition-colors duration-200 hover:border-[rgba(255,255,255,0.35)]";
-  const activeHover = hovered || forceHovered;
 
   return (
     <motion.div
@@ -258,7 +257,19 @@ function EventCanvasCard({
       )}
 
       <AnimatePresence>
-        {activeHover ? (
+        {forceHovered && !hovered ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(circle_at_20%_18%,rgba(125,211,252,0.2)_0_1px,transparent_1px),radial-gradient(circle_at_62%_34%,rgba(34,211,238,0.18)_0_1px,transparent_1px),radial-gradient(circle_at_82%_72%,rgba(255,255,255,0.2)_0_1px,transparent_1px)] bg-[length:10px_10px,14px_14px,18px_18px]"
+          />
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {hovered ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -371,8 +382,27 @@ export function NormalUserEventsPage() {
   );
 
   return (
-    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-transparent px-6 pb-28 pt-6 font-sans">
-      <header className="shrink-0 border-b border-zinc-300 pb-12">
+    <div className="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-transparent px-6 pb-28 pt-6 font-sans">
+      <div className="pointer-events-none absolute bottom-0 left-0 z-30 hidden h-[70dvh] w-[28rem] overflow-hidden xl:block 2xl:w-[32rem]" aria-hidden="true">
+        <motion.div
+          className="absolute bottom-0 left-0 h-[70%] w-full rounded-full opacity-45 blur-[58px]"
+          style={{
+            background: "radial-gradient(ellipse at center, rgba(56,189,248,0.34) 0%, transparent 70%)",
+          }}
+          animate={{ opacity: [0.32, 0.46, 0.32], scale: [0.98, 1.04, 0.98] }}
+          transition={{ duration: 6.8, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.img
+          src="/videos/BlockchainEventPromoconverted_1-ezgif.com-optimize%20(1).gif"
+          alt=""
+          className="absolute bottom-0 left-0 h-full w-full origin-bottom-left object-cover object-bottom opacity-70 mix-blend-screen"
+          initial={{ opacity: 0, x: -18 }}
+          animate={{ opacity: 0.7, x: 0 }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        />
+      </div>
+
+      <header className="relative z-10 shrink-0 border-b border-zinc-300 pb-12">
         <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div>
@@ -435,7 +465,7 @@ export function NormalUserEventsPage() {
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col pt-10">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col pt-8 xl:pl-[25rem] 2xl:pl-[29rem]">
         <main className="flex min-h-0 flex-col">
           {hasSearch ? (
             <div className="mb-6 flex shrink-0 items-center justify-between border-y border-zinc-100 py-4">
@@ -460,7 +490,7 @@ export function NormalUserEventsPage() {
                 {searchQuery.trim() ? "No events match this search." : "No events found."}
               </div>
             ) : viewMode === "list" ? (
-              <div className="grid grid-cols-1 gap-3 pt-4">
+              <div className="grid grid-cols-1 gap-3 pt-3">
                 {filteredItems.map((item, index) => {
                   const registryItem = getRegistryItem(item);
                   const displayTitle = getEventDisplayTitle(item, registryItem);
@@ -469,20 +499,20 @@ export function NormalUserEventsPage() {
                       key={item.canonicalEventKey}
                       delay={index * 0.02}
                       variant={index}
-                      className="min-h-[14rem]"
+                      className="min-h-[10.5rem]"
                       luminous
                       gestureHoverId={item.canonicalEventKey}
                       forceHovered={gestureHoverKey === item.canonicalEventKey}
                     >
                       <Link
                         href={`/leads?event=${encodeURIComponent(item.canonicalEventKey)}`}
-                        className="flex h-full flex-col p-7 outline-none 2xl:p-8"
+                        className="flex h-full flex-col p-5 outline-none 2xl:p-6"
                       >
-                        <div className="flex flex-1 flex-col justify-between gap-9 2xl:gap-11">
-                          <div className="flex items-start gap-6">
-                            <EventLogoMark item={item} registryItem={registryItem} className="h-20 w-20" />
+                        <div className="flex flex-1 flex-col justify-between gap-5 2xl:gap-6">
+                          <div className="flex items-start gap-5">
+                            <EventLogoMark item={item} registryItem={registryItem} className="h-16 w-16" />
                             <div className="min-w-0 pt-1.5">
-                              <h2 className="text-[1.7rem] font-light leading-[1.12] tracking-[-0.015em] !text-[rgb(255,255,255)] [text-shadow:0_1px_20px_rgba(255,255,255,0.28),0_8px_24px_rgba(0,0,0,0.65)] 2xl:text-[2rem]">
+                              <h2 className="text-[1.45rem] font-light leading-[1.12] tracking-[-0.015em] !text-[rgb(255,255,255)] [text-shadow:0_1px_20px_rgba(255,255,255,0.28),0_8px_24px_rgba(0,0,0,0.65)] 2xl:text-[1.65rem]">
                                 {displayTitle}
                               </h2>
                             </div>
@@ -492,14 +522,14 @@ export function NormalUserEventsPage() {
                             <div className="space-y-1.5">
                               <span className="text-sm font-medium tracking-[0.02em] !text-[rgba(255,255,255,0.72)]">Leads To Cover</span>
                               <div className="flex items-baseline gap-2">
-                                <span className="text-4xl font-light tabular-nums tracking-tight !text-[rgb(255,255,255)] [text-shadow:0_1px_18px_rgba(255,255,255,0.22),0_8px_24px_rgba(0,0,0,0.62)] 2xl:text-5xl">
+                                <span className="text-3xl font-light tabular-nums tracking-tight !text-[rgb(255,255,255)] [text-shadow:0_1px_18px_rgba(255,255,255,0.22),0_8px_24px_rgba(0,0,0,0.62)] 2xl:text-4xl">
                                   {Number(item.leadCount).toLocaleString()}
                                 </span>
                                 <span className="text-sm font-normal !text-[rgba(255,255,255,0.76)]">leads</span>
                               </div>
                             </div>
 
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[rgba(255,255,255,0.28)] bg-[rgba(255,255,255,0.08)] text-[rgb(255,255,255)] shadow-[inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-10px_18px_rgba(0,0,0,0.22),0_0_24px_-12px_rgba(255,255,255,0.7)] backdrop-blur-md transition-colors group-hover/canvas-card:border-[rgba(255,255,255,0.4)] group-hover/canvas-card:bg-[rgba(255,255,255,0.12)] 2xl:h-[3.25rem] 2xl:w-[3.25rem]">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[rgba(255,255,255,0.28)] bg-[rgba(255,255,255,0.08)] text-[rgb(255,255,255)] shadow-[inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-10px_18px_rgba(0,0,0,0.22),0_0_24px_-12px_rgba(255,255,255,0.7)] backdrop-blur-md transition-colors group-hover/canvas-card:border-[rgba(255,255,255,0.4)] group-hover/canvas-card:bg-[rgba(255,255,255,0.12)] 2xl:h-12 2xl:w-12">
                               <ArrowLeft className="h-4 w-4 rotate-180 2xl:h-5 2xl:w-5" />
                             </div>
                           </div>
@@ -510,7 +540,7 @@ export function NormalUserEventsPage() {
                 })}
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-5 pt-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 pt-3 sm:grid-cols-2 xl:grid-cols-3">
                 {filteredItems.map((item, index) => {
                   const registryItem = getRegistryItem(item);
                   const displayTitle = getEventDisplayTitle(item, registryItem);
@@ -520,23 +550,23 @@ export function NormalUserEventsPage() {
                       delay={index * 0.02}
                       y={8}
                       variant={index}
-                      className="min-h-[15rem]"
+                      className="min-h-[12rem]"
                       luminous
                       gestureHoverId={item.canonicalEventKey}
                       forceHovered={gestureHoverKey === item.canonicalEventKey}
                     >
                       <Link
                         href={`/leads?event=${encodeURIComponent(item.canonicalEventKey)}`}
-                        className="flex h-full min-h-[15rem] flex-col justify-between p-6"
+                        className="flex h-full min-h-[12rem] flex-col justify-between p-5"
                       >
                         <div className="space-y-4">
                           <div className="flex items-start gap-4">
                             <EventLogoMark
                               item={item}
                               registryItem={registryItem}
-                              className="h-[5.25rem] w-[5.25rem]"
+                              className="h-[4.5rem] w-[4.5rem]"
                             />
-                            <h2 className="line-clamp-3 pt-1 text-xl font-light leading-[1.15] tracking-[-0.015em] !text-[rgb(255,255,255)] [text-shadow:0_1px_18px_rgba(255,255,255,0.24),0_8px_24px_rgba(0,0,0,0.62)]">
+                            <h2 className="line-clamp-3 pt-1 text-lg font-light leading-[1.15] tracking-[-0.015em] !text-[rgb(255,255,255)] [text-shadow:0_1px_18px_rgba(255,255,255,0.24),0_8px_24px_rgba(0,0,0,0.62)]">
                               {displayTitle}
                             </h2>
                           </div>
