@@ -462,9 +462,9 @@ export function NormalUserEventsPage() {
           src="/videos/BlockchainEventPromoconverted_1-ezgif.com-optimize%20(1).gif"
           alt=""
           className="absolute bottom-0 left-0 h-full w-full origin-bottom-left object-cover object-bottom opacity-70 mix-blend-screen"
-          initial={{ opacity: 0, x: -28 }}
+          initial={{ opacity: 0, x: -42 }}
           animate={{ opacity: 0.7, x: 0 }}
-          transition={{ duration: 1.15, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 1.75, ease: [0.22, 0.84, 0.22, 1] }}
         />
       </div>
 
