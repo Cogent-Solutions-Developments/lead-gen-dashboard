@@ -414,8 +414,8 @@ export function NormalUserEventsPage() {
           transition={{ delay: 1.3, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         >
           <motion.svg
-            className="absolute right-[-8.4rem] top-[3rem] h-[18rem] w-[10rem] overflow-visible text-cyan-100 [filter:drop-shadow(0_0_8px_rgba(103,232,249,0.8))] 2xl:right-[-8.9rem]"
-            viewBox="0 0 160 288"
+            className="absolute right-[-3.8rem] top-[0rem] h-[18rem] w-[12rem] overflow-visible text-cyan-100 [filter:drop-shadow(0_0_8px_rgba(103,232,249,0.8))] 2xl:right-[-3.5rem]"
+            viewBox="0 0 220 210"
             fill="none"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -423,7 +423,7 @@ export function NormalUserEventsPage() {
             aria-hidden="true"
           >
             <motion.path
-              d="M0 18 H48 V210 H0 "
+              d="M 151 12 H 211 V 230 H 10"              
               stroke="currentColor"
               strokeWidth="2.4"
               strokeLinecap="round"
@@ -433,8 +433,8 @@ export function NormalUserEventsPage() {
               transition={{ delay: 1.76, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
             />
             <motion.circle
-              cx="0"
-              cy="18"
+              cx="12"
+              cy="230"
               r="7.5"
               fill="currentColor"
               initial={{ scale: 0, opacity: 0 }}
