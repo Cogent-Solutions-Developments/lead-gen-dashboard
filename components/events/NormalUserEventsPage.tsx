@@ -512,9 +512,9 @@ export function NormalUserEventsPage() {
                             </div>
                           </div>
 
-                          <div className="relative flex h-12 w-12 items-center justify-center rounded-md border border-[rgba(125,211,252,0.28)] bg-[linear-gradient(180deg,rgba(10,16,26,0.96),rgba(5,9,15,0.96))] text-[rgb(255,255,255)] shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_0_1px_rgba(34,211,238,0.08),0_0_26px_-14px_rgba(34,211,238,0.55)] transition-[border-color,box-shadow,transform] group-hover/canvas-card:border-[rgba(103,232,249,0.52)] group-hover/canvas-card:shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_0_0_1px_rgba(34,211,238,0.18),0_0_30px_-10px_rgba(34,211,238,0.72)] 2xl:h-[3.25rem] 2xl:w-[3.25rem]">
-                            <div className="pointer-events-none absolute inset-x-2 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(103,232,249,0.72)] to-transparent" />
-                            <ArrowLeft className="h-[1.05rem] w-[1.05rem] rotate-180 2xl:h-[1.15rem] 2xl:w-[1.15rem]" />
+                          <div className="relative flex h-10 w-10 items-center justify-center rounded-md border border-[rgba(125,211,252,0.28)] bg-[linear-gradient(180deg,rgba(10,16,26,0.96),rgba(5,9,15,0.96))] text-[rgb(255,255,255)] shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_0_1px_rgba(34,211,238,0.08),0_0_22px_-14px_rgba(34,211,238,0.55)] transition-[border-color,box-shadow,transform] group-hover/canvas-card:border-[rgba(103,232,249,0.52)] group-hover/canvas-card:shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_0_0_1px_rgba(34,211,238,0.18),0_0_26px_-10px_rgba(34,211,238,0.72)] 2xl:h-11 2xl:w-11">
+                            <div className="pointer-events-none absolute inset-x-1.5 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(103,232,249,0.72)] to-transparent" />
+                            <ArrowLeft className="h-[0.95rem] w-[0.95rem] rotate-180 2xl:h-[1.05rem] 2xl:w-[1.05rem]" />
                           </div>
                         </div>
 
