@@ -143,26 +143,13 @@ function CardCorner({ className = "" }: { className?: string }) {
   );
 }
 
-function LuminousCardFrame() {
-  const cornerBase = "absolute h-10 w-10 border-[rgba(255,255,255,0.16)]";
-
-  return (
-    <>
-      <div className={`${cornerBase} left-3 top-3 rounded-tl-[1.05rem] border-l border-t`} />
-      <div className={`${cornerBase} right-3 top-3 rounded-tr-[1.05rem] border-r border-t`} />
-      <div className={`${cornerBase} bottom-3 left-3 rounded-bl-[1.05rem] border-b border-l`} />
-      <div className={`${cornerBase} bottom-3 right-3 rounded-br-[1.05rem] border-b border-r`} />
-    </>
-  );
-}
-
 function LuminousCardLightLayer() {
   return (
-    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[1.4rem]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(125,211,252,0.16)_0%,rgba(59,130,246,0.055)_23%,transparent_56%),radial-gradient(circle_at_50%_105%,rgba(0,0,0,0.42)_0%,transparent_50%)]" />
-      <div className="absolute left-1/2 top-[42%] h-20 w-[48%] -translate-x-1/2 -translate-y-10 rounded-[100%] bg-[radial-gradient(ellipse_at_top,rgba(125,211,252,0.13),rgba(59,130,246,0.045)_34%,transparent_72%)] blur-xl opacity-60" />
-      <div className="absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(255,255,255,0.38)] to-transparent" />
-      <div className="absolute inset-x-6 bottom-0 h-px bg-gradient-to-r from-transparent via-[rgba(255,255,255,0.12)] to-transparent" />
+    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(16,23,34,0.92)_0%,rgba(6,8,12,0.98)_58%,rgba(3,5,8,0.99)_100%)]" />
+      <div className="absolute left-[42%] top-0 h-20 w-[42%] -translate-x-1/2 bg-[radial-gradient(ellipse_at_top,rgba(125,211,252,0.11),rgba(59,130,246,0.035)_38%,transparent_74%)] blur-2xl opacity-70" />
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(255,255,255,0.28)] to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[rgba(125,211,252,0.12)] to-transparent" />
     </div>
   );
 }
@@ -227,7 +214,7 @@ function EventCanvasCard({
   ];
   const reveal = revealOptions[variant % revealOptions.length];
   const surfaceClassName = luminous
-    ? "isolate rounded-[1.4rem] border border-[rgba(255,255,255,0.16)] bg-[radial-gradient(circle_at_50%_0%,#2a2b2d_0%,#151619_48%,#06070a_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-4rem_3rem_-3.2rem_rgba(0,0,0,0.72),0_0_0_1px_rgba(255,255,255,0.07),0_0_34px_-18px_rgba(255,255,255,0.42),0_22px_52px_-34px_rgba(0,0,0,0.95)] backdrop-blur-xl transition-[border-color,box-shadow,transform] duration-300 hover:-translate-y-0.5 hover:border-[rgba(255,255,255,0.26)]"
+    ? "isolate border border-[rgba(255,255,255,0.14)] bg-[#05080d] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),inset_0_-32px_42px_-36px_rgba(0,0,0,0.95),0_0_0_1px_rgba(125,211,252,0.05),0_16px_42px_-34px_rgba(0,0,0,0.95)] transition-[border-color,box-shadow,transform] duration-300 hover:-translate-y-px hover:border-[rgba(125,211,252,0.28)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_0_1px_rgba(125,211,252,0.12),0_18px_44px_-34px_rgba(0,0,0,0.95)]"
     : "border border-[rgba(255,255,255,0.14)] bg-[#101113]/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_22px_-12px_rgba(125,211,252,0.46),0_18px_60px_-42px_rgba(0,0,0,0.9)] backdrop-blur-xl transition-colors duration-200 hover:border-[rgba(255,255,255,0.35)]";
 
   return (
@@ -243,9 +230,6 @@ function EventCanvasCard({
       {luminous ? (
         <>
           <LuminousCardLightLayer />
-          <div className="pointer-events-none absolute inset-0 z-[2] rounded-[1.4rem]">
-            <LuminousCardFrame />
-          </div>
         </>
       ) : (
         <>
@@ -383,7 +367,7 @@ export function NormalUserEventsPage() {
 
   return (
     <div className="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-transparent px-6 pb-28 pt-6 font-sans">
-      <div className="pointer-events-none absolute bottom-0 left-0 z-[80] hidden h-[72dvh] w-[39rem] overflow-visible xl:block 2xl:w-[43rem]" aria-hidden="true">
+      <div className="pointer-events-none absolute bottom-0 left-0 z-40 hidden h-[72dvh] w-[39rem] overflow-visible xl:block 2xl:w-[43rem]" aria-hidden="true">
         <motion.div
           className="absolute bottom-0 left-0 h-[70%] w-full rounded-full opacity-42 blur-[58px]"
           style={{
