@@ -4,7 +4,8 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { listEvents, type EventSummaryItem } from "@/lib/apiRouter";
-import { listActiveEventRegistry, type AdminEventItem } from "@/lib/auth";
+import { getCachedAuthUserDisplayName, listActiveEventRegistry, type AdminEventItem } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { ProtectedImage } from "@/components/storage/ProtectedImage";
 import { CanvasRevealEffect } from "@/components/ui/canvas-reveal-effect";
 import { ConferenceGestureController } from "@/components/events/ConferenceGestureController";
@@ -19,6 +20,28 @@ import { toast } from "sonner";
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong.";
+}
+
+function getDisplayName(user: ReturnType<typeof useAuth>["user"]) {
+  const values = [user?.fullName, getCachedAuthUserDisplayName(user), user?.username]
+    .map((value) => value?.trim())
+    .filter(Boolean) as string[];
+  const rolePlaceholders = new Set([
+    "sales_user",
+    "sales user",
+    "delegate_user",
+    "delegate user",
+    "production_user",
+    "production user",
+    "super_admin_user",
+    "super admin user",
+  ]);
+
+  return values.find((value) => !rolePlaceholders.has(value.toLowerCase())) || "there";
+}
+
+function getFirstName(value: string) {
+  return value.split(/\s+/)[0] || value;
 }
 
 function normalizeDateLabel(value?: string | null) {
@@ -285,6 +308,7 @@ function EventCanvasCard({
 }
 
 export function NormalUserEventsPage() {
+  const { user } = useAuth();
   const [items, setItems] = useState<EventSummaryItem[]>([]);
   const [eventRegistry, setEventRegistry] = useState<AdminEventItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -370,10 +394,11 @@ export function NormalUserEventsPage() {
     () => items.reduce((sum, item) => sum + Number(item.leadCount || 0), 0),
     [items]
   );
+  const firstName = useMemo(() => getFirstName(getDisplayName(user)), [user]);
 
   return (
     <div className="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-transparent px-6 pb-28 pt-6 font-sans">
-      <div className="pointer-events-none absolute bottom-0 left-0 z-40 hidden h-[72dvh] w-[39rem] overflow-visible xl:block 2xl:w-[43rem]" aria-hidden="true">
+      <div className="pointer-events-none absolute bottom-0 left-0 z-40 hidden h-[66dvh] w-[36rem] overflow-visible xl:block 2xl:w-[40rem]">
         <motion.div
           className="absolute bottom-0 left-0 h-[70%] w-full rounded-full opacity-42 blur-[58px]"
           style={{
@@ -382,10 +407,53 @@ export function NormalUserEventsPage() {
           animate={{ opacity: [0.32, 0.46, 0.32], scale: [0.98, 1.04, 0.98] }}
           transition={{ duration: 6.8, repeat: Infinity, ease: "easeInOut" }}
         />
+        <motion.div
+          className="absolute -top-16 right-8 z-[2] max-w-[22rem] rounded-lg border border-[rgba(255,255,255,0.28)] bg-[rgba(3,7,12,0.2)] px-5 py-4 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_34px_-24px_rgba(255,255,255,0.72)] backdrop-blur-[2px] 2xl:right-10 2xl:max-w-[24rem]"
+          initial={{ opacity: 0, y: 14, filter: "blur(8px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          transition={{ delay: 1.3, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <motion.svg
+            className="absolute right-[-8.4rem] top-[3rem] h-[18rem] w-[10rem] overflow-visible text-cyan-100 [filter:drop-shadow(0_0_8px_rgba(103,232,249,0.8))] 2xl:right-[-8.9rem]"
+            viewBox="0 0 160 288"
+            fill="none"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.76, duration: 0.35 }}
+            aria-hidden="true"
+          >
+            <motion.path
+              d="M0 18 H48 V210 H0 "
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ delay: 1.76, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+            />
+            <motion.circle
+              cx="0"
+              cy="18"
+              r="7.5"
+              fill="currentColor"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 2.34, duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            />
+          </motion.svg>
+
+          <p className="text-[1.55rem] font-medium leading-[1.05] tracking-[-0.035em] text-zinc-950 2xl:text-[1.8rem]">
+            Hey {firstName}.
+          </p>
+          <p className="mt-3 text-[1.05rem] font-extralight leading-[1.18] tracking-[-0.018em] text-zinc-500 2xl:text-[1.18rem]">
+            Here are the conferences you need to work on.
+          </p>
+        </motion.div>
         <motion.img
           src="/videos/BlockchainEventPromoconverted_1-ezgif.com-optimize%20(1).gif"
           alt=""
-          className="absolute bottom-0 -left-10 h-full w-full origin-bottom-left object-cover object-bottom opacity-70 mix-blend-screen 2xl:-left-12"
+          className="absolute bottom-0 left-0 h-full w-full origin-bottom-left object-cover object-bottom opacity-70 mix-blend-screen"
           initial={{ opacity: 0, x: -28 }}
           animate={{ opacity: 0.7, x: 0 }}
           transition={{ duration: 1.15, ease: [0.16, 1, 0.3, 1] }}
