@@ -115,7 +115,7 @@ function EventLogoMark({
   const logoUrl = item.logoUrl || registryItem?.logoUrl || "";
 
   return (
-    <div className={`flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.04)] p-2 text-sm font-semibold text-zinc-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_34px_-26px_rgba(0,0,0,0.9)] ${className}`}>
+    <div className={`flex shrink-0 items-center justify-center overflow-hidden rounded-md text-sm font-semibold text-zinc-400 ${className}`}>
       <ProtectedImage
         src={logoUrl}
         directUrlPath={logoUrl ? `${logoUrl}/download-url` : undefined}
@@ -487,7 +487,7 @@ export function NormalUserEventsPage() {
                       key={item.canonicalEventKey}
                       delay={index * 0.02}
                       variant={index}
-                      className="min-h-[10.2rem]"
+                      className="min-h-[10.4rem]"
                       luminous
                       gestureHoverId={item.canonicalEventKey}
                       forceHovered={gestureHoverKey === item.canonicalEventKey}
@@ -496,7 +496,7 @@ export function NormalUserEventsPage() {
                         href={`/leads?event=${encodeURIComponent(item.canonicalEventKey)}`}
                         className="flex h-full items-center gap-6 p-5 outline-none 2xl:gap-7 2xl:p-6"
                       >
-                        <EventLogoMark item={item} registryItem={registryItem} className="h-[6.5rem] w-[6.5rem] 2xl:h-[7rem] 2xl:w-[7rem]" />
+                        <EventLogoMark item={item} registryItem={registryItem} className="h-[6.75rem] w-[6.75rem] 2xl:h-[7.25rem] 2xl:w-[7.25rem]" />
 
                         <div className="flex min-w-0 flex-1 items-center justify-between gap-6">
                           <div className="min-w-0 space-y-4">
@@ -504,14 +504,11 @@ export function NormalUserEventsPage() {
                               {displayTitle}
                             </h2>
 
-                            <div className="space-y-1.5">
+                            <div className="flex items-baseline gap-3">
+                              <span className="text-2xl font-light tabular-nums tracking-tight !text-[rgb(255,255,255)] [text-shadow:0_1px_18px_rgba(255,255,255,0.22),0_8px_24px_rgba(0,0,0,0.62)] 2xl:text-3xl">
+                                {Number(item.leadCount).toLocaleString()}
+                              </span>
                               <span className="text-sm font-medium tracking-[0.02em] !text-[rgba(255,255,255,0.72)]">Leads To Cover</span>
-                              <div className="flex items-baseline gap-2">
-                                <span className="text-2xl font-light tabular-nums tracking-tight !text-[rgb(255,255,255)] [text-shadow:0_1px_18px_rgba(255,255,255,0.22),0_8px_24px_rgba(0,0,0,0.62)] 2xl:text-3xl">
-                                  {Number(item.leadCount).toLocaleString()}
-                                </span>
-                                <span className="text-sm font-normal !text-[rgba(255,255,255,0.76)]">leads</span>
-                              </div>
                             </div>
                           </div>
 
