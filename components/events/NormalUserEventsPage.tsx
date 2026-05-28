@@ -455,7 +455,7 @@ export function NormalUserEventsPage() {
             />
           </motion.svg>
 
-          <p className="relative z-[2] text-[1.3rem] font-medium leading-[1.14] tracking-[-0.028em] text-zinc-950 2xl:text-[1.5rem]">
+          <p className="relative z-[2] text-[1.3rem] font-medium leading-[1.14] tracking-[-0.028em] text-zinc-950 2xl:text-[1.4rem]">
             Hey {firstName}. I’m supernizo agent, ready to help you cover every lead. Lets get started!</p>
         </motion.div>
         <motion.img
