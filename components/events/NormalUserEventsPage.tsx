@@ -408,13 +408,25 @@ export function NormalUserEventsPage() {
           transition={{ duration: 6.8, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
-          className="absolute -top-16 right-8 z-[2] max-w-[22rem] rounded-lg border border-[rgba(255,255,255,0.28)] bg-[rgba(3,7,12,0.2)] px-5 py-4 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_34px_-24px_rgba(255,255,255,0.72)] backdrop-blur-[2px] 2xl:right-10 2xl:max-w-[24rem]"
+          className="absolute -top-16 right-8 z-[2] max-w-[22rem] rounded-lg border border-[rgba(255,255,255,0.3)] bg-[rgba(3,7,12,0.22)] px-5 py-4 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_0_1px_rgba(125,211,252,0.08),0_18px_44px_-28px_rgba(56,189,248,0.2)] backdrop-blur-[2px] 2xl:right-10 2xl:max-w-[24rem]"
           initial={{ opacity: 0, y: 14, filter: "blur(8px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ delay: 1.3, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         >
+          <motion.div
+            className="pointer-events-none absolute -inset-5 rounded-[1.4rem] bg-[radial-gradient(circle_at_48%_50%,rgba(103,232,249,0.18),rgba(56,189,248,0.08)_34%,transparent_72%)] blur-3xl"
+            animate={{ opacity: [0.3, 0.58, 0.34], scale: [0.98, 1.03, 1] }}
+            transition={{ duration: 4.6, repeat: Infinity, ease: "easeInOut" }}
+            aria-hidden="true"
+          />
+          <motion.div
+            className="pointer-events-none absolute inset-0 rounded-[inherit] bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.08),transparent_52%),radial-gradient(circle_at_50%_100%,rgba(103,232,249,0.05),transparent_58%)]"
+            animate={{ opacity: [0.72, 0.92, 0.76] }}
+            transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut" }}
+            aria-hidden="true"
+          />
           <motion.svg
-            className="absolute right-[-3.8rem] top-[0rem] h-[18rem] w-[12rem] overflow-visible text-cyan-100 [filter:drop-shadow(0_0_8px_rgba(103,232,249,0.8))] 2xl:right-[-3.5rem]"
+            className="absolute right-[-3.8rem] top-[-0.5rem] h-[18rem] w-[12rem] overflow-visible text-cyan-100 [filter:drop-shadow(0_0_8px_rgba(103,232,249,0.8))] 2xl:right-[-3.5rem]"
             viewBox="0 0 220 210"
             fill="none"
             initial={{ opacity: 0 }}
@@ -423,7 +435,7 @@ export function NormalUserEventsPage() {
             aria-hidden="true"
           >
             <motion.path
-              d="M 151 12 H 211 V 230 H 10"              
+              d="M 151 12 H 211 V 240 H 10"              
               stroke="currentColor"
               strokeWidth="2.4"
               strokeLinecap="round"
@@ -434,7 +446,7 @@ export function NormalUserEventsPage() {
             />
             <motion.circle
               cx="12"
-              cy="230"
+              cy="240"
               r="7.5"
               fill="currentColor"
               initial={{ scale: 0, opacity: 0 }}
@@ -443,12 +455,8 @@ export function NormalUserEventsPage() {
             />
           </motion.svg>
 
-          <p className="text-[1.55rem] font-medium leading-[1.05] tracking-[-0.035em] text-zinc-950 2xl:text-[1.8rem]">
-            Hey {firstName}.
-          </p>
-          <p className="mt-3 text-[1.05rem] font-extralight leading-[1.18] tracking-[-0.018em] text-zinc-500 2xl:text-[1.18rem]">
-            Here are the conferences you need to work on.
-          </p>
+          <p className="relative z-[2] text-[1.3rem] font-medium leading-[1.14] tracking-[-0.028em] text-zinc-950 2xl:text-[1.5rem]">
+            Hey {firstName}. I’m supernizo agent, ready to help you cover every lead. Lets get started!</p>
         </motion.div>
         <motion.img
           src="/videos/BlockchainEventPromoconverted_1-ezgif.com-optimize%20(1).gif"
