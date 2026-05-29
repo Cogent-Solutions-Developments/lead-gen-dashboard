@@ -736,8 +736,9 @@ export function NormalUserEventsPage() {
                               <span className="text-sm font-normal !text-[rgba(255,255,255,0.76)]">leads</span>
                             </div>
                           </div>
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(255,255,255,0.28)] bg-[rgba(255,255,255,0.08)] !text-[rgb(255,255,255)] shadow-[inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-10px_18px_rgba(0,0,0,0.22),0_0_24px_-12px_rgba(255,255,255,0.7)] backdrop-blur-md transition-colors group-hover/canvas-card:border-[rgba(255,255,255,0.4)] group-hover/canvas-card:bg-[rgba(255,255,255,0.12)]">
-                            <ArrowLeft className="h-4 w-4 rotate-180" />
+                          <div className="relative flex h-10 w-10 items-center justify-center rounded-md border border-[rgba(125,211,252,0.28)] bg-[linear-gradient(180deg,rgba(10,16,26,0.96),rgba(5,9,15,0.96))] text-[rgb(255,255,255)] shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_0_1px_rgba(34,211,238,0.08),0_0_22px_-14px_rgba(34,211,238,0.55)] transition-[border-color,box-shadow,transform] group-hover/canvas-card:border-[rgba(103,232,249,0.52)] group-hover/canvas-card:shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_0_0_1px_rgba(34,211,238,0.18),0_0_26px_-10px_rgba(34,211,238,0.72)] 2xl:h-11 2xl:w-11">
+                            <div className="pointer-events-none absolute inset-x-1.5 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(103,232,249,0.72)] to-transparent" />
+                            <ArrowLeft className="h-[0.95rem] w-[0.95rem] rotate-180 2xl:h-[1.05rem] 2xl:w-[1.05rem]" />
                           </div>
                         </div>
                       </Link>
