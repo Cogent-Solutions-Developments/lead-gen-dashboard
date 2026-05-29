@@ -9,6 +9,7 @@ import { getCachedAuthUserDisplayName, listActiveEventRegistry, type AdminEventI
 import { useAuth } from "@/hooks/useAuth";
 import { ProtectedImage } from "@/components/storage/ProtectedImage";
 import { CanvasRevealEffect } from "@/components/ui/canvas-reveal-effect";
+import { GooeyInput } from "@/components/ui/gooey-input";
 import { ConferenceGestureController } from "@/components/events/ConferenceGestureController";
 import {
   ArrowLeft,
@@ -582,6 +583,23 @@ export function NormalUserEventsPage() {
                 </div>
               )}
               <div className="flex items-center gap-2">
+                <GooeyInput
+                  placeholder="Search conferences..."
+                  value={searchQuery}
+                  onValueChange={setSearchQuery}
+                  collapsedWidth={118}
+                  expandedWidth={260}
+                  expandedOffset={58}
+                  gooeyBlur={4.8}
+                  classNames={{
+                    trigger:
+                      "h-10 border border-zinc-300 bg-zinc-900/95 !text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_14px_rgba(0,0,0,0.18)]",
+                    input:
+                      "!text-zinc-100 placeholder:!text-zinc-400",
+                    bubbleSurface:
+                      "border border-zinc-300 bg-zinc-900/95 !text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_14px_rgba(0,0,0,0.18)]",
+                  }}
+                />
                 <ConferenceGestureController
                   scrollContainerRef={scrollContainerRef}
                   viewMode={viewMode}
