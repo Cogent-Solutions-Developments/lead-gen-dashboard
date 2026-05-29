@@ -1600,9 +1600,19 @@ export function NormalUserEventLeadSheet() {
                     <SelectTrigger className="!h-auto w-fit max-w-[56rem] rounded-none border-0 !bg-transparent px-0 py-0 text-left text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 shadow-none transition-colors hover:!bg-transparent dark:!bg-transparent dark:hover:!bg-transparent data-[state=open]:!bg-transparent focus:border-transparent focus:ring-0 sm:text-4xl 2xl:text-5xl [&>span]:truncate [&>svg]:ml-3 [&>svg]:size-6 [&>svg]:opacity-55">
                       <SelectValue placeholder={getEventDisplayTitle(selectedEvent?.canonicalEventName)} />
                     </SelectTrigger>
-                    <SelectContent className="rounded-none border-zinc-300 shadow-xl">
+                    <SelectContent
+                      position="popper"
+                      side="bottom"
+                      align="start"
+                      sideOffset={42}
+                      className="z-[120] rounded-2xl border border-white/14 bg-[rgba(12,18,30,0.74)] p-1 text-zinc-100 ring-1 ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),inset_0_-1px_0_rgba(255,255,255,0.03),0_16px_38px_-24px_rgba(2,10,27,0.9),0_8px_20px_-14px_rgba(2,10,27,0.72)] backdrop-blur-[28px]"
+                    >
                       {events.map((item) => (
-                        <SelectItem key={item.canonicalEventKey} value={item.canonicalEventKey}>
+                        <SelectItem
+                          key={item.canonicalEventKey}
+                          value={item.canonicalEventKey}
+                          className="rounded-xl py-2.5 text-base font-medium text-zinc-100 focus:bg-white/10 focus:text-white data-[state=checked]:bg-white/12 data-[state=checked]:text-white"
+                        >
                           {getEventDisplayTitle(item.canonicalEventName)}
                         </SelectItem>
                       ))}
