@@ -206,6 +206,7 @@ function EventCanvasCard({
   forceHovered?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
+  const isActiveHover = hovered || forceHovered;
   const revealOptions = [
     {
       containerClassName: "bg-transparent",
@@ -273,19 +274,7 @@ function EventCanvasCard({
       )}
 
       <AnimatePresence>
-        {forceHovered && !hovered ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(circle_at_20%_18%,rgba(125,211,252,0.2)_0_1px,transparent_1px),radial-gradient(circle_at_62%_34%,rgba(34,211,238,0.18)_0_1px,transparent_1px),radial-gradient(circle_at_82%_72%,rgba(255,255,255,0.2)_0_1px,transparent_1px)] bg-[length:10px_10px,14px_14px,18px_18px]"
-          />
-        ) : null}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {hovered ? (
+        {isActiveHover ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
