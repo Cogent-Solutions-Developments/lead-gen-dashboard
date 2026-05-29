@@ -482,7 +482,7 @@ export function NormalUserEventsPage() {
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.75, opacity: 0 }}
-                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                  transition={{ delay: 0.46, duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                 />
               </motion.svg>
 
@@ -545,7 +545,7 @@ export function NormalUserEventsPage() {
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.75, opacity: 0 }}
-                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                  transition={{ delay: 0.46, duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                 />
               </motion.svg>
 
