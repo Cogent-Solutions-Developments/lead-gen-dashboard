@@ -73,7 +73,7 @@ function FloatingDockMobile({
       <button
         type="button"
         onClick={() => setOpen((next) => !next)}
-        className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-300/80 bg-white/90 text-zinc-700 shadow-[0_18px_40px_-24px_rgba(2,10,27,0.65)] backdrop-blur-xl transition hover:bg-white dark:border-white/15 dark:bg-zinc-900/58 dark:text-zinc-200 dark:backdrop-saturate-150 dark:hover:bg-zinc-900/70"
+        className="flex h-12 w-12 items-center justify-center rounded-full border border-white/38 bg-white/18 text-zinc-100 ring-1 ring-white/24 shadow-[inset_0_1px_0_rgba(255,255,255,0.42),inset_0_-1px_0_rgba(255,255,255,0.12),0_12px_28px_-18px_rgba(2,10,27,0.72),0_4px_12px_-8px_rgba(2,10,27,0.58)] backdrop-blur-[26px] transition hover:bg-white/24"
         aria-label={open ? "Close navigation dock" : "Open navigation dock"}
       >
         <ChevronUp className={cn("h-5 w-5 transition-transform", open && "rotate-180")} />
@@ -96,7 +96,7 @@ function FloatingDockDesktop({
       onMouseMove={(event) => mouseX.set(event.clientX)}
       onMouseLeave={() => mouseX.set(Infinity)}
       className={cn(
-        "mx-auto hidden h-16 items-end gap-3 rounded-2xl border border-zinc-300/80 bg-white/82 px-4 pb-3 shadow-[0_26px_70px_-38px_rgba(2,10,27,0.7)] backdrop-blur-2xl md:flex dark:border-white/15 dark:bg-zinc-900/52 dark:backdrop-saturate-150",
+        "mx-auto hidden h-16 items-end gap-3 rounded-2xl border border-white/34 bg-white/14 px-4 pb-3 ring-1 ring-white/24 shadow-[inset_0_1px_0_rgba(255,255,255,0.42),inset_0_-1px_0_rgba(255,255,255,0.1),0_12px_28px_-18px_rgba(2,10,27,0.74),0_4px_12px_-8px_rgba(2,10,27,0.6)] backdrop-blur-[26px] md:flex",
         className
       )}
       aria-label="Primary navigation"
@@ -145,7 +145,7 @@ function IconContainer({
           "relative flex aspect-square items-center justify-center rounded-full border transition-colors",
           item.active
             ? "border-blue-500/70 bg-blue-600 text-white shadow-[0_14px_28px_-18px_rgba(37,99,235,0.8)]"
-            : "border-zinc-300/70 bg-zinc-100 text-zinc-500 hover:border-zinc-400 hover:text-zinc-900 dark:border-white/15 dark:bg-zinc-800/58 dark:text-zinc-200 dark:backdrop-blur-xl dark:hover:bg-zinc-800/72 dark:hover:text-white",
+            : "border-white/38 bg-white/20 text-zinc-100 ring-1 ring-white/26 shadow-[inset_0_1px_0_rgba(255,255,255,0.44),inset_0_-1px_0_rgba(255,255,255,0.12),0_10px_24px_-16px_rgba(2,10,27,0.66)] backdrop-blur-[24px] hover:bg-white/26 hover:text-white",
           item.disabled && "cursor-not-allowed opacity-55"
         )}
       >
@@ -195,10 +195,10 @@ function DockAction({
   }
 
   const className = cn(
-    "flex h-11 w-11 items-center justify-center rounded-full border shadow-[0_16px_34px_-24px_rgba(2,10,27,0.72)] backdrop-blur-xl transition",
+    "flex h-11 w-11 items-center justify-center rounded-full border transition",
     item.active
       ? "border-blue-500/70 bg-blue-600 text-white"
-      : "border-zinc-300/80 bg-white/92 text-zinc-600 hover:text-zinc-950 dark:border-white/15 dark:bg-zinc-900/60 dark:text-zinc-200 dark:backdrop-blur-xl dark:backdrop-saturate-150 dark:hover:bg-zinc-900/72 dark:hover:text-white",
+      : "border-white/38 bg-white/20 text-zinc-100 ring-1 ring-white/26 shadow-[inset_0_1px_0_rgba(255,255,255,0.44),inset_0_-1px_0_rgba(255,255,255,0.12),0_10px_24px_-16px_rgba(2,10,27,0.66)] backdrop-blur-[24px] hover:bg-white/26 hover:text-white",
     compact && "h-10 w-10",
     item.disabled && "cursor-not-allowed opacity-55"
   );
