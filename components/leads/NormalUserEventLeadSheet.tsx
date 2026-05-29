@@ -1605,7 +1605,7 @@ export function NormalUserEventLeadSheet() {
                       side="bottom"
                       align="start"
                       sideOffset={42}
-                      className="z-[120] rounded-2xl border border-white/72 bg-[linear-gradient(180deg,rgba(30,37,49,0.78)_0%,rgba(17,24,36,0.78)_100%)] p-1 text-zinc-100 ring-1 ring-white/22 shadow-[inset_0_1px_0_rgba(255,255,255,0.34),inset_0_-1px_0_rgba(255,255,255,0.1),0_12px_28px_-18px_rgba(2,10,27,0.78),0_4px_12px_-8px_rgba(2,10,27,0.62)] backdrop-blur-[30px]"
+                      className="z-[120] rounded-2xl border border-white/64 bg-[linear-gradient(180deg,rgba(16,22,32,0.62)_0%,rgba(9,14,22,0.62)_100%)] p-1 text-zinc-100 ring-1 ring-white/18 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),inset_0_-1px_0_rgba(255,255,255,0.08),0_12px_28px_-18px_rgba(2,10,27,0.82),0_4px_12px_-8px_rgba(2,10,27,0.66)] backdrop-blur-[32px]"
                     >
                       {events.map((item) => (
                         <SelectItem
