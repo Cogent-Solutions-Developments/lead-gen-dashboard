@@ -319,6 +319,7 @@ export function NormalUserEventsPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [gestureHoverKey, setGestureHoverKey] = useState<string | null>(null);
+  const [activeSpeechSide, setActiveSpeechSide] = useState<"right" | "left">("right");
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const hasSearch = searchQuery.trim().length > 0;
 
@@ -373,6 +374,26 @@ export function NormalUserEventsPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let leftSwitchTimer: number | undefined;
+
+    const runCycle = () => {
+      setActiveSpeechSide("right");
+      if (leftSwitchTimer) window.clearTimeout(leftSwitchTimer);
+      leftSwitchTimer = window.setTimeout(() => {
+        setActiveSpeechSide("left");
+      }, 5000);
+    };
+
+    runCycle();
+    const cycleTimer = window.setInterval(runCycle, 20000);
+
+    return () => {
+      window.clearInterval(cycleTimer);
+      if (leftSwitchTimer) window.clearTimeout(leftSwitchTimer);
+    };
+  }, []);
+
   const filteredItems = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return items;
@@ -410,63 +431,135 @@ export function NormalUserEventsPage() {
           animate={{ opacity: [0.32, 0.46, 0.32], scale: [0.98, 1.04, 0.98] }}
           transition={{ duration: 6.8, repeat: Infinity, ease: "easeInOut" }}
         />
-        <motion.div
-          className="absolute -top-16 right-8 z-[2] max-w-[22rem] rounded-lg border-[2.4px] border-[rgba(186,230,253,0.52)] bg-[rgba(3,7,12,0.22)] px-5 py-4 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(186,230,253,0.16),0_0_18px_rgba(103,232,249,0.16),0_18px_44px_-28px_rgba(56,189,248,0.2)] backdrop-blur-[2px] 2xl:right-10 2xl:max-w-[24rem]"
-          initial={{ opacity: 0, y: 14, filter: "blur(8px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          transition={{ delay: 1.3, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <motion.div
-            className="pointer-events-none absolute -inset-5 rounded-[1.4rem] bg-[radial-gradient(circle_at_48%_50%,rgba(103,232,249,0.18),rgba(56,189,248,0.08)_34%,transparent_72%)] blur-3xl"
-            animate={{ opacity: [0.3, 0.58, 0.34], scale: [0.98, 1.03, 1] }}
-            transition={{ duration: 4.6, repeat: Infinity, ease: "easeInOut" }}
-            aria-hidden="true"
-          />
-          <motion.div
-            className="pointer-events-none absolute inset-0 rounded-[inherit] bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.08),transparent_52%),radial-gradient(circle_at_50%_100%,rgba(103,232,249,0.05),transparent_58%)]"
-            animate={{ opacity: [0.72, 0.92, 0.76] }}
-            transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut" }}
-            aria-hidden="true"
-          />
-          <motion.svg
-            className="absolute right-[-3.9rem] top-[-0.5rem] h-[18rem] w-[12rem] overflow-visible text-[rgba(186,230,253,0.82)] [filter:drop-shadow(0_0_8px_rgba(103,232,249,0.22))_drop-shadow(0_0_18px_rgba(103,232,249,0.16))] 2xl:right-[-4.15rem]"
-            viewBox="0 0 220 210"
-            fill="none"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.76, duration: 0.35 }}
-            aria-hidden="true"
-          >
-            <motion.path
-              d="M 151 12 H 211 V 240 H 20"              
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: 1 }}
-              transition={{ delay: 1.76, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-            />
-            <motion.circle
-              cx="12"
-              cy="240"
-              r="7.5"
-              fill="currentColor"
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 2.34, duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-            />
-          </motion.svg>
+        <AnimatePresence mode="wait">
+          {activeSpeechSide === "right" ? (
+            <motion.div
+              key="speech-right"
+              className="absolute -top-16 right-8 z-[2] max-w-[22rem] rounded-lg border-[2.4px] border-[rgba(186,230,253,0.52)] bg-[rgba(3,7,12,0.22)] px-5 py-4 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(186,230,253,0.16),0_0_18px_rgba(103,232,249,0.16),0_18px_44px_-28px_rgba(56,189,248,0.2)] backdrop-blur-[2px] 2xl:right-10 2xl:max-w-[24rem]"
+              initial={{ opacity: 0, y: 14, filter: "blur(8px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: 10, filter: "blur(8px)" }}
+              transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <motion.div
+                className="pointer-events-none absolute -inset-5 rounded-[1.4rem] bg-[radial-gradient(circle_at_48%_50%,rgba(103,232,249,0.18),rgba(56,189,248,0.08)_34%,transparent_72%)] blur-3xl"
+                animate={{ opacity: [0.3, 0.58, 0.34], scale: [0.98, 1.03, 1] }}
+                transition={{ duration: 4.6, repeat: Infinity, ease: "easeInOut" }}
+                aria-hidden="true"
+              />
+              <motion.div
+                className="pointer-events-none absolute inset-0 rounded-[inherit] bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.08),transparent_52%),radial-gradient(circle_at_50%_100%,rgba(103,232,249,0.05),transparent_58%)]"
+                animate={{ opacity: [0.72, 0.92, 0.76] }}
+                transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut" }}
+                aria-hidden="true"
+              />
+              <motion.svg
+                className="absolute right-[-3.9rem] top-[-0.5rem] h-[18rem] w-[12rem] overflow-visible text-[rgba(186,230,253,0.82)] [filter:drop-shadow(0_0_8px_rgba(103,232,249,0.22))_drop-shadow(0_0_18px_rgba(103,232,249,0.16))] 2xl:right-[-4.15rem]"
+                viewBox="0 0 220 210"
+                fill="none"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                aria-hidden="true"
+              >
+                <motion.path
+                  d="M 151 12 H 211 V 240 H 20"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  initial={{ pathLength: 0 }}
+                  animate={{ pathLength: 1 }}
+                  exit={{ pathLength: 0 }}
+                  transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                />
+                <motion.circle
+                  cx="12"
+                  cy="240"
+                  r="7.5"
+                  fill="currentColor"
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.75, opacity: 0 }}
+                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                />
+              </motion.svg>
 
-          <p className="relative z-[2] text-[1.14rem] font-medium leading-[1.16] tracking-[-0.02em] text-zinc-950 2xl:text-[1.22rem]">
-            Hey {firstName}. Which conference should we cover first?
-          </p>
-          <p className="relative z-[2] mt-4 inline-flex items-baseline gap-1 text-[0.84rem] leading-none text-cyan-100/55 2xl:text-[0.9rem]">
-            <span className="relative -top-[2px] font-normal">supernizo</span>
-            <span className={`${bungeeHairline.className} text-[1.08em] leading-none`}>HEAVY</span>
-            <span className="font-medium">Agent</span>
-          </p>
-        </motion.div>
+              <p className="relative z-[2] text-[1.14rem] font-medium leading-[1.16] tracking-[-0.02em] text-zinc-950 2xl:text-[1.22rem]">
+                Hey {firstName}. Which conference should we cover first?
+              </p>
+              <p className="relative z-[2] mt-4 inline-flex items-baseline gap-1 text-[0.84rem] leading-none text-cyan-100/55 2xl:text-[0.9rem]">
+                <span className="relative -top-[2px] font-normal">supernizo</span>
+                <span className={`${bungeeHairline.className} text-[1.08em] leading-none`}>HEAVY</span>
+                <span className="font-medium">Agent</span>
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="speech-left"
+              className="absolute -top-20 left-32 z-[2] max-w-[22rem] rounded-lg border-[2.4px] border-[rgba(186,230,253,0.52)] bg-[rgba(3,7,12,0.22)] px-5 py-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(186,230,253,0.16),0_0_18px_rgba(103,232,249,0.16),0_18px_44px_-28px_rgba(56,189,248,0.2)] backdrop-blur-[2px] 2xl:left-8 2xl:max-w-[24rem]"
+              initial={{ opacity: 0, y: 14, filter: "blur(8px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: 10, filter: "blur(8px)" }}
+              transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <motion.div
+                className="pointer-events-none absolute -inset-5 rounded-[1.4rem] bg-[radial-gradient(circle_at_48%_50%,rgba(103,232,249,0.18),rgba(56,189,248,0.08)_34%,transparent_72%)] blur-3xl"
+                animate={{ opacity: [0.3, 0.58, 0.34], scale: [0.98, 1.03, 1] }}
+                transition={{ duration: 4.6, repeat: Infinity, ease: "easeInOut" }}
+                aria-hidden="true"
+              />
+              <motion.div
+                className="pointer-events-none absolute inset-0 rounded-[inherit] bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.08),transparent_52%),radial-gradient(circle_at_50%_100%,rgba(103,232,249,0.05),transparent_58%)]"
+                animate={{ opacity: [0.72, 0.92, 0.76] }}
+                transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut" }}
+                aria-hidden="true"
+              />
+              <motion.svg
+                className="absolute left-[-3.9rem] top-[-0.5rem] h-[18rem] w-[12rem] overflow-visible text-[rgba(186,230,253,0.82)] [filter:drop-shadow(0_0_8px_rgba(103,232,249,0.22))_drop-shadow(0_0_18px_rgba(103,232,249,0.16))] 2xl:left-[-4.15rem]"
+                viewBox="0 0 220 210"
+                fill="none"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                aria-hidden="true"
+              >
+                <motion.path
+                  d="M 69 12 H 9 V 240 H 120"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  initial={{ pathLength: 0 }}
+                  animate={{ pathLength: 1 }}
+                  exit={{ pathLength: 0 }}
+                  transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                />
+                <motion.circle
+                  cx="128"
+                  cy="240"
+                  r="7.5"
+                  fill="currentColor"
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.75, opacity: 0 }}
+                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                />
+              </motion.svg>
+
+              <p className="relative z-[2] text-[1.14rem] font-medium leading-[1.16] tracking-[-0.02em] text-zinc-950 2xl:text-[1.22rem]">
+                Hey {firstName}. Which conference should we cover first?
+              </p>
+              <p className="relative z-[2] mt-4 inline-flex items-baseline gap-1 text-[0.84rem] leading-none text-cyan-100/55 2xl:text-[0.9rem]">
+                <span className="relative -top-[2px] font-normal">supernizo</span>
+                <span className={`${bungeeHairline.className} text-[1.08em] leading-none`}>HEAVY</span>
+                <span className="font-medium">Agent</span>
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <motion.img
           src="/videos/BlockchainEventPromoconverted_1-ezgif.com-optimize%20(1).gif"
           alt=""
