@@ -49,15 +49,6 @@ function getFirstName(value: string) {
   return value.split(/\s+/)[0] || value;
 }
 
-function normalizeDateLabel(value?: string | null) {
-  const input = String(value || "").trim();
-  if (!input) return "Date TBD";
-  const dateOnly = input.split("T")[0];
-  const match = dateOnly.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (match) return `${match[1]}.${match[2]}.${match[3]}`;
-  return input.replaceAll("-", ".");
-}
-
 function shortenEventName(value: string) {
   const words = value
     .trim()
@@ -67,27 +58,11 @@ function shortenEventName(value: string) {
   return `${words.slice(0, 4).join(" ")}...`;
 }
 
-function getEventDisplayTitle(item: EventSummaryItem, registryItem?: AdminEventItem) {
-  const anyItem = item as EventSummaryItem & {
-    eventDate?: string | null;
-    date?: string | null;
-    startDate?: string | null;
-    location?: string | null;
-    city?: string | null;
-    venue?: string | null;
-  };
-
+function getEventDisplayTitle(item: EventSummaryItem) {
   const rawName = String(item.canonicalEventName || "").trim();
   const segments = rawName.split(/\s+(?:-|[|•·])\s+/).filter(Boolean);
   const baseName = segments[0] || rawName || "Untitled Event";
-  const shortName = shortenEventName(baseName);
-  const dateLabel = normalizeDateLabel(
-    registryItem?.date || anyItem.eventDate || anyItem.date || anyItem.startDate
-  );
-  const locationLabel =
-    String(registryItem?.location || anyItem.location || anyItem.city || anyItem.venue || "").trim() ||
-    "Location TBD";
-  return `${shortName} - ${dateLabel} - ${locationLabel}`;
+  return shortenEventName(baseName);
 }
 
 function HeaderMetricSkeleton() {
@@ -671,7 +646,7 @@ export function NormalUserEventsPage() {
               <div className="ml-auto grid max-w-full grid-cols-1 gap-3 pb-36 pt-3 xl:max-w-[68rem] 2xl:max-w-[74rem]">
                 {filteredItems.map((item, index) => {
                   const registryItem = getRegistryItem(item);
-                  const displayTitle = getEventDisplayTitle(item, registryItem);
+                  const displayTitle = getEventDisplayTitle(item);
                   return (
                     <EventCanvasCard
                       key={item.canonicalEventKey}
@@ -688,7 +663,7 @@ export function NormalUserEventsPage() {
                       >
                         <div className="flex min-w-0 flex-1 flex-col justify-between">
                           <div className="min-w-0 space-y-4">
-                            <h2 className="line-clamp-2 text-[1.42rem] font-light leading-[1.12] tracking-[-0.015em] !text-[rgb(255,255,255)] [text-shadow:0_1px_20px_rgba(255,255,255,0.28),0_8px_24px_rgba(0,0,0,0.65)] 2xl:text-[1.58rem]">
+                            <h2 className="line-clamp-2 text-2xl font-light leading-[1.12] tracking-[-0.02em] !text-[rgb(255,255,255)] [text-shadow:0_1px_20px_rgba(255,255,255,0.28),0_8px_24px_rgba(0,0,0,0.65)] sm:text-3xl 2xl:text-4xl">
                               {displayTitle}
                             </h2>
 
@@ -718,7 +693,7 @@ export function NormalUserEventsPage() {
               <div className="ml-auto grid max-w-full grid-cols-1 gap-4 pb-36 pt-3 sm:grid-cols-2 xl:max-w-[72rem] xl:grid-cols-2 2xl:max-w-[78rem] 2xl:grid-cols-3">
                 {filteredItems.map((item, index) => {
                   const registryItem = getRegistryItem(item);
-                  const displayTitle = getEventDisplayTitle(item, registryItem);
+                  const displayTitle = getEventDisplayTitle(item);
                   return (
                     <EventCanvasCard
                       key={item.canonicalEventKey}
@@ -741,7 +716,7 @@ export function NormalUserEventsPage() {
                               registryItem={registryItem}
                               className="h-[4.5rem] w-[4.5rem]"
                             />
-                            <h2 className="line-clamp-3 pt-1 text-lg font-light leading-[1.15] tracking-[-0.015em] !text-[rgb(255,255,255)] [text-shadow:0_1px_18px_rgba(255,255,255,0.24),0_8px_24px_rgba(0,0,0,0.62)]">
+                            <h2 className="line-clamp-3 pt-1 text-2xl font-light leading-[1.12] tracking-[-0.02em] !text-[rgb(255,255,255)] [text-shadow:0_1px_18px_rgba(255,255,255,0.24),0_8px_24px_rgba(0,0,0,0.62)] sm:text-3xl 2xl:text-4xl">
                               {displayTitle}
                             </h2>
                           </div>
