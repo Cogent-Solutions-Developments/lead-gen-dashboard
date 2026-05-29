@@ -1595,8 +1595,19 @@ export function NormalUserEventLeadSheet() {
           <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div>
-                <h1 className="max-w-5xl truncate text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
-                  {getEventDisplayTitle(selectedEvent?.canonicalEventName)}
+                <h1 className="max-w-5xl">
+                  <Select value={selectedEventKey} onValueChange={handleEventChange}>
+                    <SelectTrigger className="!h-auto w-fit max-w-[56rem] rounded-none border-0 !bg-transparent px-0 py-0 text-left text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 shadow-none transition-colors hover:!bg-transparent dark:!bg-transparent dark:hover:!bg-transparent data-[state=open]:!bg-transparent focus:border-transparent focus:ring-0 sm:text-4xl 2xl:text-5xl [&>span]:truncate [&>svg]:ml-3 [&>svg]:size-6 [&>svg]:opacity-55">
+                      <SelectValue placeholder={getEventDisplayTitle(selectedEvent?.canonicalEventName)} />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-none border-zinc-300 shadow-xl">
+                      {events.map((item) => (
+                        <SelectItem key={item.canonicalEventKey} value={item.canonicalEventKey}>
+                          {getEventDisplayTitle(item.canonicalEventName)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </h1>
               </div>
             </div>
@@ -1638,23 +1649,7 @@ export function NormalUserEventLeadSheet() {
         <div className="grid min-h-0 flex-1 gap-12 overflow-hidden pt-8 xl:grid-cols-[19rem_minmax(0,1fr)]">
           <aside className="shrink-0 space-y-10 overflow-y-auto pr-2 scrollbar-hide">
             <div className="space-y-8">
-              <div className="space-y-5">
-                <label className="text-xs font-medium text-zinc-400">Context registry</label>
-                <Select value={selectedEventKey} onValueChange={handleEventChange}>
-                  <SelectTrigger className="!h-14 w-full rounded-none border-0 border-b border-zinc-300 !bg-transparent px-0 text-lg font-light shadow-none transition-colors hover:!bg-transparent dark:!bg-transparent dark:hover:!bg-transparent data-[state=open]:!bg-transparent focus:border-blue-600 focus:ring-0">
-                    <SelectValue placeholder="Select context" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-none border-zinc-300 shadow-xl">
-                    {events.map((item) => (
-                      <SelectItem key={item.canonicalEventKey} value={item.canonicalEventKey}>
-                        {getEventDisplayTitle(item.canonicalEventName)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="border-t border-zinc-100 pt-8">
+              <div className="pt-1">
                 <label className="text-xs font-medium text-zinc-400">Event agenda</label>
                 <div className="mt-5 space-y-4">
                   {agendaState.loading ? (
