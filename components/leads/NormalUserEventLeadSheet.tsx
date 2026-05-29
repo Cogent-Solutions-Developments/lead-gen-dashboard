@@ -1841,11 +1841,13 @@ export function NormalUserEventLeadSheet() {
                           key={updateKey}
                           ref={isTargetLead ? targetLeadRowRef : undefined}
                           id={`lead-${item.id}`}
-                          className={`group grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-6 transition-all duration-300 ${
-                            isTargetLead ? "bg-blue-50/35" : "hover:bg-zinc-50/60"
+                          className={`group relative isolate grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-6 transition-all duration-300 ${
+                            isTargetLead
+                              ? "after:pointer-events-none after:absolute after:inset-y-0 after:left-0 after:right-0 after:rounded-[12px] after:bg-[linear-gradient(90deg,rgba(34,211,238,0)_0%,rgba(34,211,238,0.04)_20%,rgba(34,211,238,0.07)_50%,rgba(34,211,238,0.08)_70%,rgba(34,211,238,0)_100%)] after:opacity-100 after:shadow-[0_0_32px_-16px_rgba(34,211,238,0)]"
+                              : "after:pointer-events-none after:absolute after:inset-y-0 after:left-0 after:right-0 after:rounded-[12px] after:bg-[linear-gradient(90deg,rgba(34,211,238,0)_0%,rgba(34,211,238,0.04)_20%,rgba(34,211,238,0.07)_50%,rgba(34,211,238,0.07)_70%,rgba(34,211,238,0)_100%)] after:opacity-0 after:shadow-[0_0_28px_-16px_rgba(34,211,238,0)] after:transition-opacity after:duration-300 hover:after:opacity-100"
                           }`}
                         >
-                          <div className="pr-8">
+                          <div className="relative z-10 pr-8">
                             <div className="flex flex-col gap-1.5">
                               <div className="flex items-center gap-5">
                                 <span className="text-xl font-light tracking-tight text-zinc-950">{item.employeeName || "-"}</span>
@@ -1858,7 +1860,7 @@ export function NormalUserEventLeadSheet() {
                             </div>
                           </div>
 
-                          <div className="pr-8">
+                          <div className="relative z-10 pr-8">
                             <div className="flex flex-col gap-2">
                               <div className="flex items-center gap-4">
                                 {item.email ? (
@@ -1959,7 +1961,7 @@ export function NormalUserEventLeadSheet() {
                             </div>
                           </div>
 
-                          <div>
+                          <div className="relative z-10">
                             <div className="flex items-center gap-4">
                               <div className="relative w-full">
                                 <Select
