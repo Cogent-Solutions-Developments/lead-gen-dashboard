@@ -489,7 +489,7 @@ export function NormalUserEventsPage() {
           ) : (
             <motion.div
               key="speech-left"
-              className="absolute -top-20 left-32 z-[2] max-w-[22rem] rounded-lg border-[1.6px] border-[rgba(186,230,253,0.52)] bg-[rgba(3,7,12,0.22)] px-5 py-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(186,230,253,0.16),0_0_18px_rgba(103,232,249,0.16),0_18px_44px_-28px_rgba(56,189,248,0.2)] backdrop-blur-[2px] 2xl:left-8 2xl:max-w-[24rem]"
+              className="absolute -top-20 left-32 z-[2] max-w-[22rem] rounded-lg border-[1.6px] border-[rgba(186,230,253,0.52)] bg-[rgba(3,7,12,0.22)] px-5 py-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(186,230,253,0.16),0_0_18px_rgba(103,232,249,0.16),0_18px_44px_-28px_rgba(56,189,248,0.2)] backdrop-blur-[2px] 2xl:left-24 2xl:max-w-[24rem]"
               initial={{ opacity: 0, y: 14, filter: "blur(8px)" }}
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
               exit={{ opacity: 0, y: 10, filter: "blur(8px)" }}
@@ -508,7 +508,7 @@ export function NormalUserEventsPage() {
                 aria-hidden="true"
               />
               <motion.svg
-                className="absolute left-[-3.9rem] top-[-0.5rem] h-[18rem] w-[12rem] overflow-visible text-[rgba(186,230,253,0.82)] [filter:drop-shadow(0_0_8px_rgba(103,232,249,0.22))_drop-shadow(0_0_18px_rgba(103,232,249,0.16))] 2xl:left-[-4.15rem]"
+                className="absolute left-[-3.9rem] top-[-0.5rem] h-[18rem] w-[12rem] overflow-visible text-[rgba(186,230,253,0.82)] [filter:drop-shadow(0_0_8px_rgba(103,232,249,0.22))_drop-shadow(0_0_18px_rgba(103,232,249,0.16))] 2xl:left-[-3.8rem]"
                 viewBox="0 0 220 210"
                 fill="none"
                 initial={{ opacity: 0 }}
