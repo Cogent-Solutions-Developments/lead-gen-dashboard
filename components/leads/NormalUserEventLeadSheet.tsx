@@ -1627,7 +1627,7 @@ export function NormalUserEventLeadSheet() {
               <div className="space-y-5">
                 <label className="text-xs font-medium text-zinc-400">Context registry</label>
                 <Select value={selectedEventKey} onValueChange={handleEventChange}>
-                  <SelectTrigger className="!h-14 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
+                  <SelectTrigger className="!h-14 w-full rounded-none border-0 border-b border-zinc-300 !bg-transparent px-0 text-lg font-light shadow-none transition-colors hover:!bg-transparent dark:!bg-transparent dark:hover:!bg-transparent data-[state=open]:!bg-transparent focus:border-blue-600 focus:ring-0">
                     <SelectValue placeholder="Select context" />
                   </SelectTrigger>
                   <SelectContent className="rounded-none border-zinc-300 shadow-xl">
@@ -1967,7 +1967,7 @@ export function NormalUserEventLeadSheet() {
                                   onValueChange={(value) => handleStatusSelection(item, value)}
                                     disabled={isUpdating}
                                   >
-                                    <SelectTrigger className="h-10 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-base font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
+                                    <SelectTrigger className="h-10 w-full rounded-none border-0 border-b border-zinc-300 !bg-transparent px-0 text-base font-light shadow-none transition-colors hover:!bg-transparent dark:!bg-transparent dark:hover:!bg-transparent data-[state=open]:!bg-transparent focus:border-blue-600 focus:ring-0">
                                       <SelectValue placeholder={item.workflowStatusLabel} />
                                     </SelectTrigger>
                                     <SelectContent className="rounded-none border-zinc-300 shadow-2xl">
