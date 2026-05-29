@@ -96,14 +96,14 @@ function FloatingDockDesktop({
       onMouseMove={(event) => mouseX.set(event.clientX)}
       onMouseLeave={() => mouseX.set(Infinity)}
       className={cn(
-        "relative mx-auto hidden h-16 items-end gap-3 overflow-visible rounded-2xl border border-white/24 bg-[rgba(10,16,28,0.54)] px-4 pb-3 ring-1 ring-white/16 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-1px_0_rgba(255,255,255,0.05),0_18px_40px_-24px_rgba(2,10,27,0.92),0_0_36px_-22px_rgba(56,189,248,0.45)] backdrop-blur-[28px] md:flex",
+        "relative mx-auto hidden h-16 items-end gap-3 overflow-visible rounded-2xl border border-white/24 bg-[rgba(10,16,28,0.54)] pl-3 pr-4 pb-3 ring-1 ring-white/16 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-1px_0_rgba(255,255,255,0.05),0_18px_40px_-24px_rgba(2,10,27,0.92),0_0_36px_-22px_rgba(56,189,248,0.45)] backdrop-blur-[28px] md:flex",
         className
       )}
       aria-label="Primary navigation"
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-[1px] rounded-[inherit] bg-[linear-gradient(155deg,rgba(255,255,255,0.2)_0%,rgba(255,255,255,0.06)_32%,rgba(15,23,42,0.08)_56%,rgba(15,23,42,0.22)_100%)]"
+        className="pointer-events-none absolute inset-0 rounded-[inherit] bg-[linear-gradient(155deg,rgba(255,255,255,0.2)_0%,rgba(255,255,255,0.06)_32%,rgba(15,23,42,0.08)_56%,rgba(15,23,42,0.22)_100%)]"
       />
       {items.map((item) => (
         <IconContainer key={item.title} mouseX={mouseX} item={item} />

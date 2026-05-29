@@ -426,7 +426,7 @@ export function NormalUserEventsPage() {
           {activeSpeechSide === "right" ? (
             <motion.div
               key="speech-right"
-              className="absolute -top-16 right-8 z-[2] max-w-[22rem] rounded-lg border-[2.4px] border-[rgba(186,230,253,0.52)] bg-[rgba(3,7,12,0.22)] px-5 py-4 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(186,230,253,0.16),0_0_18px_rgba(103,232,249,0.16),0_18px_44px_-28px_rgba(56,189,248,0.2)] backdrop-blur-[2px] 2xl:right-10 2xl:max-w-[24rem]"
+              className="absolute -top-16 right-8 z-[2] max-w-[22rem] rounded-lg border-[1.6px] border-[rgba(186,230,253,0.52)] bg-[rgba(3,7,12,0.22)] px-5 py-4 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(186,230,253,0.16),0_0_18px_rgba(103,232,249,0.16),0_18px_44px_-28px_rgba(56,189,248,0.2)] backdrop-blur-[2px] 2xl:right-10 2xl:max-w-[24rem]"
               initial={{ opacity: 0, y: 14, filter: "blur(8px)" }}
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
               exit={{ opacity: 0, y: 10, filter: "blur(8px)" }}
@@ -457,7 +457,7 @@ export function NormalUserEventsPage() {
                 <motion.path
                   d="M 151 12 H 211 V 240 H 20"
                   stroke="currentColor"
-                  strokeWidth="2.4"
+                  strokeWidth="1.4"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   initial={{ pathLength: 0 }}
@@ -466,9 +466,9 @@ export function NormalUserEventsPage() {
                   transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                 />
                 <motion.circle
-                  cx="12"
+                  cx="13"
                   cy="240"
-                  r="7.5"
+                  r="6.5"
                   fill="currentColor"
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
@@ -489,7 +489,7 @@ export function NormalUserEventsPage() {
           ) : (
             <motion.div
               key="speech-left"
-              className="absolute -top-20 left-32 z-[2] max-w-[22rem] rounded-lg border-[2.4px] border-[rgba(186,230,253,0.52)] bg-[rgba(3,7,12,0.22)] px-5 py-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(186,230,253,0.16),0_0_18px_rgba(103,232,249,0.16),0_18px_44px_-28px_rgba(56,189,248,0.2)] backdrop-blur-[2px] 2xl:left-8 2xl:max-w-[24rem]"
+              className="absolute -top-20 left-32 z-[2] max-w-[22rem] rounded-lg border-[1.6px] border-[rgba(186,230,253,0.52)] bg-[rgba(3,7,12,0.22)] px-5 py-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(186,230,253,0.16),0_0_18px_rgba(103,232,249,0.16),0_18px_44px_-28px_rgba(56,189,248,0.2)] backdrop-blur-[2px] 2xl:left-8 2xl:max-w-[24rem]"
               initial={{ opacity: 0, y: 14, filter: "blur(8px)" }}
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
               exit={{ opacity: 0, y: 10, filter: "blur(8px)" }}
@@ -520,7 +520,7 @@ export function NormalUserEventsPage() {
                 <motion.path
                   d="M 69 12 H 9 V 240 H 120"
                   stroke="currentColor"
-                  strokeWidth="2.4"
+                  strokeWidth="1.4"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   initial={{ pathLength: 0 }}
@@ -529,9 +529,9 @@ export function NormalUserEventsPage() {
                   transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                 />
                 <motion.circle
-                  cx="128"
+                  cx="127"
                   cy="240"
-                  r="7.5"
+                  r="6.5"
                   fill="currentColor"
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
