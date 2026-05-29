@@ -382,7 +382,7 @@ export function NormalUserEventsPage() {
       if (leftSwitchTimer) window.clearTimeout(leftSwitchTimer);
       leftSwitchTimer = window.setTimeout(() => {
         setActiveSpeechSide("left");
-      }, 5000);
+      }, 10000);
     };
 
     runCycle();
@@ -550,7 +550,7 @@ export function NormalUserEventsPage() {
               </motion.svg>
 
               <p className="relative z-[2] text-[1.02rem] font-medium leading-[1.16] tracking-[-0.02em] text-zinc-950 2xl:text-[1.1rem]">
-                Hey {firstName}. Which conference should we cover first?
+                You can use gesture controls by clicking the hand button in the top right
               </p>
               <p className="relative z-[2] mt-4 inline-flex items-baseline gap-1 text-[0.84rem] leading-none text-cyan-100/55 2xl:text-[0.9rem]">
                 <span className="relative -top-[2px] font-normal">supernizo</span>
