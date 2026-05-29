@@ -1591,28 +1591,26 @@ export function NormalUserEventLeadSheet() {
   return (
     <>
       <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
-        <header className="shrink-0 border-b border-zinc-300 pb-12">
+        <header className="shrink-0 border-b border-zinc-300 pb-10">
           <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div>
-                <h1 className="max-w-5xl text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
+                <h1 className="max-w-5xl truncate text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
                   {getEventDisplayTitle(selectedEvent?.canonicalEventName)}
                 </h1>
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 lg:min-w-[22rem] lg:max-w-[24rem] lg:items-stretch">
-              <div className="border-b border-zinc-300 pb-3">
-                <div className="flex items-end justify-between gap-4">
+            <div className="w-full border-zinc-300 lg:w-auto lg:min-w-[23rem] lg:border-l lg:pl-10">
+              <div className="flex w-full items-end justify-between gap-6">
+                <div className="shrink-0 space-y-1">
                   <p className="text-sm font-medium text-zinc-400">Leads To Cover</p>
-                  <p className="text-4xl font-light tabular-nums leading-none tracking-[-0.02em] text-zinc-950">
+                  <p className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
                     {pageTotal.toLocaleString()}
                   </p>
                 </div>
-              </div>
 
-              <div className="pt-0">
-                <div className="inline-flex h-11 w-full items-center rounded-full border border-white/85 bg-white/68 p-1 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px]">
+                <div className="inline-flex h-11 min-w-0 flex-1 items-center rounded-full border border-white/85 bg-white/68 p-1 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px] lg:w-[22rem] lg:flex-none">
                   <button
                     type="button"
                     onClick={openTemplateUploadDialog}
@@ -1637,7 +1635,7 @@ export function NormalUserEventLeadSheet() {
           </div>
         </header>
 
-        <div className="mt-12 grid min-h-0 flex-1 gap-12 overflow-hidden xl:grid-cols-[19rem_minmax(0,1fr)]">
+        <div className="grid min-h-0 flex-1 gap-12 overflow-hidden pt-8 xl:grid-cols-[19rem_minmax(0,1fr)]">
           <aside className="shrink-0 space-y-10 overflow-y-auto pr-2 scrollbar-hide">
             <div className="space-y-8">
               <div className="space-y-5">
