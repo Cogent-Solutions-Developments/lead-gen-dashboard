@@ -89,6 +89,7 @@ export interface GooeyInputProps {
   defaultValue?: string;
   onValueChange?: (value: string) => void;
   onOpenChange?: (open: boolean) => void;
+  forceExpanded?: boolean;
   disabled?: boolean;
 }
 
@@ -104,6 +105,7 @@ export function GooeyInput({
   defaultValue = "",
   onValueChange,
   onOpenChange,
+  forceExpanded = false,
   disabled = false,
 }: GooeyInputProps) {
   const reactId = useId();
@@ -115,6 +117,7 @@ export function GooeyInput({
   const inputRef = useRef<HTMLInputElement>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [uncontrolledValue, setUncontrolledValue] = useState(defaultValue);
+  const expanded = isExpanded || forceExpanded;
 
   const isControlled = valueProp !== undefined;
   const searchText = isControlled ? valueProp : uncontrolledValue;
@@ -138,10 +141,10 @@ export function GooeyInput({
   );
 
   useEffect(() => {
-    if (isExpanded) {
+    if (expanded) {
       inputRef.current?.focus();
     }
-  }, [isExpanded]);
+  }, [expanded]);
 
   const buttonVariants = useMemo(
     () => ({
@@ -193,7 +196,7 @@ export function GooeyInput({
           )}
           variants={buttonVariants}
           initial="collapsed"
-          animate={isExpanded ? "expanded" : "collapsed"}
+          animate={expanded ? "expanded" : "collapsed"}
           transition={transition}
         >
           <button
@@ -206,7 +209,7 @@ export function GooeyInput({
               classNames?.trigger
             )}
           >
-            {!isExpanded ? <SearchIcon layoutId={iconLayoutId} /> : null}
+            {!expanded ? <SearchIcon layoutId={iconLayoutId} /> : null}
             <motion.input
               layoutId={inputLayoutId}
               ref={inputRef}
@@ -216,11 +219,11 @@ export function GooeyInput({
               value={searchText}
               onChange={handleChange}
               onBlur={handleBlur}
-              disabled={disabled || !isExpanded}
+              disabled={disabled || !expanded}
               placeholder={placeholder}
               className={cn(
                 "h-full min-w-0 flex-1 bg-transparent text-sm text-background outline-none",
-                isExpanded
+                expanded
                   ? "placeholder:text-background/50 dark:placeholder:text-background/45"
                   : "pointer-events-none placeholder:text-background/80 dark:placeholder:text-background/70",
                 classNames?.input
@@ -236,7 +239,7 @@ export function GooeyInput({
           )}
           variants={iconBubbleVariants}
           initial="collapsed"
-          animate={isExpanded ? "expanded" : "collapsed"}
+          animate={expanded ? "expanded" : "collapsed"}
           transition={transition}
         >
           <div

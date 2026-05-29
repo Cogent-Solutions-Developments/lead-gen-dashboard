@@ -13,6 +13,9 @@ type ConferenceGestureControllerProps = {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
   onHoverTargetChange?: (targetId: string | null) => void;
+  onVoiceSearchTrigger?: () => void;
+  onVoiceSearchStop?: () => void;
+  onVoiceBackspace?: () => void;
 };
 
 type CursorState = {
@@ -51,6 +54,11 @@ const EDGE_SCROLL_DOWN_MAX_STEP = 18;
 const EDGE_SCROLL_UP_MAX_STEP = 26;
 const VIEW_COMMAND_HOLD_MS = 760;
 const VIEW_COMMAND_COOLDOWN_MS = 1600;
+const VOICE_SEARCH_HOLD_MS = 780;
+const VOICE_SEARCH_COOLDOWN_MS = 2200;
+const BACKSPACE_HOLD_MS = 620;
+const BACKSPACE_COOLDOWN_MS = 900;
+const DISABLE_GESTURES_HOLD_MS = 950;
 const HOVER_DWELL_MS = 140;
 const HOVER_CLEAR_DELAY_MS = 220;
 
@@ -102,8 +110,26 @@ function isFingerRaised(landmarks: HandLandmark[], tipIndex: number, pipIndex: n
   return landmarks[tipIndex]?.y < landmarks[pipIndex]?.y - 0.025;
 }
 
+function isThumbRaised(landmarks: HandLandmark[]) {
+  const thumbTip = landmarks[4];
+  const thumbIp = landmarks[3];
+  if (!thumbTip || !thumbIp) return false;
+  return thumbTip.y < thumbIp.y - 0.02;
+}
+
 function isFourFingerCommand(landmarks: HandLandmark[]) {
   return (
+    isFingerRaised(landmarks, 8, 6) &&
+    isFingerRaised(landmarks, 12, 10) &&
+    isFingerRaised(landmarks, 16, 14) &&
+    isFingerRaised(landmarks, 20, 18)
+  );
+}
+
+function isFiveFingerOpenPalm(gesture: string, landmarks: HandLandmark[]) {
+  if (gesture === "Open_Palm") return true;
+  return (
+    isThumbRaised(landmarks) &&
     isFingerRaised(landmarks, 8, 6) &&
     isFingerRaised(landmarks, 12, 10) &&
     isFingerRaised(landmarks, 16, 14) &&
@@ -122,6 +148,9 @@ export function ConferenceGestureController({
   viewMode,
   onViewModeChange,
   onHoverTargetChange,
+  onVoiceSearchTrigger,
+  onVoiceSearchStop,
+  onVoiceBackspace,
 }: ConferenceGestureControllerProps) {
   const [enabled, setEnabled] = useState(false);
   const [ready, setReady] = useState(false);
@@ -139,6 +168,11 @@ export function ConferenceGestureController({
   const hoverCandidateRef = useRef<{ id: string; startedAt: number } | null>(null);
   const hoverClearAtRef = useRef<number | null>(null);
   const viewModeRef = useRef(viewMode);
+  const voiceCommandStartedAtRef = useRef<number | null>(null);
+  const lastVoiceSearchAtRef = useRef(0);
+  const backspaceCommandStartedAtRef = useRef<number | null>(null);
+  const lastBackspaceAtRef = useRef(0);
+  const disableCommandStartedAtRef = useRef<number | null>(null);
 
   const setHoverTarget = useCallback((targetId: string | null) => {
     if (hoverTargetRef.current === targetId) return;
@@ -181,9 +215,13 @@ export function ConferenceGestureController({
       setCursor((current) => ({ ...current, visible: false }));
       clickIntentRef.current = null;
       viewCommandRef.current = null;
+      voiceCommandStartedAtRef.current = null;
+      backspaceCommandStartedAtRef.current = null;
+      disableCommandStartedAtRef.current = null;
       hoverCandidateRef.current = null;
       hoverClearAtRef.current = null;
       setHoverTarget(null);
+      onVoiceSearchStop?.();
       return;
     }
 
@@ -306,12 +344,79 @@ export function ConferenceGestureController({
           if (isFist) {
             clickIntentRef.current = null;
             viewCommandRef.current = null;
+            voiceCommandStartedAtRef.current = null;
+            backspaceCommandStartedAtRef.current = null;
+            disableCommandStartedAtRef.current = null;
+            onVoiceSearchStop?.();
             setGestureLabel("Paused");
             rafRef.current = requestAnimationFrame(tick);
             return;
           }
 
           const commandMode = getViewCommandMode(gesture, landmarks);
+          const wantsVoiceSearch = isFiveFingerOpenPalm(gesture, landmarks);
+          const wantsBackspace = gesture === "Victory";
+          const wantsDisable = gesture === "Thumb_Down";
+
+          if (wantsVoiceSearch) {
+            clickIntentRef.current = null;
+            viewCommandRef.current = null;
+            backspaceCommandStartedAtRef.current = null;
+            disableCommandStartedAtRef.current = null;
+            if (voiceCommandStartedAtRef.current === null) {
+              voiceCommandStartedAtRef.current = now;
+              setGestureLabel("Hold for voice search");
+            } else if (now - voiceCommandStartedAtRef.current < VOICE_SEARCH_HOLD_MS) {
+              setGestureLabel("Hold for voice search");
+            } else if (now - lastVoiceSearchAtRef.current > VOICE_SEARCH_COOLDOWN_MS) {
+              onVoiceSearchTrigger?.();
+              lastVoiceSearchAtRef.current = now;
+              setGestureLabel("Voice search");
+            }
+            rafRef.current = requestAnimationFrame(tick);
+            return;
+          }
+          voiceCommandStartedAtRef.current = null;
+
+          if (wantsDisable) {
+            clickIntentRef.current = null;
+            viewCommandRef.current = null;
+            backspaceCommandStartedAtRef.current = null;
+
+            if (disableCommandStartedAtRef.current === null) {
+              disableCommandStartedAtRef.current = now;
+              setGestureLabel("Hold to disable gestures");
+            } else if (now - disableCommandStartedAtRef.current < DISABLE_GESTURES_HOLD_MS) {
+              setGestureLabel("Hold to disable gestures");
+            } else {
+              onVoiceSearchStop?.();
+              setGestureLabel("Gesture mode off");
+              setEnabled(false);
+              return;
+            }
+            rafRef.current = requestAnimationFrame(tick);
+            return;
+          }
+          disableCommandStartedAtRef.current = null;
+
+          if (wantsBackspace) {
+            clickIntentRef.current = null;
+            viewCommandRef.current = null;
+
+            if (backspaceCommandStartedAtRef.current === null) {
+              backspaceCommandStartedAtRef.current = now;
+              setGestureLabel("Hold for backspace");
+            } else if (now - backspaceCommandStartedAtRef.current < BACKSPACE_HOLD_MS) {
+              setGestureLabel("Hold for backspace");
+            } else if (now - lastBackspaceAtRef.current > BACKSPACE_COOLDOWN_MS) {
+              onVoiceBackspace?.();
+              lastBackspaceAtRef.current = now;
+              setGestureLabel("Backspace");
+            }
+            rafRef.current = requestAnimationFrame(tick);
+            return;
+          }
+          backspaceCommandStartedAtRef.current = null;
 
           if (commandMode) {
             clickIntentRef.current = null;
@@ -396,7 +501,7 @@ export function ConferenceGestureController({
       cancelled = true;
       stop();
     };
-  }, [enabled, onViewModeChange, scrollContainerRef, setHoverTarget, updateGestureHover]);
+  }, [enabled, onViewModeChange, onVoiceBackspace, onVoiceSearchStop, onVoiceSearchTrigger, scrollContainerRef, setHoverTarget, updateGestureHover]);
 
   const overlay =
     typeof document !== "undefined" ? createPortal(
