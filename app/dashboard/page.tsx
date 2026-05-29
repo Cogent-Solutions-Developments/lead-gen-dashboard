@@ -595,7 +595,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="inline-flex h-10 items-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-500">
+            <span className="inline-flex h-10 items-center rounded-full border border-white/85 bg-white/68 px-4 text-sm font-medium text-zinc-900 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px]">
               {getDateLabel()}
             </span>
             <Link
