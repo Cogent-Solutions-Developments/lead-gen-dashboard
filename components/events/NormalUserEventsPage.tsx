@@ -65,6 +65,35 @@ function getEventDisplayTitle(item: EventSummaryItem) {
   return shortenEventName(baseName);
 }
 
+function normalizeDateLabel(value?: string | null) {
+  const input = String(value || "").trim();
+  if (!input) return "Date TBD";
+  const dateOnly = input.split("T")[0];
+  const match = dateOnly.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) return `${match[1]}.${match[2]}.${match[3]}`;
+  return input.replaceAll("-", ".");
+}
+
+function getEventDateLabel(item: EventSummaryItem, registryItem?: AdminEventItem) {
+  const anyItem = item as EventSummaryItem & {
+    eventDate?: string | null;
+    date?: string | null;
+    startDate?: string | null;
+  };
+
+  return normalizeDateLabel(registryItem?.date || anyItem.eventDate || anyItem.date || anyItem.startDate);
+}
+
+function getEventLocationLabel(item: EventSummaryItem, registryItem?: AdminEventItem) {
+  const anyItem = item as EventSummaryItem & {
+    location?: string | null;
+    city?: string | null;
+    venue?: string | null;
+  };
+
+  return String(registryItem?.location || anyItem.location || anyItem.city || anyItem.venue || "").trim() || "Location TBD";
+}
+
 function HeaderMetricSkeleton() {
   return (
     <div className="space-y-2">
@@ -647,6 +676,8 @@ export function NormalUserEventsPage() {
                 {filteredItems.map((item, index) => {
                   const registryItem = getRegistryItem(item);
                   const displayTitle = getEventDisplayTitle(item);
+                  const dateLabel = getEventDateLabel(item, registryItem);
+                  const locationLabel = getEventLocationLabel(item, registryItem);
                   return (
                     <EventCanvasCard
                       key={item.canonicalEventKey}
@@ -666,18 +697,27 @@ export function NormalUserEventsPage() {
                             <h2 className="line-clamp-2 text-2xl font-light leading-[1.12] tracking-[-0.02em] !text-[rgb(255,255,255)] [text-shadow:0_1px_20px_rgba(255,255,255,0.28),0_8px_24px_rgba(0,0,0,0.65)] sm:text-3xl 2xl:text-4xl">
                               {displayTitle}
                             </h2>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="inline-flex h-8 items-center rounded-full border border-white/85 bg-white/68 px-3 text-xs font-medium text-zinc-900 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px]">
+                                {dateLabel}
+                              </span>
+                              <span className="inline-flex h-8 max-w-[18rem] items-center truncate rounded-full border border-white/85 bg-white/68 px-3 text-xs font-medium text-zinc-900 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px]">
+                                {locationLabel}
+                              </span>
+                            </div>
 
-                            <div className="flex items-baseline gap-3">
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="flex min-w-0 items-baseline gap-3">
+                              <span className="truncate text-sm font-medium tracking-[0.02em] !text-[rgba(255,255,255,0.72)]">Leads To Cover</span>
                               <span className="text-2xl font-light tabular-nums tracking-tight !text-[rgb(255,255,255)] [text-shadow:0_1px_18px_rgba(255,255,255,0.22),0_8px_24px_rgba(0,0,0,0.62)] 2xl:text-3xl">
                                 {Number(item.leadCount).toLocaleString()}
                               </span>
-                              <span className="text-sm font-medium tracking-[0.02em] !text-[rgba(255,255,255,0.72)]">Leads To Cover</span>
                             </div>
-                          </div>
-
-                          <div className="relative flex h-10 w-10 items-center justify-center rounded-md border border-[rgba(125,211,252,0.28)] bg-[linear-gradient(180deg,rgba(10,16,26,0.96),rgba(5,9,15,0.96))] text-[rgb(255,255,255)] shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_0_1px_rgba(34,211,238,0.08),0_0_22px_-14px_rgba(34,211,238,0.55)] transition-[border-color,box-shadow,transform] group-hover/canvas-card:border-[rgba(103,232,249,0.52)] group-hover/canvas-card:shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_0_0_1px_rgba(34,211,238,0.18),0_0_26px_-10px_rgba(34,211,238,0.72)] 2xl:h-11 2xl:w-11">
-                            <div className="pointer-events-none absolute inset-x-1.5 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(103,232,249,0.72)] to-transparent" />
-                            <ArrowLeft className="h-[0.95rem] w-[0.95rem] rotate-180 2xl:h-[1.05rem] 2xl:w-[1.05rem]" />
+                            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[rgba(125,211,252,0.28)] bg-[linear-gradient(180deg,rgba(10,16,26,0.96),rgba(5,9,15,0.96))] text-[rgb(255,255,255)] shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_0_1px_rgba(34,211,238,0.08),0_0_22px_-14px_rgba(34,211,238,0.55)] transition-[border-color,box-shadow,transform] group-hover/canvas-card:border-[rgba(103,232,249,0.52)] group-hover/canvas-card:shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_0_0_1px_rgba(34,211,238,0.18),0_0_26px_-10px_rgba(34,211,238,0.72)] 2xl:h-11 2xl:w-11">
+                              <div className="pointer-events-none absolute inset-x-1.5 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(103,232,249,0.72)] to-transparent" />
+                              <ArrowLeft className="h-[0.95rem] w-[0.95rem] rotate-180 2xl:h-[1.05rem] 2xl:w-[1.05rem]" />
+                            </div>
                           </div>
                         </div>
 
@@ -694,6 +734,8 @@ export function NormalUserEventsPage() {
                 {filteredItems.map((item, index) => {
                   const registryItem = getRegistryItem(item);
                   const displayTitle = getEventDisplayTitle(item);
+                  const dateLabel = getEventDateLabel(item, registryItem);
+                  const locationLabel = getEventLocationLabel(item, registryItem);
                   return (
                     <EventCanvasCard
                       key={item.canonicalEventKey}
@@ -720,19 +762,24 @@ export function NormalUserEventsPage() {
                               {displayTitle}
                             </h2>
                           </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex h-8 items-center rounded-full border border-white/85 bg-white/68 px-3 text-xs font-medium text-zinc-900 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px]">
+                              {dateLabel}
+                            </span>
+                            <span className="inline-flex h-8 max-w-[15.5rem] items-center truncate rounded-full border border-white/85 bg-white/68 px-3 text-xs font-medium text-zinc-900 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px]">
+                              {locationLabel}
+                            </span>
+                          </div>
                         </div>
 
-                        <div className="mt-5 flex items-end justify-between">
-                          <div className="space-y-1">
-                            <span className="text-sm font-medium tracking-[0.02em] !text-[rgba(255,255,255,0.72)]">Leads To Cover</span>
-                            <div className="flex items-baseline gap-2">
-                              <span className="text-3xl font-light tabular-nums tracking-tight !text-[rgb(255,255,255)] [text-shadow:0_1px_18px_rgba(255,255,255,0.22),0_8px_24px_rgba(0,0,0,0.62)]">
-                                {Number(item.leadCount).toLocaleString()}
-                              </span>
-                              <span className="text-sm font-normal !text-[rgba(255,255,255,0.76)]">leads</span>
-                            </div>
+                        <div className="mt-5 flex items-end justify-between gap-4">
+                          <div className="flex min-w-0 items-baseline gap-3">
+                            <span className="text-3xl font-light tabular-nums tracking-tight !text-[rgb(255,255,255)] [text-shadow:0_1px_18px_rgba(255,255,255,0.22),0_8px_24px_rgba(0,0,0,0.62)]">
+                              {Number(item.leadCount).toLocaleString()}
+                            </span>
+                            <span className="truncate text-sm font-medium tracking-[0.02em] !text-[rgba(255,255,255,0.72)]">Leads To Cover</span>
                           </div>
-                          <div className="relative flex h-10 w-10 items-center justify-center rounded-md border border-[rgba(125,211,252,0.28)] bg-[linear-gradient(180deg,rgba(10,16,26,0.96),rgba(5,9,15,0.96))] text-[rgb(255,255,255)] shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_0_1px_rgba(34,211,238,0.08),0_0_22px_-14px_rgba(34,211,238,0.55)] transition-[border-color,box-shadow,transform] group-hover/canvas-card:border-[rgba(103,232,249,0.52)] group-hover/canvas-card:shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_0_0_1px_rgba(34,211,238,0.18),0_0_26px_-10px_rgba(34,211,238,0.72)] 2xl:h-11 2xl:w-11">
+                          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[rgba(125,211,252,0.28)] bg-[linear-gradient(180deg,rgba(10,16,26,0.96),rgba(5,9,15,0.96))] text-[rgb(255,255,255)] shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_0_1px_rgba(34,211,238,0.08),0_0_22px_-14px_rgba(34,211,238,0.55)] transition-[border-color,box-shadow,transform] group-hover/canvas-card:border-[rgba(103,232,249,0.52)] group-hover/canvas-card:shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_0_0_1px_rgba(34,211,238,0.18),0_0_26px_-10px_rgba(34,211,238,0.72)] 2xl:h-11 2xl:w-11">
                             <div className="pointer-events-none absolute inset-x-1.5 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(103,232,249,0.72)] to-transparent" />
                             <ArrowLeft className="h-[0.95rem] w-[0.95rem] rotate-180 2xl:h-[1.05rem] 2xl:w-[1.05rem]" />
                           </div>
