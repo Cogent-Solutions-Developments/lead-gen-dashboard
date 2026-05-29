@@ -73,7 +73,7 @@ function FloatingDockMobile({
       <button
         type="button"
         onClick={() => setOpen((next) => !next)}
-        className="flex h-12 w-12 items-center justify-center rounded-full border border-white/38 bg-white/18 text-zinc-100 ring-1 ring-white/24 shadow-[inset_0_1px_0_rgba(255,255,255,0.42),inset_0_-1px_0_rgba(255,255,255,0.12),0_12px_28px_-18px_rgba(2,10,27,0.72),0_4px_12px_-8px_rgba(2,10,27,0.58)] backdrop-blur-[26px] transition hover:bg-white/24"
+        className="flex h-12 w-12 items-center justify-center rounded-full border border-white/24 bg-[rgba(12,18,30,0.52)] text-zinc-100 ring-1 ring-white/16 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-1px_0_rgba(255,255,255,0.05),0_14px_30px_-18px_rgba(2,10,27,0.92),0_0_30px_-20px_rgba(56,189,248,0.48)] backdrop-blur-[28px] transition hover:bg-[rgba(17,26,42,0.62)]"
         aria-label={open ? "Close navigation dock" : "Open navigation dock"}
       >
         <ChevronUp className={cn("h-5 w-5 transition-transform", open && "rotate-180")} />
@@ -96,11 +96,15 @@ function FloatingDockDesktop({
       onMouseMove={(event) => mouseX.set(event.clientX)}
       onMouseLeave={() => mouseX.set(Infinity)}
       className={cn(
-        "mx-auto hidden h-16 items-end gap-3 rounded-2xl border border-white/34 bg-white/14 px-4 pb-3 ring-1 ring-white/24 shadow-[inset_0_1px_0_rgba(255,255,255,0.42),inset_0_-1px_0_rgba(255,255,255,0.1),0_12px_28px_-18px_rgba(2,10,27,0.74),0_4px_12px_-8px_rgba(2,10,27,0.6)] backdrop-blur-[26px] md:flex",
+        "relative mx-auto hidden h-16 items-end gap-3 overflow-visible rounded-2xl border border-white/24 bg-[rgba(10,16,28,0.54)] px-4 pb-3 ring-1 ring-white/16 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-1px_0_rgba(255,255,255,0.05),0_18px_40px_-24px_rgba(2,10,27,0.92),0_0_36px_-22px_rgba(56,189,248,0.45)] backdrop-blur-[28px] md:flex",
         className
       )}
       aria-label="Primary navigation"
     >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-[1px] rounded-[inherit] bg-[linear-gradient(155deg,rgba(255,255,255,0.2)_0%,rgba(255,255,255,0.06)_32%,rgba(15,23,42,0.08)_56%,rgba(15,23,42,0.22)_100%)]"
+      />
       {items.map((item) => (
         <IconContainer key={item.title} mouseX={mouseX} item={item} />
       ))}
@@ -145,7 +149,7 @@ function IconContainer({
           "relative flex aspect-square items-center justify-center rounded-full border transition-colors",
           item.active
             ? "border-blue-500/70 bg-blue-600 text-white shadow-[0_14px_28px_-18px_rgba(37,99,235,0.8)]"
-            : "border-white/38 bg-white/20 text-zinc-100 ring-1 ring-white/26 shadow-[inset_0_1px_0_rgba(255,255,255,0.44),inset_0_-1px_0_rgba(255,255,255,0.12),0_10px_24px_-16px_rgba(2,10,27,0.66)] backdrop-blur-[24px] hover:bg-white/26 hover:text-white",
+            : "border-white/22 bg-[rgba(16,24,38,0.6)] text-zinc-100 ring-1 ring-white/14 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-1px_0_rgba(255,255,255,0.05),0_12px_24px_-16px_rgba(2,10,27,0.84),0_0_24px_-18px_rgba(56,189,248,0.44)] backdrop-blur-[24px] hover:bg-[rgba(20,30,47,0.72)] hover:text-white",
           item.disabled && "cursor-not-allowed opacity-55"
         )}
       >
@@ -181,14 +185,24 @@ function DockAction({
   if (children) {
     if (item.href) {
       return (
-        <Link href={item.href} aria-label={item.title} className={cn(item.disabled && "pointer-events-none")}>
+        <Link
+          href={item.href}
+          aria-label={item.title}
+          className={cn("relative inline-flex overflow-visible", item.disabled && "pointer-events-none")}
+        >
           {children}
         </Link>
       );
     }
 
     return (
-      <button type="button" onClick={item.onClick} disabled={item.disabled} aria-label={item.title}>
+      <button
+        type="button"
+        onClick={item.onClick}
+        disabled={item.disabled}
+        aria-label={item.title}
+        className="relative inline-flex overflow-visible"
+      >
         {children}
       </button>
     );
@@ -198,7 +212,7 @@ function DockAction({
     "flex h-11 w-11 items-center justify-center rounded-full border transition",
     item.active
       ? "border-blue-500/70 bg-blue-600 text-white"
-      : "border-white/38 bg-white/20 text-zinc-100 ring-1 ring-white/26 shadow-[inset_0_1px_0_rgba(255,255,255,0.44),inset_0_-1px_0_rgba(255,255,255,0.12),0_10px_24px_-16px_rgba(2,10,27,0.66)] backdrop-blur-[24px] hover:bg-white/26 hover:text-white",
+      : "border-white/22 bg-[rgba(16,24,38,0.6)] text-zinc-100 ring-1 ring-white/14 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-1px_0_rgba(255,255,255,0.05),0_12px_24px_-16px_rgba(2,10,27,0.84),0_0_24px_-18px_rgba(56,189,248,0.44)] backdrop-blur-[24px] hover:bg-[rgba(20,30,47,0.72)] hover:text-white",
     compact && "h-10 w-10",
     item.disabled && "cursor-not-allowed opacity-55"
   );
