@@ -1740,7 +1740,7 @@ export function NormalUserEventLeadSheet() {
 
               <div>
                 <label className="mb-6 block text-xs font-medium text-zinc-400">Search intelligence</label>
-                <div className="relative w-full rounded-full border border-zinc-300 bg-white px-4 py-2 shadow-[0_22px_60px_-52px_rgba(2,10,27,0.42)] transition-colors focus-within:border-zinc-400">
+                <div className="relative w-full rounded-full border border-white/85 bg-white/68 px-4 py-2 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px] transition-colors focus-within:border-white/95">
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                   <input
                     value={searchInput}
@@ -1756,13 +1756,13 @@ export function NormalUserEventLeadSheet() {
                 <button
                   type="button"
                   onClick={() => setFilterOpen(true)}
-                  className="flex h-11 w-full items-center justify-between rounded-full border border-zinc-300 bg-white px-4 text-left shadow-[0_18px_46px_-42px_rgba(2,10,27,0.42)] transition-colors hover:border-zinc-400"
+                  className="flex h-11 w-full items-center justify-between rounded-full border border-white/85 bg-white/68 px-4 text-left ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px] transition-colors hover:bg-white/74"
                 >
                   <span className="inline-flex items-center gap-4 text-sm font-light text-zinc-500">
                     <SlidersHorizontal className="h-4 w-4" />
                     Advanced filters
                   </span>
-                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-zinc-100 px-1.5 text-xs font-medium tabular-nums text-zinc-500">
+                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-white/70 bg-white/55 px-1.5 text-xs font-medium tabular-nums text-zinc-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
                     {activeFilterCount}
                   </span>
                 </button>
@@ -1790,7 +1790,7 @@ export function NormalUserEventLeadSheet() {
                     <div className="flex items-center justify-between border-b border-zinc-100 py-4">
                       <span className="text-sm font-light text-zinc-500">Visible range</span>
                       <Select value={String(pageSize)} onValueChange={(value) => handlePageSizeChange(Number(value))}>
-                        <SelectTrigger className="h-9 w-16 justify-end gap-1 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-xl font-light tabular-nums tracking-tight text-zinc-950 shadow-none transition-colors focus:border-blue-600 focus:ring-0 [&>svg]:ml-0">
+                        <SelectTrigger className="h-9 w-16 justify-end gap-1 rounded-none border-0 border-b border-zinc-300 !bg-transparent px-0 text-xl font-light tabular-nums tracking-tight text-zinc-950 shadow-none transition-colors hover:!bg-transparent dark:!bg-transparent dark:hover:!bg-transparent data-[state=open]:!bg-transparent focus:border-blue-600 focus:ring-0 [&>svg]:ml-0">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent align="end" className="rounded-none border-zinc-300 shadow-xl">
@@ -2035,7 +2035,7 @@ export function NormalUserEventLeadSheet() {
                 <Button
                   variant="ghost"
                   aria-label="Previous page"
-                  className="h-11 w-11 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none transition-all hover:border-zinc-900 hover:bg-white hover:text-zinc-950 disabled:opacity-30"
+                  className="h-11 w-11 rounded-full border border-white/85 bg-white/68 p-0 text-zinc-700 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px] transition-all hover:bg-white/78 hover:text-zinc-950 disabled:opacity-35"
                   onClick={() => setPageOffset((prev) => Math.max(0, prev - pageSize))}
                   disabled={pageOffset === 0 || loadingLeads}
                 >
@@ -2044,7 +2044,7 @@ export function NormalUserEventLeadSheet() {
                 <Button
                   variant="ghost"
                   aria-label="Next page"
-                  className="h-11 w-11 rounded-full border border-zinc-950 bg-transparent p-0 text-zinc-950 shadow-none transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white disabled:border-zinc-300 disabled:text-zinc-300 disabled:opacity-100"
+                  className="h-11 w-11 rounded-full border border-white/85 bg-white/68 p-0 text-zinc-900 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px] transition-all hover:border-blue-500/70 hover:bg-blue-600 hover:text-white hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_0_26px_-12px_rgba(59,130,246,0.9)] disabled:border-white/55 disabled:bg-white/45 disabled:text-zinc-400 disabled:opacity-100"
                   onClick={() => setPageOffset((prev) => prev + pageSize)}
                   disabled={!hasMore || loadingLeads}
                 >
