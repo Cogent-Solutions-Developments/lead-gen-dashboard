@@ -423,6 +423,22 @@ function asText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function shortenEventName(value: string) {
+  const words = value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length <= 4) return value.trim() || "Untitled Event";
+  return `${words.slice(0, 4).join(" ")}...`;
+}
+
+function getEventDisplayTitle(value?: string | null) {
+  const rawName = String(value || "").trim();
+  const segments = rawName.split(/\s+(?:-|[|•·])\s+/).filter(Boolean);
+  const baseName = segments[0] || rawName || "Intelligence Registry";
+  return shortenEventName(baseName);
+}
+
 function normalizeLeadCategory(value: unknown) {
   const label = asText(value);
   if (!label || label.toLowerCase() === "other") return UNCATEGORIZED_CATEGORY_LABEL;
@@ -1580,7 +1596,7 @@ export function NormalUserEventLeadSheet() {
             <div>
               <div>
                 <h1 className="max-w-5xl text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
-                  {selectedEvent?.canonicalEventName || "Intelligence Registry"}
+                  {getEventDisplayTitle(selectedEvent?.canonicalEventName)}
                 </h1>
               </div>
             </div>
@@ -1633,7 +1649,7 @@ export function NormalUserEventLeadSheet() {
                   <SelectContent className="rounded-none border-zinc-300 shadow-xl">
                     {events.map((item) => (
                       <SelectItem key={item.canonicalEventKey} value={item.canonicalEventKey}>
-                        {item.canonicalEventName}
+                        {getEventDisplayTitle(item.canonicalEventName)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -2837,7 +2853,7 @@ export function NormalUserEventLeadSheet() {
               <SelectContent className="z-[120] rounded-none border-zinc-300 bg-white shadow-2xl">
                 {events.map((item) => (
                   <SelectItem key={item.canonicalEventKey} value={item.canonicalEventKey}>
-                    {item.canonicalEventName}
+                    {getEventDisplayTitle(item.canonicalEventName)}
                   </SelectItem>
                 ))}
               </SelectContent>
