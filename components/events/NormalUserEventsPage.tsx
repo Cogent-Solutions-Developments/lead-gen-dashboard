@@ -590,14 +590,14 @@ export function NormalUserEventsPage() {
                   collapsedWidth={118}
                   expandedWidth={260}
                   expandedOffset={58}
-                  gooeyBlur={4.8}
+                  gooeyBlur={2.8}
                   classNames={{
                     trigger:
-                      "h-10 border border-zinc-300 bg-zinc-900/95 !text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_14px_rgba(0,0,0,0.18)]",
+                      "h-10 border border-white/85 bg-white/68 !text-zinc-900 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px]",
                     input:
-                      "!text-zinc-100 placeholder:!text-zinc-400",
+                      "!text-zinc-900 placeholder:!text-zinc-600/95",
                     bubbleSurface:
-                      "border border-zinc-300 bg-zinc-900/95 !text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_14px_rgba(0,0,0,0.18)]",
+                      "border border-white/90 bg-white/72 !text-zinc-900 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.98),inset_0_-1px_0_rgba(255,255,255,0.4),0_12px_28px_-18px_rgba(2,10,27,0.62),0_4px_12px_-8px_rgba(2,10,27,0.45)] backdrop-blur-[30px]",
                   }}
                 />
                 <ConferenceGestureController
