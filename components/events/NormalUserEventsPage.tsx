@@ -11,6 +11,7 @@ import { ProtectedImage } from "@/components/storage/ProtectedImage";
 import { CanvasRevealEffect } from "@/components/ui/canvas-reveal-effect";
 import { GooeyInput } from "@/components/ui/gooey-input";
 import { ConferenceGestureController } from "@/components/events/ConferenceGestureController";
+import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
   LayoutGrid,
@@ -606,34 +607,34 @@ export function NormalUserEventsPage() {
                   onViewModeChange={setViewMode}
                   onHoverTargetChange={setGestureHoverKey}
                 />
-                <div className="inline-flex h-11 items-center rounded-2xl border border-zinc-300 bg-zinc-900/95 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_14px_rgba(0,0,0,0.18)]">
-                  <button
-                    type="button"
-                    aria-label="Grid view"
-                    aria-pressed={viewMode === "grid"}
-                    onClick={() => setViewMode("grid")}
-                    className={`inline-flex h-9 w-11 items-center justify-center rounded-xl transition ${
-                      viewMode === "grid"
-                        ? "bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]"
-                        : "text-zinc-400 hover:text-zinc-100"
-                    }`}
-                  >
-                    <LayoutGrid className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="List view"
-                    aria-pressed={viewMode === "list"}
-                    onClick={() => setViewMode("list")}
-                    className={`inline-flex h-9 w-11 items-center justify-center rounded-xl transition ${
-                      viewMode === "list"
-                        ? "bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]"
-                        : "text-zinc-400 hover:text-zinc-100"
-                    }`}
-                  >
-                    <List className="h-4 w-4" />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  aria-label="Grid view"
+                  aria-pressed={viewMode === "grid"}
+                  onClick={() => setViewMode("grid")}
+                  className={cn(
+                    "inline-flex h-11 w-11 items-center justify-center rounded-full border p-0 transition",
+                    viewMode === "grid"
+                      ? "border-blue-400/70 bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_0_26px_-12px_rgba(59,130,246,0.9)]"
+                      : "border-white/85 bg-white/68 text-zinc-900 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px] hover:bg-white/78"
+                  )}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="List view"
+                  aria-pressed={viewMode === "list"}
+                  onClick={() => setViewMode("list")}
+                  className={cn(
+                    "inline-flex h-11 w-11 items-center justify-center rounded-full border p-0 transition",
+                    viewMode === "list"
+                      ? "border-blue-400/70 bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_0_26px_-12px_rgba(59,130,246,0.9)]"
+                      : "border-white/85 bg-white/68 text-zinc-900 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px] hover:bg-white/78"
+                  )}
+                >
+                  <List className="h-4 w-4" />
+                </button>
               </div>
             </div>
           </div>

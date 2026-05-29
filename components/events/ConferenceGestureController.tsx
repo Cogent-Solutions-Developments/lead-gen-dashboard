@@ -431,10 +431,10 @@ export function ConferenceGestureController({
         aria-pressed={enabled}
         onClick={() => setEnabled((current) => !current)}
         className={cn(
-          "inline-flex h-11 w-11 items-center justify-center rounded-2xl border p-0 transition",
+          "inline-flex h-11 w-11 items-center justify-center rounded-full border p-0 transition",
           enabled
             ? "border-blue-400/70 bg-blue-600 text-[rgb(255,255,255)] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_0_26px_-12px_rgba(59,130,246,0.9)]"
-            : "border-zinc-300 bg-zinc-900/95 text-zinc-400 hover:text-zinc-100"
+            : "border-white/85 bg-white/68 text-zinc-900 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px] hover:bg-white/78"
         )}
       >
         {error ? <CameraOff className="h-4 w-4" /> : <Hand className="h-4 w-4" />}
