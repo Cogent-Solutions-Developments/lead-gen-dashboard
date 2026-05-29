@@ -222,6 +222,28 @@ Architecture notes:
 - `lib/api.ts`, `lib/apidele.ts`, and `lib/apiproduction.ts` duplicate a lot of endpoint logic with different URL prefixes.
 - A future improvement is a single API factory that accepts a namespace prefix, reducing drift between persona modules.
 
+Detailed usage status:
+
+| File/folder | What it does | Still used? |
+|---|---|---|
+| `hooks/useAuth.ts` | React hook around stored auth session. Exposes current user, role checks, super-admin/pipeline booleans. | Yes. Used by layout, dashboard, campaigns, leads, admin pages, profile, sign-in-related flows. |
+| `hooks/usePersona.ts` | React hook around current workspace persona. Listens for persona changes and lets UI switch persona. | Yes. Used by dashboard, sidebar, campaigns, leads, settings, chooser, and normal-user lead sheet. |
+| `lib/api.ts` | Main Sales/default API wrapper. Defines most shared API types and functions. | Yes. Used directly by some admin pages and indirectly through `apiRouter`. |
+| `lib/apiClient.ts` | Shared Axios instance for Sales/default API calls. Adds API key, auth token, ngrok headers, and common error handling. | Yes. Imported by `lib/api.ts`. |
+| `lib/apidele.ts` | Delegate API wrapper. Mirrors `api.ts` but targets `/api/delegates/...`. | Yes. Used by `lib/apiRouter.ts` when persona is `delegates`. |
+| `lib/apiproduction.ts` | Production API wrapper. Mirrors `api.ts` but targets `/api/productions/...`. | Yes. Used by `lib/apiRouter.ts` when persona is `production`. |
+| `lib/apiRouter.ts` | Persona-aware facade. Pages call this so they do not manually choose Sales/Delegates/Production API modules. | Yes. Core active integration layer. |
+| `lib/auth.ts` | Auth/session storage, role helpers, auth API calls, admin APIs, profile/storage helpers, system monitor/operations helpers. | Yes. Core active file. |
+| `lib/campaignUploadSummary.ts` | Stores upload import summaries in `sessionStorage` so upload/detail/lead-sheet screens can show import results after redirect. | Yes. Used by campaign upload, campaign detail, and normal-user lead sheet. |
+| `lib/dashboard-transition.ts` | Custom dashboard exit transition event and timing constants. | Yes. Used by dashboard and sidebar navigation transitions. |
+| `lib/devNgrok.ts` | Adds `ngrok-skip-browser-warning` header in local development when backend URL is ngrok. | Yes. Used by API clients and auth/admin requests. |
+| `lib/manifesto.ts` | Returns a deterministic daily dashboard message for a user. | Yes. Used by `app/dashboard/page.tsx`. |
+| `lib/nizoAiSearch.ts` | Older/local NizoAI parsing and ranking helpers for leads/events. Current NizoAI page uses backend chat/mention APIs instead. | Not currently imported by app code. Cleanup candidate if local search mode is retired. |
+| `lib/persona.ts` | Low-level persona storage helpers and `persona-change` event dispatcher. | Yes. Core active file used by `AppShell`, hooks, sidebar, chooser, and sign-in flow. |
+| `lib/sales-marathon/*` | Service/policy/client for the old local sales marathon leaderboard route. | Only used by `app/api/sales-marathon/leaderboard/route.ts`; no current frontend caller found for that route. Legacy cleanup candidate. |
+| `lib/supabaseClient.ts` | Creates a Supabase browser client from public Supabase env vars. | Not currently imported by app code. Cleanup candidate unless Supabase storage work is coming back. |
+| `lib/utils.ts` | Shared `cn()` class-name helper for Tailwind/class merging. | Yes. Used across UI primitives and visual components. |
+
 ### `hooks/`
 
 | File | Purpose |

@@ -3,6 +3,7 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
+import { Bungee_Hairline } from "next/font/google";
 import { listEvents, type EventSummaryItem } from "@/lib/apiRouter";
 import { getCachedAuthUserDisplayName, listActiveEventRegistry, type AdminEventItem } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,6 +18,8 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+
+const bungeeHairline = Bungee_Hairline({ subsets: ["latin"], weight: "400" });
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong.";
@@ -455,8 +458,14 @@ export function NormalUserEventsPage() {
             />
           </motion.svg>
 
-          <p className="relative z-[2] text-[1.3rem] font-medium leading-[1.14] tracking-[-0.028em] text-zinc-950 2xl:text-[1.4rem]">
-            Hey {firstName}. I’m supernizo agent, ready to help you cover every lead. Lets get started!</p>
+          <p className="relative z-[2] text-[1.14rem] font-medium leading-[1.16] tracking-[-0.02em] text-zinc-950 2xl:text-[1.22rem]">
+            Hey {firstName}. Which conference should we cover first?
+          </p>
+          <p className="relative z-[2] mt-4 inline-flex items-baseline gap-1 text-[0.84rem] leading-none text-cyan-100/55 2xl:text-[0.9rem]">
+            <span className="relative -top-[2px] font-normal">supernizo</span>
+            <span className={`${bungeeHairline.className} text-[1.08em] leading-none`}>HEAVY</span>
+            <span className="font-medium">Agent</span>
+          </p>
         </motion.div>
         <motion.img
           src="/videos/BlockchainEventPromoconverted_1-ezgif.com-optimize%20(1).gif"
