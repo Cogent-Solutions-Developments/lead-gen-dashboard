@@ -1605,13 +1605,13 @@ export function NormalUserEventLeadSheet() {
                       side="bottom"
                       align="start"
                       sideOffset={42}
-                      className="z-[120] rounded-2xl border border-white/14 bg-[rgba(12,18,30,0.74)] p-1 text-zinc-100 ring-1 ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),inset_0_-1px_0_rgba(255,255,255,0.03),0_16px_38px_-24px_rgba(2,10,27,0.9),0_8px_20px_-14px_rgba(2,10,27,0.72)] backdrop-blur-[28px]"
+                      className="z-[120] rounded-2xl border border-white/72 bg-[linear-gradient(180deg,rgba(30,37,49,0.78)_0%,rgba(17,24,36,0.78)_100%)] p-1 text-zinc-100 ring-1 ring-white/22 shadow-[inset_0_1px_0_rgba(255,255,255,0.34),inset_0_-1px_0_rgba(255,255,255,0.1),0_12px_28px_-18px_rgba(2,10,27,0.78),0_4px_12px_-8px_rgba(2,10,27,0.62)] backdrop-blur-[30px]"
                     >
                       {events.map((item) => (
                         <SelectItem
                           key={item.canonicalEventKey}
                           value={item.canonicalEventKey}
-                          className="rounded-xl py-2.5 text-base font-medium text-zinc-100 focus:bg-white/10 focus:text-white data-[state=checked]:bg-white/12 data-[state=checked]:text-white"
+                          className="rounded-xl py-2.5 text-sm font-medium text-zinc-100 focus:bg-white/14 focus:text-white data-[state=checked]:bg-white/18 data-[state=checked]:text-white"
                         >
                           {getEventDisplayTitle(item.canonicalEventName)}
                         </SelectItem>
