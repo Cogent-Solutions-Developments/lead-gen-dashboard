@@ -486,7 +486,7 @@ export function NormalUserEventsPage() {
                 />
               </motion.svg>
 
-              <p className="relative z-[2] text-[1.14rem] font-medium leading-[1.16] tracking-[-0.02em] text-zinc-950 2xl:text-[1.22rem]">
+              <p className="relative z-[2] text-[1.02rem] font-medium leading-[1.16] tracking-[-0.02em] text-zinc-950 2xl:text-[1.1rem]">
                 Hey {firstName}. Which conference should we cover first?
               </p>
               <p className="relative z-[2] mt-4 inline-flex items-baseline gap-1 text-[0.84rem] leading-none text-cyan-100/55 2xl:text-[0.9rem]">
@@ -549,7 +549,7 @@ export function NormalUserEventsPage() {
                 />
               </motion.svg>
 
-              <p className="relative z-[2] text-[1.14rem] font-medium leading-[1.16] tracking-[-0.02em] text-zinc-950 2xl:text-[1.22rem]">
+              <p className="relative z-[2] text-[1.02rem] font-medium leading-[1.16] tracking-[-0.02em] text-zinc-950 2xl:text-[1.1rem]">
                 Hey {firstName}. Which conference should we cover first?
               </p>
               <p className="relative z-[2] mt-4 inline-flex items-baseline gap-1 text-[0.84rem] leading-none text-cyan-100/55 2xl:text-[0.9rem]">
