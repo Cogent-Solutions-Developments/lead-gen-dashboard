@@ -23,45 +23,6 @@ import { toast } from "sonner";
 
 const bungeeHairline = Bungee_Hairline({ subsets: ["latin"], weight: "400" });
 
-type VoiceRecognitionResult = {
-  transcript?: string;
-};
-
-type VoiceRecognitionResultList = {
-  isFinal?: boolean;
-  [index: number]: VoiceRecognitionResult;
-};
-
-type VoiceRecognitionEvent = {
-  resultIndex: number;
-  results: VoiceRecognitionResultList[];
-};
-
-type VoiceRecognitionErrorEvent = {
-  error?: string;
-};
-
-type VoiceRecognitionLike = {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  maxAlternatives: number;
-  onresult: ((event: VoiceRecognitionEvent) => void) | null;
-  onerror: ((event: VoiceRecognitionErrorEvent) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-};
-
-type VoiceRecognitionCtor = new () => VoiceRecognitionLike;
-
-declare global {
-  interface Window {
-    SpeechRecognition?: VoiceRecognitionCtor;
-    webkitSpeechRecognition?: VoiceRecognitionCtor;
-  }
-}
-
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong.";
 }
@@ -354,101 +315,8 @@ export function NormalUserEventsPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [gestureHoverKey, setGestureHoverKey] = useState<string | null>(null);
   const [activeSpeechSide, setActiveSpeechSide] = useState<"right" | "left">("right");
-  const [voiceSearchActive, setVoiceSearchActive] = useState(false);
-  const voiceRecognitionRef = useRef<VoiceRecognitionLike | null>(null);
-  const shouldKeepListeningRef = useRef(false);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const hasSearch = searchQuery.trim().length > 0;
-
-  const stopVoiceRecognition = useCallback(() => {
-    shouldKeepListeningRef.current = false;
-    setVoiceSearchActive(false);
-    const recognition = voiceRecognitionRef.current;
-    if (!recognition) return;
-    recognition.onresult = null;
-    recognition.onerror = null;
-    recognition.onend = null;
-    try {
-      recognition.stop();
-    } catch {
-      // best effort
-    }
-    voiceRecognitionRef.current = null;
-  }, []);
-
-  const startVoiceRecognition = useCallback(() => {
-    if (typeof window === "undefined") return;
-    const RecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!RecognitionCtor) {
-      toast.error("Voice search is not supported in this browser.");
-      return;
-    }
-
-    stopVoiceRecognition();
-    shouldKeepListeningRef.current = true;
-    setVoiceSearchActive(true);
-
-    const recognition = new RecognitionCtor();
-    recognition.lang = "en-US";
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
-
-    recognition.onresult = (event) => {
-      let transcript = "";
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        transcript += event.results[i]?.[0]?.transcript || "";
-      }
-      setSearchQuery(transcript.trim());
-    };
-
-    recognition.onerror = (event) => {
-      if (event.error === "aborted" || event.error === "no-speech") return;
-      toast.error("Voice search failed", {
-        description: event.error || "Could not capture your voice.",
-      });
-    };
-
-    recognition.onend = () => {
-      voiceRecognitionRef.current = null;
-      if (!shouldKeepListeningRef.current) return;
-      try {
-        recognition.start();
-        voiceRecognitionRef.current = recognition;
-      } catch {
-        shouldKeepListeningRef.current = false;
-        setVoiceSearchActive(false);
-      }
-    };
-
-    voiceRecognitionRef.current = recognition;
-    try {
-      recognition.start();
-    } catch {
-      voiceRecognitionRef.current = null;
-      shouldKeepListeningRef.current = false;
-      setVoiceSearchActive(false);
-      toast.error("Could not start voice search.");
-    }
-  }, [stopVoiceRecognition]);
-
-  const handleGestureVoiceSearchTrigger = useCallback(() => {
-    startVoiceRecognition();
-  }, [startVoiceRecognition]);
-
-  const handleGestureVoiceSearchStop = useCallback(() => {
-    stopVoiceRecognition();
-  }, [stopVoiceRecognition]);
-
-  const handleGestureVoiceBackspace = useCallback(() => {
-    setSearchQuery((current) => {
-      const trimmed = current.trimEnd();
-      if (!trimmed) return "";
-      const withoutLastWord = trimmed.replace(/\s+\S*$/, "");
-      if (withoutLastWord !== trimmed) return withoutLastWord.trimEnd();
-      return trimmed.slice(0, -1);
-    });
-  }, []);
 
   const registryByEvent = useMemo(() => {
     const byId = new Map<string, AdminEventItem>();
@@ -520,8 +388,6 @@ export function NormalUserEventsPage() {
       if (leftSwitchTimer) window.clearTimeout(leftSwitchTimer);
     };
   }, []);
-
-  useEffect(() => () => stopVoiceRecognition(), [stopVoiceRecognition]);
 
   const filteredItems = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -726,7 +592,6 @@ export function NormalUserEventsPage() {
                   placeholder="Search conferences..."
                   value={searchQuery}
                   onValueChange={setSearchQuery}
-                  forceExpanded={voiceSearchActive}
                   collapsedWidth={118}
                   expandedWidth={260}
                   expandedOffset={58}
@@ -745,9 +610,6 @@ export function NormalUserEventsPage() {
                   viewMode={viewMode}
                   onViewModeChange={setViewMode}
                   onHoverTargetChange={setGestureHoverKey}
-                  onVoiceSearchTrigger={handleGestureVoiceSearchTrigger}
-                  onVoiceSearchStop={handleGestureVoiceSearchStop}
-                  onVoiceBackspace={handleGestureVoiceBackspace}
                 />
                 <div className="inline-flex h-11 items-center rounded-full border border-white/85 bg-white/68 p-1 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px]">
                   <button
