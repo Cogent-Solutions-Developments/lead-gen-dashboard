@@ -1596,26 +1596,21 @@ export function NormalUserEventLeadSheet() {
               </div>
 
               <div className="pt-0">
-                <div className="inline-flex h-12 w-full items-center rounded-2xl border border-zinc-300 bg-zinc-900/95 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_14px_rgba(0,0,0,0.18)]">
-                  {canUseTemplateUpload ? (
-                    <button
-                      type="button"
-                      onClick={openTemplateUploadDialog}
-                      disabled={!events.length}
-                      className="inline-flex h-10 flex-1 items-center justify-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-zinc-100 transition hover:bg-white/10 disabled:opacity-50"
-                    >
-                      <UploadCloud className="h-4 w-4" />
-                      Upload leads
-                    </button>
-                  ) : (
-                    <div className="h-10 flex-1" />
-                  )}
-
+                <div className="inline-flex h-11 w-full items-center rounded-full border border-white/85 bg-white/68 p-1 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px]">
+                  <button
+                    type="button"
+                    onClick={openTemplateUploadDialog}
+                    disabled={!canUseTemplateUpload || !events.length}
+                    className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-full px-3 text-sm font-semibold text-zinc-700 transition hover:bg-white/55 hover:text-zinc-950 disabled:opacity-45"
+                  >
+                    <UploadCloud className="h-4 w-4" />
+                    Upload leads
+                  </button>
                   <button
                     type="button"
                     onClick={() => setAddLeadOpen(true)}
                     disabled={!selectedEvent}
-                    className="inline-flex h-10 flex-1 items-center justify-center gap-2.5 rounded-xl bg-blue-600 px-3 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] transition hover:bg-blue-500 disabled:opacity-50"
+                    className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-full bg-blue-600 px-3 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_0_26px_-12px_rgba(59,130,246,0.9)] transition hover:bg-blue-500 disabled:opacity-50"
                   >
                     <Plus className="h-4 w-4" />
                     Add a lead
