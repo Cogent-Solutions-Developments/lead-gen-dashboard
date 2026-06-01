@@ -54,7 +54,6 @@ import {
   Copy,
   Download,
   FileSpreadsheet,
-  FileText,
   Headset,
   History,
   Loader2,
@@ -696,7 +695,7 @@ export function NormalUserEventLeadSheet() {
     error: string;
     downloadingId: string;
   }>({ loading: false, agendas: [], error: "", downloadingId: "" });
-  const [agendaHistoryOpen, setAgendaHistoryOpen] = useState(false);
+  const [headerEventSelectOpen, setHeaderEventSelectOpen] = useState(false);
   const targetLeadRowRef = useRef<HTMLDivElement | null>(null);
   const emailGenerationRequestRef = useRef(0);
   const previousSelectedEventKeyRef = useRef("");
@@ -1029,7 +1028,6 @@ export function NormalUserEventLeadSheet() {
   const hasMore = Boolean(leadPage?.hasMore);
   const isLoading = loadingEvents || (loadingLeads && !leadPage && Boolean(selectedEventKey));
   const latestAgenda = agendaState.agendas[0] ?? null;
-  const previousAgendas = agendaState.agendas.slice(1);
 
   const refreshData = useCallback(async () => {
     await loadInitialData();
@@ -1184,7 +1182,6 @@ export function NormalUserEventLeadSheet() {
     setSearchInput("");
     setSearchQuery("");
     setPageOffset(0);
-    setAgendaHistoryOpen(false);
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.set("event", value);
     nextParams.delete("search");
@@ -1590,13 +1587,20 @@ export function NormalUserEventLeadSheet() {
 
   return (
     <>
-      <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
+      <div className="relative flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
+        {headerEventSelectOpen ? (
+          <div className="pointer-events-none absolute inset-0 z-[90] bg-[rgba(2,8,18,0.08)] backdrop-blur-[3px]" />
+        ) : null}
         <header className="shrink-0 border-b border-zinc-300 pb-10">
           <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div>
                 <h1 className="max-w-5xl">
-                  <Select value={selectedEventKey} onValueChange={handleEventChange}>
+                  <Select
+                    value={selectedEventKey}
+                    onValueChange={handleEventChange}
+                    onOpenChange={setHeaderEventSelectOpen}
+                  >
                     <SelectTrigger className="!h-auto w-fit max-w-[56rem] rounded-none border-0 !bg-transparent px-0 py-0 text-left text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 shadow-none transition-colors hover:!bg-transparent dark:!bg-transparent dark:hover:!bg-transparent data-[state=open]:!bg-transparent focus:border-transparent focus:ring-0 sm:text-4xl 2xl:text-5xl [&>span]:truncate [&>svg]:ml-3 [&>svg]:size-6 [&>svg]:opacity-55">
                       <SelectValue placeholder={getEventDisplayTitle(selectedEvent?.canonicalEventName)} />
                     </SelectTrigger>
@@ -1661,96 +1665,50 @@ export function NormalUserEventLeadSheet() {
             <div className="space-y-8">
               <div className="pt-1">
                 <label className="text-xs font-medium text-zinc-400">Event agenda</label>
-                <div className="mt-5 space-y-4">
+                <div className="mt-5">
                   {agendaState.loading ? (
-                    <div className="flex items-center gap-3 py-4 text-sm font-light text-zinc-500">
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                    <div className="flex items-center gap-2.5 py-3 text-sm font-light text-zinc-500">
+                      <Loader2 className="h-4 w-4 animate-spin text-zinc-500" />
                       Loading agenda library
                     </div>
                   ) : agendaState.error ? (
-                    <div className="border-l border-zinc-200 pl-4 text-sm font-light leading-6 text-zinc-400">
+                    <div className="text-sm font-light leading-6 text-zinc-500">
                       No agenda found for this event.
                     </div>
                   ) : latestAgenda ? (
-                    <>
-                      <div className="space-y-3 border-l border-zinc-200 pl-4">
-                        <div className="flex min-w-0 items-start gap-3">
-                          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-red-100 bg-red-50 text-red-600">
-                            <FileText className="h-4 w-4" />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="truncate text-sm font-medium text-zinc-900">{latestAgenda.name}</p>
-                              <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                                Latest
-                              </span>
-                            </div>
-                            <p className="mt-1 text-xs font-light text-zinc-400">
-                              {formatBytes(latestAgenda.sizeBytes)} · {formatDateTime(latestAgenda.createdAt) || "Time unavailable"}
+                    <div className="space-y-3">
+                      <div className="flex min-w-0 items-start">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="truncate text-base font-semibold leading-tight tracking-tight text-zinc-900">
+                              {latestAgenda.name}
                             </p>
+                            <span className="shrink-0 rounded-full border border-white/85 bg-white/68 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-emerald-700 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px]">
+                              Latest
+                            </span>
                           </div>
+                          <p className="mt-1.5 text-xs font-light text-zinc-500">
+                            {formatBytes(latestAgenda.sizeBytes)} · {formatDateTime(latestAgenda.createdAt) || "Time unavailable"}
+                          </p>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => void handleAgendaDownload(latestAgenda)}
-                          disabled={agendaState.downloadingId === latestAgenda.id}
-                          className="inline-flex h-9 items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-700 transition-colors hover:border-zinc-900 hover:text-zinc-950 disabled:opacity-60"
-                        >
-                          {agendaState.downloadingId === latestAgenda.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Download className="h-3.5 w-3.5" />
-                          )}
-                          Download latest
-                        </button>
                       </div>
 
-                      <div className="space-y-3 border-t border-zinc-100 pt-4">
-                        <button
-                          type="button"
-                          onClick={() => setAgendaHistoryOpen((open) => !open)}
-                          className="group flex w-full items-center justify-between gap-3 text-left"
-                          aria-expanded={agendaHistoryOpen}
-                        >
-                          <span className="inline-flex min-w-0 items-center gap-2 text-xs font-medium text-zinc-500 group-hover:text-zinc-900">
-                            <ChevronRight className={agendaHistoryOpen ? "h-3.5 w-3.5 rotate-90 transition-transform" : "h-3.5 w-3.5 transition-transform"} />
-                            Upload history
-                          </span>
-                          <span className="shrink-0 text-[11px] font-light text-zinc-400">
-                            {previousAgendas.length} previous version{previousAgendas.length === 1 ? "" : "s"}
-                          </span>
-                        </button>
-
-                        {agendaHistoryOpen ? (
-                          <div className="max-h-48 overflow-y-auto pr-1 scrollbar-hide">
-                            {previousAgendas.length > 0 ? (
-                              previousAgendas.map((agenda) => (
-                                <div key={agenda.id} className="relative border-l border-zinc-200 pb-4 pl-4 last:pb-0">
-                                  <span className="absolute -left-[5px] top-1 h-2.5 w-2.5 rounded-full border border-zinc-300 bg-white" />
-                                  <div className="flex w-full min-w-0 items-start justify-between gap-3 text-left">
-                                    <span className="min-w-0">
-                                      <span className="block truncate text-xs font-medium text-zinc-700">{agenda.name}</span>
-                                      <span className="mt-1 block text-[11px] font-light leading-5 text-zinc-400">
-                                        {formatBytes(agenda.sizeBytes)} - {agenda.uploadedByUsername || "admin"} - {formatDateTime(agenda.createdAt) || "-"}
-                                      </span>
-                                    </span>
-                                    <span className="mt-0.5 shrink-0 rounded-full bg-zinc-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
-                                      History
-                                    </span>
-                                  </div>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="border-l border-zinc-200 pl-4 text-xs font-light leading-5 text-zinc-400">
-                                No previous agenda versions.
-                              </div>
-                            )}
-                          </div>
-                        ) : null}
-                      </div>
-                    </>
+                      <button
+                        type="button"
+                        onClick={() => void handleAgendaDownload(latestAgenda)}
+                        disabled={agendaState.downloadingId === latestAgenda.id}
+                        className="inline-flex h-9 items-center gap-2 rounded-full bg-blue-600 px-4 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_0_26px_-12px_rgba(59,130,246,0.9)] transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {agendaState.downloadingId === latestAgenda.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
+                        Download latest
+                      </button>
+                    </div>
                   ) : (
-                    <div className="border-l border-zinc-200 pl-4 text-sm font-light leading-6 text-zinc-400">
+                    <div className="text-sm font-light leading-6 text-zinc-500">
                       No agenda has been uploaded for this event yet.
                     </div>
                   )}
@@ -1789,7 +1747,7 @@ export function NormalUserEventLeadSheet() {
                   <button
                     type="button"
                     onClick={resetFilters}
-                    className="border-b border-transparent pb-1 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950"
+                    className="mt-3 border-b border-transparent pb-1 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950"
                   >
                     Clear filter model
                   </button>
