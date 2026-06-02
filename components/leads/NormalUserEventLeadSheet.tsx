@@ -1597,7 +1597,7 @@ export function NormalUserEventLeadSheet() {
               <Select value={selectedEventKey} onValueChange={handleEventChange}>
                 <SelectTrigger
                   aria-label="Select event"
-                  className="group !h-auto w-full max-w-5xl justify-start gap-4 whitespace-normal rounded-none border-0 bg-transparent p-0 text-left text-zinc-950 shadow-none transition-colors hover:text-blue-700 focus:ring-0 focus-visible:ring-0 [&>svg]:mt-1 [&>svg]:h-7 [&>svg]:w-7 [&>svg]:opacity-40 [&>svg]:transition-colors [&>svg]:group-hover:opacity-70"
+                  className="group !h-auto w-fit max-w-full justify-start gap-4 whitespace-normal rounded-none border-0 bg-transparent p-0 text-left text-zinc-950 shadow-none transition-colors hover:text-blue-700 focus:ring-0 focus-visible:ring-0 [&>svg]:mt-1 [&>svg]:h-7 [&>svg]:w-7 [&>svg]:opacity-40 [&>svg]:transition-colors [&>svg]:group-hover:opacity-70"
                 >
                   <span className="line-clamp-2 min-w-0 text-3xl font-light leading-[1.12] tracking-[-0.025em] sm:text-4xl 2xl:text-5xl">
                     {getDisplayEventName(selectedEvent?.canonicalEventName) || "Intelligence Registry"}
@@ -1606,10 +1606,14 @@ export function NormalUserEventLeadSheet() {
                 <SelectContent
                   align="start"
                   position="popper"
-                  className="z-[120] max-w-[min(36rem,calc(100vw-2rem))] rounded-none border-zinc-300 bg-white shadow-xl"
+                  className="z-[120] max-h-[18rem] w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-zinc-200 bg-white/98 p-2 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-[10px]"
                 >
                   {events.map((item) => (
-                    <SelectItem key={item.canonicalEventKey} value={item.canonicalEventKey} className="py-3 text-base">
+                    <SelectItem
+                      key={item.canonicalEventKey}
+                      value={item.canonicalEventKey}
+                      className="rounded-xl py-2.5 pl-3 pr-9 text-sm font-medium text-zinc-800 transition-colors focus:bg-blue-50 focus:text-blue-700 data-[state=checked]:border data-[state=checked]:border-blue-500/20 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]_svg]:h-5 [&_[data-slot=select-item-indicator]_svg]:w-5 [&_[data-slot=select-item-indicator]_svg]:stroke-[3]"
+                    >
                       {getDisplayEventName(item.canonicalEventName)}
                     </SelectItem>
                   ))}
