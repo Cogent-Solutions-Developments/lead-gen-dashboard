@@ -1046,6 +1046,14 @@ export async function listAdminEvents(includeInactive = true) {
   return Array.isArray(data.events) ? data.events.map(normalizeAdminEvent) : [];
 }
 
+export async function listEventRegistry(includeInactive = false) {
+  const params = new URLSearchParams();
+  if (includeInactive) params.set("includeInactive", "true");
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  const data = await authRequest<{ events: AdminEventItem[] }>(`/api/event-registry${suffix}`);
+  return Array.isArray(data.events) ? data.events.map(normalizeAdminEvent) : [];
+}
+
 export async function listActiveEventRegistry() {
   const data = await authRequest<{ events: AdminEventItem[] }>("/api/event-registry/active");
   return Array.isArray(data.events) ? data.events.map(normalizeAdminEvent) : [];

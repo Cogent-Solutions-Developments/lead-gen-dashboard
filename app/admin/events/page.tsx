@@ -277,9 +277,10 @@ export default function AdminEventsPage() {
   const loadEvents = async () => {
     setLoading(true);
     try {
-      setEvents(sortEvents(await listAdminEvents(true)));
+      const eventRows = await listAdminEvents(true);
+      setEvents(sortEvents(eventRows));
     } catch (error: unknown) {
-      toast.error("Failed to load events", {
+      toast.error("Failed to load event registry", {
         description: getErrorMessage(error),
       });
       setEvents([]);
@@ -367,9 +368,9 @@ export default function AdminEventsPage() {
         description:
           hasDetailChanges
             ? `${updated.eventName} and its linked campaign snapshot details were updated.`
-            : hasStatusChange
-              ? `${updated.eventName} is now ${updated.isActive ? "active" : "inactive"}.`
-              : `${updated.eventName} details were saved.`,
+              : hasStatusChange
+                ? `${updated.eventName} is now ${updated.isActive ? "active" : "inactive"}.`
+                : `${updated.eventName} details were saved.`,
       });
       closeEditDialog(true);
     } catch (error: unknown) {
@@ -580,7 +581,7 @@ export default function AdminEventsPage() {
 
       <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="min-w-0 space-y-5">
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-3">
             {[
               { label: "Total Events", value: stats.total, icon: Tags },
               { label: "Active Events", value: stats.active, icon: ShieldCheck },
@@ -611,7 +612,7 @@ export default function AdminEventsPage() {
             </div>
 
             <div className="min-w-0">
-              <div className="hidden border-b border-zinc-100 bg-zinc-50/70 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400 lg:grid lg:grid-cols-[minmax(0,2.2fr)_minmax(9rem,1fr)_7rem_9rem_minmax(8rem,1fr)_5rem] lg:gap-4">
+              <div className="hidden border-b border-zinc-100 bg-zinc-50/70 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400 lg:grid lg:grid-cols-[minmax(0,2.2fr)_minmax(8rem,1fr)_7rem_8rem_minmax(8rem,1fr)_5rem] lg:gap-4">
                 <div>Event</div>
                 <div>Location</div>
                 <div>Date</div>
@@ -629,7 +630,7 @@ export default function AdminEventsPage() {
                   events.map((item) => (
                     <div
                       key={item.id}
-                      className="grid min-w-0 gap-4 px-5 py-4 transition-colors hover:bg-zinc-50/80 lg:grid-cols-[minmax(0,2.2fr)_minmax(9rem,1fr)_7rem_9rem_minmax(8rem,1fr)_5rem] lg:items-center"
+                      className="grid min-w-0 gap-4 px-5 py-4 transition-colors hover:bg-zinc-50/80 lg:grid-cols-[minmax(0,2.2fr)_minmax(8rem,1fr)_7rem_8rem_minmax(8rem,1fr)_5rem] lg:items-center"
                     >
                       <div className="min-w-0">
                         <div className="flex min-w-0 items-center gap-3">
@@ -768,7 +769,7 @@ export default function AdminEventsPage() {
             </div>
 
             <div className="rounded-xl border border-zinc-300 bg-white/80 p-4 text-xs leading-relaxed text-zinc-500">
-              Only event name, location, and date are stored here. Category stays campaign-specific and will be filled during campaign creation.
+              Event identity is stored here. Category stays campaign-specific and will be filled during campaign creation.
             </div>
 
             <Button
@@ -830,6 +831,7 @@ export default function AdminEventsPage() {
                 className="h-10 border-zinc-300 bg-white"
               />
             </div>
+
           </div>
 
           <div className="space-y-1.5">
@@ -848,7 +850,7 @@ export default function AdminEventsPage() {
           <div className="rounded-xl border border-zinc-300 bg-zinc-50/70 p-4 text-sm leading-relaxed text-zinc-600">
             Updating name, location, or date here will also refresh the linked campaign snapshots automatically.
             <span className="mt-1 block text-xs text-zinc-500">
-              Status changes still apply only to the registry record itself.
+              Status changes apply only to the registry record itself.
             </span>
           </div>
 
