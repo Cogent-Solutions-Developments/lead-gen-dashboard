@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -354,8 +353,6 @@ const STATUS_DOT_CLASS: Record<string, string> = {
 const DEFAULT_PAGE_SIZE = 100;
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 const SEARCH_DEBOUNCE_MS = 300;
-const DEAL_CLOSED_ANIMATION_SRC = "https://lottie.host/e872d848-c226-4c29-8108-9111e8bd8c9c/npFGm1Le6t.lottie";
-
 const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
   fullName: "",
   title: "",
@@ -2069,60 +2066,46 @@ export function NormalUserEventLeadSheet() {
           title="Status Note"
           description="Add a short comment for this state change so the next person can understand the context."
           onClose={closeStatusCommentDialog}
-          sidebarContent={
-            canUseDealBellFlow && pendingStatusChange.nextStatus === "deal-closed" ? (
-              <div className="absolute inset-0">
-                <div className="absolute inset-0 z-10 bg-zinc-950/40" />
-                <video
-                  src="/videos/magnific_recreate-the-scene-with-t_2982250313.mp4"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="h-full w-full object-cover"
-                />
-              </div>
-            ) : null
-          }
+          variant="panel"
         >
-          <div className="space-y-8">
-            <div className="border-b border-zinc-100 pb-6">
-              <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Selected profile</p>
-              <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
+          <div className="space-y-8" style={{ color: "#f8fafc" }}>
+            <div className="border-b border-zinc-700/60 pb-6">
+              <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "#cbd5e1" }}>
+                Selected profile
+              </p>
+              <h3 className="mt-2 text-2xl font-light tracking-tight" style={{ color: "#f8fafc" }}>
                 {pendingStatusChange.item.employeeName || "-"}
               </h3>
-              <p className="mt-1 text-sm font-light text-zinc-500">
+              <p className="mt-1 text-sm font-light" style={{ color: "#d1d5db" }}>
                 {pendingStatusChange.item.company || "-"}
               </p>
             </div>
 
             {canUseDealBellFlow && pendingStatusChange.nextStatus === "deal-closed" ? (
-              <div className="text-center">
-                <DotLottieReact
-                  src={DEAL_CLOSED_ANIMATION_SRC}
-                  loop
-                  autoplay
-                  className="mx-auto h-36 w-full max-w-sm"
-                />
-                <p className="mt-1 text-lg font-medium tracking-tight text-zinc-950">
+              <div className="rounded-2xl border border-zinc-600/80 bg-[#1a2230]/88 px-5 py-4 text-center">
+                <p className="text-lg font-medium tracking-tight" style={{ color: "#f8fafc" }}>
                   Congrats on closing the deal with {pendingStatusChange.item.employeeName || "this lead"}.
                 </p>
-                <p className="mt-1 text-sm font-light text-zinc-500">
+                <p className="mt-1 text-sm font-light" style={{ color: "#d1d5db" }}>
                   Nice work, {signedInFirstName}. Add a final note so the team has the full context.
                 </p>
               </div>
             ) : null}
 
             <div className="grid gap-5 sm:grid-cols-2">
-              <div className="border border-zinc-200 bg-zinc-50/70 p-4">
-                <p className="text-xs font-medium text-zinc-400">Current status</p>
-                <p className="mt-2 text-lg font-light text-zinc-950">
+              <div className="rounded-2xl border border-zinc-600/80 bg-[#1a2230]/88 p-4">
+                <p className="text-xs font-medium" style={{ color: "#cbd5e1" }}>
+                  Current status
+                </p>
+                <p className="mt-2 text-lg font-light" style={{ color: "#f8fafc" }}>
                   {pendingStatusChange.item.workflowStatusLabel}
                 </p>
               </div>
-              <div className="border border-zinc-950 bg-white p-4">
-                <p className="text-xs font-medium text-zinc-400">New status</p>
-                <p className="mt-2 text-lg font-light text-zinc-950">
+              <div className="rounded-2xl border border-zinc-600/80 bg-[#1a2230]/88 p-4">
+                <p className="text-xs font-medium" style={{ color: "#cbd5e1" }}>
+                  New status
+                </p>
+                <p className="mt-2 text-lg font-light" style={{ color: "#f8fafc" }}>
                   {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
                     humanizeStatusLabel(pendingStatusChange.nextStatus)}
                 </p>
@@ -2130,26 +2113,28 @@ export function NormalUserEventLeadSheet() {
             </div>
 
             <label className="block space-y-3">
-              <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
-                Comment <span className="normal-case tracking-normal text-zinc-400">Optional</span>
+              <span className="text-xs font-medium uppercase tracking-wide" style={{ color: "#cbd5e1" }}>
+                Comment <span className="normal-case tracking-normal" style={{ color: "#d1d5db" }}>Optional</span>
               </span>
               <Textarea
                 value={statusComment}
                 onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
                 placeholder="Example: Follow up after first call. Asked to reconnect next week."
-                className="min-h-36 rounded-none border-zinc-300 bg-white text-sm font-light shadow-none focus-visible:ring-1 focus-visible:ring-zinc-900"
+                className="min-h-36 rounded-2xl border-zinc-600/80 !bg-[#1a2230]/88 text-sm font-light !text-white shadow-none placeholder:!text-zinc-400 focus-visible:ring-1 focus-visible:ring-blue-600"
+                style={{ color: "#f8fafc", backgroundColor: "rgba(26,34,48,0.88)" }}
               />
-              <span className="block text-right text-xs font-light text-zinc-400">
+              <span className="block text-right text-xs font-light" style={{ color: "#d1d5db" }}>
                 {statusComment.length}/2000
               </span>
             </label>
 
-            <div className="flex justify-end gap-3 border-t border-zinc-100 pt-6">
+            <div className="flex justify-end gap-3 border-t border-zinc-700/60 pt-6">
               <Button
                 type="button"
                 variant="ghost"
                 onClick={closeStatusCommentDialog}
-                className="h-10 rounded-none border border-zinc-300 bg-white px-5 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                className="h-10 rounded-full border border-zinc-600/80 bg-[#1a2230]/88 px-5 !text-zinc-200 shadow-none hover:border-zinc-300 hover:bg-[#212b3b] hover:!text-white"
+                style={{ color: "#e5e7eb" }}
               >
                 Cancel
               </Button>
@@ -2157,7 +2142,7 @@ export function NormalUserEventLeadSheet() {
                 type="button"
                 onClick={handleUpdateStatusClick}
                 disabled={Boolean(updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`]) || ringingDealBell}
-                className="h-10 gap-2 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
+                className="h-10 gap-2 rounded-full bg-zinc-950 px-5 text-white hover:bg-blue-600"
               >
                 {updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`] || ringingDealBell ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
