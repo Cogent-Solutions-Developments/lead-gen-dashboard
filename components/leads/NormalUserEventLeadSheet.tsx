@@ -1783,25 +1783,7 @@ export function NormalUserEventLeadSheet() {
         <div className="grid min-h-0 flex-1 gap-12 overflow-hidden pt-10 xl:grid-cols-[19rem_minmax(0,1fr)]">
           <aside className="shrink-0 space-y-10 overflow-y-auto pr-2 scrollbar-hide">
             <div className="space-y-6">
-              <div className="space-y-5">
-                <label className="text-xs font-medium text-zinc-400">Context registry</label>
-                <EventRegistryPicker
-                  events={leadSheetEventOptions}
-                  value={selectedEventKey}
-                  onValueChange={handleEventChange}
-                  loading={loadingEvents}
-                  placeholder="Select context"
-                  showStatusLabel={false}
-                  showStatusTabs={false}
-                  inactiveSelectable={false}
-                  getEventValue={getRegistryEventKey}
-                  isEventSelectable={isLeadSheetEventSelectable}
-                  triggerClassName="!h-14 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light shadow-none hover:border-blue-600"
-                  contentClassName="rounded-none border-zinc-300 shadow-xl"
-                />
-              </div>
-
-              <div className="border-t border-zinc-100 pt-6">
+              <div>
                 <label className="text-xs font-medium text-zinc-400">Event agenda</label>
                 <div className="mt-5">
                   {agendaState.loading ? (
