@@ -684,7 +684,6 @@ export function NormalUserEventLeadSheet() {
     error: string;
     downloadingId: string;
   }>({ loading: false, agendas: [], error: "", downloadingId: "" });
-  const [agendaHistoryOpen, setAgendaHistoryOpen] = useState(false);
   const targetLeadRowRef = useRef<HTMLDivElement | null>(null);
   const emailGenerationRequestRef = useRef(0);
   const previousSelectedEventKeyRef = useRef("");
@@ -1017,7 +1016,6 @@ export function NormalUserEventLeadSheet() {
   const hasMore = Boolean(leadPage?.hasMore);
   const isLoading = loadingEvents || (loadingLeads && !leadPage && Boolean(selectedEventKey));
   const latestAgenda = agendaState.agendas[0] ?? null;
-  const previousAgendas = agendaState.agendas.slice(1);
 
   const refreshData = useCallback(async () => {
     await loadInitialData();
@@ -1172,7 +1170,6 @@ export function NormalUserEventLeadSheet() {
     setSearchInput("");
     setSearchQuery("");
     setPageOffset(0);
-    setAgendaHistoryOpen(false);
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.set("event", value);
     nextParams.delete("search");
@@ -1603,17 +1600,8 @@ export function NormalUserEventLeadSheet() {
               </Select>
             </div>
 
-            <div className="flex flex-col gap-5 lg:min-w-[19rem] lg:items-stretch">
-              <div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-zinc-400">Total records</p>
-                  <p className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
-                    {pageTotal.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-4 border-t border-zinc-300 pt-4">
+            <div className="flex min-w-max flex-nowrap items-center justify-end gap-5">
+              <div className="flex shrink-0 flex-nowrap items-center gap-3">
                 {canUseTemplateUpload ? (
                   <button
                     type="button"
@@ -1635,6 +1623,13 @@ export function NormalUserEventLeadSheet() {
                   <Plus className="h-4 w-4" />
                   Add entry
                 </button>
+              </div>
+
+              <div className="flex shrink-0 items-baseline gap-3">
+                <span className="text-sm font-medium text-zinc-400">Leads To Cover</span>
+                <span className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
+                  {pageTotal.toLocaleString()}
+                </span>
               </div>
             </div>
           </div>
@@ -1689,49 +1684,6 @@ export function NormalUserEventLeadSheet() {
                         </button>
                       </div>
 
-                      <div className="space-y-3 border-t border-zinc-100 pt-4">
-                        <button
-                          type="button"
-                          onClick={() => setAgendaHistoryOpen((open) => !open)}
-                          className="group flex w-full items-center justify-between gap-3 text-left"
-                          aria-expanded={agendaHistoryOpen}
-                        >
-                          <span className="inline-flex min-w-0 items-center gap-2 text-xs font-medium text-zinc-500 group-hover:text-zinc-900">
-                            <ChevronRight className={agendaHistoryOpen ? "h-3.5 w-3.5 rotate-90 transition-transform" : "h-3.5 w-3.5 transition-transform"} />
-                            Upload history
-                          </span>
-                          <span className="shrink-0 text-[11px] font-light text-zinc-400">
-                            {previousAgendas.length} previous version{previousAgendas.length === 1 ? "" : "s"}
-                          </span>
-                        </button>
-
-                        {agendaHistoryOpen ? (
-                          <div className="max-h-48 overflow-y-auto pr-1 scrollbar-hide">
-                            {previousAgendas.length > 0 ? (
-                              previousAgendas.map((agenda) => (
-                                <div key={agenda.id} className="relative border-l border-zinc-200 pb-4 pl-4 last:pb-0">
-                                  <span className="absolute -left-[5px] top-1 h-2.5 w-2.5 rounded-full border border-zinc-300 bg-white" />
-                                  <div className="flex w-full min-w-0 items-start justify-between gap-3 text-left">
-                                    <span className="min-w-0">
-                                      <span className="block truncate text-xs font-medium text-zinc-700">{agenda.name}</span>
-                                      <span className="mt-1 block text-[11px] font-light leading-5 text-zinc-400">
-                                        {formatBytes(agenda.sizeBytes)} - {agenda.uploadedByUsername || "admin"} - {formatDateTime(agenda.createdAt) || "-"}
-                                      </span>
-                                    </span>
-                                    <span className="mt-0.5 shrink-0 rounded-full bg-zinc-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
-                                      History
-                                    </span>
-                                  </div>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="border-l border-zinc-200 pl-4 text-xs font-light leading-5 text-zinc-400">
-                                No previous agenda versions.
-                              </div>
-                            )}
-                          </div>
-                        ) : null}
-                      </div>
                     </>
                   ) : (
                     <div className="border-l border-zinc-200 pl-4 text-sm font-light leading-6 text-zinc-400">
