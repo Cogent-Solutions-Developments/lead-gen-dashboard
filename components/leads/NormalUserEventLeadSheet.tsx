@@ -2288,7 +2288,16 @@ export function NormalUserEventLeadSheet() {
           ) : emailDialog.loading ? (
             <div className="flex min-h-[24rem] flex-col items-center justify-center text-center">
               <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-zinc-200 bg-white">
-                <Loader2 className="h-7 w-7 animate-spin text-blue-600" />
+                <Loader2
+                  className={cn(
+                    "h-7 w-7 animate-spin",
+                    emailDialog.platform === "email"
+                      ? "text-red-500"
+                      : emailDialog.platform === "whatsapp"
+                        ? "text-emerald-500"
+                        : "text-blue-600"
+                  )}
+                />
               </div>
               <h3 className="mt-6 text-2xl font-light tracking-tight text-zinc-950">Generating content</h3>
               <p className="mt-2 max-w-sm text-sm font-light leading-6 text-zinc-500">
@@ -2298,7 +2307,14 @@ export function NormalUserEventLeadSheet() {
                 {[0, 1, 2].map((item) => (
                   <div key={item} className="h-3 overflow-hidden bg-zinc-100">
                     <div
-                      className="h-full w-1/2 animate-pulse bg-blue-600/70"
+                      className={cn(
+                        "h-full w-1/2 animate-pulse",
+                        emailDialog.platform === "email"
+                          ? "bg-red-500/70"
+                          : emailDialog.platform === "whatsapp"
+                            ? "bg-emerald-500/70"
+                            : "bg-blue-600/70"
+                      )}
                       style={{ marginLeft: `${item * 16}%` }}
                     />
                   </div>
