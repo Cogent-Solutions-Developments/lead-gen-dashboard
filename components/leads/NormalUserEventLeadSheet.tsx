@@ -432,6 +432,15 @@ function getDisplayEventName(name?: string | null) {
   return shortName?.trim() || cleanName;
 }
 
+const EVENT_SELECT_CONTENT_CLASS =
+  "z-[120] max-h-[18rem] w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-zinc-200 bg-white/98 p-2 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-[10px]";
+
+const MODAL_EVENT_SELECT_CONTENT_CLASS =
+  "z-[120] max-h-[15rem] w-[28rem] max-w-[calc(100vw-5rem)] rounded-2xl border border-zinc-200 bg-white/98 p-3 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-[10px]";
+
+const EVENT_SELECT_ITEM_CLASS =
+  "rounded-xl py-2.5 pl-3 pr-9 text-sm font-medium text-zinc-800 transition-colors focus:bg-zinc-100/80 focus:text-zinc-950 focus:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] focus:[&_svg]:!text-zinc-500 data-[highlighted]:bg-zinc-100/80 data-[highlighted]:text-zinc-950 data-[highlighted]:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] data-[highlighted]:[&_svg]:!text-zinc-500 data-[state=checked]:border data-[state=checked]:border-blue-500/20 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]_svg]:h-4 [&_[data-slot=select-item-indicator]_svg]:w-4 [&_[data-slot=select-item-indicator]_svg]:stroke-[2.25]";
+
 function humanizeStatusLabel(value: string) {
   const cleaned = asText(value);
   if (!cleaned) return "New";
@@ -618,9 +627,11 @@ function LeadSheetDialog({
               <h2 className={cn("text-4xl font-light leading-none tracking-tighter text-zinc-950", eyebrow && "mt-4")}>
                 {title}
               </h2>
-              <p className="mt-3 text-sm font-light leading-relaxed text-zinc-500">
-                {description}
-              </p>
+              {description ? (
+                <p className="mt-3 text-sm font-light leading-relaxed text-zinc-500">
+                  {description}
+                </p>
+              ) : null}
             </div>
             <div className="mt-8">{children}</div>
           </div>
@@ -1071,6 +1082,7 @@ export function NormalUserEventLeadSheet() {
   const openTemplateUploadDialog = () => {
     setTemplateUpload({
       ...EMPTY_TEMPLATE_UPLOAD,
+      selectedEventKey: selectedEvent?.canonicalEventKey || selectedEventKey || events[0]?.canonicalEventKey || "",
     });
     setTemplateUploadOpen(true);
   };
@@ -1645,13 +1657,13 @@ export function NormalUserEventLeadSheet() {
                 <SelectContent
                   align="start"
                   position="popper"
-                  className="z-[120] max-h-[18rem] w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-zinc-200 bg-white/98 p-2 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-[10px]"
+                  className={EVENT_SELECT_CONTENT_CLASS}
                 >
                   {events.map((item) => (
                     <SelectItem
                       key={item.canonicalEventKey}
                       value={item.canonicalEventKey}
-                      className="rounded-xl py-2.5 pl-3 pr-9 text-sm font-medium text-zinc-800 transition-colors focus:bg-blue-50 focus:text-blue-700 data-[state=checked]:border data-[state=checked]:border-blue-500/20 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]_svg]:h-4 [&_[data-slot=select-item-indicator]_svg]:w-4 [&_[data-slot=select-item-indicator]_svg]:stroke-[2.25]"
+                      className={EVENT_SELECT_ITEM_CLASS}
                     >
                       {getDisplayEventName(item.canonicalEventName)}
                     </SelectItem>
@@ -1684,7 +1696,7 @@ export function NormalUserEventLeadSheet() {
                   className="inline-flex h-9 w-40 items-center justify-center gap-2.5 rounded-full border border-blue-500/20 bg-blue-600 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:opacity-50"
                 >
                   <Plus className="h-4 w-4" />
-                  Add entry
+                  Add a lead
                 </button>
               </div>
 
@@ -2755,7 +2767,7 @@ export function NormalUserEventLeadSheet() {
       <LeadSheetDialog
         open={templateUploadOpen}
         title="Upload Leads"
-        description="Choose the event, upload the Excel template, then add the leads."
+        description=""
         eyebrow=""
         onClose={closeTemplateUploadDialog}
         compact
@@ -2769,51 +2781,76 @@ export function NormalUserEventLeadSheet() {
                 setTemplateUpload((prev) => ({ ...prev, selectedEventKey: value }))
               }
             >
-              <SelectTrigger className="!h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
-                <SelectValue placeholder="Select event" />
+              <SelectTrigger className="group !h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-left text-lg font-light shadow-none transition-colors hover:text-blue-700 focus:border-blue-600 focus:ring-0 [&>svg]:opacity-40 [&>svg]:transition-colors [&>svg]:group-hover:opacity-70">
+                <span className="min-w-0 truncate">
+                  {getDisplayEventName(selectedTemplateUploadEvent?.canonicalEventName) || "Select event"}
+                </span>
               </SelectTrigger>
-              <SelectContent className="z-[120] rounded-none border-zinc-300 bg-white shadow-2xl">
+              <SelectContent
+                align="start"
+                position="popper"
+                className={MODAL_EVENT_SELECT_CONTENT_CLASS}
+                viewportClassName="min-w-0"
+              >
                 {events.map((item) => (
-                  <SelectItem key={item.canonicalEventKey} value={item.canonicalEventKey}>
-                    {item.canonicalEventName}
+                  <SelectItem
+                    key={item.canonicalEventKey}
+                    value={item.canonicalEventKey}
+                    className={EVENT_SELECT_ITEM_CLASS}
+                  >
+                    {getDisplayEventName(item.canonicalEventName)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <div
+            className={cn(
+              "group flex min-h-20 items-center gap-3 rounded-2xl border px-4 py-3 transition-all",
+              !selectedTemplateUploadEvent
+                ? "border-zinc-200 bg-zinc-50/80"
+                : templateUpload.error
+                  ? "border-red-300 bg-red-50/40"
+                  : "border-zinc-200 bg-white hover:border-blue-500 hover:bg-blue-50/30"
+            )}
+          >
             <label
               htmlFor="normal-lead-template-upload"
               className={cn(
-                "group flex min-h-36 cursor-pointer flex-col items-center justify-center border border-dashed p-6 text-center transition-all",
-                !selectedTemplateUploadEvent
-                  ? "cursor-not-allowed border-zinc-200 bg-zinc-50 opacity-60"
-                  : templateUpload.error
-                  ? "border-red-300 bg-red-50/40"
-                  : "border-zinc-300 hover:border-blue-600 hover:bg-blue-50/30"
+                "flex min-w-0 flex-1 items-center gap-4",
+                !selectedTemplateUploadEvent || templateUpload.validating || templateUpload.submitting
+                  ? "cursor-not-allowed"
+                  : "cursor-pointer"
               )}
             >
-              {templateUpload.validating ? (
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-              ) : templateValidation ? (
-                <CheckCircle2 className="h-8 w-8 text-emerald-500" />
-              ) : (
-                <FileSpreadsheet className="h-8 w-8 text-zinc-400 transition-colors group-hover:text-blue-600" />
-              )}
-              <span className="mt-4 text-base font-semibold text-zinc-950">
-                {!selectedTemplateUploadEvent
-                  ? "Select event first"
-                  : templateUpload.file?.name || "Choose Excel template"}
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors group-hover:border-blue-200 group-hover:text-blue-600">
+                {templateUpload.validating ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                ) : templateValidation ? (
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                ) : (
+                  <FileSpreadsheet className="h-5 w-5" />
+                )}
               </span>
-              <span className="mt-1 text-sm font-light text-zinc-500">
-                {!selectedTemplateUploadEvent
-                  ? "Only .xlsx files are accepted"
-                  : templateUpload.validating
-                  ? "Checking workbook"
-                  : templateValidation
-                    ? "Template is ready"
-                    : "Only .xlsx files are accepted"}
+              <span className="min-w-0 flex-1 text-left">
+                <span className="block truncate text-sm font-semibold text-zinc-950">
+                  {!selectedTemplateUploadEvent
+                    ? "Select event first"
+                    : templateUpload.file?.name || "Choose Excel template"}
+                </span>
+                <span className="mt-1 block truncate text-xs font-light text-zinc-500">
+                  {!selectedTemplateUploadEvent
+                    ? "Only .xlsx files are accepted"
+                    : templateUpload.validating
+                    ? "Checking workbook"
+                    : templateValidation
+                      ? "Template is ready"
+                      : "Only .xlsx files are accepted"}
+                </span>
+              </span>
+              <span className="inline-flex h-10 w-28 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-semibold text-zinc-700 transition-colors group-hover:border-blue-500 group-hover:text-blue-600">
+                Choose
               </span>
               <input
                 id="normal-lead-template-upload"
@@ -2828,9 +2865,9 @@ export function NormalUserEventLeadSheet() {
             <button
               type="button"
               onClick={() => void handleTemplateDownload()}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-950 transition-colors hover:border-blue-600 hover:text-blue-600"
+              className="inline-flex h-10 w-28 shrink-0 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-4 text-xs font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700"
             >
-              <Download className="h-4 w-4" />
+              <Download className="h-3.5 w-3.5" />
               Template
             </button>
           </div>
@@ -2908,7 +2945,7 @@ export function NormalUserEventLeadSheet() {
             </Button>
             <Button
               type="button"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-7 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700 disabled:bg-zinc-500 disabled:shadow-none"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-7 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700 disabled:border-blue-400/20 disabled:bg-blue-600/55 disabled:text-white/80 disabled:opacity-100 disabled:shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-18px_rgba(37,99,235,0.75)]"
               onClick={() => void handleTemplateUploadSubmit()}
               disabled={!templateUploadReady || templateUpload.validating || templateUpload.submitting}
             >
@@ -2931,12 +2968,10 @@ export function NormalUserEventLeadSheet() {
       <LeadSheetDialog
         open={addLeadOpen}
         title="Add Lead"
-        description={
-          selectedEvent
-            ? `Add a lead directly into ${selectedEvent.canonicalEventName}.`
-            : "Select an event first before adding a lead."
-        }
+        description=""
+        eyebrow=""
         onClose={closeAddLeadDialog}
+        compact
       >
         <div className="grid gap-x-8 gap-y-8 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -3024,10 +3059,6 @@ export function NormalUserEventLeadSheet() {
           </div>
         </div>
 
-        <div className="mt-8 border-y border-zinc-100 py-4 text-sm font-light leading-relaxed text-zinc-500">
-          Add the strongest details you have now. Contact information helps the team follow up faster, but the profile can be updated later.
-        </div>
-
         <div className="mt-8 flex items-center justify-between">
           <Button
             type="button"
@@ -3040,7 +3071,7 @@ export function NormalUserEventLeadSheet() {
           </Button>
           <Button
             type="button"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-zinc-950 px-7 text-sm font-semibold text-white shadow-none hover:bg-blue-600"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-7 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700 disabled:border-blue-400/20 disabled:bg-blue-600/55 disabled:text-white/80 disabled:opacity-100 disabled:shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-18px_rgba(37,99,235,0.75)]"
             onClick={() => void submitAddLead()}
             disabled={addingLead || !selectedEvent}
           >
@@ -3052,7 +3083,7 @@ export function NormalUserEventLeadSheet() {
             ) : (
               <>
                 <Plus className="h-3.5 w-3.5" />
-                Add Lead
+                Add a lead
               </>
             )}
           </Button>
