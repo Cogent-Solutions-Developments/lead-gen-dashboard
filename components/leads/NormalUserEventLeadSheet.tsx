@@ -39,7 +39,7 @@ import {
   type WorkflowStatusDefinitionItem,
   type WorkflowStatusHistoryItem,
 } from "@/lib/apiRouter";
-import { getCachedAuthUserDisplayName } from "@/lib/auth";
+import { createProtectedObjectUrl, getCachedAuthUserDisplayName } from "@/lib/auth";
 import { persistCampaignUploadSummary } from "@/lib/campaignUploadSummary";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
@@ -53,8 +53,8 @@ import {
   Clock3,
   Copy,
   Download,
+  Eye,
   FileSpreadsheet,
-  FileText,
   FileUp,
   Headset,
   History,
@@ -684,7 +684,8 @@ export function NormalUserEventLeadSheet() {
     agendas: EventAgendaItem[];
     error: string;
     downloadingId: string;
-  }>({ loading: false, agendas: [], error: "", downloadingId: "" });
+    viewingId: string;
+  }>({ loading: false, agendas: [], error: "", downloadingId: "", viewingId: "" });
   const targetLeadRowRef = useRef<HTMLDivElement | null>(null);
   const emailGenerationRequestRef = useRef(0);
   const previousSelectedEventKeyRef = useRef("");
@@ -1196,6 +1197,25 @@ export function NormalUserEventLeadSheet() {
     }
   };
 
+  const handleAgendaView = async (agenda: EventAgendaItem) => {
+    if (!agenda.id) return;
+    setAgendaState((current) => ({ ...current, viewingId: agenda.id }));
+    try {
+      const objectUrl = await createProtectedObjectUrl(
+        "/api/event-agendas/" + encodeURIComponent(agenda.id) + "/download",
+        "/api/event-agendas/" + encodeURIComponent(agenda.id) + "/download-url"
+      );
+      window.open(objectUrl.url, "_blank", "noopener,noreferrer");
+      if (!objectUrl.direct) {
+        window.setTimeout(() => objectUrl.revoke(), 60_000);
+      }
+    } catch (error: unknown) {
+      toast.error("Failed to open agenda", { description: getErrorMessage(error) });
+    } finally {
+      setAgendaState((current) => ({ ...current, viewingId: "" }));
+    }
+  };
+
   const handleWorkflowStatusChange = useCallback(
     async (item: LeadSheetRow, nextStatus: WorkflowStatus, comment?: string) => {
       const updateKey = `${item.canonicalEventKey}::${item.leadIdentityKey}`;
@@ -1643,61 +1663,65 @@ export function NormalUserEventLeadSheet() {
 
         <div className="grid min-h-0 flex-1 gap-12 overflow-hidden pt-10 xl:grid-cols-[19rem_minmax(0,1fr)]">
           <aside className="shrink-0 space-y-10 overflow-y-auto pr-2 scrollbar-hide">
-            <div className="space-y-8">
+            <div className="space-y-6">
               <div>
                 <label className="text-xs font-medium text-zinc-400">Event agenda</label>
                 <div className="mt-5">
                   {agendaState.loading ? (
-                    <div className="animate-pulse rounded-lg border border-zinc-200 bg-white p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="h-10 w-10 rounded-md bg-zinc-100" />
-                        <div className="min-w-0 flex-1 space-y-2">
-                          <div className="h-4 w-40 bg-zinc-100" />
-                          <div className="h-3 w-28 bg-zinc-100" />
-                        </div>
-                      </div>
-                      <div className="mt-4 h-10 w-full rounded-full bg-zinc-100" />
+                    <div className="animate-pulse space-y-3">
+                      <div className="h-4 w-44 bg-zinc-100" />
+                      <div className="h-3 w-36 bg-zinc-100" />
+                      <div className="h-9 w-40 bg-zinc-100" />
                     </div>
                   ) : agendaState.error ? (
-                    <div className="rounded-lg border border-zinc-200 bg-white p-4 text-sm font-light leading-6 text-zinc-400">
+                    <div className="text-sm font-light leading-6 text-zinc-400">
                       No agenda found for this event.
                     </div>
                   ) : latestAgenda ? (
-                    <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-[0_18px_48px_-44px_rgba(15,23,42,0.72)]">
-                      <div className="flex min-w-0 items-start gap-3">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-blue-100 bg-blue-50 text-blue-600">
-                          <FileText className="h-5 w-5" />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="line-clamp-2 text-sm font-semibold leading-5 text-zinc-950">{latestAgenda.name}</p>
-                            <span className="mt-0.5 shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                              Latest
-                            </span>
-                          </div>
-                          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-zinc-400">
-                            <span>{formatBytes(latestAgenda.sizeBytes)}</span>
-                            <span className="h-1 w-1 rounded-full bg-zinc-300" />
-                            <span className="min-w-0 truncate">{formatDateTime(latestAgenda.createdAt) || "Time unavailable"}</span>
-                          </div>
+                    <div className="space-y-3">
+                      <div className="min-w-0">
+                        <div className="flex min-w-0 items-start">
+                          <p className="min-w-0 text-base font-medium leading-5 text-zinc-950">
+                            {latestAgenda.name}
+                          </p>
+                        </div>
+                        <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-zinc-400">
+                          <span>{formatBytes(latestAgenda.sizeBytes)}</span>
+                          <span className="h-1 w-1 rounded-full bg-zinc-300" />
+                          <span className="min-w-0 truncate">{formatDateTime(latestAgenda.createdAt) || "Time unavailable"}</span>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => void handleAgendaDownload(latestAgenda)}
-                        disabled={agendaState.downloadingId === latestAgenda.id}
-                        className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-zinc-950 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-600 disabled:opacity-60"
-                      >
-                        {agendaState.downloadingId === latestAgenda.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Download className="h-4 w-4" />
-                        )}
-                        Download latest
-                      </button>
+                      <div className="flex flex-nowrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleAgendaView(latestAgenda)}
+                          disabled={agendaState.viewingId === latestAgenda.id}
+                          className="inline-flex h-9 min-w-24 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-4 text-xs font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:opacity-60"
+                        >
+                          {agendaState.viewingId === latestAgenda.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Eye className="h-3.5 w-3.5" />
+                          )}
+                          View
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleAgendaDownload(latestAgenda)}
+                          disabled={agendaState.downloadingId === latestAgenda.id}
+                          className="inline-flex h-9 min-w-36 items-center justify-center gap-2 rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-700 transition-colors hover:border-zinc-900 hover:text-zinc-950 disabled:opacity-60"
+                        >
+                          {agendaState.downloadingId === latestAgenda.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Download className="h-3.5 w-3.5" />
+                          )}
+                          Download latest
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <div className="rounded-lg border border-dashed border-zinc-200 bg-white p-4 text-sm font-light leading-6 text-zinc-400">
+                    <div className="text-sm font-light leading-6 text-zinc-400">
                       No agenda has been uploaded for this event yet.
                     </div>
                   )}
@@ -1705,20 +1729,20 @@ export function NormalUserEventLeadSheet() {
               </div>
 
               <div>
-                <label className="mb-6 block text-xs font-medium text-zinc-400">Search intelligence</label>
-                <div className="relative w-full rounded-full border border-zinc-300 bg-white px-4 py-2 shadow-[0_22px_60px_-52px_rgba(2,10,27,0.42)] transition-colors focus-within:border-zinc-400">
+                <label className="mb-4 block text-xs font-medium text-zinc-400">Search intelligence</label>
+                <div className="relative h-11 w-full rounded-full border border-zinc-300 bg-white px-4 shadow-[0_22px_60px_-52px_rgba(2,10,27,0.42)] transition-colors focus-within:border-zinc-400">
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                   <input
                     value={searchInput}
                     onChange={(event) => setSearchInput(event.target.value)}
                     placeholder="Find in sheet..."
-                    className="h-9 w-full border-0 bg-transparent pl-7 pr-1 text-base font-light tracking-tight text-zinc-950 placeholder:text-zinc-400 focus:outline-none"
+                    className="h-full w-full border-0 bg-transparent pl-7 pr-1 text-sm font-light tracking-tight text-zinc-950 placeholder:text-zinc-400 focus:outline-none"
                   />
                 </div>
               </div>
 
-              <div className="border-t border-zinc-100 pt-8">
-                <label className="mb-6 block text-xs font-medium text-zinc-400">Intelligent filters</label>
+              <div className="border-t border-zinc-100 pt-5">
+                <label className="mb-4 block text-xs font-medium text-zinc-400">Intelligent filters</label>
                 <button
                   type="button"
                   onClick={() => setFilterOpen(true)}
