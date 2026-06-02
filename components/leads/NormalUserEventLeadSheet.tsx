@@ -1663,7 +1663,7 @@ export function NormalUserEventLeadSheet() {
 
         <div className="grid min-h-0 flex-1 gap-12 overflow-hidden pt-10 xl:grid-cols-[19rem_minmax(0,1fr)]">
           <aside className="shrink-0 space-y-10 overflow-y-auto pr-2 scrollbar-hide">
-            <div className="space-y-6">
+            <div>
               <div>
                 <label className="text-xs font-medium text-zinc-400">Event agenda</label>
                 <div className="mt-5">
@@ -1728,7 +1728,7 @@ export function NormalUserEventLeadSheet() {
                 </div>
               </div>
 
-              <div>
+              <div className="mt-8">
                 <label className="mb-4 block text-xs font-medium text-zinc-400">Search intelligence</label>
                 <div className="relative h-11 w-full rounded-full border border-zinc-300 bg-white px-4 shadow-[0_22px_60px_-52px_rgba(2,10,27,0.42)] transition-colors focus-within:border-zinc-400">
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
@@ -1741,8 +1741,8 @@ export function NormalUserEventLeadSheet() {
                 </div>
               </div>
 
-              <div className="border-t border-zinc-100 pt-5">
-                <label className="mb-4 block text-xs font-medium text-zinc-400">Intelligent filters</label>
+              <div className="mt-4 border-t border-zinc-100 pt-4">
+                <label className="mb-3 block text-xs font-medium text-zinc-400">Intelligent filters</label>
                 <button
                   type="button"
                   onClick={() => setFilterOpen(true)}
@@ -1768,7 +1768,7 @@ export function NormalUserEventLeadSheet() {
               </div>
 
               {selectedEvent && (
-                <div className="space-y-4 border-t border-zinc-100 pt-10">
+                <div className="mt-5 space-y-4 border-t border-zinc-100 pt-5">
                   <label className="text-xs font-medium text-zinc-400">Data coverage</label>
                   <div className="space-y-0">
                     <div className="flex items-center justify-between border-b border-zinc-100 py-4">
