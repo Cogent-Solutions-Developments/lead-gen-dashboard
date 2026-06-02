@@ -322,7 +322,7 @@ export function NormalUserEventsPage() {
                 type="button"
                 className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
                   viewMode === "list"
-                    ? "bg-blue-600 text-white"
+                    ? "border border-blue-500/20 bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)]"
                     : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-950"
                 }`}
                 onClick={() => setViewMode("list")}
@@ -336,7 +336,7 @@ export function NormalUserEventsPage() {
                 type="button"
                 className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
                   viewMode === "grid"
-                    ? "bg-blue-600 text-white"
+                    ? "border border-blue-500/20 bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)]"
                     : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-950"
                 }`}
                 onClick={() => setViewMode("grid")}

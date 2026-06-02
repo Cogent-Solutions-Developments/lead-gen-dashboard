@@ -1624,7 +1624,7 @@ export function NormalUserEventLeadSheet() {
                   type="button"
                   onClick={() => setAddLeadOpen(true)}
                   disabled={!selectedEvent}
-                  className="inline-flex h-9 w-40 items-center justify-center gap-2.5 rounded-full bg-blue-600 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                  className="inline-flex h-9 w-40 items-center justify-center gap-2.5 rounded-full border border-blue-500/20 bg-blue-600 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:opacity-50"
                 >
                   <Plus className="h-4 w-4" />
                   Add entry
@@ -1646,53 +1646,58 @@ export function NormalUserEventLeadSheet() {
             <div className="space-y-8">
               <div>
                 <label className="text-xs font-medium text-zinc-400">Event agenda</label>
-                <div className="mt-5 space-y-4">
+                <div className="mt-5">
                   {agendaState.loading ? (
-                    <div className="flex items-center gap-3 py-4 text-sm font-light text-zinc-500">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Loading agenda library
+                    <div className="animate-pulse rounded-lg border border-zinc-200 bg-white p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="h-10 w-10 rounded-md bg-zinc-100" />
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="h-4 w-40 bg-zinc-100" />
+                          <div className="h-3 w-28 bg-zinc-100" />
+                        </div>
+                      </div>
+                      <div className="mt-4 h-10 w-full rounded-full bg-zinc-100" />
                     </div>
                   ) : agendaState.error ? (
-                    <div className="border-l border-zinc-200 pl-4 text-sm font-light leading-6 text-zinc-400">
+                    <div className="rounded-lg border border-zinc-200 bg-white p-4 text-sm font-light leading-6 text-zinc-400">
                       No agenda found for this event.
                     </div>
                   ) : latestAgenda ? (
-                    <>
-                      <div className="space-y-3 border-l border-zinc-200 pl-4">
-                        <div className="flex min-w-0 items-start gap-3">
-                          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-red-100 bg-red-50 text-red-600">
-                            <FileText className="h-4 w-4" />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="truncate text-sm font-medium text-zinc-900">{latestAgenda.name}</p>
-                              <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                                Latest
-                              </span>
-                            </div>
-                            <p className="mt-1 text-xs font-light text-zinc-400">
-                              {formatBytes(latestAgenda.sizeBytes)} · {formatDateTime(latestAgenda.createdAt) || "Time unavailable"}
-                            </p>
+                    <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-[0_18px_48px_-44px_rgba(15,23,42,0.72)]">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-blue-100 bg-blue-50 text-blue-600">
+                          <FileText className="h-5 w-5" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="line-clamp-2 text-sm font-semibold leading-5 text-zinc-950">{latestAgenda.name}</p>
+                            <span className="mt-0.5 shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                              Latest
+                            </span>
+                          </div>
+                          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-zinc-400">
+                            <span>{formatBytes(latestAgenda.sizeBytes)}</span>
+                            <span className="h-1 w-1 rounded-full bg-zinc-300" />
+                            <span className="min-w-0 truncate">{formatDateTime(latestAgenda.createdAt) || "Time unavailable"}</span>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => void handleAgendaDownload(latestAgenda)}
-                          disabled={agendaState.downloadingId === latestAgenda.id}
-                          className="inline-flex h-9 items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-700 transition-colors hover:border-zinc-900 hover:text-zinc-950 disabled:opacity-60"
-                        >
-                          {agendaState.downloadingId === latestAgenda.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Download className="h-3.5 w-3.5" />
-                          )}
-                          Download latest
-                        </button>
                       </div>
-
-                    </>
+                      <button
+                        type="button"
+                        onClick={() => void handleAgendaDownload(latestAgenda)}
+                        disabled={agendaState.downloadingId === latestAgenda.id}
+                        className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-zinc-950 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-600 disabled:opacity-60"
+                      >
+                        {agendaState.downloadingId === latestAgenda.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
+                        Download latest
+                      </button>
+                    </div>
                   ) : (
-                    <div className="border-l border-zinc-200 pl-4 text-sm font-light leading-6 text-zinc-400">
+                    <div className="rounded-lg border border-dashed border-zinc-200 bg-white p-4 text-sm font-light leading-6 text-zinc-400">
                       No agenda has been uploaded for this event yet.
                     </div>
                   )}
