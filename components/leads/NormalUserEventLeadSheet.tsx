@@ -2580,7 +2580,7 @@ export function NormalUserEventLeadSheet() {
             onClick={() => setFilterOpen(false)}
           />
 
-          <div className="relative z-[1] max-h-[calc(100dvh-3rem)] w-full max-w-2xl overflow-hidden rounded-3xl border border-white/38 bg-[#151a22]/82 ring-1 ring-white/28 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12),0_32px_80px_-48px_rgba(2,10,27,0.82),0_12px_28px_-20px_rgba(2,10,27,0.72)] backdrop-blur-[30px]">
+          <div className="relative z-[1] max-h-[calc(100dvh-3rem)] w-full max-w-2xl overflow-hidden rounded-3xl border border-white/42 bg-[#151a22]/62 ring-1 ring-white/32 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14),0_32px_80px_-48px_rgba(2,10,27,0.82),0_12px_28px_-20px_rgba(2,10,27,0.72)] backdrop-blur-[38px]">
             <div className="relative min-h-[24rem] p-8">
               <Button
                 type="button"
@@ -2632,7 +2632,7 @@ export function NormalUserEventLeadSheet() {
 
                 <div className="space-y-4">
                   <label className="block text-sm font-semibold text-zinc-950">By campaign category:</label>
-                  <div className="rounded-3xl border border-zinc-200 bg-white p-3">
+                  <div className="rounded-[2rem] border border-zinc-200 bg-white p-3">
                     <div className="relative">
                       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                       <Input
@@ -2680,11 +2680,13 @@ export function NormalUserEventLeadSheet() {
                             </span>
                           </button>
                         ))}
-                      </div>
 
-                      {filteredCategoryOptions.length === 0 ? (
-                        <p className="py-3 text-sm font-light text-zinc-400">No matching categories.</p>
-                      ) : null}
+                        {filteredCategoryOptions.length === 0 ? (
+                          <span className="inline-flex h-10 items-center rounded-full border border-dashed border-zinc-300 bg-white/45 px-4 text-sm font-medium text-zinc-400">
+                            No matches
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 </div>
