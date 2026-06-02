@@ -147,34 +147,11 @@ export default function SignInPage() {
           <motion.div
             aria-hidden="true"
             animate={{
-              left: "50%",
-              x: "-50%",
-              width: showLogin ? "112%" : "min(190vw, 2600px)",
-              height: showLogin ? "42vh" : "58vh",
-              opacity: showLogin ? [0.34, 0.72, 0.42] : [0.28, 0.62, 0.36],
-              scaleY: [0.88, 1.12, 0.94],
-            }}
-            transition={{
-              left: HERO_MEDIA_TRANSITION,
-              x: HERO_MEDIA_TRANSITION,
-              width: HERO_MEDIA_TRANSITION,
-              height: HERO_MEDIA_TRANSITION,
-              opacity: { duration: 3.4, repeat: Infinity, ease: "easeInOut" },
-              scaleY: { duration: 3.4, repeat: Infinity, ease: "easeInOut" },
-            }}
-            className="pointer-events-none absolute bottom-0 z-[5] origin-bottom bg-[linear-gradient(90deg,transparent_0%,rgba(37,99,235,0.08)_10%,rgba(37,99,235,0.25)_34%,rgba(14,165,233,0.24)_52%,rgba(99,102,241,0.12)_78%,transparent_100%)] blur-3xl"
-          />
-
-          <motion.div
-            aria-hidden="true"
-            animate={{
-              left: "50%",
-              x: "-50%",
-              width: showLogin ? "116%" : "min(190vw, 2600px)",
-              height: showLogin ? "min(76vh, 760px)" : "min(92vh, 980px)",
+              scale: showLogin ? 0.96 : 1,
+              opacity: 1,
             }}
             transition={HERO_MEDIA_TRANSITION}
-            className="pointer-events-none absolute bottom-0 z-10 origin-bottom overflow-visible"
+            className="pointer-events-none absolute inset-0 z-10 origin-bottom overflow-hidden"
           >
             <Image
               src={HERO_GIF_SRC}
@@ -187,6 +164,19 @@ export default function SignInPage() {
               draggable={false}
             />
           </motion.div>
+
+          <motion.div
+            aria-hidden="true"
+            animate={{
+              opacity: showLogin ? [0.34, 0.72, 0.42] : [0.28, 0.62, 0.36],
+              scaleY: [0.88, 1.12, 0.94],
+            }}
+            transition={{
+              opacity: { duration: 3.4, repeat: Infinity, ease: "easeInOut" },
+              scaleY: { duration: 3.4, repeat: Infinity, ease: "easeInOut" },
+            }}
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-[48vh] origin-bottom bg-[linear-gradient(90deg,transparent_0%,rgba(37,99,235,0.08)_10%,rgba(37,99,235,0.25)_34%,rgba(14,165,233,0.24)_52%,rgba(99,102,241,0.12)_78%,transparent_100%)] blur-3xl"
+          />
         </section>
 
         <motion.section
