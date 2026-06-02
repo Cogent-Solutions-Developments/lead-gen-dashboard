@@ -2580,7 +2580,7 @@ export function NormalUserEventLeadSheet() {
             onClick={() => setFilterOpen(false)}
           />
 
-          <div className="relative z-[1] max-h-[calc(100dvh-3rem)] w-full max-w-3xl overflow-hidden rounded-3xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
+          <div className="relative z-[1] max-h-[calc(100dvh-3rem)] w-full max-w-2xl overflow-hidden rounded-3xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
             <div className="relative min-h-[24rem] p-8">
               <Button
                 type="button"
@@ -2603,7 +2603,7 @@ export function NormalUserEventLeadSheet() {
                     </SelectTrigger>
                     <SelectContent
                       position="popper"
-                      className="z-[120] rounded-2xl border border-white/18 bg-[#161b25] text-zinc-100 shadow-2xl"
+                      className="z-[120] rounded-lg border border-white/18 bg-[#161b25] text-zinc-100 shadow-2xl"
                     >
                       <SelectItem
                         value="all"
@@ -2700,7 +2700,7 @@ export function NormalUserEventLeadSheet() {
                 </button>
                 <Button
                   type="button"
-                  className="h-11 rounded-full bg-zinc-950 px-7 text-sm font-semibold text-white shadow-none hover:bg-blue-600"
+                  className="h-10 rounded-full bg-zinc-950 px-6 text-sm font-semibold text-white shadow-none hover:bg-blue-600"
                   onClick={() => setFilterOpen(false)}
                 >
                   Apply filters
