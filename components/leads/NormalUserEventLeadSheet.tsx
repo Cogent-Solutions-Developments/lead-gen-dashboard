@@ -2580,7 +2580,7 @@ export function NormalUserEventLeadSheet() {
             onClick={() => setFilterOpen(false)}
           />
 
-          <div className="relative z-[1] max-h-[calc(100dvh-3rem)] w-full max-w-2xl overflow-hidden rounded-3xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
+          <div className="relative z-[1] max-h-[calc(100dvh-3rem)] w-full max-w-2xl overflow-hidden rounded-3xl border border-zinc-300 bg-[#151a22] shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
             <div className="relative min-h-[24rem] p-8">
               <Button
                 type="button"
