@@ -1137,9 +1137,16 @@ export function NormalUserEventLeadSheet() {
   }, [pathname, router, searchParams, uploadParam]);
 
   const openTemplateUploadDialog = () => {
+    const currentEventKey = selectedEvent?.canonicalEventKey || selectedEventKey || events[0]?.canonicalEventKey || "";
+    const selectedRegistryEvent =
+      activeRegistryEvents.find((event) => event.id === selectedEvent?.eventRegistryId) ??
+      activeRegistryEvents.find((event) => event.eventKey === currentEventKey) ??
+      activeRegistryEvents[0] ??
+      null;
+
     setTemplateUpload({
       ...EMPTY_TEMPLATE_UPLOAD,
-      selectedEventKey: selectedEvent?.canonicalEventKey || selectedEventKey || events[0]?.canonicalEventKey || "",
+      selectedEventId: selectedRegistryEvent?.id || "",
     });
     setTemplateUploadOpen(true);
   };
