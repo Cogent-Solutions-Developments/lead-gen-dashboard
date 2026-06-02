@@ -1577,7 +1577,7 @@ export function NormalUserEventLeadSheet() {
   return (
     <>
       <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
-        <header className="min-h-[6.5rem] shrink-0 border-b border-zinc-300 pb-12">
+        <header className="min-h-[6.25rem] shrink-0 border-b border-zinc-300 pb-11">
           <div className="flex min-w-0 items-center gap-7 whitespace-nowrap overflow-hidden">
             <div className="min-w-0 flex-1">
               <Select value={selectedEventKey} onValueChange={handleEventChange}>
