@@ -58,6 +58,7 @@ import {
   Loader2,
   Mail,
   MessageSquare,
+  MoveRight,
   Plus,
   RefreshCcw,
   Search,
@@ -489,10 +490,6 @@ function buildWhatsAppHref(value: string) {
   return digits.length >= 8 ? `https://wa.me/${digits}` : "";
 }
 
-function firstName(value: string) {
-  return value.trim().split(/\s+/)[0] || "";
-}
-
 function getUserDisplayName(user: ReturnType<typeof useAuth>["user"]) {
   return [user?.fullName, getCachedAuthUserDisplayName(user), user?.username]
     .map((value) => value?.trim())
@@ -750,7 +747,6 @@ export function NormalUserEventLeadSheet() {
   }, [fixedWorkflowStatuses, workflowStatuses]);
   const canUseDealBellFlow = role === "sales_user";
   const canUseTemplateUpload = role === "sales_user" || role === "delegate_user" || role === "production_user";
-  const signedInFirstName = firstName(getUserDisplayName(user)) || "there";
 
   const loadInitialData = useCallback(async () => {
     setLoadingEvents(true);
@@ -2070,7 +2066,7 @@ export function NormalUserEventLeadSheet() {
         >
           <div className="space-y-8" style={{ color: "#f8fafc" }}>
             <div className="border-b border-zinc-700/60 pb-6">
-              <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "#cbd5e1" }}>
+              <p className="text-sm font-medium tracking-tight" style={{ color: "#cbd5e1" }}>
                 Selected profile
               </p>
               <h3 className="mt-2 text-2xl font-light tracking-tight" style={{ color: "#f8fafc" }}>
@@ -2081,49 +2077,43 @@ export function NormalUserEventLeadSheet() {
               </p>
             </div>
 
-            {canUseDealBellFlow && pendingStatusChange.nextStatus === "deal-closed" ? (
-              <div className="rounded-2xl border border-zinc-600/80 bg-[#1a2230]/88 px-5 py-4 text-center">
-                <p className="text-lg font-medium tracking-tight" style={{ color: "#f8fafc" }}>
-                  Congrats on closing the deal with {pendingStatusChange.item.employeeName || "this lead"}.
-                </p>
-                <p className="mt-1 text-sm font-light" style={{ color: "#d1d5db" }}>
-                  Nice work, {signedInFirstName}. Add a final note so the team has the full context.
-                </p>
-              </div>
-            ) : null}
-
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div className="rounded-2xl border border-zinc-600/80 bg-[#1a2230]/88 p-4">
-                <p className="text-xs font-medium" style={{ color: "#cbd5e1" }}>
-                  Current status
-                </p>
-                <p className="mt-2 text-lg font-light" style={{ color: "#f8fafc" }}>
-                  {pendingStatusChange.item.workflowStatusLabel}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-zinc-600/80 bg-[#1a2230]/88 p-4">
-                <p className="text-xs font-medium" style={{ color: "#cbd5e1" }}>
-                  New status
-                </p>
-                <p className="mt-2 text-lg font-light" style={{ color: "#f8fafc" }}>
-                  {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
-                    humanizeStatusLabel(pendingStatusChange.nextStatus)}
-                </p>
+            <div className="w-full">
+              <div className="status-battery-track h-16 w-full rounded-2xl border border-white/10 overflow-hidden relative flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_8px_20px_-10px_rgba(0,0,0,0.5)]">
+                {/* The animated filling progress */}
+                <div className="status-battery-fill" />
+                
+                {/* Overlay Text Content */}
+                <div className="relative z-10 flex flex-col items-center justify-center text-center px-4 select-none">
+                  <div className="flex items-center gap-2 sm:gap-3 font-medium text-base sm:text-xl tracking-tight truncate max-w-full">
+                    <span className="truncate max-w-[6.5rem] sm:max-w-none" style={{ color: "#f3f4f6" }}>
+                      {pendingStatusChange.item.workflowStatusLabel}
+                    </span>
+                    <span className="shrink-0 animate-[statusArrowDrift_1.8s_ease-in-out_infinite]">
+                      <MoveRight className="h-[18px] w-[24px]" style={{ color: "#f3f4f6", strokeWidth: 2 }} />
+                    </span>
+                    <span className="truncate max-w-[6.5rem] sm:max-w-none" style={{ color: "#f3f4f6" }}>
+                      {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
+                        humanizeStatusLabel(pendingStatusChange.nextStatus)}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <label className="block space-y-3">
-              <span className="text-xs font-medium uppercase tracking-wide" style={{ color: "#cbd5e1" }}>
+            <label className="block">
+              <span className="text-sm font-medium tracking-tight" style={{ color: "#cbd5e1" }}>
                 Comment <span className="normal-case tracking-normal" style={{ color: "#d1d5db" }}>Optional</span>
               </span>
-              <Textarea
-                value={statusComment}
-                onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
-                placeholder="Example: Follow up after first call. Asked to reconnect next week."
-                className="min-h-36 rounded-2xl border-zinc-600/80 !bg-[#1a2230]/88 text-sm font-light !text-white shadow-none placeholder:!text-zinc-400 focus-visible:ring-1 focus-visible:ring-blue-600"
-                style={{ color: "#f8fafc", backgroundColor: "rgba(26,34,48,0.88)" }}
-              />
-              <span className="block text-right text-xs font-light" style={{ color: "#d1d5db" }}>
+              <div className="mt-3 overflow-hidden rounded-[1.35rem] border border-white/80 bg-white/[0.06] ring-1 ring-white/18 shadow-[inset_0_1px_0_rgba(255,255,255,0.18),inset_0_-1px_0_rgba(255,255,255,0.04),0_12px_28px_-18px_rgba(2,10,27,0.82),0_4px_12px_-8px_rgba(2,10,27,0.54)] backdrop-blur-[26px] transition focus-within:border-blue-400/70 focus-within:ring-blue-300/30 focus-within:shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_0_26px_-14px_rgba(59,130,246,0.62)]">
+                <Textarea
+                  value={statusComment}
+                  onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
+                  placeholder="Example: Follow up after first call. Asked to reconnect next week."
+                  className="min-h-36 resize-none !rounded-[inherit] border-0 bg-transparent px-6 py-5 text-base font-light text-white shadow-none placeholder:text-zinc-400/95 focus-visible:ring-0"
+                  style={{ color: "#f8fafc" }}
+                />
+              </div>
+              <span className="mt-4 block text-right text-xs font-light" style={{ color: "#d1d5db" }}>
                 {statusComment.length}/2000
               </span>
             </label>
@@ -2133,8 +2123,8 @@ export function NormalUserEventLeadSheet() {
                 type="button"
                 variant="ghost"
                 onClick={closeStatusCommentDialog}
-                className="h-10 rounded-full border border-zinc-600/80 bg-[#1a2230]/88 px-5 !text-zinc-200 shadow-none hover:border-zinc-300 hover:bg-[#212b3b] hover:!text-white"
-                style={{ color: "#e5e7eb" }}
+                className="h-10 rounded-full border border-zinc-600/80 bg-[#1a2230]/88 px-5 shadow-none hover:border-zinc-300 hover:bg-[#212b3b]"
+                style={{ color: "#f3f4f6" }}
               >
                 Cancel
               </Button>
@@ -2502,36 +2492,37 @@ export function NormalUserEventLeadSheet() {
           title="Comment History"
           description="Review the status timeline and notes saved for this record."
           onClose={closeHistory}
+          variant="panel"
         >
           <div className="space-y-6">
-            <div className="border-b border-zinc-100 pb-6">
-              <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Selected profile</p>
-              <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
+            <div className="border-b border-zinc-700/60 pb-6">
+              <p className="text-sm font-medium tracking-tight" style={{ color: "#cbd5e1" }}>Selected profile</p>
+              <h3 className="mt-2 text-2xl font-light tracking-tight" style={{ color: "#f8fafc" }}>
                 {historyLead.employeeName || "-"}
               </h3>
-              <p className="mt-1 text-sm font-light text-zinc-500">{historyLead.company || "-"}</p>
+              <p className="mt-1 text-sm font-light" style={{ color: "#d1d5db" }}>{historyLead.company || "-"}</p>
             </div>
 
             {historyLoading ? (
-              <div className="flex h-32 items-center justify-center text-sm font-light text-zinc-400">
+              <div className="flex h-32 items-center justify-center text-sm font-light" style={{ color: "#d1d5db" }}>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Loading history...
               </div>
             ) : historyError ? (
-              <div className="border border-red-200 bg-red-50 p-4 text-sm font-light text-red-700">
+              <div className="rounded-[1.15rem] border border-red-400/35 bg-red-500/10 p-4 text-sm font-light text-red-100">
                 {historyError}
               </div>
             ) : historyItems.length === 0 ? (
-              <div className="border border-zinc-200 bg-zinc-50/70 p-6 text-sm font-light text-zinc-500">
+              <div className="rounded-[1.15rem] border border-white/18 bg-white/[0.04] p-6 text-sm font-light" style={{ color: "#d1d5db" }}>
                 No comments have been recorded for this lead yet.
               </div>
             ) : (
-              <div className="border-y border-zinc-300">
-                <div className="flex items-center justify-between border-b border-zinc-200 py-3">
+              <div className="overflow-hidden rounded-[1.4rem] border border-white/18 bg-white/[0.03] ring-1 ring-white/8">
+                <div className="flex items-center justify-between border-b border-zinc-700/60 px-5 py-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Timeline</span>
+                    <span className="text-sm font-medium tracking-tight" style={{ color: "#cbd5e1" }}>Timeline</span>
                   </div>
-                  <span className="text-xs font-light text-zinc-400">
+                  <span className="text-xs font-light" style={{ color: "#d1d5db" }}>
                     {historyItems.length} update{historyItems.length === 1 ? "" : "s"}
                   </span>
                 </div>
@@ -2547,31 +2538,31 @@ export function NormalUserEventLeadSheet() {
                     return (
                       <article
                         key={entry.id}
-                        className="group grid grid-cols-[2.75rem_minmax(0,1fr)] border-b border-zinc-100 last:border-b-0"
+                        className="group grid grid-cols-[2.75rem_minmax(0,1fr)] border-b border-zinc-800/70 last:border-b-0"
                       >
                         <div className="relative flex justify-center">
                           <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-blue-500/35" />
-                          <span className="relative mt-5 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-blue-500 bg-white shadow-[0_0_0_3px_rgba(37,99,235,0.08)]">
+                          <span className="relative mt-5 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-blue-400/70 bg-[#0f1623] shadow-[0_0_0_3px_rgba(37,99,235,0.12)]">
                             <span className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(entry.workflowStatus)}`} />
                           </span>
                         </div>
 
-                        <div className="min-w-0 py-5 transition-colors group-hover:bg-zinc-50/40">
+                        <div className="min-w-0 py-5 pr-4 transition-colors group-hover:bg-white/[0.03]">
                           <div className="flex flex-wrap items-start justify-between gap-3 pr-1">
                             <div className="min-w-0">
                               <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                                <h4 className="text-base font-medium tracking-tight text-zinc-950">{statusLabel}</h4>
+                                <h4 className="text-base font-medium tracking-tight" style={{ color: "#f8fafc" }}>{statusLabel}</h4>
                               </div>
-                              <p className="mt-1 text-xs font-light text-zinc-400">Updated by {actorName}</p>
+                              <p className="mt-1 text-xs font-light" style={{ color: "#d1d5db" }}>Updated by {actorName}</p>
                             </div>
 
-                            <time className="shrink-0 text-right text-xs font-light leading-5 text-zinc-400">
+                            <time className="shrink-0 text-right text-xs font-light leading-5" style={{ color: "#d1d5db" }}>
                               {formatDateTime(entry.createdAt) || "Time unavailable"}
                             </time>
                           </div>
 
-                          <div className="mt-3 max-w-xl border-l border-zinc-200 pl-3">
-                            <p className="whitespace-pre-wrap text-sm font-light leading-6 text-zinc-600">
+                          <div className="mt-3 max-w-xl border-l border-zinc-700/70 pl-3">
+                            <p className="whitespace-pre-wrap text-sm font-light leading-6" style={{ color: "#e5e7eb" }}>
                               {entry.comment || "No comment added."}
                             </p>
                           </div>
