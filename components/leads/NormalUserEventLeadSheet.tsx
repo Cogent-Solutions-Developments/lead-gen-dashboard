@@ -2929,6 +2929,7 @@ export function NormalUserEventLeadSheet() {
             : "Select an event first before adding a lead."
         }
         onClose={closeAddLeadDialog}
+        variant="panel"
       >
         <div className="grid gap-x-8 gap-y-8 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -2939,7 +2940,7 @@ export function NormalUserEventLeadSheet() {
               value={addLeadForm.fullName}
               onChange={(event) => updateAddLeadField("fullName", event.target.value)}
               placeholder="Lead name"
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className="h-12 rounded-none border-0 border-b border-zinc-700/70 !bg-transparent px-0 text-lg font-light tracking-tight text-zinc-100 shadow-none placeholder:text-zinc-500 dark:!bg-transparent focus:border-blue-600 focus:ring-0"
             />
           </div>
 
@@ -2951,7 +2952,7 @@ export function NormalUserEventLeadSheet() {
               value={addLeadForm.title}
               onChange={(event) => updateAddLeadField("title", event.target.value)}
               placeholder="Job title"
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className="h-12 rounded-none border-0 border-b border-zinc-700/70 !bg-transparent px-0 text-lg font-light tracking-tight text-zinc-100 shadow-none placeholder:text-zinc-500 dark:!bg-transparent focus:border-blue-600 focus:ring-0"
             />
           </div>
 
@@ -2963,7 +2964,7 @@ export function NormalUserEventLeadSheet() {
               value={addLeadForm.companyName}
               onChange={(event) => updateAddLeadField("companyName", event.target.value)}
               placeholder="Company"
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className="h-12 rounded-none border-0 border-b border-zinc-700/70 !bg-transparent px-0 text-lg font-light tracking-tight text-zinc-100 shadow-none placeholder:text-zinc-500 dark:!bg-transparent focus:border-blue-600 focus:ring-0"
             />
           </div>
 
@@ -2975,7 +2976,7 @@ export function NormalUserEventLeadSheet() {
               value={addLeadForm.companyUrl}
               onChange={(event) => updateAddLeadField("companyUrl", event.target.value)}
               placeholder="https://company.com"
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className="h-12 rounded-none border-0 border-b border-zinc-700/70 !bg-transparent px-0 text-lg font-light tracking-tight text-zinc-100 shadow-none placeholder:text-zinc-500 dark:!bg-transparent focus:border-blue-600 focus:ring-0"
             />
           </div>
 
@@ -2987,7 +2988,7 @@ export function NormalUserEventLeadSheet() {
               value={addLeadForm.email}
               onChange={(event) => updateAddLeadField("email", event.target.value)}
               placeholder="name@company.com"
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className="h-12 rounded-none border-0 border-b border-zinc-700/70 !bg-transparent px-0 text-lg font-light tracking-tight text-zinc-100 shadow-none placeholder:text-zinc-500 dark:!bg-transparent focus:border-blue-600 focus:ring-0"
             />
           </div>
 
@@ -2999,7 +3000,7 @@ export function NormalUserEventLeadSheet() {
               value={addLeadForm.phone}
               onChange={(event) => updateAddLeadField("phone", event.target.value)}
               placeholder="+60 ..."
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className="h-12 rounded-none border-0 border-b border-zinc-700/70 !bg-transparent px-0 text-lg font-light tracking-tight text-zinc-100 shadow-none placeholder:text-zinc-500 dark:!bg-transparent focus:border-blue-600 focus:ring-0"
             />
           </div>
 
@@ -3011,20 +3012,16 @@ export function NormalUserEventLeadSheet() {
               value={addLeadForm.linkedinUrl}
               onChange={(event) => updateAddLeadField("linkedinUrl", event.target.value)}
               placeholder="https://linkedin.com/in/..."
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className="h-12 rounded-none border-0 border-b border-zinc-700/70 !bg-transparent px-0 text-lg font-light tracking-tight text-zinc-100 shadow-none placeholder:text-zinc-500 dark:!bg-transparent focus:border-blue-600 focus:ring-0"
             />
           </div>
-        </div>
-
-        <div className="mt-8 border-y border-zinc-100 py-4 text-sm font-light leading-relaxed text-zinc-500">
-          Add the strongest details you have now. Contact information helps the team follow up faster, but the profile can be updated later.
         </div>
 
         <div className="mt-8 flex items-center justify-between">
           <Button
             type="button"
             variant="ghost"
-            className="h-11 rounded-none border-b border-transparent px-0 text-sm font-medium text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-transparent hover:text-zinc-950"
+            className="h-11 rounded-none border-b border-transparent px-0 text-sm font-medium text-zinc-400 shadow-none hover:border-zinc-300 hover:bg-transparent hover:text-zinc-100"
             onClick={() => closeAddLeadDialog()}
             disabled={addingLead}
           >
@@ -3032,7 +3029,7 @@ export function NormalUserEventLeadSheet() {
           </Button>
           <Button
             type="button"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-zinc-950 px-7 text-sm font-semibold text-white shadow-none hover:bg-blue-600"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-zinc-950 px-7 text-sm font-semibold text-white shadow-none hover:bg-blue-600"
             onClick={() => void submitAddLead()}
             disabled={addingLead || !selectedEvent}
           >
