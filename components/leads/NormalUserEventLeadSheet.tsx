@@ -2199,7 +2199,7 @@ export function NormalUserEventLeadSheet() {
       {emailDialog ? (
         <LeadSheetDialog
           open
-          eyebrow="Outreach Workspace"
+          eyebrow=""
           title={
             emailDialog.platform === "whatsapp"
               ? "WhatsApp Draft"
@@ -2207,20 +2207,14 @@ export function NormalUserEventLeadSheet() {
                 ? "Email Draft"
                 : "Generate Content"
           }
-          description={
-            emailDialog.loading
-              ? "Generating content for this lead."
-              : emailDialog.platform
-                ? "Review, edit, and copy the personalized content."
-                : "Choose the channel before generation starts."
-          }
+          description=""
           onClose={closeEmailDialog}
+          compact
         >
           {!emailDialog.platform && !emailDialog.loading && !emailDialog.error ? (
             <div className="space-y-7">
               <div className="border-b border-zinc-100 pb-6">
-                <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Selected profile</p>
-                <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
+                <h3 className="text-2xl font-light tracking-tight text-zinc-950">
                   {emailDialog.lead.employeeName || "-"}
                 </h3>
                 <p className="mt-1 text-sm font-light leading-6 text-zinc-500">
@@ -2232,12 +2226,12 @@ export function NormalUserEventLeadSheet() {
                 <button
                   type="button"
                   onClick={() => void generateContentForPlatform(emailDialog.lead, "email")}
-                  className="group border border-zinc-300 bg-white p-5 text-left transition-colors hover:border-blue-600 hover:bg-blue-50/40"
+                  className="group rounded-2xl border border-zinc-200 bg-white p-5 text-left shadow-[0_16px_36px_-30px_rgba(15,23,42,0.65)] transition-all hover:border-red-200 hover:bg-zinc-50/70"
                 >
-                  <span className="flex h-10 w-10 items-center justify-center border border-zinc-200 bg-white text-blue-600 group-hover:border-blue-200">
-                    <Mail className="h-5 w-5" />
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full border border-red-500/20 bg-[#EF4444] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(239,68,68,0.82)]">
+                    <Mail className="h-5 w-5 stroke-[2.4]" />
                   </span>
-                  <span className="mt-5 block text-lg font-light text-zinc-950">Email</span>
+                  <span className="mt-5 block text-lg font-medium text-zinc-950">Email</span>
                   <span className="mt-1 block text-sm font-light leading-6 text-zinc-500">
                     Subject and longer sales narrative for inbox outreach.
                   </span>
@@ -2245,12 +2239,12 @@ export function NormalUserEventLeadSheet() {
                 <button
                   type="button"
                   onClick={() => void generateContentForPlatform(emailDialog.lead, "whatsapp")}
-                  className="group border border-zinc-300 bg-white p-5 text-left transition-colors hover:border-emerald-600 hover:bg-emerald-50/40"
+                  className="group rounded-2xl border border-zinc-200 bg-white p-5 text-left shadow-[0_16px_36px_-30px_rgba(15,23,42,0.65)] transition-all hover:border-emerald-200 hover:bg-zinc-50/70"
                 >
-                  <span className="flex h-10 w-10 items-center justify-center border border-zinc-200 bg-white text-emerald-600 group-hover:border-emerald-200">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#22c55e]/30 bg-[#22c55e] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-16px_rgba(34,197,94,0.82)]">
                     <WhatsAppIcon className="h-5 w-5" />
                   </span>
-                  <span className="mt-5 block text-lg font-light text-zinc-950">WhatsApp</span>
+                  <span className="mt-5 block text-lg font-medium text-zinc-950">WhatsApp</span>
                   <span className="mt-1 block text-sm font-light leading-6 text-zinc-500">
                     Short, direct message for a quick reply.
                   </span>
