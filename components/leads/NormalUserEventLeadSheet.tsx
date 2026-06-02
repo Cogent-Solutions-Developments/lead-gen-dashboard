@@ -2522,46 +2522,95 @@ export function NormalUserEventLeadSheet() {
           <button
             type="button"
             aria-label="Close bell confirmation"
-            className="absolute inset-0 bg-zinc-950/20 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-zinc-950/30 backdrop-blur-[3px]"
             onClick={() => {
               if (!ringingDealBell) setRingBellConfirmOpen(false);
             }}
           />
 
-          <div className="relative z-[1] w-full max-w-md overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_90px_-54px_rgba(2,10,27,0.82)]">
-            <div className="border-b border-zinc-100 px-7 py-6">
-              <h3 className="text-3xl font-light leading-none tracking-[-0.04em] text-zinc-950">
-                Ring the deal bell?
-              </h3>
-              <p className="mt-1.5 max-w-sm text-sm font-light leading-6 text-zinc-500">
-                Let the team know you closed the deal with{" "}
-                <span className="font-medium text-zinc-700">{pendingStatusChange.item.employeeName || "this lead"}</span>.
-              </p>
+          <div className="relative z-[1] flex max-h-[calc(100dvh-3rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_90px_-54px_rgba(2,10,27,0.82)]">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={ringingDealBell}
+              className="absolute right-5 top-5 z-20 h-10 w-10 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+              onClick={() => setRingBellConfirmOpen(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+
+            <div className="shrink-0 px-8 pb-4 pt-8">
+              <div className="max-w-xl pr-12">
+                <h3 className="text-4xl font-light leading-none tracking-tighter text-zinc-950">
+                  Ring the deal bell?
+                </h3>
+                <p className="mt-3 text-sm font-light leading-6 text-zinc-500">
+                  Let the team know you closed the deal with{" "}
+                  <span className="font-medium text-zinc-700">
+                    {pendingStatusChange.item.employeeName || "this lead"}
+                  </span>.
+                </p>
+              </div>
             </div>
 
-            <div className="flex justify-end gap-3 bg-zinc-50/70 px-7 py-5">
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={ringingDealBell}
-                onClick={() => setRingBellConfirmOpen(false)}
-                className="h-10 rounded-none border border-zinc-300 bg-white px-5 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                disabled={ringingDealBell}
-                onClick={() => void submitStatusComment({ ringBell: true })}
-                className="h-10 gap-2 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
-              >
-                {ringingDealBell ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <BellRing className="h-4 w-4" />
-                )}
-                Ring bell
-              </Button>
+            <div className="min-h-0 flex-1 overflow-hidden px-8 pb-8">
+              <div className="grid rounded-2xl border border-zinc-200 bg-white p-2 shadow-[0_18px_38px_-34px_rgba(15,23,42,0.6)] sm:grid-cols-[18rem_minmax(0,1fr)]">
+                <div className="relative mx-auto h-[min(30rem,calc(100dvh-15rem))] w-full max-w-[18rem] overflow-hidden rounded-xl bg-zinc-950 sm:mx-0 sm:max-w-none">
+                  <video
+                    src={DEAL_CLOSED_VIDEO_SRC}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/30 via-transparent to-transparent" />
+                </div>
+
+                <div className="flex min-w-0 flex-col justify-between gap-6 p-4">
+                  <div>
+                    <div className="rounded-xl bg-zinc-50/80 px-4 py-3">
+                      <p className="truncate text-base font-light text-zinc-950">
+                        {pendingStatusChange.item.workflowStatusLabel}
+                      </p>
+                    </div>
+                    <div className="flex justify-center py-3 text-zinc-300">
+                      <ChevronRight className="h-4 w-4 rotate-90" />
+                    </div>
+                    <div className="rounded-xl border border-emerald-500/20 bg-[#22c55e] px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)]">
+                      <p className="truncate text-base font-semibold">
+                        {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
+                          humanizeStatusLabel(pendingStatusChange.nextStatus)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3 border-t border-zinc-100 pt-4 sm:flex-row sm:items-center sm:justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={ringingDealBell}
+                      onClick={() => setRingBellConfirmOpen(false)}
+                      className="h-11 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      disabled={ringingDealBell}
+                      onClick={() => void submitStatusComment({ ringBell: true })}
+                      className="h-11 gap-2 rounded-full border border-emerald-500/20 bg-[#22c55e] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)] hover:bg-emerald-600"
+                    >
+                      {ringingDealBell ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <BellRing className="h-4 w-4" />
+                      )}
+                      Ring bell
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
