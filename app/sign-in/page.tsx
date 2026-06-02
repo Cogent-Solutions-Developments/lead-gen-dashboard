@@ -102,31 +102,33 @@ export default function SignInPage() {
             showLogin ? "lg:border-r lg:border-zinc-200" : ""
           }`}
         >
-          <div className="relative z-20 mx-auto flex h-full max-w-5xl flex-col items-center px-6 pb-[37vh] pt-28 text-center sm:px-10 sm:pt-32 lg:pb-[38vh]">
+          <div className="relative z-20 mx-auto flex h-full max-w-6xl flex-col items-start px-6 pb-[49vh] pt-28 text-left sm:px-10 sm:pt-32 lg:pb-[50vh]">
             <motion.div
               initial={{ opacity: 0, y: 14 }}
               animate={{
                 opacity: 1,
                 y: 0,
                 scale: showLogin ? 0.95 : 1,
-                x: showLogin ? -20 : 0,
+                x: showLogin ? -10 : 0,
               }}
               transition={{ duration: 0.8, ease: "easeOut" }}
-              className="max-w-4xl"
+              className="max-w-3xl"
             >
-              <h1 className="text-[clamp(2.2rem,4.6vw,4.7rem)] font-light leading-[0.96] tracking-[-0.05em] text-zinc-950">
-                I am supernizo
+              <p className="text-sm font-medium text-zinc-400">I am</p>
+              <h1 className="mt-2 text-[clamp(2.35rem,4.4vw,4.35rem)] font-light leading-[0.96] tracking-[-0.05em] text-zinc-950">
+                supernizo
               </h1>
-              <p className="mx-auto mt-5 max-w-3xl text-[clamp(1.05rem,1.75vw,1.55rem)] font-light leading-tight tracking-[-0.025em] text-blue-700">
-                An enterprise agentic AI for intelligent outreach
+              <p className="mt-5 max-w-2xl text-[clamp(1.05rem,1.55vw,1.42rem)] font-light leading-tight tracking-[-0.025em] text-blue-700">
+                Enterprise agentic AI for intelligent outreach.
               </p>
-              <div className="mx-auto mt-6 max-w-2xl space-y-5 text-sm font-light leading-7 text-zinc-500 sm:text-base">
-                <p>
+              <div className="mt-6 max-w-2xl border-l border-zinc-300 pl-5 text-sm font-light leading-7 text-zinc-500 sm:text-base">
+                <p className="max-w-xl">
                   I am an enterprise agentic AI platform that intelligently identifies your dream customers and
                   prospects, autonomously manages outreach, and streamlines customer engagement at scale.
                 </p>
-                <p className="text-sm font-semibold uppercase tracking-[0.22em] text-zinc-950">
-                  Intelligent. Autonomous. Limitless.
+                <p className="mt-5 text-sm font-medium text-zinc-950">
+                  Intelligent <span className="px-2 text-zinc-300">/</span> autonomous{" "}
+                  <span className="px-2 text-zinc-300">/</span> limitless
                 </p>
               </div>
             </motion.div>
@@ -135,12 +137,31 @@ export default function SignInPage() {
           <motion.div
             aria-hidden="true"
             animate={{
-              left: showLogin ? "4%" : "50%",
+              left: showLogin ? "-10%" : "50%",
               x: showLogin ? "0%" : "-50%",
-              width: showLogin ? "70%" : "min(100vw, 1180px)",
+              width: showLogin ? "118%" : "min(132vw, 1680px)",
+              opacity: showLogin ? [0.45, 0.82, 0.52] : [0.38, 0.72, 0.42],
+              scaleY: [0.92, 1.08, 0.96],
+            }}
+            transition={{
+              left: { duration: 1.15, ease: [0.22, 1, 0.36, 1] },
+              x: { duration: 1.15, ease: [0.22, 1, 0.36, 1] },
+              width: { duration: 1.15, ease: [0.22, 1, 0.36, 1] },
+              opacity: { duration: 3.4, repeat: Infinity, ease: "easeInOut" },
+              scaleY: { duration: 3.4, repeat: Infinity, ease: "easeInOut" },
+            }}
+            className="pointer-events-none absolute bottom-0 z-[5] h-[42vh] origin-bottom bg-[linear-gradient(90deg,transparent_0%,rgba(37,99,235,0.10)_14%,rgba(37,99,235,0.24)_38%,rgba(14,165,233,0.23)_56%,rgba(99,102,241,0.14)_78%,transparent_100%)] blur-2xl"
+          />
+
+          <motion.div
+            aria-hidden="true"
+            animate={{
+              left: showLogin ? "-14%" : "50%",
+              x: showLogin ? "0%" : "-50%",
+              width: showLogin ? "124%" : "min(132vw, 1680px)",
             }}
             transition={{ duration: 1.15, ease: [0.22, 1, 0.36, 1] }}
-            className="pointer-events-none absolute bottom-0 z-10 aspect-video max-h-[58vh] min-h-[280px] origin-bottom overflow-visible"
+            className="pointer-events-none absolute bottom-0 z-10 aspect-video max-h-[76vh] min-h-[430px] origin-bottom overflow-visible"
           >
             <Image
               src={HERO_GIF_SRC}
