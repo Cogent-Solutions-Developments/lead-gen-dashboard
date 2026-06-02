@@ -9,11 +9,15 @@ import { ProtectedImage } from "@/components/storage/ProtectedImage";
 import {
   ArrowRight,
   CalendarDays,
+  LayoutGrid,
+  List,
   MapPin,
   Search,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+
+type EventViewMode = "list" | "grid";
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong.";
@@ -91,7 +95,39 @@ function HeaderMetricSkeleton() {
   );
 }
 
-function EventRowsSkeleton() {
+function EventRowsSkeleton({ viewMode }: { viewMode: EventViewMode }) {
+  if (viewMode === "grid") {
+    return (
+      <div className="grid grid-cols-1 gap-5 pr-1 md:grid-cols-2 xl:grid-cols-3">
+        {[0, 1, 2, 3, 4, 5].map((index) => (
+          <div
+            key={index}
+            className="flex min-h-[15rem] animate-pulse flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white/70 p-5 2xl:p-6"
+          >
+            <div className="grid min-h-[8.25rem] grid-cols-[7.75rem_minmax(0,1fr)] gap-4 2xl:grid-cols-[8.5rem_minmax(0,1fr)]">
+              <div className="bg-zinc-100" />
+              <div>
+                <div className="h-8 w-44 bg-zinc-100" />
+                <div className="mt-4 flex gap-2">
+                  <div className="h-8 w-28 bg-zinc-100" />
+                  <div className="h-8 w-32 bg-zinc-100" />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-auto flex items-end justify-between gap-4 pt-5">
+              <div className="space-y-2">
+                <div className="h-3 w-24 bg-zinc-100" />
+                <div className="h-9 w-28 bg-zinc-100" />
+              </div>
+              <div className="h-11 w-28 bg-zinc-100" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 gap-5 pr-1">
       {[0, 1, 2].map((index) => (
@@ -123,16 +159,65 @@ function EventRowsSkeleton() {
   );
 }
 
-function EventImagePanel({ item }: { item: EventSummaryItem }) {
+function EventImagePanel({
+  item,
+  viewMode = "list",
+}: {
+  item: EventSummaryItem;
+  viewMode?: EventViewMode;
+}) {
   return (
-    <div className="relative flex min-h-[11rem] items-center justify-center overflow-hidden text-3xl font-semibold text-zinc-400 sm:h-full sm:min-h-0">
+    <div
+      className={
+        viewMode === "grid"
+          ? "relative flex h-full min-h-[8.25rem] items-center justify-center overflow-hidden text-2xl font-semibold text-zinc-400"
+          : "relative flex min-h-[11rem] items-center justify-center overflow-hidden text-3xl font-semibold text-zinc-400 sm:h-full sm:min-h-0"
+      }
+    >
       <ProtectedImage
         src={item.logoUrl}
         directUrlPath={item.logoUrl ? `${item.logoUrl}/download-url` : undefined}
         alt=""
-        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+        className={`h-full w-full transition-transform duration-500 group-hover:scale-[1.04] ${
+          viewMode === "grid" ? "object-contain p-3" : "object-cover"
+        }`}
         fallback={item.canonicalEventName.slice(0, 2).toUpperCase()}
       />
+    </div>
+  );
+}
+
+function EventMetaChips({
+  item,
+  compact = false,
+}: {
+  item: EventSummaryItem;
+  compact?: boolean;
+}) {
+  if (!item.date && !item.location) return null;
+
+  return (
+    <div className={`${compact ? "mt-3 gap-1.5" : "mt-4 gap-2"} flex min-w-0 flex-wrap`}>
+      {item.date ? (
+        <span
+          className={`inline-flex max-w-full items-center rounded-full border border-zinc-200 bg-zinc-50 font-medium text-zinc-500 ${
+            compact ? "h-7 gap-1.5 px-2.5 text-[11px]" : "h-8 gap-2 px-3 text-xs"
+          }`}
+        >
+          <CalendarDays className={`${compact ? "h-3 w-3" : "h-3.5 w-3.5"} text-blue-600`} />
+          <span className="truncate">{formatEventDate(item.date)}</span>
+        </span>
+      ) : null}
+      {item.location ? (
+        <span
+          className={`inline-flex max-w-full items-center rounded-full border border-zinc-200 bg-zinc-50 font-medium text-zinc-500 ${
+            compact ? "h-7 gap-1.5 px-2.5 text-[11px]" : "h-8 gap-2 px-3 text-xs"
+          }`}
+        >
+          <MapPin className={`${compact ? "h-3 w-3" : "h-3.5 w-3.5"} text-blue-600`} />
+          <span className={`${compact ? "max-w-[9.5rem]" : "max-w-[13rem]"} truncate`}>{item.location}</span>
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -141,6 +226,7 @@ export function NormalUserEventsPage() {
   const [items, setItems] = useState<EventSummaryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<EventViewMode>("list");
   const hasSearch = searchQuery.trim().length > 0;
 
   useEffect(() => {
@@ -206,6 +292,40 @@ export function NormalUserEventsPage() {
           </h1>
 
           <div className="ml-auto flex shrink-0 items-center gap-8">
+            <div
+              className="inline-flex h-12 shrink-0 items-center rounded-full border border-zinc-200 bg-white p-1"
+              aria-label="Conference view mode"
+            >
+              <button
+                type="button"
+                className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+                  viewMode === "list"
+                    ? "bg-blue-600 text-white"
+                    : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-950"
+                }`}
+                onClick={() => setViewMode("list")}
+                aria-label="List view"
+                aria-pressed={viewMode === "list"}
+                title="List view"
+              >
+                <List className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+                  viewMode === "grid"
+                    ? "bg-blue-600 text-white"
+                    : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-950"
+                }`}
+                onClick={() => setViewMode("grid")}
+                aria-label="Grid view"
+                aria-pressed={viewMode === "grid"}
+                title="Grid view"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+            </div>
+
             <div className="relative h-12 w-[18rem] shrink-0 rounded-full border border-zinc-200 bg-white sm:w-[20rem] xl:w-[22rem]">
               <div className="pointer-events-none absolute left-2.5 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-blue-500/20 bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)]">
                 <Search className="h-4 w-4" strokeWidth={2.4} />
@@ -261,12 +381,12 @@ export function NormalUserEventsPage() {
 
           <div className="min-h-0 flex-1 overflow-y-auto scrollbar-modern">
             {loading ? (
-              <EventRowsSkeleton />
+              <EventRowsSkeleton viewMode={viewMode} />
             ) : filteredItems.length === 0 ? (
               <div className="py-12 text-sm text-zinc-500">
                 {searchQuery.trim() ? "No conferences match this search." : "No conferences found."}
               </div>
-            ) : (
+            ) : viewMode === "list" ? (
               <div className="grid grid-cols-1 gap-5 pr-1">
                 {filteredItems.map((item, index) => (
                   <motion.div
@@ -287,27 +407,12 @@ export function NormalUserEventsPage() {
                           <h2 className="min-w-0 max-w-5xl text-[2rem] font-normal leading-[1.08] tracking-[-0.018em] text-zinc-950 transition-colors group-hover:text-blue-700 2xl:text-[2.65rem]">
                             {getDisplayEventName(item.canonicalEventName)}
                           </h2>
-                          {item.date || item.location ? (
-                            <div className="mt-4 flex min-w-0 flex-wrap gap-2">
-                              {item.date ? (
-                                <span className="inline-flex h-8 max-w-full items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 text-xs font-medium text-zinc-500">
-                                  <CalendarDays className="h-3.5 w-3.5 text-blue-600" />
-                                  <span className="truncate">{formatEventDate(item.date)}</span>
-                                </span>
-                              ) : null}
-                              {item.location ? (
-                                <span className="inline-flex h-8 max-w-full items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 text-xs font-medium text-zinc-500">
-                                  <MapPin className="h-3.5 w-3.5 text-blue-600" />
-                                  <span className="max-w-[13rem] truncate">{item.location}</span>
-                                </span>
-                              ) : null}
-                            </div>
-                          ) : null}
+                          <EventMetaChips item={item} />
                         </div>
 
-                        <div className="shrink-0 sm:justify-self-center sm:text-center">
-                          <span className="text-sm font-medium text-zinc-400">Total prospects</span>
-                          <div className="mt-1 flex items-baseline gap-2 sm:justify-center">
+                        <div className="shrink-0 sm:justify-self-center">
+                          <span className="text-sm font-medium text-zinc-400">To Cover</span>
+                          <div className="mt-1 flex items-baseline gap-2">
                             <span className="text-3xl font-light tabular-nums tracking-tight text-zinc-900 2xl:text-4xl">
                               {Number(item.leadCount).toLocaleString()}
                             </span>
@@ -318,6 +423,51 @@ export function NormalUserEventsPage() {
                         <div className="inline-flex h-11 shrink-0 items-center justify-center gap-3 rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-500 transition-all group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white sm:justify-self-end 2xl:h-12">
                           Open leads
                           <ArrowRight className="h-4 w-4 2xl:h-5 2xl:w-5" />
+                        </div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-5 pr-1 md:grid-cols-2 xl:grid-cols-3">
+                {filteredItems.map((item, index) => (
+                  <motion.div
+                    key={item.canonicalEventKey}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: index * 0.02 }}
+                    className="group overflow-hidden rounded-lg border border-zinc-200 bg-white/78 shadow-[0_18px_55px_-46px_rgba(15,23,42,0.72)] transition-all hover:border-blue-200 hover:bg-white hover:shadow-[0_24px_70px_-48px_rgba(37,99,235,0.42)]"
+                  >
+                    <Link
+                      href={`/leads?event=${encodeURIComponent(item.canonicalEventKey)}`}
+                      className="flex h-full min-h-[15rem] flex-col p-5 2xl:p-6"
+                    >
+                      <div className="grid min-h-[8.25rem] grid-cols-[7.75rem_minmax(0,1fr)] gap-4 2xl:grid-cols-[8.5rem_minmax(0,1fr)]">
+                        <EventImagePanel item={item} viewMode="grid" />
+
+                        <div className="min-w-0 self-center">
+                          <h2 className="text-[1.7rem] font-normal leading-[1.06] tracking-[-0.018em] text-zinc-950 transition-colors group-hover:text-blue-700 2xl:text-[1.95rem]">
+                            {getDisplayEventName(item.canonicalEventName)}
+                          </h2>
+                          <EventMetaChips item={item} compact />
+                        </div>
+                      </div>
+
+                      <div className="mt-auto flex items-end justify-between gap-4 pt-5">
+                        <div>
+                          <span className="text-sm font-medium text-zinc-400">To Cover</span>
+                          <div className="mt-1 flex items-baseline gap-2">
+                            <span className="text-2xl font-light tabular-nums tracking-tight text-zinc-900 2xl:text-3xl">
+                              {Number(item.leadCount).toLocaleString()}
+                            </span>
+                            <span className="text-base font-light text-zinc-500">leads</span>
+                          </div>
+                        </div>
+
+                        <div className="inline-flex h-11 shrink-0 items-center justify-center gap-3 rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-500 transition-all group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white">
+                          Open
+                          <ArrowRight className="h-4 w-4" />
                         </div>
                       </div>
                     </Link>
