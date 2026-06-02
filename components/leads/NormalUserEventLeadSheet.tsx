@@ -2478,8 +2478,7 @@ export function NormalUserEventLeadSheet() {
         >
           <div className="space-y-6">
             <div className="border-b border-zinc-100 pb-5">
-              <p className="text-xs font-medium text-zinc-400">Selected profile</p>
-              <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
+              <h3 className="text-2xl font-light tracking-tight text-zinc-950">
                 {contactChoiceLead.name || "This lead"}
               </h3>
               <div className="mt-3 space-y-1.5 text-sm font-light text-zinc-500">
@@ -2500,9 +2499,9 @@ export function NormalUserEventLeadSheet() {
                   window.location.href = contactChoiceLead.emailHref;
                   setContactChoiceLead(null);
                 }}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700 disabled:border-blue-400/20 disabled:bg-blue-600/55 disabled:text-white/80 disabled:opacity-100 disabled:shadow-none"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-red-500/20 bg-[#EF4444] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(239,68,68,0.95)] hover:bg-red-600 disabled:border-red-400/20 disabled:bg-red-500/55 disabled:text-white/80 disabled:opacity-100 disabled:shadow-none"
               >
-                <EmailIcon className="h-3.5 w-3.5" />
+                <Mail className="h-3.5 w-3.5 stroke-[2.4]" />
                 Email
               </Button>
               <Button
