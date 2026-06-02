@@ -2576,7 +2576,7 @@ export function NormalUserEventLeadSheet() {
           <button
             type="button"
             aria-label="Close filters"
-            className="absolute inset-0 bg-zinc-950/45 backdrop-blur-[5px]"
+            className="absolute inset-0 bg-black/72 backdrop-blur-[6px] backdrop-brightness-75"
             onClick={() => setFilterOpen(false)}
           />
 
@@ -2632,7 +2632,7 @@ export function NormalUserEventLeadSheet() {
 
                 <div className="space-y-4">
                   <label className="block text-sm font-semibold text-zinc-950">By campaign category:</label>
-                  <div className="border border-zinc-200 bg-white p-3">
+                  <div className="rounded-3xl border border-zinc-200 bg-white p-3">
                     <div className="relative">
                       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                       <Input
