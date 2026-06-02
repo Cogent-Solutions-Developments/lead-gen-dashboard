@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, ty
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { Button } from "@/components/ui/button";
-import { EventRegistryPicker } from "@/components/events/EventRegistryPicker";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -440,6 +439,12 @@ const EVENT_SELECT_CONTENT_CLASS =
 
 const EVENT_SELECT_ITEM_CLASS =
   "rounded-xl py-2.5 pl-3 pr-9 text-sm font-medium text-zinc-800 transition-colors focus:bg-zinc-100/80 focus:text-zinc-950 focus:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] focus:[&_svg]:!text-zinc-500 data-[highlighted]:bg-zinc-100/80 data-[highlighted]:text-zinc-950 data-[highlighted]:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] data-[highlighted]:[&_svg]:!text-zinc-500 data-[state=checked]:border data-[state=checked]:border-blue-500/20 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]_svg]:h-4 [&_[data-slot=select-item-indicator]_svg]:w-4 [&_[data-slot=select-item-indicator]_svg]:stroke-[2.25]";
+
+const UPLOAD_EVENT_SELECT_CONTENT_CLASS =
+  "z-[120] max-h-[18rem] w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-5rem)] rounded-2xl border border-zinc-200 bg-white/98 p-3 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-[10px]";
+
+const UPLOAD_EVENT_SELECT_ITEM_CLASS =
+  "mx-1 w-[calc(100%-0.5rem)] rounded-xl py-2.5 pl-3 pr-9 text-sm font-medium text-zinc-800 transition-colors focus:bg-zinc-100/80 focus:text-zinc-950 focus:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] focus:[&_svg]:!text-zinc-500 data-[highlighted]:bg-zinc-100/80 data-[highlighted]:text-zinc-950 data-[highlighted]:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] data-[highlighted]:[&_svg]:!text-zinc-500 data-[state=checked]:border data-[state=checked]:border-blue-500/20 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]_svg]:h-3.5 [&_[data-slot=select-item-indicator]_svg]:w-3.5 [&_[data-slot=select-item-indicator]_svg]:stroke-[2.25]";
 
 function humanizeStatusLabel(value: string) {
   const cleaned = asText(value);
@@ -955,6 +960,18 @@ export function NormalUserEventLeadSheet() {
       registryEvents.find((item) => item.id === templateUpload.selectedEventId) ?? null,
     [registryEvents, templateUpload.selectedEventId]
   );
+  const templateUploadEventId =
+    selectedTemplateUploadEvent?.id || templateUpload.selectedEventId;
+
+  const templateUploadEventOptions = useMemo(() => {
+    if (!templateUploadEventId) return activeRegistryEvents;
+    const selectedUploadEvent = activeRegistryEvents.find((event) => event.id === templateUploadEventId);
+    if (!selectedUploadEvent) return activeRegistryEvents;
+    return [
+      selectedUploadEvent,
+      ...activeRegistryEvents.filter((event) => event.id !== templateUploadEventId),
+    ];
+  }, [activeRegistryEvents, templateUploadEventId]);
 
   const selectedAgendaEventId = asText(selectedEvent?.eventRegistryId);
   const selectedAgendaEventKey = asText(selectedEvent?.canonicalEventKey || selectedEventKey);
@@ -1667,8 +1684,6 @@ export function NormalUserEventLeadSheet() {
   };
 
   const templateValidation = templateUpload.validation;
-  const templateUploadEventId =
-    selectedTemplateUploadEvent?.id || templateUpload.selectedEventId;
   const templateUploadReady = Boolean(
     templateUpload.file && templateValidation && selectedTemplateUploadEvent?.isActive
   );
@@ -2020,7 +2035,7 @@ export function NormalUserEventLeadSheet() {
                             </div>
                           </div>
 
-                          <div>
+                          <div className="flex h-full flex-col">
                             <div className="flex items-center gap-4">
                               <div className="relative w-full">
                                 <Select
@@ -2045,12 +2060,12 @@ export function NormalUserEventLeadSheet() {
                               </div>
                               {isUpdating && <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />}
                             </div>
-                            <div className="mt-4 space-y-2">
+                            <div className="mt-auto pt-3">
                               {item.workflowComment ? (
                                 <button
                                   type="button"
                                   onClick={() => void openHistory(item)}
-                                  className="block w-full border-l border-zinc-300 pl-3 text-left transition-colors hover:border-zinc-900"
+                                  className="mb-2 block w-full border-l border-zinc-300 pl-3 text-left transition-colors hover:border-zinc-900"
                                 >
                                   <span className="line-clamp-2 text-xs font-light leading-relaxed text-zinc-500">
                                     {item.workflowComment}
@@ -2821,20 +2836,35 @@ export function NormalUserEventLeadSheet() {
         <div className="space-y-7">
           <div>
             <label className="mb-3 block text-xs font-medium text-zinc-400">Related event</label>
-            <EventRegistryPicker
-              events={registryEvents}
+            <Select
               value={templateUploadEventId}
               onValueChange={(value) =>
                 setTemplateUpload((prev) => ({ ...prev, selectedEventId: value }))
               }
-              loading={loadingEvents}
-              disabled={templateUpload.validating || templateUpload.submitting}
-              placeholder="Select event"
-              showStatusTabs={false}
-              inactiveSelectable={false}
-              triggerClassName="!h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light shadow-none transition-colors hover:border-blue-600 hover:text-blue-700"
-              contentClassName="rounded-2xl border-zinc-200 bg-white/98 p-2 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)]"
-            />
+              disabled={loadingEvents || templateUpload.validating || templateUpload.submitting}
+            >
+              <SelectTrigger
+                aria-label="Select upload event"
+                className="group !h-12 w-full justify-start gap-3 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-left text-lg font-light text-zinc-950 shadow-none transition-colors hover:border-blue-600 hover:text-blue-700 focus:ring-0 focus-visible:ring-0 [&>svg]:h-5 [&>svg]:w-5 [&>svg]:opacity-40"
+              >
+                <SelectValue placeholder={loadingEvents ? "Loading events..." : "Select event"} />
+              </SelectTrigger>
+              <SelectContent
+                align="start"
+                position="popper"
+                className={UPLOAD_EVENT_SELECT_CONTENT_CLASS}
+              >
+                {templateUploadEventOptions.map((event) => (
+                  <SelectItem
+                    key={event.id}
+                    value={event.id}
+                    className={UPLOAD_EVENT_SELECT_ITEM_CLASS}
+                  >
+                    {getDisplayEventName(event.eventName)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div
