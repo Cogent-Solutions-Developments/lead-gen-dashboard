@@ -1,20 +1,28 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Loader2, Webhook } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { getAuthLandingPath, getStoredAuthSession, loginWithPassword, personaForRole } from "@/lib/auth";
 import { setPersona } from "@/lib/persona";
 
+const LOGIN_REVEAL_DELAY_MS = 7600;
+const HERO_GIF_SRC = "/videos/BlockchainEventPromoconverted_1-ezgif.com-optimize%20(1).gif";
+
 export default function SignInPage() {
   const router = useRouter();
+  const prefersReducedMotion = useReducedMotion();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [rotation, setRotation] = useState(0);
+  const [showLogin, setShowLogin] = useState(false);
+  const desktopLayoutClassName = showLogin
+    ? "lg:grid-cols-[minmax(0,1.08fr)_minmax(26rem,0.82fr)]"
+    : "lg:grid-cols-[minmax(0,1fr)_minmax(0,0fr)]";
 
   useEffect(() => {
     let active = true;
@@ -37,17 +45,14 @@ export default function SignInPage() {
   }, [router]);
 
   useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
+    if (prefersReducedMotion) {
+      setShowLogin(true);
+      return;
+    }
 
-    const rotateIcon = () => {
-      setRotation((prev) => prev + 360);
-      const randomDelay = Math.floor(Math.random() * 7000) + 3000;
-      timeoutId = setTimeout(rotateIcon, randomDelay);
-    };
-
-    timeoutId = setTimeout(rotateIcon, 2000);
-    return () => clearTimeout(timeoutId);
-  }, []);
+    const timeoutId = window.setTimeout(() => setShowLogin(true), LOGIN_REVEAL_DELAY_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [prefersReducedMotion]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -75,93 +80,136 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="h-dvh bg-transparent">
-      <div className="grid h-full lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="relative hidden overflow-hidden border-r border-blue-900/30 lg:flex lg:flex-col lg:justify-between">
-          <div className="absolute inset-0 bg-[linear-gradient(148deg,#2d71df_0%,#145acc_54%,#0f4697_100%)]" />
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_95%_at_20%_0%,rgba(255,255,255,0.2)_0%,rgba(255,255,255,0)_58%)]" />
-          <div className="pointer-events-none absolute -left-40 top-1/2 h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-sky-300/15 blur-3xl" />
-          <div className="pointer-events-none absolute -right-24 -top-14 h-[380px] w-[380px] rounded-full bg-blue-200/10 blur-3xl" />
-          <div className="pointer-events-none absolute -right-60 top-[70%] -translate-y-1/2 rotate-[18deg] opacity-[0.12]">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-[58rem] w-[58rem] text-white/90"
+    <div className="relative h-dvh overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,#fff_0%,#f7f7f7_66%,#f3f6fb_100%)]" />
+      <header className="absolute left-6 right-6 top-5 z-40 flex h-12 items-center justify-between border-b border-zinc-200 pb-4 sm:left-8 sm:right-8 sm:top-7">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full border border-blue-500/20 bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)]">
+            <Webhook className="h-4.5 w-4.5" />
+          </div>
+          <p className="text-lg font-medium tracking-wide text-zinc-950">supernizo</p>
+        </div>
+        <p className="hidden text-xs font-medium uppercase tracking-wide text-zinc-400 sm:block">
+          Authorized workspace
+        </p>
+      </header>
+
+      <main
+        className={`relative z-10 grid h-full grid-cols-1 transition-[grid-template-columns] duration-1000 ease-out ${desktopLayoutClassName}`}
+      >
+        <section
+          className={`relative min-h-0 overflow-hidden bg-transparent transition-colors duration-700 ${
+            showLogin ? "lg:border-r lg:border-zinc-200" : ""
+          }`}
+        >
+          <div className="relative z-20 mx-auto flex h-full max-w-5xl flex-col items-center px-6 pb-[37vh] pt-28 text-center sm:px-10 sm:pt-32 lg:pb-[38vh]">
+            <motion.div
+              initial={{ opacity: 0, y: 14 }}
+              animate={{
+                opacity: 1,
+                y: 0,
+                scale: showLogin ? 0.95 : 1,
+                x: showLogin ? -20 : 0,
+              }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="max-w-4xl"
             >
-              <path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2" />
-              <path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06" />
-              <path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8" />
-            </svg>
+              <h1 className="text-[clamp(2.2rem,4.6vw,4.7rem)] font-light leading-[0.96] tracking-[-0.05em] text-zinc-950">
+                I am supernizo
+              </h1>
+              <p className="mx-auto mt-5 max-w-3xl text-[clamp(1.05rem,1.75vw,1.55rem)] font-light leading-tight tracking-[-0.025em] text-blue-700">
+                An enterprise agentic AI for intelligent outreach
+              </p>
+              <div className="mx-auto mt-6 max-w-2xl space-y-5 text-sm font-light leading-7 text-zinc-500 sm:text-base">
+                <p>
+                  I am an enterprise agentic AI platform that intelligently identifies your dream customers and
+                  prospects, autonomously manages outreach, and streamlines customer engagement at scale.
+                </p>
+                <p className="text-sm font-semibold uppercase tracking-[0.22em] text-zinc-950">
+                  Intelligent. Autonomous. Limitless.
+                </p>
+              </div>
+            </motion.div>
           </div>
 
-          <div className="relative z-10 p-10 text-white">
-            <div className="mb-10 flex items-center gap-3">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1, rotate: rotation }}
-                transition={{
-                  scale: { type: "spring", stiffness: 260, damping: 20 },
-                  rotate: { duration: 2, ease: "easeInOut" },
-                }}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-sidebar-primary-foreground shadow-[0_6px_14px_-10px_rgba(2,6,23,0.65)]"
-              >
-                <Webhook className="h-5 w-5 opacity-70" />
-              </motion.div>
-              <span className="text-2xl font-medium tracking-wide text-sidebar-foreground drop-shadow-sm">
-                supernizo
-              </span>
-            </div>
-
-            <h1 className="max-w-3xl text-[3rem] font-light leading-tight">
-AI-powered outreach orchestration for the Cogent Solutions Sales, Production and Delegate teams.            </h1>
-            <p className="mt-4 max-w-xl text-sm leading-7 text-blue-50/90">
-              supernizo helps your team run targeted campaigns, review leads faster, and manage outreach in one
-              premium workflow.
-            </p>
-          </div>
+          <motion.div
+            aria-hidden="true"
+            animate={{
+              left: showLogin ? "4%" : "50%",
+              x: showLogin ? "0%" : "-50%",
+              width: showLogin ? "70%" : "min(100vw, 1180px)",
+            }}
+            transition={{ duration: 1.15, ease: [0.22, 1, 0.36, 1] }}
+            className="pointer-events-none absolute bottom-0 z-10 aspect-video max-h-[58vh] min-h-[280px] origin-bottom overflow-visible"
+          >
+            <Image
+              src={HERO_GIF_SRC}
+              alt=""
+              fill
+              priority
+              unoptimized
+              sizes={showLogin ? "(min-width: 1024px) 56vw, 100vw" : "100vw"}
+              className="object-contain object-bottom"
+              draggable={false}
+            />
+          </motion.div>
         </section>
 
-        <section className="relative flex items-center justify-center bg-[linear-gradient(145deg,rgba(232,242,255,0.62)_0%,rgba(255,255,255,0.96)_52%,rgba(235,245,255,0.55)_100%)] px-4 py-10 sm:px-8 lg:px-12">
-          <div className="w-full max-w-lg text-center">
-            <p className="text-4xl font-medium leading-none tracking-tight text-zinc-800">Welcome To supernizo</p>
-            <p className="mt-4 text-base font-normal leading-6 text-zinc-500">
-              Sign in to continue your campaigns.
-            </p>
+        <motion.section
+          initial={false}
+          animate={{
+            opacity: showLogin ? 1 : 0,
+            x: showLogin ? 0 : 56,
+            scale: showLogin ? 1 : 0.98,
+            pointerEvents: showLogin ? "auto" : "none",
+          }}
+          transition={{ duration: 0.65, delay: showLogin ? 0.25 : 0, ease: "easeOut" }}
+          className="absolute inset-x-4 bottom-5 z-30 mx-auto max-w-md rounded-lg border border-zinc-200 bg-white/92 p-6 text-zinc-950 shadow-[0_18px_55px_-46px_rgba(15,23,42,0.72)] backdrop-blur-xl sm:bottom-8 sm:p-8 lg:static lg:mx-0 lg:flex lg:h-full lg:max-w-none lg:items-center lg:justify-center lg:rounded-none lg:border-0 lg:bg-transparent lg:px-12 lg:shadow-none"
+        >
+          <div className="w-full max-w-md overflow-hidden rounded-lg border border-zinc-200 bg-white/78 p-7 shadow-[0_18px_55px_-46px_rgba(15,23,42,0.72)] transition-all lg:p-8">
+            <div className="mb-8 border-b border-zinc-100 pb-6 text-left">
+              <p className="text-sm font-medium text-zinc-400">Secure workspace</p>
+              <h2 className="mt-3 text-4xl font-light leading-none tracking-tighter text-zinc-950">
+                Sign in
+              </h2>
+              <p className="mt-3 text-sm font-light leading-relaxed text-zinc-500">
+                Continue to your assigned outreach workspace.
+              </p>
+            </div>
 
-            <form className="mt-15 space-y-5" onSubmit={submit}>
-              <div className="mx-auto w-[76%]">
+            <form className="space-y-7" onSubmit={submit}>
+              <div>
+                <label className="mb-3 block text-xs font-medium text-zinc-400">
+                  Username
+                </label>
                 <input
                   type="text"
                   value={username}
                   onChange={(event) => setUsername(event.target.value)}
                   placeholder="Username"
                   autoComplete="username"
-                  className="h-11 w-full border-0 border-b border-zinc-300/80 bg-transparent px-0 text-sm text-zinc-800 placeholder:text-zinc-400/80 outline-none transition-colors duration-200 focus:border-blue-300/70"
+                  className="h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 placeholder:text-zinc-300 outline-none transition-colors duration-200 focus:border-blue-600"
                 />
               </div>
 
-              <div className="mx-auto w-[76%]">
+              <div>
+                <label className="mb-3 block text-xs font-medium text-zinc-400">
+                  Password
+                </label>
                 <input
                   type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="Password"
                   autoComplete="current-password"
-                  className="h-11 w-full border-0 border-b border-zinc-300/80 bg-transparent px-0 text-sm text-zinc-800 placeholder:text-zinc-400/80 outline-none transition-colors duration-200 focus:border-blue-300/70"
+                  className="h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 placeholder:text-zinc-300 outline-none transition-colors duration-200 focus:border-blue-600"
                 />
               </div>
 
               <Button
                 type="submit"
                 disabled={loading}
-                className="btn-sidebar-noise btn-sidebar-noise-strong mx-auto mt-10 h-11 w-52 rounded-md text-sm font-medium text-white disabled:opacity-60"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-7 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:border-blue-400/20 disabled:bg-blue-600/55 disabled:text-white/80 disabled:opacity-100"
               >
                 {loading ? (
                   <>
@@ -173,17 +221,14 @@ AI-powered outreach orchestration for the Cogent Solutions Sales, Production and
                 )}
               </Button>
 
-              <p className="pt-0 text-[11px] text-zinc-500">
+              <p className="text-center text-[11px] font-light text-zinc-400">
                 *Confidential workspace. Contact admin for account access.
               </p>
             </form>
           </div>
-          <div className="absolute bottom-2 left-1/2 w-full -translate-x-1/2 px-6 text-center text-[11px] text-zinc-500">
-            Internal tool. Confidential use only. Unauthorized access is prohibited. (c) 2026 supernizo. All rights
-            reserved.
-          </div>
-        </section>
-      </div>
+        </motion.section>
+      </main>
+
     </div>
   );
 }

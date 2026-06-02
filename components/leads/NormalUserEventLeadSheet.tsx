@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -355,7 +354,7 @@ const STATUS_DOT_CLASS: Record<string, string> = {
 const DEFAULT_PAGE_SIZE = 100;
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 const SEARCH_DEBOUNCE_MS = 300;
-const DEAL_CLOSED_ANIMATION_SRC = "https://lottie.host/e872d848-c226-4c29-8108-9111e8bd8c9c/npFGm1Le6t.lottie";
+const DEAL_CLOSED_VIDEO_SRC = "/videos/magnific_recreate-the-scene-with-t_2982250313.mp4";
 
 const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
   fullName: "",
@@ -499,10 +498,6 @@ function buildWhatsAppHref(value: string) {
   return digits.length >= 8 ? `https://wa.me/${digits}` : "";
 }
 
-function firstName(value: string) {
-  return value.trim().split(/\s+/)[0] || "";
-}
-
 function getUserDisplayName(user: ReturnType<typeof useAuth>["user"]) {
   return [user?.fullName, getCachedAuthUserDisplayName(user), user?.username]
     .map((value) => value?.trim())
@@ -599,6 +594,7 @@ function LeadSheetDialog({
   sidebarContent,
   eyebrow = "Lead Sheet Updates",
   compact = false,
+  compactSize = "default",
 }: {
   open: boolean;
   title: string;
@@ -608,6 +604,7 @@ function LeadSheetDialog({
   sidebarContent?: ReactNode;
   eyebrow?: string;
   compact?: boolean;
+  compactSize?: "default" | "wide";
 }) {
   if (!open) return null;
 
@@ -621,7 +618,12 @@ function LeadSheetDialog({
           onClick={onClose}
         />
 
-        <div className="relative z-[1] flex max-h-[calc(100dvh-3rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
+        <div
+          className={cn(
+            "relative z-[1] flex max-h-[calc(100dvh-3rem)] w-full flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]",
+            compactSize === "wide" ? "max-w-5xl" : "max-w-2xl"
+          )}
+        >
           <Button
             type="button"
             variant="ghost"
@@ -631,7 +633,7 @@ function LeadSheetDialog({
             <X className="h-4 w-4" />
           </Button>
 
-          <div className="shrink-0 px-8 pb-5 pt-8">
+          <div className={cn("shrink-0 px-8", compactSize === "wide" ? "pb-4 pt-8" : "pb-5 pt-8")}>
             <div className="max-w-md pr-12">
               {eyebrow ? <p className="text-sm font-medium text-zinc-400">{eyebrow}</p> : null}
               <h2 className={cn("text-4xl font-light leading-none tracking-tighter text-zinc-950", eyebrow && "mt-4")}>
@@ -644,7 +646,14 @@ function LeadSheetDialog({
               ) : null}
             </div>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-8 scrollbar-modern">{children}</div>
+          <div
+            className={cn(
+              "min-h-0 flex-1 px-8",
+              compactSize === "wide" ? "overflow-hidden pb-8" : "overflow-y-auto pb-8 scrollbar-modern"
+            )}
+          >
+            {children}
+          </div>
         </div>
       </div>
     );
@@ -772,7 +781,9 @@ export function NormalUserEventLeadSheet() {
   }, [fixedWorkflowStatuses, workflowStatuses]);
   const canUseDealBellFlow = role === "sales_user";
   const canUseTemplateUpload = role === "sales_user" || role === "delegate_user" || role === "production_user";
-  const signedInFirstName = firstName(getUserDisplayName(user)) || "there";
+  const isDealClosedStatusChange = Boolean(
+    pendingStatusChange && canUseDealBellFlow && pendingStatusChange.nextStatus === "deal-closed"
+  );
 
   const loadInitialData = useCallback(async () => {
     setLoadingEvents(true);
@@ -2131,127 +2142,95 @@ export function NormalUserEventLeadSheet() {
       </div>
 
       {pendingStatusChange ? (
-        canUseDealBellFlow && pendingStatusChange.nextStatus === "deal-closed" ? (
-          <LeadSheetDialog
-            open
-            title="Status Note"
-            description="Add a short comment for this state change so the next person can understand the context."
-            onClose={closeStatusCommentDialog}
-            sidebarContent={
-              <div className="absolute inset-0">
-                <div className="absolute inset-0 z-10 bg-zinc-950/40" />
-                <video
-                  src="/videos/magnific_recreate-the-scene-with-t_2982250313.mp4"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="h-full w-full object-cover"
-                />
-              </div>
-            }
-          >
-            <div className="space-y-8">
-              <div className="border-b border-zinc-100 pb-6">
-                <p className="text-xs font-medium text-zinc-400">Selected profile</p>
-                <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
-                  {pendingStatusChange.item.employeeName || "-"}
-                </h3>
-                <p className="mt-1 text-sm font-light text-zinc-500">
-                  {pendingStatusChange.item.company || "-"}
-                </p>
-              </div>
-
-              <div className="text-center">
-                <DotLottieReact
-                  src={DEAL_CLOSED_ANIMATION_SRC}
-                  loop
-                  autoplay
-                  className="mx-auto h-36 w-full max-w-sm"
-                />
-                <p className="mt-1 text-lg font-medium tracking-tight text-zinc-950">
-                  Congrats on closing the deal with {pendingStatusChange.item.employeeName || "this lead"}.
-                </p>
-                <p className="mt-1 text-sm font-light text-zinc-500">
-                  Nice work, {signedInFirstName}. Add a final note so the team has the full context.
-                </p>
-              </div>
-
-              <div className="grid gap-5 sm:grid-cols-2">
-                <div className="border border-zinc-200 bg-zinc-50/70 p-4">
-                  <p className="text-xs font-medium text-zinc-400">Current status</p>
-                  <p className="mt-2 text-lg font-light text-zinc-950">
-                    {pendingStatusChange.item.workflowStatusLabel}
-                  </p>
-                </div>
-                <div className="border border-zinc-950 bg-white p-4">
-                  <p className="text-xs font-medium text-zinc-400">New status</p>
-                  <p className="mt-2 text-lg font-light text-zinc-950">
-                    {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
-                      humanizeStatusLabel(pendingStatusChange.nextStatus)}
-                  </p>
-                </div>
-              </div>
-
-              <label className="block space-y-3">
-                <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
-                  Comment <span className="normal-case tracking-normal text-zinc-400">Optional</span>
-                </span>
-                <Textarea
-                  value={statusComment}
-                  onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
-                  placeholder="Example: Follow up after first call. Asked to reconnect next week."
-                  className="min-h-36 rounded-none border-zinc-300 bg-white text-sm font-light shadow-none focus-visible:ring-1 focus-visible:ring-zinc-900"
-                />
-                <span className="block text-right text-xs font-light text-zinc-400">
-                  {statusComment.length}/2000
-                </span>
-              </label>
-
-              <div className="flex justify-end gap-3 border-t border-zinc-100 pt-6">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={closeStatusCommentDialog}
-                  className="h-10 rounded-none border border-zinc-300 bg-white px-5 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleUpdateStatusClick}
-                  disabled={Boolean(updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`]) || ringingDealBell}
-                  className="h-10 gap-2 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
-                >
-                  {updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`] || ringingDealBell ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <MessageSquare className="h-4 w-4" />
-                  )}
-                  Update Status
-                </Button>
-              </div>
+        <LeadSheetDialog
+          open
+          eyebrow=""
+          title="Status Note"
+          description=""
+          onClose={closeStatusCommentDialog}
+          compact
+          compactSize={isDealClosedStatusChange ? "wide" : "default"}
+        >
+          <div className={cn(isDealClosedStatusChange ? "space-y-5" : "space-y-7")}>
+            <div className={cn("border-b border-zinc-100", isDealClosedStatusChange ? "pb-4" : "pb-6")}>
+              <h3 className="text-2xl font-light tracking-tight text-zinc-950">
+                {pendingStatusChange.item.employeeName || "-"}
+              </h3>
+              <p className="mt-1 text-sm font-light text-zinc-500">
+                {pendingStatusChange.item.company || "-"}
+              </p>
             </div>
-          </LeadSheetDialog>
-        ) : (
-          <LeadSheetDialog
-            open
-            eyebrow=""
-            title="Status Note"
-            description=""
-            onClose={closeStatusCommentDialog}
-            compact
-          >
-            <div className="space-y-7">
-              <div className="border-b border-zinc-100 pb-6">
-                <h3 className="text-2xl font-light tracking-tight text-zinc-950">
-                  {pendingStatusChange.item.employeeName || "-"}
-                </h3>
-                <p className="mt-1 text-sm font-light text-zinc-500">
-                  {pendingStatusChange.item.company || "-"}
-                </p>
-              </div>
 
+            {isDealClosedStatusChange ? (
+              <div className="rounded-2xl border border-zinc-200 bg-white p-2 shadow-[0_18px_38px_-34px_rgba(15,23,42,0.6)]">
+                <div className="grid gap-2 sm:grid-cols-[20rem_minmax(0,1fr)] sm:items-stretch">
+                  <div className="relative mx-auto h-[min(34rem,calc(100dvh-17rem))] w-full max-w-[20rem] overflow-hidden rounded-xl bg-zinc-950 sm:mx-0 sm:max-w-none">
+                    <video
+                      src={DEAL_CLOSED_VIDEO_SRC}
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      className="h-full w-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/30 via-transparent to-transparent" />
+                  </div>
+                  <div className="flex min-w-0 flex-col gap-4 p-3 sm:p-4">
+                    <div className="grid gap-3">
+                      <div className="flex min-h-14 items-center rounded-xl bg-zinc-50/80 px-4 py-3">
+                        <p className="truncate text-base font-light text-zinc-950">
+                          {pendingStatusChange.item.workflowStatusLabel}
+                        </p>
+                      </div>
+                      <div className="hidden items-center justify-center text-zinc-300 sm:flex">
+                        <ChevronRight className="h-4 w-4 rotate-90" />
+                      </div>
+                      <div className="flex min-h-14 items-center rounded-xl border border-emerald-500/20 bg-[#22c55e] px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)]">
+                        <p className="truncate text-base font-semibold">
+                          {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
+                            humanizeStatusLabel(pendingStatusChange.nextStatus)}
+                        </p>
+                      </div>
+                    </div>
+                    <label className="flex min-h-0 flex-1 flex-col gap-3">
+                      <span className="text-xs font-medium text-zinc-400">Comment optional</span>
+                      <Textarea
+                        value={statusComment}
+                        onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
+                        placeholder="Example: Follow up after first call. Asked to reconnect next week."
+                        className="min-h-32 flex-1 resize-none rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-6 shadow-none focus-visible:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
+                      />
+                      <span className="block text-right text-xs font-light text-zinc-400">
+                        {statusComment.length}/2000
+                      </span>
+                    </label>
+                    <div className="mt-auto flex flex-col gap-3 border-t border-zinc-100 pt-4 sm:flex-row sm:items-center sm:justify-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={closeStatusCommentDialog}
+                        className="h-11 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleUpdateStatusClick}
+                        disabled={Boolean(updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`]) || ringingDealBell}
+                        className="h-11 gap-2 rounded-full border border-emerald-500/20 bg-[#22c55e] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)] hover:bg-emerald-600"
+                      >
+                        {updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`] || ringingDealBell ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <MessageSquare className="h-4 w-4" />
+                        )}
+                        Update Status
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
               <div className="rounded-2xl border border-zinc-200 bg-white p-1.5">
                 <div className="grid gap-1.5 sm:grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] sm:items-stretch">
                   <div className="rounded-xl bg-zinc-50/80 px-4 py-3">
@@ -2270,7 +2249,9 @@ export function NormalUserEventLeadSheet() {
                   </div>
                 </div>
               </div>
+            )}
 
+            {!isDealClosedStatusChange ? (
               <label className="block space-y-3">
                 <span className="text-xs font-medium text-zinc-400">Comment optional</span>
                 <Textarea
@@ -2283,7 +2264,9 @@ export function NormalUserEventLeadSheet() {
                   {statusComment.length}/2000
                 </span>
               </label>
+            ) : null}
 
+            {!isDealClosedStatusChange ? (
               <div className="flex flex-col gap-3 border-t border-zinc-100 pt-6 sm:flex-row sm:items-center sm:justify-end">
                 <Button
                   type="button"
@@ -2307,9 +2290,9 @@ export function NormalUserEventLeadSheet() {
                   Update Status
                 </Button>
               </div>
-            </div>
-          </LeadSheetDialog>
-        )
+            ) : null}
+          </div>
+        </LeadSheetDialog>
       ) : null}
 
       {emailDialog ? (
