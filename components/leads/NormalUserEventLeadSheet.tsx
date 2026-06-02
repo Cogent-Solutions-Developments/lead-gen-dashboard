@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { Button } from "@/components/ui/button";
@@ -46,7 +45,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 import { cn } from "@/lib/utils";
 import {
-  ArrowLeft,
   AlertTriangle,
   BellRing,
   ChevronLeft,
@@ -427,6 +425,12 @@ function normalizeLeadCategory(value: unknown) {
   const label = asText(value);
   if (!label || label.toLowerCase() === "other") return UNCATEGORIZED_CATEGORY_LABEL;
   return label;
+}
+
+function getDisplayEventName(name?: string | null) {
+  const cleanName = asText(name);
+  const [shortName] = cleanName.split(/\s(?:-|\u2013|\u2014)\s/);
+  return shortName?.trim() || cleanName;
 }
 
 function humanizeStatusLabel(value: string) {
@@ -1577,56 +1581,39 @@ export function NormalUserEventLeadSheet() {
       <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
         <header className="shrink-0 border-b border-zinc-300 pb-12">
           <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <Link
-                href="/campaigns"
-                className="inline-flex items-center text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-950"
-              >
-                <ArrowLeft className="mr-2 h-3 w-3" />
-                Return to events
-              </Link>
-
-              <div className="mt-8">
-                <h1 className="max-w-5xl text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
-                  {selectedEvent?.canonicalEventName || "Intelligence Registry"}
-                </h1>
-                <p className="mt-4 max-w-2xl text-lg font-light leading-relaxed text-zinc-500">
-                  Review, search, and progress event prospects through a clean lead sheet.
-                </p>
-              </div>
+            <div className="min-w-0 flex-1">
+              <Select value={selectedEventKey} onValueChange={handleEventChange}>
+                <SelectTrigger
+                  aria-label="Select event"
+                  className="group !h-auto w-full max-w-5xl justify-start gap-4 whitespace-normal rounded-none border-0 bg-transparent p-0 text-left text-zinc-950 shadow-none transition-colors hover:text-blue-700 focus:ring-0 focus-visible:ring-0 [&_[data-slot=select-value]]:line-clamp-2 [&_[data-slot=select-value]]:text-3xl [&_[data-slot=select-value]]:font-light [&_[data-slot=select-value]]:leading-[1.12] [&_[data-slot=select-value]]:tracking-[-0.025em] sm:[&_[data-slot=select-value]]:text-4xl 2xl:[&_[data-slot=select-value]]:text-5xl [&>svg]:mt-1 [&>svg]:h-7 [&>svg]:w-7 [&>svg]:opacity-40 [&>svg]:transition-colors [&>svg]:group-hover:opacity-70"
+                >
+                  <SelectValue placeholder="Intelligence Registry" />
+                </SelectTrigger>
+                <SelectContent
+                  align="start"
+                  position="popper"
+                  className="z-[120] max-w-[min(36rem,calc(100vw-2rem))] rounded-none border-zinc-300 bg-white shadow-xl"
+                >
+                  {events.map((item) => (
+                    <SelectItem key={item.canonicalEventKey} value={item.canonicalEventKey} className="py-3 text-base">
+                      {getDisplayEventName(item.canonicalEventName)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex flex-col gap-5 lg:min-w-[19rem] lg:items-stretch">
-              <div className="grid grid-cols-2 gap-6">
+              <div>
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-zinc-400">Total records</p>
                   <p className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
                     {pageTotal.toLocaleString()}
                   </p>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-zinc-400">Visible now</p>
-                  <p className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
-                    {visibleEventLeads.length.toLocaleString()}
-                  </p>
-                </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-4 border-t border-zinc-300 pt-4">
-                <button
-                  type="button"
-                  className="inline-flex h-10 w-fit items-center justify-start gap-4 border-b border-transparent text-sm font-medium text-zinc-500 transition-all hover:border-zinc-900 hover:text-zinc-950 active:scale-[0.98] disabled:opacity-50"
-                  onClick={() => void refreshData()}
-                  disabled={loadingEvents || loadingLeads}
-                >
-                  {loadingEvents || loadingLeads ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <RefreshCcw className="h-3.5 w-3.5" />
-                  )}
-                  Refresh
-                </button>
-
                 {canUseTemplateUpload ? (
                   <button
                     type="button"
@@ -1656,23 +1643,7 @@ export function NormalUserEventLeadSheet() {
         <div className="mt-12 grid min-h-0 flex-1 gap-12 overflow-hidden xl:grid-cols-[19rem_minmax(0,1fr)]">
           <aside className="shrink-0 space-y-10 overflow-y-auto pr-2 scrollbar-hide">
             <div className="space-y-8">
-              <div className="space-y-5">
-                <label className="text-xs font-medium text-zinc-400">Context registry</label>
-                <Select value={selectedEventKey} onValueChange={handleEventChange}>
-                  <SelectTrigger className="!h-14 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
-                    <SelectValue placeholder="Select context" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-none border-zinc-300 shadow-xl">
-                    {events.map((item) => (
-                      <SelectItem key={item.canonicalEventKey} value={item.canonicalEventKey}>
-                        {item.canonicalEventName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="border-t border-zinc-100 pt-8">
+              <div>
                 <label className="text-xs font-medium text-zinc-400">Event agenda</label>
                 <div className="mt-5 space-y-4">
                   {agendaState.loading ? (
