@@ -2522,7 +2522,7 @@ export function NormalUserEventLeadSheet() {
         >
           <div className="space-y-6">
             <div className="border-b border-zinc-100 pb-6">
-              <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Selected profile</p>
+              <p className="text-xs font-medium normal-case tracking-normal text-zinc-400">Selected profile</p>
               <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
                 {historyLead.employeeName || "-"}
               </h3>
