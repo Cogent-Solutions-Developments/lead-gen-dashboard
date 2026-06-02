@@ -579,6 +579,7 @@ function LeadSheetDialog({
   children,
   sidebarContent,
   eyebrow = "Lead Sheet Updates",
+  compact = false,
 }: {
   open: boolean;
   title: string;
@@ -587,8 +588,46 @@ function LeadSheetDialog({
   children: ReactNode;
   sidebarContent?: ReactNode;
   eyebrow?: string;
+  compact?: boolean;
 }) {
   if (!open) return null;
+
+  if (compact) {
+    return (
+      <div className="fixed inset-0 z-[80] flex items-center justify-center p-6">
+        <button
+          type="button"
+          aria-label="Close dialog"
+          className="absolute inset-0 bg-zinc-950/30 backdrop-blur-[3px]"
+          onClick={onClose}
+        />
+
+        <div className="relative z-[1] w-full max-w-2xl overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
+          <Button
+            type="button"
+            variant="ghost"
+            className="absolute right-5 top-5 z-20 h-10 w-10 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+            onClick={onClose}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+
+          <div className="p-8">
+            <div className="max-w-md">
+              <p className="text-sm font-medium text-zinc-400">{eyebrow}</p>
+              <h2 className="mt-4 text-4xl font-light leading-none tracking-tighter text-zinc-950">
+                {title}
+              </h2>
+              <p className="mt-3 text-sm font-light leading-relaxed text-zinc-500">
+                {description}
+              </p>
+            </div>
+            <div className="mt-8">{children}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-6">
@@ -2719,27 +2758,9 @@ export function NormalUserEventLeadSheet() {
         description="Choose the event, upload the Excel template, then add the leads."
         eyebrow="Template Upload"
         onClose={closeTemplateUploadDialog}
+        compact
       >
         <div className="space-y-7">
-          <div className="grid gap-3 sm:grid-cols-3">
-            {[
-              { label: "Event Selection", active: !selectedTemplateUploadEvent },
-              { label: "Upload", active: Boolean(selectedTemplateUploadEvent && !templateValidation) },
-              { label: "Submit", active: Boolean(templateValidation && selectedTemplateUploadEvent) },
-            ].map((step, index) => (
-              <div
-                key={step.label}
-                className={cn(
-                  "border px-4 py-3 text-sm font-semibold",
-                  step.active ? "border-blue-600 text-blue-600" : "border-zinc-200 text-zinc-400"
-                )}
-              >
-                <span className="mr-2 text-xs tabular-nums">{index + 1}</span>
-                {step.label}
-              </div>
-            ))}
-          </div>
-
           <div>
             <label className="mb-3 block text-xs font-medium text-zinc-400">Related event</label>
             <Select
@@ -2887,7 +2908,7 @@ export function NormalUserEventLeadSheet() {
             </Button>
             <Button
               type="button"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-zinc-950 px-7 text-sm font-semibold text-white shadow-none hover:bg-blue-600"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-7 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700 disabled:bg-zinc-500 disabled:shadow-none"
               onClick={() => void handleTemplateUploadSubmit()}
               disabled={!templateUploadReady || templateUpload.validating || templateUpload.submitting}
             >
