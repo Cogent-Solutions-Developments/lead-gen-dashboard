@@ -1612,7 +1612,7 @@ export function NormalUserEventLeadSheet() {
                     <SelectItem
                       key={item.canonicalEventKey}
                       value={item.canonicalEventKey}
-                      className="rounded-xl py-2.5 pl-3 pr-9 text-sm font-medium text-zinc-800 transition-colors focus:bg-blue-50 focus:text-blue-700 data-[state=checked]:border data-[state=checked]:border-blue-500/20 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]_svg]:h-5 [&_[data-slot=select-item-indicator]_svg]:w-5 [&_[data-slot=select-item-indicator]_svg]:stroke-[3]"
+                      className="rounded-xl py-2.5 pl-3 pr-9 text-sm font-medium text-zinc-800 transition-colors focus:bg-blue-50 focus:text-blue-700 data-[state=checked]:border data-[state=checked]:border-blue-500/20 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]_svg]:h-4 [&_[data-slot=select-item-indicator]_svg]:w-4 [&_[data-slot=select-item-indicator]_svg]:stroke-[2.25]"
                     >
                       {getDisplayEventName(item.canonicalEventName)}
                     </SelectItem>
@@ -2559,17 +2559,7 @@ export function NormalUserEventLeadSheet() {
             onClick={() => setFilterOpen(false)}
           />
 
-          <div className="relative z-[1] grid max-h-[calc(100dvh-3rem)] w-full max-w-4xl overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)] md:grid-cols-[18rem_minmax(0,1fr)]">
-            <aside className="border-b border-zinc-300 bg-white p-8 md:border-b-0 md:border-r">
-              <p className="text-sm font-medium text-zinc-400">Lead Sheet Updates</p>
-              <h2 className="mt-8 text-4xl font-light leading-none tracking-tighter text-zinc-950">
-                Intelligence Filters
-              </h2>
-              <p className="mt-5 max-w-[13rem] text-sm font-light leading-relaxed text-zinc-500">
-                Build a focused view using status, contact readiness, and category signals.
-              </p>
-            </aside>
-
+          <div className="relative z-[1] max-h-[calc(100dvh-3rem)] w-full max-w-2xl overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
             <div className="relative min-h-[34rem] p-8">
               <Button
                 type="button"
@@ -2580,7 +2570,7 @@ export function NormalUserEventLeadSheet() {
                 <X className="h-4 w-4" />
               </Button>
 
-              <div className="max-h-[calc(100dvh-12rem)] max-w-xl space-y-10 overflow-y-auto pb-28 pr-12 scrollbar-modern">
+              <div className="max-h-[calc(100dvh-12rem)] space-y-10 overflow-y-auto pb-28 pr-12 scrollbar-modern">
                 <div>
                   <label className="mb-3 block text-xs font-medium text-zinc-400">Status model</label>
                   <Select
