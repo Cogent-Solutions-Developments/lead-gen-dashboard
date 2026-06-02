@@ -498,8 +498,8 @@ export default function DashboardPage() {
               ) : null}
             </div>
           </div>
-          <span className="liquid-glass-chip inline-flex h-10 items-center rounded-full px-4 text-sm font-medium text-zinc-800">
-            <span>{getDateLabel()}</span>
+          <span className="inline-flex h-10 items-center rounded-full border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-800">
+            {getDateLabel()}
           </span>
         </div>
 

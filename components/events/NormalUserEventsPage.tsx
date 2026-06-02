@@ -206,7 +206,7 @@ export function NormalUserEventsPage() {
           </h1>
 
           <div className="ml-auto flex shrink-0 items-center gap-8">
-            <div className="liquid-glass-chip relative h-12 w-[18rem] shrink-0 rounded-full sm:w-[20rem] xl:w-[22rem]">
+            <div className="relative h-12 w-[18rem] shrink-0 rounded-full border border-zinc-200 bg-white sm:w-[20rem] xl:w-[22rem]">
               <div className="pointer-events-none absolute left-2.5 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-blue-500/20 bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)]">
                 <Search className="h-4 w-4" strokeWidth={2.4} />
               </div>
@@ -219,7 +219,7 @@ export function NormalUserEventsPage() {
               {hasSearch ? (
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-white/55 hover:text-zinc-950"
+                  className="absolute right-3 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-950"
                   onClick={() => setSearchQuery("")}
                   aria-label="Clear search"
                 >
@@ -290,13 +290,13 @@ export function NormalUserEventsPage() {
                           {item.date || item.location ? (
                             <div className="mt-4 flex min-w-0 flex-wrap gap-2">
                               {item.date ? (
-                                <span className="inline-flex h-8 max-w-full items-center gap-2 rounded-full border border-zinc-200 bg-white/72 px-3 text-xs font-medium text-zinc-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.86)]">
+                                <span className="inline-flex h-8 max-w-full items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 text-xs font-medium text-zinc-500">
                                   <CalendarDays className="h-3.5 w-3.5 text-blue-600" />
                                   <span className="truncate">{formatEventDate(item.date)}</span>
                                 </span>
                               ) : null}
                               {item.location ? (
-                                <span className="inline-flex h-8 max-w-full items-center gap-2 rounded-full border border-zinc-200 bg-white/72 px-3 text-xs font-medium text-zinc-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.86)]">
+                                <span className="inline-flex h-8 max-w-full items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 text-xs font-medium text-zinc-500">
                                   <MapPin className="h-3.5 w-3.5 text-blue-600" />
                                   <span className="max-w-[13rem] truncate">{item.location}</span>
                                 </span>
