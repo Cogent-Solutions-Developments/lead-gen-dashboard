@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { Button } from "@/components/ui/button";
@@ -41,13 +40,12 @@ import {
   type WorkflowStatusDefinitionItem,
   type WorkflowStatusHistoryItem,
 } from "@/lib/apiRouter";
-import { getCachedAuthUserDisplayName, listActiveEventRegistry, type AdminEventItem } from "@/lib/auth";
+import { createProtectedObjectUrl, getCachedAuthUserDisplayName, listActiveEventRegistry, type AdminEventItem } from "@/lib/auth";
 import { persistCampaignUploadSummary } from "@/lib/campaignUploadSummary";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 import { cn } from "@/lib/utils";
 import {
-  ArrowLeft,
   AlertTriangle,
   BellRing,
   ChevronLeft,
@@ -56,8 +54,9 @@ import {
   Clock3,
   Copy,
   Download,
+  Eye,
   FileSpreadsheet,
-  FileText,
+  FileUp,
   Headset,
   History,
   Loader2,
@@ -111,7 +110,6 @@ type AddLeadFormState = {
 type LeadFilterState = {
   status: string;
   contact: "all" | "email" | "phone" | "complete" | "missing-contact" | "linkedin" | "website";
-  source: "all" | "manual" | "imported";
   category: string;
 };
 
@@ -126,9 +124,11 @@ type PendingStatusChange = {
   nextStatus: WorkflowStatus;
 };
 
-type PhoneChoiceLead = {
+type ContactChoiceLead = {
   name: string;
+  email: string;
   phone: string;
+  emailHref: string;
   telHref: string;
   whatsappHref: string;
 };
@@ -371,7 +371,6 @@ const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
 const EMPTY_FILTERS: LeadFilterState = {
   status: "all",
   contact: "all",
-  source: "all",
   category: "all",
 };
 const EMPTY_TEMPLATE_UPLOAD: TemplateUploadState = {
@@ -430,6 +429,18 @@ function normalizeLeadCategory(value: unknown) {
   return label;
 }
 
+function getDisplayEventName(name?: string | null) {
+  const cleanName = asText(name);
+  const [shortName] = cleanName.split(/\s(?:-|\u2013|\u2014)\s/);
+  return shortName?.trim() || cleanName;
+}
+
+const EVENT_SELECT_CONTENT_CLASS =
+  "z-[120] max-h-[18rem] w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-zinc-200 bg-white/98 p-2 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-[10px]";
+
+const EVENT_SELECT_ITEM_CLASS =
+  "rounded-xl py-2.5 pl-3 pr-9 text-sm font-medium text-zinc-800 transition-colors focus:bg-zinc-100/80 focus:text-zinc-950 focus:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] focus:[&_svg]:!text-zinc-500 data-[highlighted]:bg-zinc-100/80 data-[highlighted]:text-zinc-950 data-[highlighted]:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] data-[highlighted]:[&_svg]:!text-zinc-500 data-[state=checked]:border data-[state=checked]:border-blue-500/20 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]_svg]:h-4 [&_[data-slot=select-item-indicator]_svg]:w-4 [&_[data-slot=select-item-indicator]_svg]:stroke-[2.25]";
+
 function humanizeStatusLabel(value: string) {
   const cleaned = asText(value);
   if (!cleaned) return "New";
@@ -471,6 +482,11 @@ function normalizeDialPhone(value: string) {
 function buildTelHref(value: string) {
   const phone = normalizeDialPhone(value);
   return phone ? `tel:${phone}` : "";
+}
+
+function buildEmailHref(value: string) {
+  const email = asText(value);
+  return email ? `mailto:${email}` : "";
 }
 
 function buildWhatsAppHref(value: string) {
@@ -577,6 +593,7 @@ function LeadSheetDialog({
   children,
   sidebarContent,
   eyebrow = "Lead Sheet Updates",
+  compact = false,
 }: {
   open: boolean;
   title: string;
@@ -585,8 +602,48 @@ function LeadSheetDialog({
   children: ReactNode;
   sidebarContent?: ReactNode;
   eyebrow?: string;
+  compact?: boolean;
 }) {
   if (!open) return null;
+
+  if (compact) {
+    return (
+      <div className="fixed inset-0 z-[80] flex items-center justify-center p-6">
+        <button
+          type="button"
+          aria-label="Close dialog"
+          className="absolute inset-0 bg-zinc-950/30 backdrop-blur-[3px]"
+          onClick={onClose}
+        />
+
+        <div className="relative z-[1] flex max-h-[calc(100dvh-3rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
+          <Button
+            type="button"
+            variant="ghost"
+            className="absolute right-5 top-5 z-20 h-10 w-10 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+            onClick={onClose}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+
+          <div className="shrink-0 px-8 pb-5 pt-8">
+            <div className="max-w-md pr-12">
+              {eyebrow ? <p className="text-sm font-medium text-zinc-400">{eyebrow}</p> : null}
+              <h2 className={cn("text-4xl font-light leading-none tracking-tighter text-zinc-950", eyebrow && "mt-4")}>
+                {title}
+              </h2>
+              {description ? (
+                <p className="mt-3 text-sm font-light leading-relaxed text-zinc-500">
+                  {description}
+                </p>
+              ) : null}
+            </div>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-8 scrollbar-modern">{children}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-6">
@@ -670,7 +727,7 @@ export function NormalUserEventLeadSheet() {
   const [statusComment, setStatusComment] = useState("");
   const [ringBellConfirmOpen, setRingBellConfirmOpen] = useState(false);
   const [ringingDealBell, setRingingDealBell] = useState(false);
-  const [phoneChoiceLead, setPhoneChoiceLead] = useState<PhoneChoiceLead | null>(null);
+  const [contactChoiceLead, setContactChoiceLead] = useState<ContactChoiceLead | null>(null);
   const [historyLead, setHistoryLead] = useState<LeadSheetRow | null>(null);
   const [historyItems, setHistoryItems] = useState<WorkflowStatusHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -681,8 +738,8 @@ export function NormalUserEventLeadSheet() {
     agendas: EventAgendaItem[];
     error: string;
     downloadingId: string;
-  }>({ loading: false, agendas: [], error: "", downloadingId: "" });
-  const [agendaHistoryOpen, setAgendaHistoryOpen] = useState(false);
+    viewingId: string;
+  }>({ loading: false, agendas: [], error: "", downloadingId: "", viewingId: "" });
   const targetLeadRowRef = useRef<HTMLDivElement | null>(null);
   const emailGenerationRequestRef = useRef(0);
   const previousSelectedEventKeyRef = useRef("");
@@ -775,7 +832,7 @@ export function NormalUserEventLeadSheet() {
 
   useEffect(() => {
     setPageOffset(0);
-  }, [filters.status, filters.contact, filters.source, filters.category]);
+  }, [filters.status, filters.contact, filters.category]);
 
   useEffect(() => {
     const nextSearch = searchParams.get("search") || "";
@@ -1025,9 +1082,6 @@ export function NormalUserEventLeadSheet() {
 
   const visibleEventLeads = useMemo(() => {
     return eventLeads.filter((item) => {
-      if (filters.source === "manual" && !item.isManualLead) return false;
-      if (filters.source === "imported" && item.isManualLead) return false;
-
       if (filters.contact === "email" && !item.email) return false;
       if (filters.contact === "phone" && !item.phone) return false;
       if (filters.contact === "complete" && (!item.email || !item.phone)) return false;
@@ -1037,13 +1091,12 @@ export function NormalUserEventLeadSheet() {
 
       return true;
     });
-  }, [eventLeads, filters.contact, filters.source]);
+  }, [eventLeads, filters.contact]);
 
   const activeFilterCount = useMemo(() => {
     return [
       filters.status !== EMPTY_FILTERS.status,
       filters.contact !== EMPTY_FILTERS.contact,
-      filters.source !== EMPTY_FILTERS.source,
       filters.category !== EMPTY_FILTERS.category,
     ].filter(Boolean).length;
   }, [filters]);
@@ -1066,7 +1119,6 @@ export function NormalUserEventLeadSheet() {
   const hasMore = Boolean(leadPage?.hasMore);
   const isLoading = loadingEvents || (loadingLeads && !leadPage && Boolean(selectedEventKey));
   const latestAgenda = agendaState.agendas[0] ?? null;
-  const previousAgendas = agendaState.agendas.slice(1);
 
   const refreshData = useCallback(async () => {
     await loadInitialData();
@@ -1085,8 +1137,16 @@ export function NormalUserEventLeadSheet() {
   }, [pathname, router, searchParams, uploadParam]);
 
   const openTemplateUploadDialog = () => {
+    const currentEventKey = selectedEvent?.canonicalEventKey || selectedEventKey || events[0]?.canonicalEventKey || "";
+    const selectedRegistryEvent =
+      activeRegistryEvents.find((event) => event.id === selectedEvent?.eventRegistryId) ??
+      activeRegistryEvents.find((event) => event.eventKey === currentEventKey) ??
+      activeRegistryEvents[0] ??
+      null;
+
     setTemplateUpload({
       ...EMPTY_TEMPLATE_UPLOAD,
+      selectedEventId: selectedRegistryEvent?.id || "",
     });
     setTemplateUploadOpen(true);
   };
@@ -1225,7 +1285,6 @@ export function NormalUserEventLeadSheet() {
     setSearchInput("");
     setSearchQuery("");
     setPageOffset(0);
-    setAgendaHistoryOpen(false);
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.set("event", value);
     nextParams.delete("search");
@@ -1248,6 +1307,25 @@ export function NormalUserEventLeadSheet() {
       toast.error("Failed to download agenda", { description: getErrorMessage(error) });
     } finally {
       setAgendaState((current) => ({ ...current, downloadingId: "" }));
+    }
+  };
+
+  const handleAgendaView = async (agenda: EventAgendaItem) => {
+    if (!agenda.id) return;
+    setAgendaState((current) => ({ ...current, viewingId: agenda.id }));
+    try {
+      const objectUrl = await createProtectedObjectUrl(
+        "/api/event-agendas/" + encodeURIComponent(agenda.id) + "/download",
+        "/api/event-agendas/" + encodeURIComponent(agenda.id) + "/download-url"
+      );
+      window.open(objectUrl.url, "_blank", "noopener,noreferrer");
+      if (!objectUrl.direct) {
+        window.setTimeout(() => objectUrl.revoke(), 60_000);
+      }
+    } catch (error: unknown) {
+      toast.error("Failed to open agenda", { description: getErrorMessage(error) });
+    } finally {
+      setAgendaState((current) => ({ ...current, viewingId: "" }));
     }
   };
 
@@ -1634,66 +1712,49 @@ export function NormalUserEventLeadSheet() {
   return (
     <>
       <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
-        <header className="shrink-0 border-b border-zinc-300 pb-12">
-          <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <Link
-                href="/campaigns"
-                className="inline-flex items-center text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-950"
-              >
-                <ArrowLeft className="mr-2 h-3 w-3" />
-                Return to events
-              </Link>
-
-              <div className="mt-8">
-                <h1 className="max-w-5xl text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
-                  {selectedEvent?.canonicalEventName || "Intelligence Registry"}
-                </h1>
-                <p className="mt-4 max-w-2xl text-lg font-light leading-relaxed text-zinc-500">
-                  Review, search, and progress event prospects through a clean lead sheet.
-                </p>
-              </div>
+        <header className="min-h-[6.25rem] shrink-0 border-b border-zinc-300 pb-11">
+          <div className="flex min-w-0 items-center gap-7 whitespace-nowrap overflow-hidden">
+            <div className="min-w-0 flex-1">
+              <Select value={selectedEventKey} onValueChange={handleEventChange}>
+                <SelectTrigger
+                  aria-label="Select event"
+                  className="group !h-auto w-fit max-w-full justify-start gap-4 whitespace-normal rounded-none border-0 bg-transparent p-0 text-left text-zinc-950 shadow-none transition-colors hover:text-blue-700 focus:ring-0 focus-visible:ring-0 [&>svg]:mt-1 [&>svg]:h-7 [&>svg]:w-7 [&>svg]:opacity-40 [&>svg]:transition-colors [&>svg]:group-hover:opacity-70"
+                >
+                  <span className="line-clamp-2 min-w-0 text-3xl font-light leading-[1.12] tracking-[-0.025em] sm:text-4xl 2xl:text-5xl">
+                    {getDisplayEventName(selectedEvent?.canonicalEventName) || "Intelligence Registry"}
+                  </span>
+                </SelectTrigger>
+                <SelectContent
+                  align="start"
+                  position="popper"
+                  className={EVENT_SELECT_CONTENT_CLASS}
+                >
+                  {events.map((item) => (
+                    <SelectItem
+                      key={item.canonicalEventKey}
+                      value={item.canonicalEventKey}
+                      className={EVENT_SELECT_ITEM_CLASS}
+                    >
+                      {getDisplayEventName(item.canonicalEventName)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="flex flex-col gap-5 lg:min-w-[19rem] lg:items-stretch">
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-zinc-400">Total records</p>
-                  <p className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
-                    {pageTotal.toLocaleString()}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-zinc-400">Visible now</p>
-                  <p className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
-                    {visibleEventLeads.length.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-4 border-t border-zinc-300 pt-4">
-                <button
-                  type="button"
-                  className="inline-flex h-10 w-fit items-center justify-start gap-4 border-b border-transparent text-sm font-medium text-zinc-500 transition-all hover:border-zinc-900 hover:text-zinc-950 active:scale-[0.98] disabled:opacity-50"
-                  onClick={() => void refreshData()}
-                  disabled={loadingEvents || loadingLeads}
-                >
-                  {loadingEvents || loadingLeads ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <RefreshCcw className="h-3.5 w-3.5" />
-                  )}
-                  Refresh
-                </button>
-
+            <div className="ml-auto flex min-w-max flex-nowrap items-center justify-end gap-8">
+              <div
+                className="inline-flex h-12 shrink-0 items-center gap-1.5 rounded-full border border-zinc-200 bg-white p-1.5"
+                aria-label="Lead sheet actions"
+              >
                 {canUseTemplateUpload ? (
                   <button
                     type="button"
                     onClick={openTemplateUploadDialog}
                     disabled={!hasActiveRegistryEvents}
-                    className="inline-flex h-10 w-fit items-center justify-center gap-3 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-950 transition-all hover:border-blue-600 hover:text-blue-600 active:scale-[0.98] disabled:opacity-50"
+                    className="inline-flex h-9 w-40 items-center justify-center gap-2.5 rounded-full text-sm font-semibold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-50"
                   >
-                    <UploadCloud className="h-4 w-4" />
+                    <FileUp className="h-4 w-4" />
                     Upload leads
                   </button>
                 ) : null}
@@ -1702,19 +1763,26 @@ export function NormalUserEventLeadSheet() {
                   type="button"
                   onClick={() => setAddLeadOpen(true)}
                   disabled={!selectedEvent}
-                  className="inline-flex h-10 w-fit items-center justify-center gap-4 rounded-full bg-zinc-950 px-5 text-sm font-semibold text-white transition-all hover:bg-blue-600 active:scale-[0.98] disabled:opacity-50"
+                  className="inline-flex h-9 w-40 items-center justify-center gap-2.5 rounded-full border border-blue-500/20 bg-blue-600 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:opacity-50"
                 >
                   <Plus className="h-4 w-4" />
-                  Add entry
+                  Add a lead
                 </button>
+              </div>
+
+              <div className="flex shrink-0 items-baseline gap-3">
+                <span className="text-sm font-medium text-zinc-400">Leads To Cover</span>
+                <span className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
+                  {pageTotal.toLocaleString()}
+                </span>
               </div>
             </div>
           </div>
         </header>
 
-        <div className="mt-12 grid min-h-0 flex-1 gap-12 overflow-hidden xl:grid-cols-[19rem_minmax(0,1fr)]">
+        <div className="grid min-h-0 flex-1 gap-12 overflow-hidden pt-10 xl:grid-cols-[19rem_minmax(0,1fr)]">
           <aside className="shrink-0 space-y-10 overflow-y-auto pr-2 scrollbar-hide">
-            <div className="space-y-8">
+            <div className="space-y-6">
               <div className="space-y-5">
                 <label className="text-xs font-medium text-zinc-400">Context registry</label>
                 <EventRegistryPicker
@@ -1733,42 +1801,52 @@ export function NormalUserEventLeadSheet() {
                 />
               </div>
 
-              <div className="border-t border-zinc-100 pt-8">
+              <div className="border-t border-zinc-100 pt-6">
                 <label className="text-xs font-medium text-zinc-400">Event agenda</label>
-                <div className="mt-5 space-y-4">
+                <div className="mt-5">
                   {agendaState.loading ? (
-                    <div className="flex items-center gap-3 py-4 text-sm font-light text-zinc-500">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Loading agenda library
+                    <div className="animate-pulse space-y-3">
+                      <div className="h-4 w-44 bg-zinc-100" />
+                      <div className="h-3 w-36 bg-zinc-100" />
+                      <div className="h-9 w-40 bg-zinc-100" />
                     </div>
                   ) : agendaState.error ? (
-                    <div className="border-l border-zinc-200 pl-4 text-sm font-light leading-6 text-zinc-400">
+                    <div className="text-sm font-light leading-6 text-zinc-400">
                       No agenda found for this event.
                     </div>
                   ) : latestAgenda ? (
-                    <>
-                      <div className="space-y-3 border-l border-zinc-200 pl-4">
-                        <div className="flex min-w-0 items-start gap-3">
-                          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-red-100 bg-red-50 text-red-600">
-                            <FileText className="h-4 w-4" />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="truncate text-sm font-medium text-zinc-900">{latestAgenda.name}</p>
-                              <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                                Latest
-                              </span>
-                            </div>
-                            <p className="mt-1 text-xs font-light text-zinc-400">
-                              {formatBytes(latestAgenda.sizeBytes)} · {formatDateTime(latestAgenda.createdAt) || "Time unavailable"}
-                            </p>
-                          </div>
+                    <div className="space-y-3">
+                      <div className="min-w-0">
+                        <div className="flex min-w-0 items-start">
+                          <p className="min-w-0 text-base font-medium leading-5 text-zinc-950">
+                            {latestAgenda.name}
+                          </p>
                         </div>
+                        <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-zinc-400">
+                          <span>{formatBytes(latestAgenda.sizeBytes)}</span>
+                          <span className="h-1 w-1 rounded-full bg-zinc-300" />
+                          <span className="min-w-0 truncate">{formatDateTime(latestAgenda.createdAt) || "Time unavailable"}</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-nowrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleAgendaView(latestAgenda)}
+                          disabled={agendaState.viewingId === latestAgenda.id}
+                          className="inline-flex h-9 min-w-24 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-4 text-xs font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:opacity-60"
+                        >
+                          {agendaState.viewingId === latestAgenda.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Eye className="h-3.5 w-3.5" />
+                          )}
+                          View
+                        </button>
                         <button
                           type="button"
                           onClick={() => void handleAgendaDownload(latestAgenda)}
                           disabled={agendaState.downloadingId === latestAgenda.id}
-                          className="inline-flex h-9 items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-700 transition-colors hover:border-zinc-900 hover:text-zinc-950 disabled:opacity-60"
+                          className="inline-flex h-9 min-w-36 items-center justify-center gap-2 rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-700 transition-colors hover:border-zinc-900 hover:text-zinc-950 disabled:opacity-60"
                         >
                           {agendaState.downloadingId === latestAgenda.id ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1778,74 +1856,30 @@ export function NormalUserEventLeadSheet() {
                           Download latest
                         </button>
                       </div>
-
-                      <div className="space-y-3 border-t border-zinc-100 pt-4">
-                        <button
-                          type="button"
-                          onClick={() => setAgendaHistoryOpen((open) => !open)}
-                          className="group flex w-full items-center justify-between gap-3 text-left"
-                          aria-expanded={agendaHistoryOpen}
-                        >
-                          <span className="inline-flex min-w-0 items-center gap-2 text-xs font-medium text-zinc-500 group-hover:text-zinc-900">
-                            <ChevronRight className={agendaHistoryOpen ? "h-3.5 w-3.5 rotate-90 transition-transform" : "h-3.5 w-3.5 transition-transform"} />
-                            Upload history
-                          </span>
-                          <span className="shrink-0 text-[11px] font-light text-zinc-400">
-                            {previousAgendas.length} previous version{previousAgendas.length === 1 ? "" : "s"}
-                          </span>
-                        </button>
-
-                        {agendaHistoryOpen ? (
-                          <div className="max-h-48 overflow-y-auto pr-1 scrollbar-hide">
-                            {previousAgendas.length > 0 ? (
-                              previousAgendas.map((agenda) => (
-                                <div key={agenda.id} className="relative border-l border-zinc-200 pb-4 pl-4 last:pb-0">
-                                  <span className="absolute -left-[5px] top-1 h-2.5 w-2.5 rounded-full border border-zinc-300 bg-white" />
-                                  <div className="flex w-full min-w-0 items-start justify-between gap-3 text-left">
-                                    <span className="min-w-0">
-                                      <span className="block truncate text-xs font-medium text-zinc-700">{agenda.name}</span>
-                                      <span className="mt-1 block text-[11px] font-light leading-5 text-zinc-400">
-                                        {formatBytes(agenda.sizeBytes)} - {agenda.uploadedByUsername || "admin"} - {formatDateTime(agenda.createdAt) || "-"}
-                                      </span>
-                                    </span>
-                                    <span className="mt-0.5 shrink-0 rounded-full bg-zinc-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
-                                      History
-                                    </span>
-                                  </div>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="border-l border-zinc-200 pl-4 text-xs font-light leading-5 text-zinc-400">
-                                No previous agenda versions.
-                              </div>
-                            )}
-                          </div>
-                        ) : null}
-                      </div>
-                    </>
+                    </div>
                   ) : (
-                    <div className="border-l border-zinc-200 pl-4 text-sm font-light leading-6 text-zinc-400">
+                    <div className="text-sm font-light leading-6 text-zinc-400">
                       No agenda has been uploaded for this event yet.
                     </div>
                   )}
                 </div>
               </div>
 
-              <div>
-                <label className="mb-6 block text-xs font-medium text-zinc-400">Search intelligence</label>
-                <div className="relative w-full rounded-full border border-zinc-300 bg-white px-4 py-2 shadow-[0_22px_60px_-52px_rgba(2,10,27,0.42)] transition-colors focus-within:border-zinc-400">
+              <div className="mt-8">
+                <label className="mb-4 block text-xs font-medium text-zinc-400">Search intelligence</label>
+                <div className="relative h-11 w-full rounded-full border border-zinc-300 bg-white px-4 shadow-[0_22px_60px_-52px_rgba(2,10,27,0.42)] transition-colors focus-within:border-zinc-400">
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                   <input
                     value={searchInput}
                     onChange={(event) => setSearchInput(event.target.value)}
                     placeholder="Find in sheet..."
-                    className="h-9 w-full border-0 bg-transparent pl-7 pr-1 text-base font-light tracking-tight text-zinc-950 placeholder:text-zinc-400 focus:outline-none"
+                    className="h-full w-full border-0 bg-transparent pl-7 pr-1 text-sm font-light tracking-tight text-zinc-950 placeholder:text-zinc-400 focus:outline-none"
                   />
                 </div>
               </div>
 
-              <div className="border-t border-zinc-100 pt-8">
-                <label className="mb-6 block text-xs font-medium text-zinc-400">Intelligent filters</label>
+              <div className="mt-4 border-t border-zinc-100 pt-4">
+                <label className="mb-3 block text-xs font-medium text-zinc-400">Intelligent filters</label>
                 <button
                   type="button"
                   onClick={() => setFilterOpen(true)}
@@ -1871,7 +1905,7 @@ export function NormalUserEventLeadSheet() {
               </div>
 
               {selectedEvent && (
-                <div className="space-y-4 border-t border-zinc-100 pt-10">
+                <div className="mt-5 space-y-4 border-t border-zinc-100 pt-5">
                   <label className="text-xs font-medium text-zinc-400">Data coverage</label>
                   <div className="space-y-0">
                     <div className="flex items-center justify-between border-b border-zinc-100 py-4">
@@ -1926,8 +1960,18 @@ export function NormalUserEventLeadSheet() {
                         ? item.workflowStatus
                         : undefined;
                       const historyCount = item.workflowCommentHistoryCount || 0;
+                      const emailHref = item.email ? buildEmailHref(item.email) : "";
                       const telHref = item.phone ? buildTelHref(item.phone) : "";
                       const whatsappHref = item.phone ? buildWhatsAppHref(item.phone) : "";
+                      const openContactChoice = () =>
+                        setContactChoiceLead({
+                          name: item.employeeName,
+                          email: item.email,
+                          phone: item.phone,
+                          emailHref,
+                          telHref,
+                          whatsappHref,
+                        });
 
                       return (
                         <div
@@ -1955,44 +1999,34 @@ export function NormalUserEventLeadSheet() {
                             <div className="flex flex-col gap-2">
                               <div className="flex items-center gap-4">
                                 {item.email ? (
-                                  <>
+                                  <button
+                                    type="button"
+                                    onClick={openContactChoice}
+                                    className="inline-flex min-w-0 items-center gap-4 text-left"
+                                    title="Choose contact method"
+                                  >
                                     <EmailIcon className="h-3.5 w-3.5 text-[#EF4444]" />
-                                    <a
-                                      href={`mailto:${item.email}`}
-                                      className="text-sm font-light tracking-tight text-zinc-700 transition-colors hover:text-zinc-950"
-                                      title="Open in email app"
-                                    >
+                                    <span className="truncate text-sm font-light tracking-tight text-zinc-700 transition-colors hover:text-zinc-950">
                                       {item.email}
-                                    </a>
-                                  </>
+                                    </span>
+                                  </button>
                                 ) : (
                                   <span className="text-sm font-light tracking-tight text-zinc-700">-</span>
                                 )}
                               </div>
                               <div className="flex items-center gap-4">
                                 {item.phone ? (
-                                  <>
+                                  <button
+                                    type="button"
+                                    onClick={openContactChoice}
+                                    className="inline-flex min-w-0 items-center gap-4 text-left"
+                                    title="Choose contact method"
+                                  >
                                     <PhoneIcon className="h-3.5 w-3.5 text-[#22C55E]" />
-                                    {telHref || whatsappHref ? (
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          setPhoneChoiceLead({
-                                            name: item.employeeName,
-                                            phone: item.phone,
-                                            telHref,
-                                            whatsappHref,
-                                          })
-                                        }
-                                        className="text-sm font-light text-zinc-500 transition-colors hover:text-zinc-950"
-                                        title="Choose call method"
-                                      >
-                                        {item.phone}
-                                      </button>
-                                    ) : (
-                                      <span className="text-sm font-light text-zinc-500">{item.phone}</span>
-                                    )}
-                                  </>
+                                    <span className="truncate text-sm font-light text-zinc-500 transition-colors hover:text-zinc-950">
+                                      {item.phone}
+                                    </span>
+                                  </button>
                                 ) : (
                                   <span className="text-sm font-light text-zinc-500">-</span>
                                 )}
@@ -2159,7 +2193,7 @@ export function NormalUserEventLeadSheet() {
         >
           <div className="space-y-8">
             <div className="border-b border-zinc-100 pb-6">
-              <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Selected profile</p>
+              <p className="text-xs font-medium text-zinc-400">Selected profile</p>
               <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
                 {pendingStatusChange.item.employeeName || "-"}
               </h3>
@@ -2246,7 +2280,7 @@ export function NormalUserEventLeadSheet() {
       {emailDialog ? (
         <LeadSheetDialog
           open
-          eyebrow="Outreach Workspace"
+          eyebrow=""
           title={
             emailDialog.platform === "whatsapp"
               ? "WhatsApp Draft"
@@ -2254,20 +2288,14 @@ export function NormalUserEventLeadSheet() {
                 ? "Email Draft"
                 : "Generate Content"
           }
-          description={
-            emailDialog.loading
-              ? "Generating content for this lead."
-              : emailDialog.platform
-                ? "Review, edit, and copy the personalized content."
-                : "Choose the channel before generation starts."
-          }
+          description=""
           onClose={closeEmailDialog}
+          compact
         >
           {!emailDialog.platform && !emailDialog.loading && !emailDialog.error ? (
             <div className="space-y-7">
               <div className="border-b border-zinc-100 pb-6">
-                <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Selected profile</p>
-                <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
+                <h3 className="text-2xl font-light tracking-tight text-zinc-950">
                   {emailDialog.lead.employeeName || "-"}
                 </h3>
                 <p className="mt-1 text-sm font-light leading-6 text-zinc-500">
@@ -2279,12 +2307,12 @@ export function NormalUserEventLeadSheet() {
                 <button
                   type="button"
                   onClick={() => void generateContentForPlatform(emailDialog.lead, "email")}
-                  className="group border border-zinc-300 bg-white p-5 text-left transition-colors hover:border-blue-600 hover:bg-blue-50/40"
+                  className="group rounded-2xl border border-zinc-200 bg-white p-5 text-left shadow-[0_16px_36px_-30px_rgba(15,23,42,0.65)] transition-all hover:border-red-200 hover:bg-zinc-50/70"
                 >
-                  <span className="flex h-10 w-10 items-center justify-center border border-zinc-200 bg-white text-blue-600 group-hover:border-blue-200">
-                    <Mail className="h-5 w-5" />
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full border border-red-500/20 bg-[#EF4444] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(239,68,68,0.82)]">
+                    <Mail className="h-5 w-5 stroke-[2.4]" />
                   </span>
-                  <span className="mt-5 block text-lg font-light text-zinc-950">Email</span>
+                  <span className="mt-5 block text-lg font-medium text-zinc-950">Email</span>
                   <span className="mt-1 block text-sm font-light leading-6 text-zinc-500">
                     Subject and longer sales narrative for inbox outreach.
                   </span>
@@ -2292,12 +2320,12 @@ export function NormalUserEventLeadSheet() {
                 <button
                   type="button"
                   onClick={() => void generateContentForPlatform(emailDialog.lead, "whatsapp")}
-                  className="group border border-zinc-300 bg-white p-5 text-left transition-colors hover:border-emerald-600 hover:bg-emerald-50/40"
+                  className="group rounded-2xl border border-zinc-200 bg-white p-5 text-left shadow-[0_16px_36px_-30px_rgba(15,23,42,0.65)] transition-all hover:border-emerald-200 hover:bg-zinc-50/70"
                 >
-                  <span className="flex h-10 w-10 items-center justify-center border border-zinc-200 bg-white text-emerald-600 group-hover:border-emerald-200">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#22c55e]/30 bg-[#22c55e] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-16px_rgba(34,197,94,0.82)]">
                     <WhatsAppIcon className="h-5 w-5" />
                   </span>
-                  <span className="mt-5 block text-lg font-light text-zinc-950">WhatsApp</span>
+                  <span className="mt-5 block text-lg font-medium text-zinc-950">WhatsApp</span>
                   <span className="mt-1 block text-sm font-light leading-6 text-zinc-500">
                     Short, direct message for a quick reply.
                   </span>
@@ -2335,7 +2363,7 @@ export function NormalUserEventLeadSheet() {
                   type="button"
                   variant="ghost"
                   onClick={closeEmailDialog}
-                  className="h-10 rounded-none border border-zinc-300 bg-white px-5 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                  className="h-11 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
                 >
                   Close
                 </Button>
@@ -2346,7 +2374,7 @@ export function NormalUserEventLeadSheet() {
                       feedback: emailDialog.feedback,
                     })
                   }
-                  className="h-10 gap-2 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
+                  className="h-11 gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700"
                 >
                   <RefreshCcw className="h-4 w-4" />
                   Try Again
@@ -2356,8 +2384,7 @@ export function NormalUserEventLeadSheet() {
           ) : (
             <div className="space-y-7">
               <div className="border-b border-zinc-100 pb-6">
-                <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Selected profile</p>
-                <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
+                <h3 className="text-2xl font-light tracking-tight text-zinc-950">
                   {emailDialog.lead.employeeName || "-"}
                 </h3>
                 <p className="mt-1 text-sm font-light leading-6 text-zinc-500">
@@ -2367,25 +2394,25 @@ export function NormalUserEventLeadSheet() {
 
               {emailDialog.platform === "email" ? (
                 <label className="block space-y-3">
-                  <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Subject</span>
+                  <span className="text-xs font-medium text-zinc-400">Subject</span>
                   <Input
                     value={emailDialog.subject}
                     onChange={(event) => updateEmailDraftField("subject", event.target.value.slice(0, 180))}
-                    className="h-12 rounded-none border-zinc-300 bg-white text-base font-light shadow-none focus-visible:ring-1 focus-visible:ring-zinc-900"
+                    className="h-12 rounded-2xl border-zinc-200 bg-white px-4 text-base font-light shadow-none focus-visible:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500"
                   />
                 </label>
               ) : null}
 
               <label className="block space-y-3">
-                <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                <span className="text-xs font-medium text-zinc-400">
                   {emailDialog.platform === "whatsapp" ? "WhatsApp message" : "Mail body"}
                 </span>
                 <Textarea
                   value={emailDialog.body}
                   onChange={(event) => updateEmailDraftField("body", event.target.value.slice(0, 5000))}
                   className={cn(
-                    "rounded-none border-zinc-300 bg-white text-sm font-light leading-7 shadow-none focus-visible:ring-1 focus-visible:ring-zinc-900",
-                    emailDialog.platform === "whatsapp" ? "min-h-40" : "min-h-72"
+                    "rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-7 shadow-none focus-visible:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500",
+                    emailDialog.platform === "whatsapp" ? "min-h-36" : "min-h-56"
                   )}
                 />
                 <span className="block text-right text-xs font-light text-zinc-400">
@@ -2394,12 +2421,12 @@ export function NormalUserEventLeadSheet() {
               </label>
 
               <label className="block space-y-3 border-t border-zinc-100 pt-6">
-                <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Feedback for regenerate</span>
+                <span className="text-xs font-medium text-zinc-400">Feedback for regenerate</span>
                 <Textarea
                   value={emailDialog.feedback}
                   onChange={(event) => updateEmailFeedback(event.target.value)}
                   placeholder="Example: Make it shorter, stronger, and focus on sponsor ROI."
-                  className="min-h-24 rounded-none border-zinc-300 bg-white text-sm font-light leading-6 shadow-none focus-visible:ring-1 focus-visible:ring-zinc-900"
+                  className="min-h-24 rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-6 shadow-none focus-visible:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500"
                 />
                 <span className="block text-right text-xs font-light text-zinc-400">
                   {emailDialog.feedback.length}/1200
@@ -2415,7 +2442,7 @@ export function NormalUserEventLeadSheet() {
                       feedback: emailDialog.feedback,
                     })
                   }
-                  className="h-10 gap-2 rounded-none border border-zinc-300 bg-white px-4 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                  className="h-11 gap-2 rounded-full border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
                 >
                   <Sparkles className="h-4 w-4" />
                   {emailDialog.feedback.trim() ? "Regenerate with Feedback" : "Regenerate"}
@@ -2426,7 +2453,7 @@ export function NormalUserEventLeadSheet() {
                       type="button"
                       variant="ghost"
                       onClick={() => void copyEmailDraft("subject")}
-                      className="h-10 gap-2 rounded-none border border-zinc-300 bg-white px-4 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                      className="h-11 gap-2 rounded-full border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
                     >
                       <Copy className="h-4 w-4" />
                       {emailDialog.copiedAction === "subject" ? "Copied" : "Subject"}
@@ -2436,7 +2463,7 @@ export function NormalUserEventLeadSheet() {
                     type="button"
                     variant="ghost"
                     onClick={() => void copyEmailDraft("body")}
-                    className="h-10 gap-2 rounded-none border border-zinc-300 bg-white px-4 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                    className="h-11 gap-2 rounded-full border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
                   >
                     <Copy className="h-4 w-4" />
                     {emailDialog.copiedAction === "body"
@@ -2448,7 +2475,7 @@ export function NormalUserEventLeadSheet() {
                   <Button
                     type="button"
                     onClick={() => void copyEmailDraft("full")}
-                    className="h-10 gap-2 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
+                    className="h-11 gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700"
                   >
                     <Copy className="h-4 w-4" />
                     {emailDialog.copiedAction === "full"
@@ -2514,35 +2541,52 @@ export function NormalUserEventLeadSheet() {
         </div>
       ) : null}
 
-      {phoneChoiceLead ? (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center p-6">
-          <button
-            type="button"
-            aria-label="Close phone method chooser"
-            className="absolute inset-0 bg-zinc-950/20 backdrop-blur-[2px]"
-            onClick={() => setPhoneChoiceLead(null)}
-          />
-
-          <div className="relative z-[1] w-full max-w-md overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_90px_-54px_rgba(2,10,27,0.82)]">
-            <div className="border-b border-zinc-100 px-7 py-6">
-              <h3 className="text-3xl font-light leading-none tracking-[-0.04em] text-zinc-950">
-                Choose how to reach them
+      {contactChoiceLead ? (
+        <LeadSheetDialog
+          open
+          title="Contact channel"
+          description=""
+          eyebrow=""
+          onClose={() => setContactChoiceLead(null)}
+          compact
+        >
+          <div className="space-y-6">
+            <div className="border-b border-zinc-100 pb-5">
+              <h3 className="text-2xl font-light tracking-tight text-zinc-950">
+                {contactChoiceLead.name || "This lead"}
               </h3>
-              <p className="mt-2 max-w-sm text-sm font-light leading-6 text-zinc-500">
-                Call {phoneChoiceLead.name || "this lead"} through Linkus or WhatsApp.
-              </p>
-              <p className="mt-4 text-lg font-light tabular-nums text-zinc-950">{phoneChoiceLead.phone}</p>
+              <div className="mt-3 space-y-1.5 text-sm font-light text-zinc-500">
+                {contactChoiceLead.email ? (
+                  <p className="truncate">{contactChoiceLead.email}</p>
+                ) : null}
+                {contactChoiceLead.phone ? (
+                  <p className="tabular-nums">{contactChoiceLead.phone}</p>
+                ) : null}
+              </div>
             </div>
 
-            <div className="grid gap-3 bg-zinc-50/70 px-7 py-5 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
               <Button
                 type="button"
-                disabled={!phoneChoiceLead.telHref}
+                disabled={!contactChoiceLead.emailHref}
                 onClick={() => {
-                  window.location.href = phoneChoiceLead.telHref;
-                  setPhoneChoiceLead(null);
+                  window.location.href = contactChoiceLead.emailHref;
+                  setContactChoiceLead(null);
                 }}
-                className="h-10 gap-1.5 rounded-none bg-[#0098f0] px-4 text-sm text-white hover:bg-[#0086d4] disabled:opacity-50"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-red-500/20 bg-[#EF4444] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(239,68,68,0.95)] hover:bg-red-600 disabled:border-red-400/20 disabled:bg-red-500/55 disabled:text-white/80 disabled:opacity-100 disabled:shadow-none"
+              >
+                <Mail className="h-3.5 w-3.5 stroke-[2.4]" />
+                Email
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={!contactChoiceLead.telHref}
+                onClick={() => {
+                  window.location.href = contactChoiceLead.telHref;
+                  setContactChoiceLead(null);
+                }}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-950 shadow-none transition-colors hover:border-blue-600 hover:bg-white hover:text-blue-600 disabled:opacity-50"
               >
                 <Headset className="h-3.5 w-3.5" />
                 Linkus
@@ -2550,31 +2594,33 @@ export function NormalUserEventLeadSheet() {
               <Button
                 type="button"
                 variant="ghost"
-                disabled={!phoneChoiceLead.whatsappHref}
+                disabled={!contactChoiceLead.whatsappHref}
                 onClick={() => {
-                  window.open(phoneChoiceLead.whatsappHref, "_blank", "noopener,noreferrer");
-                  setPhoneChoiceLead(null);
+                  window.open(contactChoiceLead.whatsappHref, "_blank", "noopener,noreferrer");
+                  setContactChoiceLead(null);
                 }}
-                className="h-10 gap-1.5 rounded-none border border-[#22c55e] bg-[#22c55e] px-4 text-sm text-white shadow-none hover:border-[#16a34a] hover:bg-[#16a34a] hover:text-white disabled:opacity-50"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#22c55e]/30 bg-[#22c55e] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-16px_rgba(34,197,94,0.85)] transition-colors hover:bg-[#16a34a] hover:text-white disabled:opacity-50"
               >
                 <WhatsAppIcon className="h-3.5 w-3.5" />
                 WhatsApp
               </Button>
             </div>
           </div>
-        </div>
+        </LeadSheetDialog>
       ) : null}
 
       {historyLead ? (
         <LeadSheetDialog
           open
           title="Comment History"
-          description="Review the status timeline and notes saved for this record."
+          description=""
+          eyebrow=""
           onClose={closeHistory}
+          compact
         >
           <div className="space-y-6">
             <div className="border-b border-zinc-100 pb-6">
-              <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Selected profile</p>
+              <p className="text-xs font-medium normal-case tracking-normal text-zinc-400">Selected profile</p>
               <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
                 {historyLead.employeeName || "-"}
               </h3>
@@ -2598,14 +2644,14 @@ export function NormalUserEventLeadSheet() {
               <div className="border-y border-zinc-300">
                 <div className="flex items-center justify-between border-b border-zinc-200 py-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Timeline</span>
+                    <span className="text-xs font-medium text-zinc-400">Timeline</span>
                   </div>
                   <span className="text-xs font-light text-zinc-400">
                     {historyItems.length} update{historyItems.length === 1 ? "" : "s"}
                   </span>
                 </div>
 
-                <div>
+                <div className="max-h-[26rem] overflow-y-auto pr-1 scrollbar-modern">
                   {historyItems.map((entry) => {
                     const statusLabel = entry.workflowStatusLabel || humanizeStatusLabel(entry.workflowStatus);
                     const actorName =
@@ -2664,18 +2710,8 @@ export function NormalUserEventLeadSheet() {
             onClick={() => setFilterOpen(false)}
           />
 
-          <div className="relative z-[1] grid max-h-[calc(100dvh-3rem)] w-full max-w-4xl overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)] md:grid-cols-[18rem_minmax(0,1fr)]">
-            <aside className="border-b border-zinc-300 bg-white p-8 md:border-b-0 md:border-r">
-              <p className="text-sm font-medium text-zinc-400">Lead Sheet Updates</p>
-              <h2 className="mt-8 text-4xl font-light leading-none tracking-tighter text-zinc-950">
-                Intelligence Filters
-              </h2>
-              <p className="mt-5 max-w-[13rem] text-sm font-light leading-relaxed text-zinc-500">
-                Build a focused view using status, contact readiness, and source quality signals.
-              </p>
-            </aside>
-
-            <div className="relative min-h-[34rem] p-8">
+          <div className="relative z-[1] w-full max-w-xl overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
+            <div className="relative p-8 pb-28">
               <Button
                 type="button"
                 variant="ghost"
@@ -2685,7 +2721,7 @@ export function NormalUserEventLeadSheet() {
                 <X className="h-4 w-4" />
               </Button>
 
-              <div className="max-h-[calc(100dvh-12rem)] max-w-xl space-y-10 overflow-y-auto pb-28 pr-12 scrollbar-modern">
+              <div className="space-y-10">
                 <div>
                   <label className="mb-3 block text-xs font-medium text-zinc-400">Status model</label>
                   <Select
@@ -2748,37 +2784,8 @@ export function NormalUserEventLeadSheet() {
                 </div>
 
                 <div className="space-y-4">
-                  <label className="block text-sm font-semibold text-zinc-950">By source quality:</label>
-                  <div className="flex flex-wrap gap-2.5">
-                    {[
-                      { value: "all", label: "All sources" },
-                      { value: "imported", label: "Imported" },
-                      { value: "manual", label: "Manual" },
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() =>
-                          setFilters((prev) => ({
-                            ...prev,
-                            source: option.value as LeadFilterState["source"],
-                          }))
-                        }
-                        className={`inline-flex h-10 items-center rounded-full border px-4 text-sm font-semibold transition-all ${
-                          filters.source === option.value
-                            ? "border-blue-600 bg-white text-blue-600 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.85)]"
-                            : "border-zinc-300 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
                   <label className="block text-sm font-semibold text-zinc-950">By campaign category:</label>
-                  <div className="border border-zinc-200 bg-white p-3">
+                  <div className="rounded-2xl border border-zinc-200 bg-white p-3">
                     <div className="relative">
                       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                       <Input
@@ -2789,7 +2796,7 @@ export function NormalUserEventLeadSheet() {
                       />
                     </div>
 
-                    <div className="mt-3 max-h-36 overflow-y-auto pr-1 scrollbar-modern">
+                    <div className="mt-3 pr-1">
                       <div className="flex flex-wrap gap-2.5">
                         <button
                           type="button"
@@ -2846,7 +2853,7 @@ export function NormalUserEventLeadSheet() {
                 </button>
                 <Button
                   type="button"
-                  className="h-11 rounded-full bg-zinc-950 px-7 text-sm font-semibold text-white shadow-none hover:bg-blue-600"
+                  className="h-11 rounded-full border border-blue-500/20 bg-blue-600 px-7 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700"
                   onClick={() => setFilterOpen(false)}
                 >
                   Apply filters
@@ -2860,30 +2867,12 @@ export function NormalUserEventLeadSheet() {
       <LeadSheetDialog
         open={templateUploadOpen}
         title="Upload Leads"
-        description="Choose the event, upload the Excel template, then add the leads."
-        eyebrow="Template Upload"
+        description=""
+        eyebrow=""
         onClose={closeTemplateUploadDialog}
+        compact
       >
         <div className="space-y-7">
-          <div className="grid gap-3 sm:grid-cols-3">
-            {[
-              { label: "Event Selection", active: !selectedTemplateUploadEvent },
-              { label: "Upload", active: Boolean(selectedTemplateUploadEvent && !templateValidation) },
-              { label: "Submit", active: Boolean(templateValidation && selectedTemplateUploadEvent) },
-            ].map((step, index) => (
-              <div
-                key={step.label}
-                className={cn(
-                  "border px-4 py-3 text-sm font-semibold",
-                  step.active ? "border-blue-600 text-blue-600" : "border-zinc-200 text-zinc-400"
-                )}
-              >
-                <span className="mr-2 text-xs tabular-nums">{index + 1}</span>
-                {step.label}
-              </div>
-            ))}
-          </div>
-
           <div>
             <label className="mb-3 block text-xs font-medium text-zinc-400">Related event</label>
             <EventRegistryPicker
@@ -2897,43 +2886,57 @@ export function NormalUserEventLeadSheet() {
               placeholder="Select event"
               showStatusTabs={false}
               inactiveSelectable={false}
-              triggerClassName="!h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light shadow-none hover:border-blue-600"
-              contentClassName="rounded-none"
+              triggerClassName="!h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light shadow-none transition-colors hover:border-blue-600 hover:text-blue-700"
+              contentClassName="rounded-2xl border-zinc-200 bg-white/98 p-2 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)]"
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <div
+            className={cn(
+              "group flex min-h-20 items-center gap-3 rounded-2xl border px-4 py-3 transition-all",
+              !selectedTemplateUploadEvent
+                ? "border-zinc-200 bg-zinc-50/80"
+                : templateUpload.error
+                  ? "border-red-300 bg-red-50/40"
+                  : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50/70"
+            )}
+          >
             <label
               htmlFor="normal-lead-template-upload"
               className={cn(
-                "group flex min-h-36 cursor-pointer flex-col items-center justify-center border border-dashed p-6 text-center transition-all",
-                !selectedTemplateUploadEvent
-                  ? "cursor-not-allowed border-zinc-200 bg-zinc-50 opacity-60"
-                  : templateUpload.error
-                  ? "border-red-300 bg-red-50/40"
-                  : "border-zinc-300 hover:border-blue-600 hover:bg-blue-50/30"
+                "flex min-w-0 flex-1 items-center gap-4",
+                !selectedTemplateUploadEvent || templateUpload.validating || templateUpload.submitting
+                  ? "cursor-not-allowed"
+                  : "cursor-pointer"
               )}
             >
-              {templateUpload.validating ? (
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-              ) : templateValidation ? (
-                <CheckCircle2 className="h-8 w-8 text-emerald-500" />
-              ) : (
-                <FileSpreadsheet className="h-8 w-8 text-zinc-400 transition-colors group-hover:text-blue-600" />
-              )}
-              <span className="mt-4 text-base font-semibold text-zinc-950">
-                {!selectedTemplateUploadEvent
-                  ? "Select event first"
-                  : templateUpload.file?.name || "Choose Excel template"}
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors group-hover:border-zinc-300 group-hover:text-zinc-500">
+                {templateUpload.validating ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                ) : templateValidation ? (
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                ) : (
+                  <FileSpreadsheet className="h-5 w-5" />
+                )}
               </span>
-              <span className="mt-1 text-sm font-light text-zinc-500">
-                {!selectedTemplateUploadEvent
-                  ? "Only .xlsx files are accepted"
-                  : templateUpload.validating
-                  ? "Checking workbook"
-                  : templateValidation
-                    ? "Template is ready"
-                    : "Only .xlsx files are accepted"}
+              <span className="min-w-0 flex-1 text-left">
+                <span className="block truncate text-sm font-semibold text-zinc-950">
+                  {!selectedTemplateUploadEvent
+                    ? "Select event first"
+                    : templateUpload.file?.name || "Choose Excel template"}
+                </span>
+                <span className="mt-1 block truncate text-xs font-light text-zinc-500">
+                  {!selectedTemplateUploadEvent
+                    ? "Only .xlsx files are accepted"
+                    : templateUpload.validating
+                    ? "Checking workbook"
+                    : templateValidation
+                      ? "Template is ready"
+                      : "Only .xlsx files are accepted"}
+                </span>
+              </span>
+              <span className="inline-flex h-10 w-28 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-semibold text-zinc-700 transition-colors group-hover:border-zinc-400 group-hover:text-zinc-950">
+                Choose
               </span>
               <input
                 id="normal-lead-template-upload"
@@ -2948,9 +2951,9 @@ export function NormalUserEventLeadSheet() {
             <button
               type="button"
               onClick={() => void handleTemplateDownload()}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-950 transition-colors hover:border-blue-600 hover:text-blue-600"
+              className="inline-flex h-10 w-28 shrink-0 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-4 text-xs font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700"
             >
-              <Download className="h-4 w-4" />
+              <Download className="h-3.5 w-3.5" />
               Template
             </button>
           </div>
@@ -3028,7 +3031,7 @@ export function NormalUserEventLeadSheet() {
             </Button>
             <Button
               type="button"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-zinc-950 px-7 text-sm font-semibold text-white shadow-none hover:bg-blue-600"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-7 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700 disabled:border-blue-400/20 disabled:bg-blue-600/55 disabled:text-white/80 disabled:opacity-100 disabled:shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-18px_rgba(37,99,235,0.75)]"
               onClick={() => void handleTemplateUploadSubmit()}
               disabled={!templateUploadReady || templateUpload.validating || templateUpload.submitting}
             >
@@ -3051,12 +3054,10 @@ export function NormalUserEventLeadSheet() {
       <LeadSheetDialog
         open={addLeadOpen}
         title="Add Lead"
-        description={
-          selectedEvent
-            ? `Add a lead directly into ${selectedEvent.canonicalEventName}.`
-            : "Select an event first before adding a lead."
-        }
+        description=""
+        eyebrow=""
         onClose={closeAddLeadDialog}
+        compact
       >
         <div className="grid gap-x-8 gap-y-8 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -3144,10 +3145,6 @@ export function NormalUserEventLeadSheet() {
           </div>
         </div>
 
-        <div className="mt-8 border-y border-zinc-100 py-4 text-sm font-light leading-relaxed text-zinc-500">
-          Add the strongest details you have now. Contact information helps the team follow up faster, but the profile can be updated later.
-        </div>
-
         <div className="mt-8 flex items-center justify-between">
           <Button
             type="button"
@@ -3160,7 +3157,7 @@ export function NormalUserEventLeadSheet() {
           </Button>
           <Button
             type="button"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-zinc-950 px-7 text-sm font-semibold text-white shadow-none hover:bg-blue-600"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-7 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700 disabled:border-blue-400/20 disabled:bg-blue-600/55 disabled:text-white/80 disabled:opacity-100 disabled:shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-18px_rgba(37,99,235,0.75)]"
             onClick={() => void submitAddLead()}
             disabled={addingLead || !selectedEvent}
           >
@@ -3172,7 +3169,7 @@ export function NormalUserEventLeadSheet() {
             ) : (
               <>
                 <Plus className="h-3.5 w-3.5" />
-                Add Lead
+                Add a lead
               </>
             )}
           </Button>

@@ -4,17 +4,86 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { listEvents, type EventSummaryItem } from "@/lib/apiRouter";
+import { listActiveEventRegistry, type AdminEventItem } from "@/lib/auth";
 import { ProtectedImage } from "@/components/storage/ProtectedImage";
 import {
-  ArrowLeft,
-  RefreshCcw,
+  ArrowRight,
+  CalendarDays,
+  LayoutGrid,
+  List,
+  MapPin,
   Search,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 
+type EventViewMode = "list" | "grid";
+
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong.";
+}
+
+function getDisplayEventName(name: string) {
+  const cleanName = name.trim();
+  const [shortName] = cleanName.split(/\s(?:-|\u2013|\u2014)\s/);
+  return shortName?.trim() || cleanName;
+}
+
+function formatEventDate(value?: string | null) {
+  if (!value) return "";
+
+  const raw = String(value).trim();
+  const dateOnly = raw.split("T")[0];
+  const m = dateOnly.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (m) {
+    const [, y, mo, d] = m;
+    const parsed = new Date(Number(y), Number(mo) - 1, Number(d));
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    }
+  }
+
+  const fallback = new Date(raw);
+  if (!Number.isNaN(fallback.getTime())) {
+    return fallback.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  return raw;
+}
+
+function mergeEventRegistryMetadata(
+  events: EventSummaryItem[],
+  registryRows: AdminEventItem[]
+) {
+  const registryById = new Map(registryRows.map((item) => [item.id, item]));
+  const registryByKey = new Map(registryRows.map((item) => [item.eventKey, item]));
+  const registryByName = new Map(registryRows.map((item) => [item.eventName, item]));
+
+  return events.map((event) => {
+    const registryEvent =
+      registryById.get(event.eventRegistryId || "") ||
+      registryByKey.get(event.canonicalEventKey) ||
+      registryByName.get(event.canonicalEventName);
+
+    if (!registryEvent) return event;
+
+    return {
+      ...event,
+      date: event.date ?? registryEvent.date ?? null,
+      location: event.location ?? registryEvent.location ?? null,
+      logoStorageObjectId: event.logoStorageObjectId ?? registryEvent.logoStorageObjectId ?? null,
+      logoUrl: event.logoUrl ?? registryEvent.logoUrl ?? null,
+    };
+  });
 }
 
 function HeaderMetricSkeleton() {
@@ -26,31 +95,63 @@ function HeaderMetricSkeleton() {
   );
 }
 
-function EventRowsSkeleton() {
+function EventRowsSkeleton({ viewMode }: { viewMode: EventViewMode }) {
+  if (viewMode === "grid") {
+    return (
+      <div className="grid grid-cols-1 gap-5 pr-1 md:grid-cols-2 xl:grid-cols-3">
+        {[0, 1, 2, 3, 4, 5].map((index) => (
+          <div
+            key={index}
+            className="flex min-h-[15rem] animate-pulse flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white/70 p-5 2xl:p-6"
+          >
+            <div className="grid min-h-[8.25rem] grid-cols-[7.75rem_minmax(0,1fr)] gap-4 2xl:grid-cols-[8.5rem_minmax(0,1fr)]">
+              <div className="bg-zinc-100" />
+              <div>
+                <div className="h-8 w-44 bg-zinc-100" />
+                <div className="mt-4 flex gap-2">
+                  <div className="h-8 w-28 bg-zinc-100" />
+                  <div className="h-8 w-32 bg-zinc-100" />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-auto flex items-end justify-between gap-4 pt-5">
+              <div className="space-y-2">
+                <div className="h-3 w-24 bg-zinc-100" />
+                <div className="h-9 w-28 bg-zinc-100" />
+              </div>
+              <div className="h-11 w-28 bg-zinc-100" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-1">
+    <div className="grid grid-cols-1 gap-5 pr-1">
       {[0, 1, 2].map((index) => (
         <div
           key={index}
-          className="animate-pulse border-b border-zinc-300 p-7 2xl:p-8"
+          className="grid min-h-[11rem] animate-pulse overflow-hidden rounded-lg border border-zinc-200 bg-white/70 sm:h-[11rem] sm:min-h-0 sm:grid-cols-[10rem_minmax(0,1fr)] 2xl:h-[12rem] 2xl:grid-cols-[11rem_minmax(0,1fr)]"
         >
-          <div className="flex flex-col justify-between gap-8 2xl:gap-10">
-            <div className="space-y-4">
-              <div className="h-8 w-full max-w-4xl bg-zinc-100" />
-              <div className="h-8 w-3/5 bg-zinc-100" />
-            </div>
+          <div className="min-h-[11rem] bg-zinc-100 sm:min-h-0 2xl:min-h-0" />
 
-            <div className="flex items-end justify-between">
-              <div className="space-y-2">
-                <div className="h-3 w-24 bg-zinc-100" />
-                <div className="flex items-baseline gap-2">
-                  <div className="h-9 w-28 bg-zinc-100" />
-                  <div className="h-4 w-10 bg-zinc-100" />
-                </div>
+          <div className="grid min-w-0 gap-6 p-6 sm:grid-cols-[minmax(12rem,1fr)_minmax(12rem,16rem)_auto] sm:items-center 2xl:p-7">
+            <div>
+              <div className="h-8 w-full max-w-sm bg-zinc-100" />
+              <div className="mt-4 flex gap-2">
+                <div className="h-8 w-28 bg-zinc-100" />
+                <div className="h-8 w-36 bg-zinc-100" />
               </div>
-
-              <div className="h-11 w-11 border border-zinc-200 bg-zinc-100 2xl:h-12 2xl:w-12" />
             </div>
+
+            <div className="space-y-2 sm:justify-self-center">
+              <div className="h-3 w-24 bg-zinc-100 sm:mx-auto" />
+              <div className="h-9 w-36 bg-zinc-100 sm:mx-auto" />
+            </div>
+
+            <div className="h-11 w-32 bg-zinc-100 sm:justify-self-end" />
           </div>
         </div>
       ))}
@@ -58,16 +159,65 @@ function EventRowsSkeleton() {
   );
 }
 
-function EventLogoMark({ item }: { item: EventSummaryItem }) {
+function EventImagePanel({
+  item,
+  viewMode = "list",
+}: {
+  item: EventSummaryItem;
+  viewMode?: EventViewMode;
+}) {
   return (
-    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-zinc-300 bg-white text-sm font-semibold text-zinc-500">
+    <div
+      className={
+        viewMode === "grid"
+          ? "relative flex h-full min-h-[8.25rem] items-center justify-center overflow-hidden text-2xl font-semibold text-zinc-400"
+          : "relative flex min-h-[11rem] items-center justify-center overflow-hidden text-3xl font-semibold text-zinc-400 sm:h-full sm:min-h-0"
+      }
+    >
       <ProtectedImage
         src={item.logoUrl}
         directUrlPath={item.logoUrl ? `${item.logoUrl}/download-url` : undefined}
         alt=""
-        className="h-full w-full object-cover"
+        className={`h-full w-full transition-transform duration-500 group-hover:scale-[1.04] ${
+          viewMode === "grid" ? "object-contain p-3" : "object-cover"
+        }`}
         fallback={item.canonicalEventName.slice(0, 2).toUpperCase()}
       />
+    </div>
+  );
+}
+
+function EventMetaChips({
+  item,
+  compact = false,
+}: {
+  item: EventSummaryItem;
+  compact?: boolean;
+}) {
+  if (!item.date && !item.location) return null;
+
+  return (
+    <div className={`${compact ? "mt-3 gap-1.5" : "mt-4 gap-2"} flex min-w-0 flex-wrap`}>
+      {item.date ? (
+        <span
+          className={`inline-flex max-w-full items-center rounded-full border border-zinc-200 bg-zinc-50 font-medium text-zinc-500 ${
+            compact ? "h-7 gap-1.5 px-2.5 text-[11px]" : "h-8 gap-2 px-3 text-xs"
+          }`}
+        >
+          <CalendarDays className={`${compact ? "h-3 w-3" : "h-3.5 w-3.5"} text-blue-600`} />
+          <span className="truncate">{formatEventDate(item.date)}</span>
+        </span>
+      ) : null}
+      {item.location ? (
+        <span
+          className={`inline-flex max-w-full items-center rounded-full border border-zinc-200 bg-zinc-50 font-medium text-zinc-500 ${
+            compact ? "h-7 gap-1.5 px-2.5 text-[11px]" : "h-8 gap-2 px-3 text-xs"
+          }`}
+        >
+          <MapPin className={`${compact ? "h-3 w-3" : "h-3.5 w-3.5"} text-blue-600`} />
+          <span className={`${compact ? "max-w-[9.5rem]" : "max-w-[13rem]"} truncate`}>{item.location}</span>
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -76,8 +226,7 @@ export function NormalUserEventsPage() {
   const [items, setItems] = useState<EventSummaryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [refreshTick, setRefreshTick] = useState(0);
+  const [viewMode, setViewMode] = useState<EventViewMode>("list");
   const hasSearch = searchQuery.trim().length > 0;
 
   useEffect(() => {
@@ -86,9 +235,12 @@ export function NormalUserEventsPage() {
     (async () => {
       setLoading(true);
       try {
-        const response = await listEvents();
+        const [response, registryRows] = await Promise.all([
+          listEvents(),
+          listActiveEventRegistry().catch(() => []),
+        ]);
         if (!cancelled) {
-          setItems(response.events || []);
+          setItems(mergeEventRegistryMetadata(response.events || [], registryRows));
         }
       } catch (error: unknown) {
         if (!cancelled) {
@@ -105,7 +257,7 @@ export function NormalUserEventsPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshTick]);
+  }, []);
 
   const filteredItems = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -115,6 +267,8 @@ export function NormalUserEventsPage() {
       const haystack = [
         item.canonicalEventName,
         item.canonicalEventKey,
+        item.location,
+        item.date,
         ...(item.relatedCampaignNames || []),
       ]
         .join(" ")
@@ -131,75 +285,79 @@ export function NormalUserEventsPage() {
 
   return (
     <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
-      <header className="shrink-0 border-b border-zinc-300 pb-12">
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-950"
+      <header className="min-h-[5.875rem] shrink-0 border-b border-zinc-300 pb-10">
+        <div className="flex min-w-0 items-center gap-7 whitespace-nowrap overflow-hidden">
+          <h1 className="shrink-0 text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
+            Conferences
+          </h1>
+
+          <div className="ml-auto flex shrink-0 items-center gap-8">
+            <div className="relative h-12 w-[18rem] shrink-0 rounded-full border border-zinc-200 bg-white sm:w-[20rem] xl:w-[22rem]">
+              <div className="pointer-events-none absolute left-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-blue-500/20 bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)]">
+                <Search className="h-[1.05rem] w-[1.05rem]" strokeWidth={2.4} />
+              </div>
+              <input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search conferences"
+                className="relative z-10 h-full w-full bg-transparent pl-[3.65rem] pr-11 text-base font-medium text-zinc-950 outline-none placeholder:text-zinc-400"
+              />
+              {hasSearch ? (
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-950"
+                  onClick={() => setSearchQuery("")}
+                  aria-label="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+            </div>
+
+            <div
+              className="inline-flex h-12 shrink-0 items-center rounded-full border border-zinc-200 bg-white p-1.5"
+              aria-label="Conference view mode"
             >
-              <ArrowLeft className="mr-2 h-3 w-3" />
-              Return to dashboard
-            </Link>
-
-            <div className="mt-8">
-              <h1 className="text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
-                Events
-              </h1>
-              <p className="mt-4 max-w-xl text-lg font-light leading-relaxed text-zinc-500">
-                Browse our curated event registry and access real-time prospect intelligence.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-5 border-zinc-300 lg:min-w-[23rem] lg:border-l lg:pl-10">
-            <div className="grid grid-cols-2 gap-10">
-              {loading ? (
-                <>
-                  <HeaderMetricSkeleton />
-                  <HeaderMetricSkeleton />
-                </>
-              ) : (
-                <>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-zinc-400">Active events</p>
-                    <p className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
-                      {items.length}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-zinc-400">Total prospect reach</p>
-                    <p className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
-                      {totalLeadCount.toLocaleString()}
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-10 border-t border-zinc-300 pt-4">
               <button
                 type="button"
-                className={`inline-flex h-10 w-fit items-center gap-4 border-b border-transparent text-base font-medium transition-all ${
-                  hasSearch
-                    ? "border-zinc-950 text-zinc-950"
-                    : "text-zinc-500 hover:border-zinc-900 hover:text-zinc-950"
+                className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+                  viewMode === "list"
+                    ? "border border-blue-500/20 bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)]"
+                    : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-950"
                 }`}
-                onClick={() => setSearchOpen(true)}
+                onClick={() => setViewMode("list")}
+                aria-label="List view"
+                aria-pressed={viewMode === "list"}
+                title="List view"
               >
-                <Search className="h-4 w-4" />
-                Search
+                <List className="h-4 w-4" />
               </button>
-
               <button
                 type="button"
-                className="inline-flex h-10 w-fit items-center gap-3 border-b border-transparent text-base font-medium text-zinc-500 transition-all hover:border-zinc-900 hover:text-zinc-900"
-                onClick={() => setRefreshTick((value) => value + 1)}
+                className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+                  viewMode === "grid"
+                    ? "border border-blue-500/20 bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)]"
+                    : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-950"
+                }`}
+                onClick={() => setViewMode("grid")}
+                aria-label="Grid view"
+                aria-pressed={viewMode === "grid"}
+                title="Grid view"
               >
-                <RefreshCcw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-                Refresh
+                <LayoutGrid className="h-4 w-4" />
               </button>
             </div>
+
+            {loading ? (
+              <HeaderMetricSkeleton />
+            ) : (
+              <div className="flex items-baseline gap-4">
+                <p className="text-sm font-medium text-zinc-400">Leads To Cover</p>
+                <p className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
+                  {totalLeadCount.toLocaleString()}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -223,49 +381,93 @@ export function NormalUserEventsPage() {
 
           <div className="min-h-0 flex-1 overflow-y-auto scrollbar-modern">
             {loading ? (
-              <EventRowsSkeleton />
+              <EventRowsSkeleton viewMode={viewMode} />
             ) : filteredItems.length === 0 ? (
               <div className="py-12 text-sm text-zinc-500">
-                {searchQuery.trim() ? "No events match this search." : "No events found."}
+                {searchQuery.trim() ? "No conferences match this search." : "No conferences found."}
               </div>
-            ) : (
-              <div className="grid grid-cols-1">
+            ) : viewMode === "list" ? (
+              <div className="grid grid-cols-1 gap-5 pr-1">
                 {filteredItems.map((item, index) => (
                   <motion.div
                     key={item.canonicalEventKey}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: index * 0.02 }}
-                    className="group border-b border-zinc-300 transition-colors hover:bg-zinc-50/50"
+                    className="group overflow-hidden rounded-lg border border-zinc-200 bg-white/78 shadow-[0_18px_55px_-46px_rgba(15,23,42,0.72)] transition-all hover:border-blue-200 hover:bg-white hover:shadow-[0_24px_70px_-48px_rgba(37,99,235,0.42)]"
                   >
                     <Link
                       href={`/leads?event=${encodeURIComponent(item.canonicalEventKey)}`}
-                      className="flex h-full flex-col p-7 2xl:p-8"
+                      className="grid min-h-[11rem] h-full sm:h-[11rem] sm:min-h-0 sm:grid-cols-[10rem_minmax(0,1fr)] 2xl:h-[12rem] 2xl:grid-cols-[11rem_minmax(0,1fr)]"
                     >
-                      <div className="flex flex-1 flex-col justify-between gap-8 2xl:gap-10">
-                        <div className="flex items-start gap-4">
-                          <EventLogoMark item={item} />
-                          <div className="space-y-4">
-                            <h2 className="text-2xl font-normal leading-[1.25] tracking-[-0.018em] text-zinc-950 group-hover:text-blue-700 2xl:text-3xl">
-                              {item.canonicalEventName}
-                            </h2>
+                      <EventImagePanel item={item} />
+
+                      <div className="grid min-w-0 gap-6 p-6 sm:grid-cols-[minmax(13rem,1fr)_minmax(12rem,16rem)_auto] sm:items-center 2xl:p-7">
+                        <div className="min-w-0">
+                          <h2 className="min-w-0 max-w-5xl text-[2rem] font-normal leading-[1.08] tracking-[-0.018em] text-zinc-950 transition-colors group-hover:text-blue-700 2xl:text-[2.65rem]">
+                            {getDisplayEventName(item.canonicalEventName)}
+                          </h2>
+                          <EventMetaChips item={item} />
+                        </div>
+
+                        <div className="shrink-0 sm:justify-self-center">
+                          <span className="text-sm font-medium text-zinc-400">To Cover</span>
+                          <div className="mt-1 flex items-baseline gap-2">
+                            <span className="text-3xl font-light tabular-nums tracking-tight text-zinc-900 2xl:text-4xl">
+                              {Number(item.leadCount).toLocaleString()}
+                            </span>
+                            <span className="text-base font-light text-zinc-500">leads</span>
                           </div>
                         </div>
 
-                        <div className="flex items-end justify-between">
-                          <div className="space-y-1">
-                            <span className="text-sm font-medium text-zinc-400">Total prospects</span>
-                            <div className="flex items-baseline gap-2">
-                              <span className="text-3xl font-light tabular-nums tracking-tight text-zinc-900 2xl:text-4xl">
-                                {Number(item.leadCount).toLocaleString()}
-                              </span>
-                              <span className="text-base font-light text-zinc-500">leads</span>
-                            </div>
-                          </div>
+                        <div className="inline-flex h-11 shrink-0 items-center justify-center gap-3 rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-500 transition-all group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white sm:justify-self-end 2xl:h-12">
+                          Open leads
+                          <ArrowRight className="h-4 w-4 2xl:h-5 2xl:w-5" />
+                        </div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-5 pr-1 md:grid-cols-2 xl:grid-cols-3">
+                {filteredItems.map((item, index) => (
+                  <motion.div
+                    key={item.canonicalEventKey}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: index * 0.02 }}
+                    className="group overflow-hidden rounded-lg border border-zinc-200 bg-white/78 shadow-[0_18px_55px_-46px_rgba(15,23,42,0.72)] transition-all hover:border-blue-200 hover:bg-white hover:shadow-[0_24px_70px_-48px_rgba(37,99,235,0.42)]"
+                  >
+                    <Link
+                      href={`/leads?event=${encodeURIComponent(item.canonicalEventKey)}`}
+                      className="flex h-full min-h-[15rem] flex-col p-5 2xl:p-6"
+                    >
+                      <div className="grid min-h-[8.25rem] grid-cols-[7.75rem_minmax(0,1fr)] gap-4 2xl:grid-cols-[8.5rem_minmax(0,1fr)]">
+                        <EventImagePanel item={item} viewMode="grid" />
 
-                          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-400 transition-all group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white 2xl:h-12 2xl:w-12">
-                            <ArrowLeft className="h-4 w-4 rotate-180 2xl:h-5 2xl:w-5" />
+                        <div className="min-w-0 self-center">
+                          <h2 className="text-[1.7rem] font-normal leading-[1.06] tracking-[-0.018em] text-zinc-950 transition-colors group-hover:text-blue-700 2xl:text-[1.95rem]">
+                            {getDisplayEventName(item.canonicalEventName)}
+                          </h2>
+                          <EventMetaChips item={item} compact />
+                        </div>
+                      </div>
+
+                      <div className="mt-auto flex items-end justify-between gap-4 pt-5">
+                        <div>
+                          <span className="text-sm font-medium text-zinc-400">To Cover</span>
+                          <div className="mt-1 flex items-baseline gap-2">
+                            <span className="text-2xl font-light tabular-nums tracking-tight text-zinc-900 2xl:text-3xl">
+                              {Number(item.leadCount).toLocaleString()}
+                            </span>
+                            <span className="text-base font-light text-zinc-500">leads</span>
                           </div>
+                        </div>
+
+                        <div className="inline-flex h-11 shrink-0 items-center justify-center gap-3 rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-500 transition-all group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white">
+                          Open
+                          <ArrowRight className="h-4 w-4" />
                         </div>
                       </div>
                     </Link>
@@ -276,49 +478,6 @@ export function NormalUserEventsPage() {
           </div>
         </main>
       </div>
-
-      {searchOpen ? (
-        <div className="fixed inset-0 z-[90] flex items-start justify-center px-6 pt-24">
-          <button
-            type="button"
-            aria-label="Close search"
-            className="absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,0.34),rgba(9,9,11,0.18)_42%,rgba(9,9,11,0.28))] backdrop-blur-[10px]"
-            onClick={() => setSearchOpen(false)}
-          />
-
-          <div className="relative z-[1] w-full max-w-2xl overflow-hidden rounded-full border border-zinc-300 bg-white/48 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(255,255,255,0.35),0_34px_100px_-48px_rgba(2,10,27,0.85),0_10px_32px_-24px_rgba(2,10,27,0.5)] ring-1 ring-white/45 backdrop-blur-[34px]">
-            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.88)_0%,rgba(255,255,255,0.34)_38%,rgba(255,255,255,0.18)_100%)]" />
-            <div className="pointer-events-none absolute -left-20 -top-24 h-56 w-56 rounded-full bg-white/65 blur-3xl" />
-            <div className="pointer-events-none absolute -right-24 bottom-0 h-56 w-56 rounded-full bg-blue-200/22 blur-3xl" />
-
-            <div className="relative flex items-center gap-6 px-6 py-4">
-              <Search className="h-5 w-5 shrink-0 text-zinc-400/90" />
-              <input
-                autoFocus
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Escape") setSearchOpen(false);
-                  if (event.key === "Enter") setSearchOpen(false);
-                }}
-                placeholder="Search events, regions, or campaign names"
-                className="h-12 min-w-0 flex-1 bg-transparent text-3xl font-light tracking-[-0.03em] text-zinc-950 placeholder:text-zinc-400/86 focus:outline-none"
-              />
-              {hasSearch ? (
-                <button
-                  type="button"
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/55 bg-white/36 text-zinc-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] transition-colors hover:bg-white/70 hover:text-zinc-950"
-                  onClick={() => setSearchQuery("")}
-                  aria-label="Clear search"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              ) : null}
-            </div>
-
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

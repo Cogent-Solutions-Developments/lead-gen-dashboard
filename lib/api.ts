@@ -43,6 +43,10 @@ export type DashboardKpiRunner = {
   id: string;
   name: string;
   initials: string;
+  username?: string;
+  fullName?: string;
+  avatarUrl?: string | null;
+  avatarStorageObjectId?: string | null;
   proposalCount: number;
 };
 
@@ -594,6 +598,8 @@ export type EventSummaryItem = {
   eventRegistryId?: string | null;
   logoStorageObjectId?: string | null;
   logoUrl?: string | null;
+  location?: string | null;
+  date?: string | null;
   leadCount: number;
   campaignCount: number;
   relatedCampaignNames: string[];

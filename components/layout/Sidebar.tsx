@@ -26,7 +26,7 @@ import { toast } from "sonner";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Campaigns", normalLabel: "Events", href: "/campaigns", icon: Rocket },
+  { name: "Campaigns", normalLabel: "Conferences", href: "/campaigns", icon: Rocket },
   { name: "New Campaign", href: "/campaigns/new", icon: Plus, superOnly: true },
   { name: "Upload Campaign", href: "/campaigns/upload", icon: Upload, superOnly: true },
   // { name: "Completed", href: "/completed", icon: CheckCircle },
@@ -280,6 +280,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
+            className={isExpanded ? "" : "flex justify-center"}
           >
             <Link href="/">
               <button
@@ -301,6 +302,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
+            className={isExpanded ? "" : "flex justify-center"}
           >
             <Link href="/profile">
               <button
