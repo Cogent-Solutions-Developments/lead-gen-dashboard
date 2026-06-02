@@ -598,6 +598,8 @@ export type EventSummaryItem = {
   eventRegistryId?: string | null;
   logoStorageObjectId?: string | null;
   logoUrl?: string | null;
+  location?: string | null;
+  date?: string | null;
   leadCount: number;
   campaignCount: number;
   relatedCampaignNames: string[];
