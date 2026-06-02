@@ -2853,7 +2853,7 @@ export function NormalUserEventLeadSheet() {
                 align="start"
                 position="popper"
                 className={UPLOAD_EVENT_SELECT_CONTENT_CLASS}
-                viewportClassName="p-4"
+                viewportClassName="w-auto min-w-0 p-4"
               >
                 {templateUploadEventOptions.map((event) => (
                   <SelectItem
