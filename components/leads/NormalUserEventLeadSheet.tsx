@@ -2105,7 +2105,7 @@ export function NormalUserEventLeadSheet() {
         >
           <div className="space-y-8">
             <div className="border-b border-zinc-100 pb-6">
-              <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Selected profile</p>
+              <p className="text-xs font-medium text-zinc-400">Selected profile</p>
               <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
                 {pendingStatusChange.item.employeeName || "-"}
               </h3>
@@ -2515,8 +2515,10 @@ export function NormalUserEventLeadSheet() {
         <LeadSheetDialog
           open
           title="Comment History"
-          description="Review the status timeline and notes saved for this record."
+          description=""
+          eyebrow=""
           onClose={closeHistory}
+          compact
         >
           <div className="space-y-6">
             <div className="border-b border-zinc-100 pb-6">
@@ -2544,14 +2546,14 @@ export function NormalUserEventLeadSheet() {
               <div className="border-y border-zinc-300">
                 <div className="flex items-center justify-between border-b border-zinc-200 py-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Timeline</span>
+                    <span className="text-xs font-medium text-zinc-400">Timeline</span>
                   </div>
                   <span className="text-xs font-light text-zinc-400">
                     {historyItems.length} update{historyItems.length === 1 ? "" : "s"}
                   </span>
                 </div>
 
-                <div>
+                <div className="max-h-[26rem] overflow-y-auto pr-1 scrollbar-modern">
                   {historyItems.map((entry) => {
                     const statusLabel = entry.workflowStatusLabel || humanizeStatusLabel(entry.workflowStatus);
                     const actorName =
@@ -2812,7 +2814,7 @@ export function NormalUserEventLeadSheet() {
                 ? "border-zinc-200 bg-zinc-50/80"
                 : templateUpload.error
                   ? "border-red-300 bg-red-50/40"
-                  : "border-zinc-200 bg-white hover:border-blue-500 hover:bg-blue-50/30"
+                  : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50/70"
             )}
           >
             <label
@@ -2824,7 +2826,7 @@ export function NormalUserEventLeadSheet() {
                   : "cursor-pointer"
               )}
             >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors group-hover:border-blue-200 group-hover:text-blue-600">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors group-hover:border-zinc-300 group-hover:text-zinc-500">
                 {templateUpload.validating ? (
                   <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
                 ) : templateValidation ? (
@@ -2849,7 +2851,7 @@ export function NormalUserEventLeadSheet() {
                       : "Only .xlsx files are accepted"}
                 </span>
               </span>
-              <span className="inline-flex h-10 w-28 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-semibold text-zinc-700 transition-colors group-hover:border-blue-500 group-hover:text-blue-600">
+              <span className="inline-flex h-10 w-28 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-semibold text-zinc-700 transition-colors group-hover:border-zinc-400 group-hover:text-zinc-950">
                 Choose
               </span>
               <input
