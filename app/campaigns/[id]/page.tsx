@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { AxiosInstance } from "axios";
 import { Card } from "@/components/ui/card";
@@ -681,27 +681,6 @@ const AttachmentSection = ({
 // -----------------------------
 // Attachment API (channel aware)
 // -----------------------------
-async function uploadLeadAttachment(
-  api: AxiosInstance,
-  leadId: string,
-  channel: AttachmentChannel,
-  file: File
-): Promise<Attachment> {
-  if (channel !== "email") {
-    throw new Error("WhatsApp attachments are not available yet.");
-  }
-
-  const form = new FormData();
-  form.append("file", file);
-
-  const res = await api.post(`/api/leads/${leadId}/attachments`, form, {
-    params: { channel }, // ✅ channel=email|whatsapp
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-
-  return res.data as Attachment;
-}
-
 async function deleteLeadAttachment(
   api: AxiosInstance,
   leadId: string,
@@ -787,15 +766,6 @@ function SuperAdminCampaignDetailPage() {
   const emailTemplateSaveDisabled =
     !hasEmailLeads || isEmailTemplateLoading || isEmailTemplateSaving || isEmailTemplateDeleting;
 
-  const leadFilterTabs = useMemo(
-    () => [
-      { key: "new" as const, label: "New", count: leads.filter((lead) => isLeadInNewBucket(lead)).length },
-      { key: "sent" as const, label: "Sent", count: leads.filter((lead) => isLeadInSentBucket(lead)).length },
-      { key: "rejected" as const, label: "Rejected", count: rejectedCount },
-      { key: "suppressed" as const, label: "Suppressed", count: suppressedCount },
-    ],
-    [leads, rejectedCount, suppressedCount]
-  );
   const optOutByPersonId = useMemo(() => {
     const map = new Map<string, WhatsAppOptOutItem>();
     for (const item of optOutItems) {
@@ -898,29 +868,29 @@ function SuperAdminCampaignDetailPage() {
     return map;
   }, [campaignId, leads, optOutByEmailKey, optOutByPersonId, optOutByPhoneKey]);
 
-  function isLeadMarketingOptedOut(lead: Lead) {
+  const isLeadMarketingOptedOut = useCallback((lead: Lead) => {
     if (lead.contactReadOnly) return true;
     if (lead.approvalStatus === "suppressed") return true;
     if (lead.isSuppressed) return true;
     if (lead.suppression?.active) return true;
     return Boolean(leadOptOutById.get(lead.id));
-  }
-  function isLeadOutreachBlocked(lead: Lead) {
+  }, [leadOptOutById]);
+  const isLeadOutreachBlocked = useCallback((lead: Lead) => {
     return isLeadMarketingOptedOut(lead) || lead.sendable === false;
-  }
-  function leadSupportsEmailAction(lead: Lead) {
+  }, [isLeadMarketingOptedOut]);
+  const leadSupportsEmailAction = useCallback((lead: Lead) => {
     return hasText(lead.email);
-  }
-  function leadSupportsWhatsappAction(lead: Lead) {
+  }, []);
+  const leadSupportsWhatsappAction = useCallback((lead: Lead) => {
     return hasText(lead.phone);
-  }
-  function isLeadEmailActionCompleted(lead: Lead) {
+  }, []);
+  const isLeadEmailActionCompleted = useCallback((lead: Lead) => {
     return isExecutedOutreachState(buildOutreachStatus(lead).email);
-  }
-  function isLeadWhatsappActionCompleted(lead: Lead) {
+  }, []);
+  const isLeadWhatsappActionCompleted = useCallback((lead: Lead) => {
     return isExecutedOutreachState(buildOutreachStatus(lead).whatsapp);
-  }
-  function isLeadFullyActioned(lead: Lead) {
+  }, []);
+  const isLeadFullyActioned = useCallback((lead: Lead) => {
     const needsEmail = leadSupportsEmailAction(lead);
     const needsWhatsapp = leadSupportsWhatsappAction(lead);
 
@@ -928,13 +898,24 @@ function SuperAdminCampaignDetailPage() {
     if (needsEmail && !isLeadEmailActionCompleted(lead)) return false;
     if (needsWhatsapp && !isLeadWhatsappActionCompleted(lead)) return false;
     return true;
-  }
-  function isLeadInNewBucket(lead: Lead) {
+  }, [
+    isLeadEmailActionCompleted,
+    isLeadWhatsappActionCompleted,
+    leadSupportsEmailAction,
+    leadSupportsWhatsappAction,
+  ]);
+  const isLeadInNewBucket = useCallback((lead: Lead) => {
     return lead.approvalStatus !== "rejected" && lead.approvalStatus !== "suppressed" && !isLeadFullyActioned(lead);
-  }
-  function isLeadInSentBucket(lead: Lead) {
+  }, [isLeadFullyActioned]);
+  const isLeadInSentBucket = useCallback((lead: Lead) => {
     return lead.approvalStatus !== "rejected" && lead.approvalStatus !== "suppressed" && isLeadFullyActioned(lead);
-  }
+  }, [isLeadFullyActioned]);
+  const leadFilterTabs = [
+    { key: "new" as const, label: "New", count: leads.filter((lead) => isLeadInNewBucket(lead)).length },
+    { key: "sent" as const, label: "Sent", count: leads.filter((lead) => isLeadInSentBucket(lead)).length },
+    { key: "rejected" as const, label: "Rejected", count: rejectedCount },
+    { key: "suppressed" as const, label: "Suppressed", count: suppressedCount },
+  ];
   function getEmailCapabilityDisabledReason(lead: Lead) {
     if (!hasText(lead.email)) return "Lead has no email address.";
 
@@ -971,7 +952,7 @@ function SuperAdminCampaignDetailPage() {
     });
   };
 
-  const filteredLeads = useMemo(() => {
+  const filteredLeads = (() => {
     const statusFiltered = canManageLeadActions
       ? leadFilter === "new"
           ? leads.filter((l) => isLeadInNewBucket(l))
@@ -1017,7 +998,7 @@ function SuperAdminCampaignDetailPage() {
 
       return searchMatch && jobTitleMatch && emailPresenceMatch && domainMatch && phoneMatch;
     });
-  }, [canManageLeadActions, leads, leadFilter, tableSearch, jobTitleFilter, hasEmailOnly, domainFilter, phoneFilter]);
+  })();
 
   const selectableFilteredLeads = useMemo(
     () =>
@@ -1067,10 +1048,9 @@ function SuperAdminCampaignDetailPage() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i);
   }, [currentPage, totalPages]);
 
-  const activeFilterLabel = useMemo(
-    () => (canManageLeadActions ? leadFilterTabs.find((tab) => tab.key === leadFilter)?.label || "New" : "All"),
-    [canManageLeadActions, leadFilterTabs, leadFilter]
-  );
+  const activeFilterLabel = canManageLeadActions
+    ? leadFilterTabs.find((tab) => tab.key === leadFilter)?.label || "New"
+    : "All";
   const categoryChipLabel = useMemo(
     () => (campaignCategory || campaign?.category || "").trim(),
     [campaignCategory, campaign?.category]

@@ -58,11 +58,6 @@ function mentionQueryFromDraft(value: string) {
   return tail.split(/\s/)[0]?.trim() || "";
 }
 
-function sourceTitle(source: NizoAiSource) {
-  const page = source.pageNumber ? ` p.${source.pageNumber}` : "";
-  return `${source.title || source.fileName || "Knowledge"}${page}`;
-}
-
 function leadResultDetail(item: NizoAiLeadSearchItem) {
   return [item.title, item.company, item.campaignName || item.canonicalEventName].filter(Boolean).join(" | ");
 }
@@ -264,7 +259,7 @@ export default function NizoAiPage() {
           </motion.section>
         ) : (
           <section className="flex-1 space-y-8 pb-6">
-            {messages.map((message, index) => (
+            {messages.map((message) => (
               <motion.article
                 key={message.id}
                 initial={{ opacity: 0, y: 10 }}

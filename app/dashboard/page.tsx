@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -175,10 +176,13 @@ function PixelAvatar({ colorHex, seed }: { colorHex: string; seed: string }) {
   const url = `https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(seed)}&rowColor=${colorHex.replace('#', '')}&backgroundColor=transparent`;
   return (
     <div className="w-6 h-6 overflow-hidden">
-      <img 
-        src={url} 
-        alt="Identicon" 
-        className="w-full h-full object-contain"
+      <Image
+        src={url}
+        alt="Identicon"
+        width={24}
+        height={24}
+        unoptimized
+        className="h-full w-full object-contain"
       />
     </div>
   );

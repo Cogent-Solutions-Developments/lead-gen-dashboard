@@ -58,6 +58,7 @@ import {
   Headset,
   History,
   Loader2,
+  Mail,
   MessageSquare,
   Plus,
   RefreshCcw,
@@ -66,7 +67,6 @@ import {
   Sparkles,
   UploadCloud,
   X,
-  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -199,23 +199,25 @@ const EmailIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const LEAD_SHEET_ROW_GRID_CLASS =
+  "grid grid-cols-[minmax(18rem,0.78fr)_minmax(24rem,0.62fr)_minmax(3rem,0.16fr)_12rem_minmax(3rem,0.16fr)_10rem]";
+
 function LeadSheetRowsSkeleton() {
   return (
     <div className="w-full animate-pulse">
-      <div className={`${rowGridClass} border-b border-zinc-300 py-3`}>
+      <div className={`${LEAD_SHEET_ROW_GRID_CLASS} border-b border-zinc-300 py-3`}>
         <div className="h-4 w-28 bg-zinc-100" />
         <div className="h-4 w-32 bg-zinc-100" />
         <div />
         <div className="h-4 w-20 bg-zinc-100" />
         <div />
         <div className="h-4 w-20 bg-zinc-100" />
-        <div className="h-4 w-20 bg-zinc-100" />
       </div>
 
       {Array.from({ length: 6 }).map((_, index) => (
         <div
           key={index}
-          className={`${rowGridClass} border-b border-zinc-300 py-6`}
+          className={`${LEAD_SHEET_ROW_GRID_CLASS} border-b border-zinc-300 py-6`}
         >
           <div className="space-y-3 pr-8">
             <div className="h-6 w-56 bg-zinc-100" />
@@ -223,7 +225,7 @@ function LeadSheetRowsSkeleton() {
             <div className="h-3 w-40 bg-zinc-100" />
           </div>
 
-          <div className="space-y-3 pr-8">
+          <div className="space-y-3 pr-10">
             <div className="flex items-center gap-4">
               <div className="h-3.5 w-3.5 bg-zinc-100" />
               <div className="h-4 w-52 bg-zinc-100" />
@@ -238,6 +240,14 @@ function LeadSheetRowsSkeleton() {
               <div className="h-4 w-20 bg-zinc-100" />
             </div>
           </div>
+
+          <div />
+
+          <div>
+            <div className="h-10 w-28 rounded-full bg-zinc-100" />
+          </div>
+
+          <div />
 
           <div className="space-y-4">
             <div className="h-10 w-full border-b border-zinc-200 bg-zinc-100" />
@@ -358,7 +368,6 @@ const DEFAULT_PAGE_SIZE = 100;
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 const SEARCH_DEBOUNCE_MS = 300;
 const DEAL_CLOSED_ANIMATION_SRC = "https://lottie.host/e872d848-c226-4c29-8108-9111e8bd8c9c/npFGm1Le6t.lottie";
-const EMAIL_GENERATING_ANIMATION_SRC = "https://lottie.host/61fd4bdb-8c4c-4501-8b6f-a92c9ca222b7/IG3HWq7eZl.lottie";
 
 const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
   fullName: "",
@@ -1817,9 +1826,12 @@ export function NormalUserEventLeadSheet() {
                 </div>
               ) : (
                 <div className="w-full">
-                  <div className={`${leadSheetRowGridClass} border-b border-zinc-300 py-3 text-sm font-light text-zinc-500`}>
+                  <div className={`${LEAD_SHEET_ROW_GRID_CLASS} border-b border-zinc-300 py-3 text-sm font-light text-zinc-500`}>
                     <div>Identity details</div>
                     <div>Contact channels</div>
+                    <div />
+                    <div>Content</div>
+                    <div />
                     <div>Status</div>
                   </div>
 
@@ -1840,11 +1852,11 @@ export function NormalUserEventLeadSheet() {
                           key={updateKey}
                           ref={isTargetLead ? targetLeadRowRef : undefined}
                           id={`lead-${item.id}`}
-                          className={`group ${leadSheetRowGridClass} border-b border-zinc-300 py-6 transition-all duration-300 ${
+                          className={`group ${LEAD_SHEET_ROW_GRID_CLASS} border-b border-zinc-300 py-6 transition-all duration-300 ${
                             isTargetLead ? "bg-blue-50/35" : "hover:bg-zinc-50/60"
                           }`}
                         >
-                          <div className="pr-8">
+                          <div className="pr-10">
                             <div className="flex flex-col gap-1.5">
                               <div className="flex items-center gap-5">
                                 <span className="text-xl font-light tracking-tight text-zinc-950">{item.employeeName || "-"}</span>
@@ -1938,14 +1950,14 @@ export function NormalUserEventLeadSheet() {
                               className="inline-flex h-10 w-28 items-center justify-center gap-2 rounded-full border border-zinc-300 bg-white px-4 text-xs font-semibold text-zinc-700 transition-all hover:border-blue-600 hover:text-blue-600 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40"
                               onClick={() => void openEmailGenerator(item)}
                               disabled={item.contactReadOnly || (emailDialog?.loading && emailDialog.lead.id === item.id)}
-                              title={item.contactReadOnly ? "Lead is read-only" : "Generate email content"}
+                              title={item.contactReadOnly ? "Lead is read-only" : "Generate outreach content"}
                             >
                               {emailDialog?.loading && emailDialog.lead.id === item.id ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                               ) : (
                                 <Mail className="h-3.5 w-3.5" />
                               )}
-                              <span>{emailDialog?.loading && emailDialog.lead.id === item.id ? "Generating" : "Email"}</span>
+                              <span>{emailDialog?.loading && emailDialog.lead.id === item.id ? "Generating" : "Generate"}</span>
                             </button>
                           </div>
 
@@ -2221,6 +2233,69 @@ export function NormalUserEventLeadSheet() {
                 >
                   <RefreshCcw className="h-4 w-4" />
                   Try Again
+                </Button>
+              </div>
+            </div>
+          ) : !emailDialog.platform ? (
+            <div className="space-y-7">
+              <div className="border-b border-zinc-100 pb-6">
+                <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Selected profile</p>
+                <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
+                  {emailDialog.lead.employeeName || "-"}
+                </h3>
+                <p className="mt-1 text-sm font-light leading-6 text-zinc-500">
+                  {[emailDialog.lead.title, emailDialog.lead.company].filter(Boolean).join(" at ") || "-"}
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Choose channel</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => void generateContentForPlatform(emailDialog.lead, "email")}
+                    className="flex h-auto min-h-28 flex-col items-start gap-3 rounded-none border border-zinc-300 bg-white px-5 py-5 text-left text-zinc-700 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950 disabled:pointer-events-none disabled:opacity-40"
+                    disabled={!asText(emailDialog.lead.email).trim()}
+                  >
+                    <Mail className="h-5 w-5" />
+                    <span className="text-sm font-semibold">Email draft</span>
+                    <span className="text-xs font-light text-zinc-500">
+                      Generate a subject line and email body for this lead.
+                    </span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => void generateContentForPlatform(emailDialog.lead, "whatsapp")}
+                    className="flex h-auto min-h-28 flex-col items-start gap-3 rounded-none border border-zinc-300 bg-white px-5 py-5 text-left text-zinc-700 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950 disabled:pointer-events-none disabled:opacity-40"
+                    disabled={!asText(emailDialog.lead.phone).trim()}
+                  >
+                    <MessageSquare className="h-5 w-5" />
+                    <span className="text-sm font-semibold">WhatsApp draft</span>
+                    <span className="text-xs font-light text-zinc-500">
+                      Generate a short WhatsApp outreach message for this lead.
+                    </span>
+                  </Button>
+                </div>
+              </div>
+
+              {!asText(emailDialog.lead.email).trim() || !asText(emailDialog.lead.phone).trim() ? (
+                <div className="border border-zinc-200 bg-zinc-50 p-4 text-sm font-light text-zinc-500">
+                  {!asText(emailDialog.lead.email).trim() ? "Email draft is unavailable because this lead has no email." : null}
+                  {!asText(emailDialog.lead.email).trim() && !asText(emailDialog.lead.phone).trim() ? " " : null}
+                  {!asText(emailDialog.lead.phone).trim() ? "WhatsApp draft is unavailable because this lead has no phone number." : null}
+                </div>
+              ) : null}
+
+              <div className="flex justify-end border-t border-zinc-100 pt-6">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={closeEmailDialog}
+                  className="h-10 rounded-none border border-zinc-300 bg-white px-5 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                >
+                  Cancel
                 </Button>
               </div>
             </div>
