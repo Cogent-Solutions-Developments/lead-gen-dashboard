@@ -846,47 +846,11 @@ export function NormalUserEventLeadSheet() {
     return new Set(events.map((item) => asText(item.canonicalEventKey)).filter(Boolean));
   }, [events]);
 
-  const leadSheetEventOptions = useMemo<AdminEventItem[]>(() => {
-    const byKey = new Map<string, AdminEventItem>();
-
-    for (const event of registryEvents) {
-      const eventKey = asText(event.eventKey);
-      if (!eventKey) continue;
-      byKey.set(eventKey, event);
-    }
-
-    for (const event of events) {
-      const eventKey = asText(event.canonicalEventKey);
-      if (!eventKey || byKey.has(eventKey)) continue;
-      byKey.set(eventKey, {
-        id: asText(event.eventRegistryId) || eventKey,
-        eventKey,
-        eventName: asText(event.canonicalEventName) || eventKey,
-        location: null,
-        category: null,
-        date: null,
-        logoStorageObjectId: event.logoStorageObjectId ?? null,
-        logoUrl: event.logoUrl ?? null,
-        isActive: true,
-        createdByUserId: null,
-        createdAt: null,
-        updatedAt: null,
-      });
-    }
-
-    return Array.from(byKey.values());
-  }, [events, registryEvents]);
-
   const activeRegistryEvents = useMemo(
     () => registryEvents.filter((event) => event.isActive),
     [registryEvents]
   );
   const hasActiveRegistryEvents = activeRegistryEvents.length > 0;
-  const getRegistryEventKey = useCallback((event: AdminEventItem) => asText(event.eventKey), []);
-  const isLeadSheetEventSelectable = useCallback(
-    (event: AdminEventItem) => event.isActive && eventSummaryKeySet.has(asText(event.eventKey)),
-    [eventSummaryKeySet]
-  );
 
   const selectedEventKey = useMemo(() => {
     if (eventParam && eventSummaryKeySet.has(eventParam)) {
