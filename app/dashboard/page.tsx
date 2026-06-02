@@ -463,10 +463,6 @@ export default function DashboardPage() {
               <span className="font-medium">{greeting}, {displayName}.</span> <span className="font-light">“{manifesto}”</span>
             </h1>
 
-            <p className="mt-6 max-w-3xl text-xl font-light leading-relaxed text-zinc-500">
-              Your performance summary across all outreach efforts.
-            </p>
-
             <CampaignHeadsUp
               items={eventHeadsUp}
               statuses={workflowStatuses}
