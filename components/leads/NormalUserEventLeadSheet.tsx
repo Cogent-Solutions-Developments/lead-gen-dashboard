@@ -55,6 +55,7 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
+  FileUp,
   Headset,
   History,
   Loader2,
@@ -1576,15 +1577,17 @@ export function NormalUserEventLeadSheet() {
   return (
     <>
       <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
-        <header className="shrink-0 border-b border-zinc-300 pb-12">
-          <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+        <header className="min-h-[6.5rem] shrink-0 border-b border-zinc-300 pb-12">
+          <div className="flex min-w-0 items-center gap-7 whitespace-nowrap overflow-hidden">
             <div className="min-w-0 flex-1">
               <Select value={selectedEventKey} onValueChange={handleEventChange}>
                 <SelectTrigger
                   aria-label="Select event"
-                  className="group !h-auto w-full max-w-5xl justify-start gap-4 whitespace-normal rounded-none border-0 bg-transparent p-0 text-left text-zinc-950 shadow-none transition-colors hover:text-blue-700 focus:ring-0 focus-visible:ring-0 [&_[data-slot=select-value]]:line-clamp-2 [&_[data-slot=select-value]]:text-3xl [&_[data-slot=select-value]]:font-light [&_[data-slot=select-value]]:leading-[1.12] [&_[data-slot=select-value]]:tracking-[-0.025em] sm:[&_[data-slot=select-value]]:text-4xl 2xl:[&_[data-slot=select-value]]:text-5xl [&>svg]:mt-1 [&>svg]:h-7 [&>svg]:w-7 [&>svg]:opacity-40 [&>svg]:transition-colors [&>svg]:group-hover:opacity-70"
+                  className="group !h-auto w-full max-w-5xl justify-start gap-4 whitespace-normal rounded-none border-0 bg-transparent p-0 text-left text-zinc-950 shadow-none transition-colors hover:text-blue-700 focus:ring-0 focus-visible:ring-0 [&>svg]:mt-1 [&>svg]:h-7 [&>svg]:w-7 [&>svg]:opacity-40 [&>svg]:transition-colors [&>svg]:group-hover:opacity-70"
                 >
-                  <SelectValue placeholder="Intelligence Registry" />
+                  <span className="line-clamp-2 min-w-0 text-3xl font-light leading-[1.12] tracking-[-0.025em] sm:text-4xl 2xl:text-5xl">
+                    {getDisplayEventName(selectedEvent?.canonicalEventName) || "Intelligence Registry"}
+                  </span>
                 </SelectTrigger>
                 <SelectContent
                   align="start"
@@ -1600,16 +1603,19 @@ export function NormalUserEventLeadSheet() {
               </Select>
             </div>
 
-            <div className="flex min-w-max flex-nowrap items-center justify-end gap-5">
-              <div className="flex shrink-0 flex-nowrap items-center gap-3">
+            <div className="ml-auto flex min-w-max flex-nowrap items-center justify-end gap-8">
+              <div
+                className="inline-flex h-12 shrink-0 items-center gap-1.5 rounded-full border border-zinc-200 bg-white p-1.5"
+                aria-label="Lead sheet actions"
+              >
                 {canUseTemplateUpload ? (
                   <button
                     type="button"
                     onClick={openTemplateUploadDialog}
                     disabled={!events.length}
-                    className="inline-flex h-10 w-fit items-center justify-center gap-3 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-950 transition-all hover:border-blue-600 hover:text-blue-600 active:scale-[0.98] disabled:opacity-50"
+                    className="inline-flex h-9 w-40 items-center justify-center gap-2.5 rounded-full text-sm font-semibold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-50"
                   >
-                    <UploadCloud className="h-4 w-4" />
+                    <FileUp className="h-4 w-4" />
                     Upload leads
                   </button>
                 ) : null}
@@ -1618,7 +1624,7 @@ export function NormalUserEventLeadSheet() {
                   type="button"
                   onClick={() => setAddLeadOpen(true)}
                   disabled={!selectedEvent}
-                  className="inline-flex h-10 w-fit items-center justify-center gap-4 rounded-full bg-zinc-950 px-5 text-sm font-semibold text-white transition-all hover:bg-blue-600 active:scale-[0.98] disabled:opacity-50"
+                  className="inline-flex h-9 w-40 items-center justify-center gap-2.5 rounded-full bg-blue-600 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
                 >
                   <Plus className="h-4 w-4" />
                   Add entry
@@ -1627,7 +1633,7 @@ export function NormalUserEventLeadSheet() {
 
               <div className="flex shrink-0 items-baseline gap-3">
                 <span className="text-sm font-medium text-zinc-400">Leads To Cover</span>
-                <span className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
+                <span className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
                   {pageTotal.toLocaleString()}
                 </span>
               </div>
@@ -1635,7 +1641,7 @@ export function NormalUserEventLeadSheet() {
           </div>
         </header>
 
-        <div className="mt-12 grid min-h-0 flex-1 gap-12 overflow-hidden xl:grid-cols-[19rem_minmax(0,1fr)]">
+        <div className="grid min-h-0 flex-1 gap-12 overflow-hidden pt-10 xl:grid-cols-[19rem_minmax(0,1fr)]">
           <aside className="shrink-0 space-y-10 overflow-y-auto pr-2 scrollbar-hide">
             <div className="space-y-8">
               <div>

@@ -285,7 +285,7 @@ export function NormalUserEventsPage() {
 
   return (
     <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
-      <header className="shrink-0 border-b border-zinc-300 pb-10">
+      <header className="min-h-[5.875rem] shrink-0 border-b border-zinc-300 pb-10">
         <div className="flex min-w-0 items-center gap-7 whitespace-nowrap overflow-hidden">
           <h1 className="shrink-0 text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
             Conferences
