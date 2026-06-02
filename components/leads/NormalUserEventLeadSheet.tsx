@@ -2576,50 +2576,50 @@ export function NormalUserEventLeadSheet() {
           <button
             type="button"
             aria-label="Close filters"
-            className="absolute inset-0 bg-zinc-950/30 backdrop-blur-[3px]"
+            className="absolute inset-0 bg-zinc-950/45 backdrop-blur-[5px]"
             onClick={() => setFilterOpen(false)}
           />
 
-          <div className="relative z-[1] grid max-h-[calc(100dvh-3rem)] w-full max-w-4xl overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)] md:grid-cols-[18rem_minmax(0,1fr)]">
-            <aside className="border-b border-zinc-300 bg-white p-8 md:border-b-0 md:border-r">
-              <p className="text-sm font-medium text-zinc-400">Lead Sheet Updates</p>
-              <h2 className="mt-8 text-4xl font-light leading-none tracking-tighter text-zinc-950">
-                Intelligence Filters
-              </h2>
-              <p className="mt-5 max-w-[13rem] text-sm font-light leading-relaxed text-zinc-500">
-                Build a focused view using status, contact readiness, and source quality signals.
-              </p>
-            </aside>
-
-            <div className="relative min-h-[34rem] p-8">
+          <div className="relative z-[1] max-h-[calc(100dvh-3rem)] w-full max-w-3xl overflow-hidden rounded-3xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
+            <div className="relative min-h-[24rem] p-8">
               <Button
                 type="button"
                 variant="ghost"
-                className="absolute right-5 top-5 h-10 w-10 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                className="absolute right-3 top-3 h-10 w-10 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
                 onClick={() => setFilterOpen(false)}
               >
                 <X className="h-4 w-4" />
               </Button>
 
-              <div className="max-h-[calc(100dvh-12rem)] max-w-xl space-y-10 overflow-y-auto pb-28 pr-12 scrollbar-modern">
+              <div className="max-h-[calc(100dvh-12rem)] w-full space-y-10 overflow-y-auto pb-28 pr-0 scrollbar-modern">
                 <div>
                   <label className="mb-3 block text-xs font-medium text-zinc-400">Status model</label>
                   <Select
                     value={filters.status}
                     onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}
                   >
-                    <SelectTrigger className="!h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
+                    <SelectTrigger className="!h-12 w-full rounded-none border-0 border-b border-zinc-300 !bg-transparent px-0 text-lg font-light text-zinc-950 shadow-none transition-colors hover:!bg-transparent dark:!bg-transparent dark:hover:!bg-transparent focus:border-blue-600 focus:ring-0">
                       <SelectValue placeholder="All statuses" />
                     </SelectTrigger>
-                    <SelectContent position="popper" className="z-[120] rounded-none border-zinc-300 bg-white shadow-2xl">
-                      <SelectItem value="all">
+                    <SelectContent
+                      position="popper"
+                      className="z-[120] rounded-2xl border border-white/18 bg-[#161b25] text-zinc-100 shadow-2xl"
+                    >
+                      <SelectItem
+                        value="all"
+                        className="text-zinc-100 focus:bg-white/10 focus:text-white data-[state=checked]:bg-white/10 data-[state=checked]:text-white"
+                      >
                         <span className="flex items-center gap-3">
                           <span className="ml-1 h-2.5 w-2.5 shrink-0 rounded-full bg-zinc-300" />
                           All statuses
                         </span>
                       </SelectItem>
                       {statusOptions.map((option) => (
-                        <SelectItem key={option.statusKey} value={option.statusKey}>
+                        <SelectItem
+                          key={option.statusKey}
+                          value={option.statusKey}
+                          className="text-zinc-100 focus:bg-white/10 focus:text-white data-[state=checked]:bg-white/10 data-[state=checked]:text-white"
+                        >
                           <span className="flex items-center gap-3">
                             <span className={`ml-1 h-2.5 w-2.5 shrink-0 rounded-full ${getStatusDotClass(option.statusKey)}`} />
                             {option.label}
@@ -2628,68 +2628,6 @@ export function NormalUserEventLeadSheet() {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-
-                <div className="space-y-4">
-                  <label className="block text-sm font-semibold text-zinc-950">By contact intelligence:</label>
-                  <div className="flex flex-wrap gap-2.5">
-                    {[
-                      { value: "all", label: "All profiles" },
-                      { value: "complete", label: "Email + phone" },
-                      { value: "email", label: "Has email" },
-                      { value: "phone", label: "Has phone" },
-                      { value: "linkedin", label: "Has LinkedIn" },
-                      { value: "website", label: "Has website" },
-                      { value: "missing-contact", label: "Needs contact data" },
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() =>
-                          setFilters((prev) => ({
-                            ...prev,
-                            contact: option.value as LeadFilterState["contact"],
-                          }))
-                        }
-                        className={`inline-flex h-10 items-center rounded-full border px-4 text-sm font-semibold transition-all ${
-                          filters.contact === option.value
-                            ? "border-blue-600 bg-white text-blue-600 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.85)]"
-                            : "border-zinc-300 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <label className="block text-sm font-semibold text-zinc-950">By source quality:</label>
-                  <div className="flex flex-wrap gap-2.5">
-                    {[
-                      { value: "all", label: "All sources" },
-                      { value: "imported", label: "Imported" },
-                      { value: "manual", label: "Manual" },
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() =>
-                          setFilters((prev) => ({
-                            ...prev,
-                            source: option.value as LeadFilterState["source"],
-                          }))
-                        }
-                        className={`inline-flex h-10 items-center rounded-full border px-4 text-sm font-semibold transition-all ${
-                          filters.source === option.value
-                            ? "border-blue-600 bg-white text-blue-600 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.85)]"
-                            : "border-zinc-300 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
                 </div>
 
                 <div className="space-y-4">
