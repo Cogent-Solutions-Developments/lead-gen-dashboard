@@ -16,6 +16,7 @@ const HERO_TITLE = "I am supernizo";
 const HERO_TAGLINE = "An Enterprise Agentic AI for Intelligent Outreach";
 const HERO_DESCRIPTION =
   "I am an enterprise agentic AI platform that intelligently identifies your dream customers and prospects, autonomously manages outreach, and streamlines customer engagement at scale.";
+const HERO_MEDIA_TRANSITION = { duration: 1.45, ease: [0.16, 1, 0.3, 1] } as const;
 
 export default function SignInPage() {
   const router = useRouter();
@@ -117,7 +118,7 @@ export default function SignInPage() {
               <h1 className="text-[clamp(2.75rem,5vw,5.25rem)] font-light leading-[0.9] tracking-[-0.065em] text-zinc-950">
                 {HERO_TITLE}
               </h1>
-              <p className="mx-auto mt-5 max-w-2xl text-[clamp(1.1rem,1.65vw,1.55rem)] font-light leading-tight tracking-[-0.025em] text-blue-700">
+              <p className="mx-auto mt-5 max-w-2xl text-[clamp(1.1rem,1.65vw,1.55rem)] font-light leading-tight tracking-[-0.025em] text-zinc-700">
                 {HERO_TAGLINE}
               </p>
               <div className="mx-auto mt-6 max-w-2xl text-sm font-light leading-7 text-zinc-500 sm:text-base">
@@ -133,12 +134,12 @@ export default function SignInPage() {
               y: showLogin ? 0 : 18,
             }}
             transition={{ duration: 0.55, delay: showLogin ? 0.48 : 0, ease: "easeOut" }}
-            className="pointer-events-none absolute left-8 top-28 z-30 hidden max-w-2xl pr-10 text-left sm:left-10 sm:top-32 lg:block"
+            className="pointer-events-none absolute inset-x-0 top-28 z-30 hidden px-8 text-center sm:top-32 lg:block"
           >
-            <h1 className="text-[clamp(2.5rem,4.8vw,5rem)] font-light leading-[0.9] tracking-tighter text-zinc-950">
+            <h1 className="mx-auto max-w-2xl text-[clamp(2.5rem,4.8vw,5rem)] font-light leading-[0.9] tracking-tighter text-zinc-950">
               {HERO_TITLE}
             </h1>
-            <p className="mt-4 max-w-xl text-[clamp(1.05rem,1.55vw,1.45rem)] font-light leading-tight tracking-[-0.025em] text-blue-700">
+            <p className="mx-auto mt-4 max-w-xl text-[clamp(1.05rem,1.55vw,1.45rem)] font-light leading-tight tracking-[-0.025em] text-zinc-700">
               {HERO_TAGLINE}
             </p>
           </motion.div>
@@ -146,31 +147,34 @@ export default function SignInPage() {
           <motion.div
             aria-hidden="true"
             animate={{
-              left: showLogin ? "-34%" : "50%",
-              x: showLogin ? "0%" : "-50%",
-              width: showLogin ? "150%" : "min(152vw, 2050px)",
+              left: "50%",
+              x: "-50%",
+              width: showLogin ? "112%" : "min(190vw, 2600px)",
+              height: showLogin ? "42vh" : "58vh",
               opacity: showLogin ? [0.34, 0.72, 0.42] : [0.28, 0.62, 0.36],
               scaleY: [0.88, 1.12, 0.94],
             }}
             transition={{
-              left: { duration: 1.15, ease: [0.22, 1, 0.36, 1] },
-              x: { duration: 1.15, ease: [0.22, 1, 0.36, 1] },
-              width: { duration: 1.15, ease: [0.22, 1, 0.36, 1] },
+              left: HERO_MEDIA_TRANSITION,
+              x: HERO_MEDIA_TRANSITION,
+              width: HERO_MEDIA_TRANSITION,
+              height: HERO_MEDIA_TRANSITION,
               opacity: { duration: 3.4, repeat: Infinity, ease: "easeInOut" },
               scaleY: { duration: 3.4, repeat: Infinity, ease: "easeInOut" },
             }}
-            className="pointer-events-none absolute bottom-0 z-[5] h-[48vh] origin-bottom bg-[linear-gradient(90deg,transparent_0%,rgba(37,99,235,0.08)_10%,rgba(37,99,235,0.25)_34%,rgba(14,165,233,0.24)_52%,rgba(99,102,241,0.12)_78%,transparent_100%)] blur-3xl"
+            className="pointer-events-none absolute bottom-0 z-[5] origin-bottom bg-[linear-gradient(90deg,transparent_0%,rgba(37,99,235,0.08)_10%,rgba(37,99,235,0.25)_34%,rgba(14,165,233,0.24)_52%,rgba(99,102,241,0.12)_78%,transparent_100%)] blur-3xl"
           />
 
           <motion.div
             aria-hidden="true"
             animate={{
-              left: showLogin ? "-42%" : "50%",
-              x: showLogin ? "0%" : "-50%",
-              width: showLogin ? "158%" : "min(152vw, 2050px)",
+              left: "50%",
+              x: "-50%",
+              width: showLogin ? "116%" : "min(190vw, 2600px)",
+              height: showLogin ? "min(76vh, 760px)" : "min(92vh, 980px)",
             }}
-            transition={{ duration: 1.15, ease: [0.22, 1, 0.36, 1] }}
-            className="pointer-events-none absolute bottom-0 z-10 aspect-video max-h-[88vh] min-h-[560px] origin-bottom overflow-visible"
+            transition={HERO_MEDIA_TRANSITION}
+            className="pointer-events-none absolute bottom-0 z-10 origin-bottom overflow-visible"
           >
             <Image
               src={HERO_GIF_SRC}
@@ -203,9 +207,9 @@ export default function SignInPage() {
               y: showLogin ? 0 : 16,
             }}
             transition={{ duration: 0.55, delay: showLogin ? 0.42 : 0, ease: "easeOut" }}
-            className="hidden w-full max-w-md pb-7 text-left lg:block"
+            className="hidden w-full max-w-md pb-7 text-center lg:block"
           >
-            <p className="text-sm font-light leading-6 text-zinc-500">
+            <p className="mx-auto text-sm font-light leading-6 text-zinc-500">
               {HERO_DESCRIPTION}
             </p>
           </motion.div>
@@ -226,7 +230,7 @@ export default function SignInPage() {
                   type="text"
                   value={username}
                   onChange={(event) => setUsername(event.target.value)}
-                  placeholder="Username"
+                  placeholder="supernizo ID"
                   autoComplete="username"
                   className="h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 placeholder:text-zinc-300 outline-none transition-colors duration-200 focus:border-blue-600"
                 />
@@ -240,7 +244,7 @@ export default function SignInPage() {
                   type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Password"
+                  placeholder="Access key"
                   autoComplete="current-password"
                   className="h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 placeholder:text-zinc-300 outline-none transition-colors duration-200 focus:border-blue-600"
                 />
