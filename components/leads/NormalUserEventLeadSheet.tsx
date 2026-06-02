@@ -591,6 +591,7 @@ function LeadSheetDialog({
   children,
   sidebarContent,
   eyebrow = "Lead Sheet Updates",
+  variant = "sidebar",
 }: {
   open: boolean;
   title: string;
@@ -599,8 +600,37 @@ function LeadSheetDialog({
   children: ReactNode;
   sidebarContent?: ReactNode;
   eyebrow?: string;
+  variant?: "sidebar" | "panel";
 }) {
   if (!open) return null;
+
+  if (variant === "panel") {
+    return (
+      <div className="fixed inset-0 z-[80] flex items-center justify-center p-6">
+        <button
+          type="button"
+          aria-label="Close dialog"
+          className="absolute inset-0 bg-black/72 backdrop-blur-[6px] backdrop-brightness-75"
+          onClick={onClose}
+        />
+
+        <div className="relative z-[1] max-h-[calc(100dvh-3rem)] w-full max-w-2xl overflow-hidden rounded-3xl border border-white/42 bg-[#151a22]/62 ring-1 ring-white/32 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14),0_32px_80px_-48px_rgba(2,10,27,0.82),0_12px_28px_-20px_rgba(2,10,27,0.72)] backdrop-blur-[38px]">
+          <div className="relative max-h-[calc(100dvh-3rem)] min-h-[24rem] overflow-y-auto p-8 pb-10 scrollbar-modern">
+            <Button
+              type="button"
+              variant="ghost"
+              className="absolute right-3 top-3 h-10 w-10 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+              onClick={onClose}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+
+            {children}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-6">
@@ -1717,13 +1747,13 @@ export function NormalUserEventLeadSheet() {
 
               <div>
                 <label className="mb-6 block text-xs font-medium text-zinc-400">Search intelligence</label>
-                <div className="relative w-full rounded-full border border-white/85 bg-white/68 px-4 py-2 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px] transition-colors focus-within:border-white/95">
+                <div className="relative w-full rounded-full border border-white/85 bg-white/68 px-4 py-1.5 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px] transition-colors focus-within:border-white/95">
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                   <input
                     value={searchInput}
                     onChange={(event) => setSearchInput(event.target.value)}
                     placeholder="Find in sheet..."
-                    className="h-9 w-full border-0 bg-transparent pl-7 pr-1 text-base font-light tracking-tight text-zinc-950 placeholder:text-zinc-400 focus:outline-none"
+                    className="h-8 w-full border-0 bg-transparent pl-7 pr-1 text-base font-light tracking-tight text-zinc-950 placeholder:text-zinc-400 focus:outline-none"
                   />
                 </div>
               </div>
@@ -2719,27 +2749,9 @@ export function NormalUserEventLeadSheet() {
         description="Choose the event, upload the Excel template, then add the leads."
         eyebrow="Template Upload"
         onClose={closeTemplateUploadDialog}
+        variant="panel"
       >
         <div className="space-y-7">
-          <div className="grid gap-3 sm:grid-cols-3">
-            {[
-              { label: "Event Selection", active: !selectedTemplateUploadEvent },
-              { label: "Upload", active: Boolean(selectedTemplateUploadEvent && !templateValidation) },
-              { label: "Submit", active: Boolean(templateValidation && selectedTemplateUploadEvent) },
-            ].map((step, index) => (
-              <div
-                key={step.label}
-                className={cn(
-                  "border px-4 py-3 text-sm font-semibold",
-                  step.active ? "border-blue-600 text-blue-600" : "border-zinc-200 text-zinc-400"
-                )}
-              >
-                <span className="mr-2 text-xs tabular-nums">{index + 1}</span>
-                {step.label}
-              </div>
-            ))}
-          </div>
-
           <div>
             <label className="mb-3 block text-xs font-medium text-zinc-400">Related event</label>
             <Select
@@ -2748,12 +2760,19 @@ export function NormalUserEventLeadSheet() {
                 setTemplateUpload((prev) => ({ ...prev, selectedEventKey: value }))
               }
             >
-              <SelectTrigger className="!h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
+              <SelectTrigger className="!h-12 w-full rounded-none border-0 border-b border-zinc-300 !bg-transparent px-0 text-lg font-light shadow-none transition-colors hover:!bg-transparent dark:!bg-transparent dark:hover:!bg-transparent focus:border-blue-600 focus:ring-0">
                 <SelectValue placeholder="Select event" />
               </SelectTrigger>
-              <SelectContent className="z-[120] rounded-none border-zinc-300 bg-white shadow-2xl">
+              <SelectContent
+                position="popper"
+                className="z-[120] rounded-lg border border-white/18 bg-[#161b25] text-zinc-100 shadow-2xl"
+              >
                 {events.map((item) => (
-                  <SelectItem key={item.canonicalEventKey} value={item.canonicalEventKey}>
+                  <SelectItem
+                    key={item.canonicalEventKey}
+                    value={item.canonicalEventKey}
+                    className="text-zinc-100 focus:bg-white/10 focus:text-white data-[state=checked]:bg-white/10 data-[state=checked]:text-white"
+                  >
                     {getEventDisplayTitle(item.canonicalEventName)}
                   </SelectItem>
                 ))}
@@ -2765,12 +2784,12 @@ export function NormalUserEventLeadSheet() {
             <label
               htmlFor="normal-lead-template-upload"
               className={cn(
-                "group flex min-h-36 cursor-pointer flex-col items-center justify-center border border-dashed p-6 text-center transition-all",
+                "group flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-3xl border p-6 text-center transition-all",
                 !selectedTemplateUploadEvent
-                  ? "cursor-not-allowed border-zinc-200 bg-zinc-50 opacity-60"
+                  ? "cursor-not-allowed border-zinc-700/60 bg-white/[0.03] opacity-60"
                   : templateUpload.error
                   ? "border-red-300 bg-red-50/40"
-                  : "border-zinc-300 hover:border-blue-600 hover:bg-blue-50/30"
+                  : "border-zinc-700/60 bg-white/[0.03] hover:border-blue-600 hover:bg-blue-600/8"
               )}
             >
               {templateUpload.validating ? (
@@ -2780,12 +2799,12 @@ export function NormalUserEventLeadSheet() {
               ) : (
                 <FileSpreadsheet className="h-8 w-8 text-zinc-400 transition-colors group-hover:text-blue-600" />
               )}
-              <span className="mt-4 text-base font-semibold text-zinc-950">
+              <span className="mt-4 text-base font-semibold text-zinc-200">
                 {!selectedTemplateUploadEvent
                   ? "Select event first"
                   : templateUpload.file?.name || "Choose Excel template"}
               </span>
-              <span className="mt-1 text-sm font-light text-zinc-500">
+              <span className="mt-1 text-sm font-light text-zinc-400">
                 {!selectedTemplateUploadEvent
                   ? "Only .xlsx files are accepted"
                   : templateUpload.validating
