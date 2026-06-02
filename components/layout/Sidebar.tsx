@@ -14,7 +14,9 @@ import {
   UserRound,
   LogOut,
   ShieldCheck,
-  BellRing
+  BellRing,
+  Loader2,
+  X
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { clearPersona } from "@/lib/persona";
@@ -23,6 +25,8 @@ import { clearAuthSession } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { UserAvatar } from "@/components/profile/UserAvatar";
 import { toast } from "sonner";
+
+const DEAL_CLOSED_VIDEO_SRC = "/videos/magnific_recreate-the-scene-with-t_2982250313.mp4";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -49,6 +53,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
   const { isSuperAdmin, user } = useAuth();
   const [rotation, setRotation] = useState(0);
   const [ringingBell, setRingingBell] = useState(false);
+  const [ringBellModalOpen, setRingBellModalOpen] = useState(false);
   const personaLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
 
   const handleSignOut = async () => {
@@ -89,6 +94,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
       toast.success("Bell rung", {
         description: `${userName} successfully closed a deal.`,
       });
+      setRingBellModalOpen(false);
     } catch (error) {
       toast.error("Bell failed", {
         description: error instanceof Error ? error.message : "Could not send the bell email.",
@@ -113,6 +119,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
   }, []);
 
   return (
+    <>
     <motion.aside
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
@@ -235,7 +242,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
           >
             <motion.button
               type="button"
-              onClick={handleRingBell}
+              onClick={() => setRingBellModalOpen(true)}
               disabled={ringingBell}
               initial={false}
               animate={{
@@ -346,5 +353,93 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
         </motion.div>
       </div>
     </motion.aside>
+    {ringBellModalOpen ? (
+      <div className="fixed inset-0 z-[90] flex items-center justify-center p-6 font-sans">
+        <button
+          type="button"
+          aria-label="Close ring bell dialog"
+          className="absolute inset-0 bg-zinc-950/30 backdrop-blur-[3px]"
+          onClick={() => {
+            if (!ringingBell) setRingBellModalOpen(false);
+          }}
+        />
+
+        <div className="relative z-[1] flex max-h-[calc(100dvh-3rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_90px_-54px_rgba(2,10,27,0.82)]">
+          <button
+            type="button"
+            disabled={ringingBell}
+            aria-label="Close ring bell dialog"
+            className="absolute right-5 top-5 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none transition-colors hover:border-zinc-900 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={() => setRingBellModalOpen(false)}
+          >
+            <X className="h-4 w-4" />
+          </button>
+
+          <div className="shrink-0 px-8 pb-4 pt-8">
+            <div className="max-w-xl pr-12">
+              <h2 className="text-4xl font-light leading-none tracking-tighter text-zinc-950">
+                Ring the deal bell
+              </h2>
+              <p className="mt-3 text-sm font-light leading-6 text-zinc-500">
+                Celebrate the closed deal and notify the team.
+              </p>
+            </div>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-hidden px-8 pb-8">
+            <div className="grid gap-2 rounded-2xl border border-zinc-200 bg-white p-2 shadow-[0_18px_38px_-34px_rgba(15,23,42,0.6)] sm:grid-cols-[20rem_minmax(0,1fr)] sm:items-stretch">
+              <div className="relative mx-auto h-[min(34rem,calc(100dvh-16rem))] w-full max-w-[20rem] overflow-hidden rounded-xl bg-zinc-950 sm:mx-0 sm:max-w-none">
+                <video
+                  src={DEAL_CLOSED_VIDEO_SRC}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="h-full w-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/30 via-transparent to-transparent" />
+              </div>
+
+              <div className="flex min-w-0 flex-col justify-between gap-6 p-4">
+                <div className="rounded-2xl bg-zinc-50/80 p-5">
+                  <p className="text-sm font-medium text-zinc-400">Deal bell</p>
+                  <p className="mt-3 text-2xl font-light tracking-tight text-zinc-950">
+                    Let the whole team know.
+                  </p>
+                  <p className="mt-2 text-sm font-light leading-6 text-zinc-500">
+                    This sends the bell notification using your profile.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-3 border-t border-zinc-100 pt-4 sm:flex-row sm:items-center sm:justify-end">
+                  <button
+                    type="button"
+                    disabled={ringingBell}
+                    onClick={() => setRingBellModalOpen(false)}
+                    className="h-11 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-600 shadow-none transition-colors hover:border-zinc-900 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={ringingBell}
+                    onClick={() => void handleRingBell()}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-emerald-500/20 bg-[#22c55e] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)] transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {ringingBell ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <BellRing className="h-4 w-4" />
+                    )}
+                    Ring bell
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    ) : null}
+    </>
   );
 }

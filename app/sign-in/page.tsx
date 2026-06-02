@@ -21,7 +21,7 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const desktopLayoutClassName = showLogin
-    ? "lg:grid-cols-[minmax(0,1.08fr)_minmax(26rem,0.82fr)]"
+    ? "lg:grid-cols-[minmax(0,1.12fr)_minmax(29rem,0.78fr)]"
     : "lg:grid-cols-[minmax(0,1fr)_minmax(0,0fr)]";
 
   useEffect(() => {
@@ -81,8 +81,8 @@ export default function SignInPage() {
 
   return (
     <div className="relative h-dvh overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,#fff_0%,#f7f7f7_66%,#f3f6fb_100%)]" />
-      <header className="absolute left-6 right-6 top-5 z-40 flex h-12 items-center justify-between border-b border-zinc-200 pb-4 sm:left-8 sm:right-8 sm:top-7">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,#ffffff_0%,#fafafa_42%,#f3f6fb_100%)]" />
+      <header className="absolute left-6 right-6 top-5 z-40 flex h-12 items-center justify-between border-b border-zinc-200/90 pb-4 sm:left-8 sm:right-8 sm:top-7">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full border border-blue-500/20 bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)]">
             <Webhook className="h-4.5 w-4.5" />
@@ -99,36 +99,34 @@ export default function SignInPage() {
       >
         <section
           className={`relative min-h-0 overflow-hidden bg-transparent transition-colors duration-700 ${
-            showLogin ? "lg:border-r lg:border-zinc-200" : ""
+            showLogin ? "lg:border-r lg:border-zinc-200/90" : ""
           }`}
         >
-          <div className="relative z-20 mx-auto flex h-full max-w-6xl flex-col items-start px-6 pb-[49vh] pt-28 text-left sm:px-10 sm:pt-32 lg:pb-[50vh]">
+          <div className="relative z-20 mx-auto flex h-full max-w-6xl flex-col items-center px-6 pb-[54vh] pt-28 text-center sm:px-10 sm:pt-32 lg:pb-[55vh]">
             <motion.div
               initial={{ opacity: 0, y: 14 }}
               animate={{
                 opacity: 1,
-                y: 0,
-                scale: showLogin ? 0.95 : 1,
-                x: showLogin ? -10 : 0,
+                scale: showLogin ? 0.96 : 1,
+                y: showLogin ? -2 : 0,
               }}
               transition={{ duration: 0.8, ease: "easeOut" }}
-              className="max-w-3xl"
+              className="max-w-4xl"
             >
-              <p className="text-sm font-medium text-zinc-400">I am</p>
-              <h1 className="mt-2 text-[clamp(2.35rem,4.4vw,4.35rem)] font-light leading-[0.96] tracking-[-0.05em] text-zinc-950">
+              <h1 className="text-[clamp(2.75rem,5vw,5.25rem)] font-light leading-[0.9] tracking-[-0.065em] text-zinc-950">
                 supernizo
               </h1>
-              <p className="mt-5 max-w-2xl text-[clamp(1.05rem,1.55vw,1.42rem)] font-light leading-tight tracking-[-0.025em] text-blue-700">
+              <p className="mx-auto mt-5 max-w-2xl text-[clamp(1.1rem,1.65vw,1.55rem)] font-light leading-tight tracking-[-0.025em] text-blue-700">
                 Enterprise agentic AI for intelligent outreach.
               </p>
-              <div className="mt-6 max-w-2xl border-l border-zinc-300 pl-5 text-sm font-light leading-7 text-zinc-500 sm:text-base">
-                <p className="max-w-xl">
+              <div className="mx-auto mt-6 max-w-2xl text-sm font-light leading-7 text-zinc-500 sm:text-base">
+                <p>
                   I am an enterprise agentic AI platform that intelligently identifies your dream customers and
                   prospects, autonomously manages outreach, and streamlines customer engagement at scale.
                 </p>
                 <p className="mt-5 text-sm font-medium text-zinc-950">
-                  Intelligent <span className="px-2 text-zinc-300">/</span> autonomous{" "}
-                  <span className="px-2 text-zinc-300">/</span> limitless
+                  Intelligent <span className="px-2 text-zinc-300">/</span> Autonomous{" "}
+                  <span className="px-2 text-zinc-300">/</span> Limitless
                 </p>
               </div>
             </motion.div>
@@ -137,11 +135,11 @@ export default function SignInPage() {
           <motion.div
             aria-hidden="true"
             animate={{
-              left: showLogin ? "-10%" : "50%",
+              left: showLogin ? "-20%" : "50%",
               x: showLogin ? "0%" : "-50%",
-              width: showLogin ? "118%" : "min(132vw, 1680px)",
-              opacity: showLogin ? [0.45, 0.82, 0.52] : [0.38, 0.72, 0.42],
-              scaleY: [0.92, 1.08, 0.96],
+              width: showLogin ? "150%" : "min(152vw, 2050px)",
+              opacity: showLogin ? [0.34, 0.72, 0.42] : [0.28, 0.62, 0.36],
+              scaleY: [0.88, 1.12, 0.94],
             }}
             transition={{
               left: { duration: 1.15, ease: [0.22, 1, 0.36, 1] },
@@ -150,18 +148,18 @@ export default function SignInPage() {
               opacity: { duration: 3.4, repeat: Infinity, ease: "easeInOut" },
               scaleY: { duration: 3.4, repeat: Infinity, ease: "easeInOut" },
             }}
-            className="pointer-events-none absolute bottom-0 z-[5] h-[42vh] origin-bottom bg-[linear-gradient(90deg,transparent_0%,rgba(37,99,235,0.10)_14%,rgba(37,99,235,0.24)_38%,rgba(14,165,233,0.23)_56%,rgba(99,102,241,0.14)_78%,transparent_100%)] blur-2xl"
+            className="pointer-events-none absolute bottom-0 z-[5] h-[48vh] origin-bottom bg-[linear-gradient(90deg,transparent_0%,rgba(37,99,235,0.08)_10%,rgba(37,99,235,0.25)_34%,rgba(14,165,233,0.24)_52%,rgba(99,102,241,0.12)_78%,transparent_100%)] blur-3xl"
           />
 
           <motion.div
             aria-hidden="true"
             animate={{
-              left: showLogin ? "-14%" : "50%",
+              left: showLogin ? "-26%" : "50%",
               x: showLogin ? "0%" : "-50%",
-              width: showLogin ? "124%" : "min(132vw, 1680px)",
+              width: showLogin ? "158%" : "min(152vw, 2050px)",
             }}
             transition={{ duration: 1.15, ease: [0.22, 1, 0.36, 1] }}
-            className="pointer-events-none absolute bottom-0 z-10 aspect-video max-h-[76vh] min-h-[430px] origin-bottom overflow-visible"
+            className="pointer-events-none absolute bottom-0 z-10 aspect-video max-h-[88vh] min-h-[560px] origin-bottom overflow-visible"
           >
             <Image
               src={HERO_GIF_SRC}
@@ -185,9 +183,9 @@ export default function SignInPage() {
             pointerEvents: showLogin ? "auto" : "none",
           }}
           transition={{ duration: 0.65, delay: showLogin ? 0.25 : 0, ease: "easeOut" }}
-          className="absolute inset-x-4 bottom-5 z-30 mx-auto max-w-md rounded-lg border border-zinc-200 bg-white/92 p-6 text-zinc-950 shadow-[0_18px_55px_-46px_rgba(15,23,42,0.72)] backdrop-blur-xl sm:bottom-8 sm:p-8 lg:static lg:mx-0 lg:flex lg:h-full lg:max-w-none lg:items-center lg:justify-center lg:rounded-none lg:border-0 lg:bg-transparent lg:px-12 lg:shadow-none"
+          className="absolute inset-x-4 bottom-5 z-30 mx-auto max-w-md rounded-2xl border border-zinc-200 bg-white/94 p-6 text-zinc-950 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-xl sm:bottom-8 sm:p-8 lg:static lg:mx-0 lg:flex lg:h-full lg:max-w-none lg:items-center lg:justify-center lg:rounded-none lg:border-0 lg:bg-transparent lg:px-12 lg:shadow-none"
         >
-          <div className="w-full max-w-md overflow-hidden rounded-lg border border-zinc-200 bg-white/78 p-7 shadow-[0_18px_55px_-46px_rgba(15,23,42,0.72)] transition-all lg:p-8">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-zinc-200 bg-white/88 p-8 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78),inset_0_1px_0_rgba(255,255,255,0.95)] transition-all">
             <div className="mb-8 border-b border-zinc-100 pb-6 text-left">
               <p className="text-sm font-medium text-zinc-400">Secure workspace</p>
               <h2 className="mt-3 text-4xl font-light leading-none tracking-tighter text-zinc-950">
