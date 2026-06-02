@@ -2264,33 +2264,25 @@ export function NormalUserEventLeadSheet() {
                 </p>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => void generateContentForPlatform(emailDialog.lead, "email")}
-                  className="group rounded-2xl border border-zinc-200 bg-white p-5 text-left shadow-[0_16px_36px_-30px_rgba(15,23,42,0.65)] transition-all hover:border-red-200 hover:bg-zinc-50/70"
-                >
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full border border-red-500/20 bg-[#EF4444] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(239,68,68,0.82)]">
-                    <Mail className="h-5 w-5 stroke-[2.4]" />
-                  </span>
-                  <span className="mt-5 block text-lg font-medium text-zinc-950">Email</span>
-                  <span className="mt-1 block text-sm font-light leading-6 text-zinc-500">
-                    Subject and longer sales narrative for inbox outreach.
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void generateContentForPlatform(emailDialog.lead, "whatsapp")}
-                  className="group rounded-2xl border border-zinc-200 bg-white p-5 text-left shadow-[0_16px_36px_-30px_rgba(15,23,42,0.65)] transition-all hover:border-emerald-200 hover:bg-zinc-50/70"
-                >
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#22c55e]/30 bg-[#22c55e] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-16px_rgba(34,197,94,0.82)]">
-                    <WhatsAppIcon className="h-5 w-5" />
-                  </span>
-                  <span className="mt-5 block text-lg font-medium text-zinc-950">WhatsApp</span>
-                  <span className="mt-1 block text-sm font-light leading-6 text-zinc-500">
-                    Short, direct message for a quick reply.
-                  </span>
-                </button>
+              <div>
+                <div className="flex flex-col gap-3 rounded-full border border-zinc-200 bg-white p-1.5 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => void generateContentForPlatform(emailDialog.lead, "email")}
+                    className="inline-flex h-12 flex-1 items-center justify-center gap-2.5 rounded-full border border-red-500/20 bg-[#EF4444] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(239,68,68,0.85)] transition-colors hover:bg-red-600"
+                  >
+                    <Mail className="h-[18px] w-[18px] stroke-[2.4]" />
+                    Email
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void generateContentForPlatform(emailDialog.lead, "whatsapp")}
+                    className="inline-flex h-12 flex-1 items-center justify-center gap-2.5 rounded-full border border-[#22c55e]/30 bg-[#22c55e] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)] transition-colors hover:bg-emerald-600"
+                  >
+                    <WhatsAppIcon className="h-[18px] w-[18px]" />
+                    WhatsApp
+                  </button>
+                </div>
               </div>
             </div>
           ) : emailDialog.loading ? (
