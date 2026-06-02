@@ -2131,13 +2131,13 @@ export function NormalUserEventLeadSheet() {
       </div>
 
       {pendingStatusChange ? (
-        <LeadSheetDialog
-          open
-          title="Status Note"
-          description="Add a short comment for this state change so the next person can understand the context."
-          onClose={closeStatusCommentDialog}
-          sidebarContent={
-            canUseDealBellFlow && pendingStatusChange.nextStatus === "deal-closed" ? (
+        canUseDealBellFlow && pendingStatusChange.nextStatus === "deal-closed" ? (
+          <LeadSheetDialog
+            open
+            title="Status Note"
+            description="Add a short comment for this state change so the next person can understand the context."
+            onClose={closeStatusCommentDialog}
+            sidebarContent={
               <div className="absolute inset-0">
                 <div className="absolute inset-0 z-10 bg-zinc-950/40" />
                 <video
@@ -2149,21 +2149,19 @@ export function NormalUserEventLeadSheet() {
                   className="h-full w-full object-cover"
                 />
               </div>
-            ) : null
-          }
-        >
-          <div className="space-y-8">
-            <div className="border-b border-zinc-100 pb-6">
-              <p className="text-xs font-medium text-zinc-400">Selected profile</p>
-              <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
-                {pendingStatusChange.item.employeeName || "-"}
-              </h3>
-              <p className="mt-1 text-sm font-light text-zinc-500">
-                {pendingStatusChange.item.company || "-"}
-              </p>
-            </div>
+            }
+          >
+            <div className="space-y-8">
+              <div className="border-b border-zinc-100 pb-6">
+                <p className="text-xs font-medium text-zinc-400">Selected profile</p>
+                <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
+                  {pendingStatusChange.item.employeeName || "-"}
+                </h3>
+                <p className="mt-1 text-sm font-light text-zinc-500">
+                  {pendingStatusChange.item.company || "-"}
+                </p>
+              </div>
 
-            {canUseDealBellFlow && pendingStatusChange.nextStatus === "deal-closed" ? (
               <div className="text-center">
                 <DotLottieReact
                   src={DEAL_CLOSED_ANIMATION_SRC}
@@ -2178,64 +2176,140 @@ export function NormalUserEventLeadSheet() {
                   Nice work, {signedInFirstName}. Add a final note so the team has the full context.
                 </p>
               </div>
-            ) : null}
 
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div className="border border-zinc-200 bg-zinc-50/70 p-4">
-                <p className="text-xs font-medium text-zinc-400">Current status</p>
-                <p className="mt-2 text-lg font-light text-zinc-950">
-                  {pendingStatusChange.item.workflowStatusLabel}
-                </p>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div className="border border-zinc-200 bg-zinc-50/70 p-4">
+                  <p className="text-xs font-medium text-zinc-400">Current status</p>
+                  <p className="mt-2 text-lg font-light text-zinc-950">
+                    {pendingStatusChange.item.workflowStatusLabel}
+                  </p>
+                </div>
+                <div className="border border-zinc-950 bg-white p-4">
+                  <p className="text-xs font-medium text-zinc-400">New status</p>
+                  <p className="mt-2 text-lg font-light text-zinc-950">
+                    {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
+                      humanizeStatusLabel(pendingStatusChange.nextStatus)}
+                  </p>
+                </div>
               </div>
-              <div className="border border-zinc-950 bg-white p-4">
-                <p className="text-xs font-medium text-zinc-400">New status</p>
-                <p className="mt-2 text-lg font-light text-zinc-950">
-                  {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
-                    humanizeStatusLabel(pendingStatusChange.nextStatus)}
-                </p>
+
+              <label className="block space-y-3">
+                <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                  Comment <span className="normal-case tracking-normal text-zinc-400">Optional</span>
+                </span>
+                <Textarea
+                  value={statusComment}
+                  onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
+                  placeholder="Example: Follow up after first call. Asked to reconnect next week."
+                  className="min-h-36 rounded-none border-zinc-300 bg-white text-sm font-light shadow-none focus-visible:ring-1 focus-visible:ring-zinc-900"
+                />
+                <span className="block text-right text-xs font-light text-zinc-400">
+                  {statusComment.length}/2000
+                </span>
+              </label>
+
+              <div className="flex justify-end gap-3 border-t border-zinc-100 pt-6">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={closeStatusCommentDialog}
+                  className="h-10 rounded-none border border-zinc-300 bg-white px-5 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleUpdateStatusClick}
+                  disabled={Boolean(updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`]) || ringingDealBell}
+                  className="h-10 gap-2 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
+                >
+                  {updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`] || ringingDealBell ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <MessageSquare className="h-4 w-4" />
+                  )}
+                  Update Status
+                </Button>
               </div>
             </div>
+          </LeadSheetDialog>
+        ) : (
+          <LeadSheetDialog
+            open
+            eyebrow=""
+            title="Status Note"
+            description=""
+            onClose={closeStatusCommentDialog}
+            compact
+          >
+            <div className="space-y-7">
+              <div className="border-b border-zinc-100 pb-6">
+                <h3 className="text-2xl font-light tracking-tight text-zinc-950">
+                  {pendingStatusChange.item.employeeName || "-"}
+                </h3>
+                <p className="mt-1 text-sm font-light text-zinc-500">
+                  {pendingStatusChange.item.company || "-"}
+                </p>
+              </div>
 
-            <label className="block space-y-3">
-              <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
-                Comment <span className="normal-case tracking-normal text-zinc-400">Optional</span>
-              </span>
-              <Textarea
-                value={statusComment}
-                onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
-                placeholder="Example: Follow up after first call. Asked to reconnect next week."
-                className="min-h-36 rounded-none border-zinc-300 bg-white text-sm font-light shadow-none focus-visible:ring-1 focus-visible:ring-zinc-900"
-              />
-              <span className="block text-right text-xs font-light text-zinc-400">
-                {statusComment.length}/2000
-              </span>
-            </label>
+              <div className="rounded-2xl border border-zinc-200 bg-white p-1.5">
+                <div className="grid gap-1.5 sm:grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] sm:items-stretch">
+                  <div className="rounded-xl bg-zinc-50/80 px-4 py-3">
+                    <p className="truncate text-base font-light text-zinc-950">
+                      {pendingStatusChange.item.workflowStatusLabel}
+                    </p>
+                  </div>
+                  <div className="hidden items-center justify-center text-zinc-300 sm:flex">
+                    <ChevronRight className="h-4 w-4" />
+                  </div>
+                  <div className="rounded-xl border border-blue-500/20 bg-blue-600 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)]">
+                    <p className="truncate text-base font-semibold">
+                      {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
+                        humanizeStatusLabel(pendingStatusChange.nextStatus)}
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-            <div className="flex justify-end gap-3 border-t border-zinc-100 pt-6">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={closeStatusCommentDialog}
-                className="h-10 rounded-none border border-zinc-300 bg-white px-5 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={handleUpdateStatusClick}
-                disabled={Boolean(updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`]) || ringingDealBell}
-                className="h-10 gap-2 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
-              >
-                {updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`] || ringingDealBell ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <MessageSquare className="h-4 w-4" />
-                )}
-                Update Status
-              </Button>
+              <label className="block space-y-3">
+                <span className="text-xs font-medium text-zinc-400">Comment optional</span>
+                <Textarea
+                  value={statusComment}
+                  onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
+                  placeholder="Example: Follow up after first call. Asked to reconnect next week."
+                  className="min-h-32 rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-6 shadow-none focus-visible:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500"
+                />
+                <span className="block text-right text-xs font-light text-zinc-400">
+                  {statusComment.length}/2000
+                </span>
+              </label>
+
+              <div className="flex flex-col gap-3 border-t border-zinc-100 pt-6 sm:flex-row sm:items-center sm:justify-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={closeStatusCommentDialog}
+                  className="h-11 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleUpdateStatusClick}
+                  disabled={Boolean(updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`]) || ringingDealBell}
+                  className="h-11 gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700"
+                >
+                  {updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`] || ringingDealBell ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <MessageSquare className="h-4 w-4" />
+                  )}
+                  Update Status
+                </Button>
+              </div>
             </div>
-          </div>
-        </LeadSheetDialog>
+          </LeadSheetDialog>
+        )
       ) : null}
 
       {emailDialog ? (
