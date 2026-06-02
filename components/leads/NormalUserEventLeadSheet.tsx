@@ -614,8 +614,8 @@ function LeadSheetDialog({
 
           <div className="p-8">
             <div className="max-w-md">
-              <p className="text-sm font-medium text-zinc-400">{eyebrow}</p>
-              <h2 className="mt-4 text-4xl font-light leading-none tracking-tighter text-zinc-950">
+              {eyebrow ? <p className="text-sm font-medium text-zinc-400">{eyebrow}</p> : null}
+              <h2 className={cn("text-4xl font-light leading-none tracking-tighter text-zinc-950", eyebrow && "mt-4")}>
                 {title}
               </h2>
               <p className="mt-3 text-sm font-light leading-relaxed text-zinc-500">
@@ -2756,7 +2756,7 @@ export function NormalUserEventLeadSheet() {
         open={templateUploadOpen}
         title="Upload Leads"
         description="Choose the event, upload the Excel template, then add the leads."
-        eyebrow="Template Upload"
+        eyebrow=""
         onClose={closeTemplateUploadDialog}
         compact
       >
