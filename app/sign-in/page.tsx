@@ -147,7 +147,7 @@ export default function SignInPage() {
           <motion.div
             aria-hidden="true"
             animate={{
-              scale: showLogin ? 0.96 : 1,
+              scale: showLogin ? 0.96 : 0.82,
               opacity: 1,
             }}
             transition={HERO_MEDIA_TRANSITION}
