@@ -2559,8 +2559,8 @@ export function NormalUserEventLeadSheet() {
             onClick={() => setFilterOpen(false)}
           />
 
-          <div className="relative z-[1] max-h-[calc(100dvh-3rem)] w-full max-w-2xl overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
-            <div className="relative min-h-[34rem] p-8">
+          <div className="relative z-[1] w-full max-w-xl overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
+            <div className="relative p-8 pb-28">
               <Button
                 type="button"
                 variant="ghost"
@@ -2570,7 +2570,7 @@ export function NormalUserEventLeadSheet() {
                 <X className="h-4 w-4" />
               </Button>
 
-              <div className="max-h-[calc(100dvh-12rem)] space-y-10 overflow-y-auto pb-28 pr-12 scrollbar-modern">
+              <div className="space-y-10">
                 <div>
                   <label className="mb-3 block text-xs font-medium text-zinc-400">Status model</label>
                   <Select
@@ -2634,7 +2634,7 @@ export function NormalUserEventLeadSheet() {
 
                 <div className="space-y-4">
                   <label className="block text-sm font-semibold text-zinc-950">By campaign category:</label>
-                  <div className="border border-zinc-200 bg-white p-3">
+                  <div className="rounded-2xl border border-zinc-200 bg-white p-3">
                     <div className="relative">
                       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                       <Input
@@ -2645,7 +2645,7 @@ export function NormalUserEventLeadSheet() {
                       />
                     </div>
 
-                    <div className="mt-3 max-h-36 overflow-y-auto pr-1 scrollbar-modern">
+                    <div className="mt-3 pr-1">
                       <div className="flex flex-wrap gap-2.5">
                         <button
                           type="button"
@@ -2702,7 +2702,7 @@ export function NormalUserEventLeadSheet() {
                 </button>
                 <Button
                   type="button"
-                  className="h-11 rounded-full bg-zinc-950 px-7 text-sm font-semibold text-white shadow-none hover:bg-blue-600"
+                  className="h-11 rounded-full border border-blue-500/20 bg-blue-600 px-7 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700"
                   onClick={() => setFilterOpen(false)}
                 >
                   Apply filters
