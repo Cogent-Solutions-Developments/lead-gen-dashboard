@@ -109,7 +109,6 @@ type AddLeadFormState = {
 type LeadFilterState = {
   status: string;
   contact: "all" | "email" | "phone" | "complete" | "missing-contact" | "linkedin" | "website";
-  source: "all" | "manual" | "imported";
   category: string;
 };
 
@@ -369,7 +368,6 @@ const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
 const EMPTY_FILTERS: LeadFilterState = {
   status: "all",
   contact: "all",
-  source: "all",
   category: "all",
 };
 const EMPTY_TEMPLATE_UPLOAD: TemplateUploadState = {
@@ -775,7 +773,7 @@ export function NormalUserEventLeadSheet() {
 
   useEffect(() => {
     setPageOffset(0);
-  }, [filters.status, filters.contact, filters.source, filters.category]);
+  }, [filters.status, filters.contact, filters.category]);
 
   useEffect(() => {
     const nextSearch = searchParams.get("search") || "";
@@ -977,9 +975,6 @@ export function NormalUserEventLeadSheet() {
 
   const visibleEventLeads = useMemo(() => {
     return eventLeads.filter((item) => {
-      if (filters.source === "manual" && !item.isManualLead) return false;
-      if (filters.source === "imported" && item.isManualLead) return false;
-
       if (filters.contact === "email" && !item.email) return false;
       if (filters.contact === "phone" && !item.phone) return false;
       if (filters.contact === "complete" && (!item.email || !item.phone)) return false;
@@ -989,13 +984,12 @@ export function NormalUserEventLeadSheet() {
 
       return true;
     });
-  }, [eventLeads, filters.contact, filters.source]);
+  }, [eventLeads, filters.contact]);
 
   const activeFilterCount = useMemo(() => {
     return [
       filters.status !== EMPTY_FILTERS.status,
       filters.contact !== EMPTY_FILTERS.contact,
-      filters.source !== EMPTY_FILTERS.source,
       filters.category !== EMPTY_FILTERS.category,
     ].filter(Boolean).length;
   }, [filters]);
@@ -2568,7 +2562,7 @@ export function NormalUserEventLeadSheet() {
                 Intelligence Filters
               </h2>
               <p className="mt-5 max-w-[13rem] text-sm font-light leading-relaxed text-zinc-500">
-                Build a focused view using status, contact readiness, and source quality signals.
+                Build a focused view using status, contact readiness, and category signals.
               </p>
             </aside>
 
@@ -2634,35 +2628,6 @@ export function NormalUserEventLeadSheet() {
                         }
                         className={`inline-flex h-10 items-center rounded-full border px-4 text-sm font-semibold transition-all ${
                           filters.contact === option.value
-                            ? "border-blue-600 bg-white text-blue-600 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.85)]"
-                            : "border-zinc-300 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <label className="block text-sm font-semibold text-zinc-950">By source quality:</label>
-                  <div className="flex flex-wrap gap-2.5">
-                    {[
-                      { value: "all", label: "All sources" },
-                      { value: "imported", label: "Imported" },
-                      { value: "manual", label: "Manual" },
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() =>
-                          setFilters((prev) => ({
-                            ...prev,
-                            source: option.value as LeadFilterState["source"],
-                          }))
-                        }
-                        className={`inline-flex h-10 items-center rounded-full border px-4 text-sm font-semibold transition-all ${
-                          filters.source === option.value
                             ? "border-blue-600 bg-white text-blue-600 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.85)]"
                             : "border-zinc-300 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
                         }`}
