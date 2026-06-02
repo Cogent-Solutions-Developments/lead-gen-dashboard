@@ -614,8 +614,8 @@ function LeadSheetDialog({
           onClick={onClose}
         />
 
-        <div className="relative z-[1] max-h-[calc(100dvh-3rem)] w-full max-w-2xl overflow-hidden rounded-3xl border border-white/42 bg-[#151a22]/62 ring-1 ring-white/32 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14),0_32px_80px_-48px_rgba(2,10,27,0.82),0_12px_28px_-20px_rgba(2,10,27,0.72)] backdrop-blur-[38px]">
-          <div className="relative max-h-[calc(100dvh-3rem)] min-h-[24rem] overflow-y-auto p-8 pb-10 scrollbar-modern">
+        <div className="relative z-[1] max-h-[calc(100dvh-3rem)] w-full max-w-lg overflow-hidden rounded-3xl border border-white/42 bg-[#151a22]/62 ring-1 ring-white/32 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14),0_32px_80px_-48px_rgba(2,10,27,0.82),0_12px_28px_-20px_rgba(2,10,27,0.72)] backdrop-blur-[38px]">
+          <div className="relative max-h-[calc(100dvh-3rem)] min-h-[16rem] overflow-y-auto p-7 pb-5 scrollbar-modern">
             <Button
               type="button"
               variant="ghost"
@@ -2784,7 +2784,7 @@ export function NormalUserEventLeadSheet() {
             <label
               htmlFor="normal-lead-template-upload"
               className={cn(
-                "group flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-3xl border p-6 text-center transition-all",
+                "group flex min-h-0 cursor-pointer items-center gap-4 rounded-3xl border px-5 py-4 text-left transition-all",
                 !selectedTemplateUploadEvent
                   ? "cursor-not-allowed border-zinc-700/60 bg-white/[0.03] opacity-60"
                   : templateUpload.error
@@ -2793,25 +2793,27 @@ export function NormalUserEventLeadSheet() {
               )}
             >
               {templateUpload.validating ? (
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                <Loader2 className="h-7 w-7 shrink-0 animate-spin text-blue-600" />
               ) : templateValidation ? (
-                <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+                <CheckCircle2 className="h-7 w-7 shrink-0 text-emerald-500" />
               ) : (
-                <FileSpreadsheet className="h-8 w-8 text-zinc-400 transition-colors group-hover:text-blue-600" />
+                <FileSpreadsheet className="h-7 w-7 shrink-0 text-zinc-400 transition-colors group-hover:text-blue-600" />
               )}
-              <span className="mt-4 text-base font-semibold text-zinc-200">
-                {!selectedTemplateUploadEvent
-                  ? "Select event first"
-                  : templateUpload.file?.name || "Choose Excel template"}
-              </span>
-              <span className="mt-1 text-sm font-light text-zinc-400">
-                {!selectedTemplateUploadEvent
-                  ? "Only .xlsx files are accepted"
-                  : templateUpload.validating
-                  ? "Checking workbook"
-                  : templateValidation
-                    ? "Template is ready"
-                    : "Only .xlsx files are accepted"}
+              <span className="min-w-0">
+                <span className="block text-[0.95rem] font-semibold text-zinc-200">
+                  {!selectedTemplateUploadEvent
+                    ? "Select event first"
+                    : templateUpload.file?.name || "Choose Excel template"}
+                </span>
+                <span className="mt-0.5 block text-sm font-light text-zinc-400">
+                  {!selectedTemplateUploadEvent
+                    ? "Only .xlsx files are accepted"
+                    : templateUpload.validating
+                    ? "Checking workbook"
+                    : templateValidation
+                      ? "Template is ready"
+                      : "Only .xlsx files are accepted"}
+                </span>
               </span>
               <input
                 id="normal-lead-template-upload"
@@ -2823,14 +2825,35 @@ export function NormalUserEventLeadSheet() {
               />
             </label>
 
-            <button
-              type="button"
-              onClick={() => void handleTemplateDownload()}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-950 transition-colors hover:border-blue-600 hover:text-blue-600"
-            >
-              <Download className="h-4 w-4" />
-              Template
-            </button>
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => void handleTemplateDownload()}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-950 transition-colors hover:border-blue-600 hover:text-blue-600"
+              >
+                <Download className="h-4 w-4" />
+                Template
+              </button>
+
+              <Button
+                type="button"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-zinc-950 px-6 text-sm font-semibold text-white shadow-none hover:bg-blue-600"
+                onClick={() => void handleTemplateUploadSubmit()}
+                disabled={!templateUploadReady || templateUpload.validating || templateUpload.submitting}
+              >
+                {templateUpload.submitting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <UploadCloud className="h-3.5 w-3.5" />
+                    Add leads
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           {templateUpload.error ? (
@@ -2894,35 +2917,6 @@ export function NormalUserEventLeadSheet() {
             </div>
           ) : null}
 
-          <div className="flex items-center justify-between border-t border-zinc-100 pt-5">
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-11 rounded-none border-b border-transparent px-0 text-sm font-medium text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-transparent hover:text-zinc-950"
-              onClick={closeTemplateUploadDialog}
-              disabled={templateUpload.submitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-zinc-950 px-7 text-sm font-semibold text-white shadow-none hover:bg-blue-600"
-              onClick={() => void handleTemplateUploadSubmit()}
-              disabled={!templateUploadReady || templateUpload.validating || templateUpload.submitting}
-            >
-              {templateUpload.submitting ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <UploadCloud className="h-3.5 w-3.5" />
-                  Add leads
-                </>
-              )}
-            </Button>
-          </div>
         </div>
       </LeadSheetDialog>
 
