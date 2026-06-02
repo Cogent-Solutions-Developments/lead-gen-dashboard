@@ -618,7 +618,7 @@ function LeadSheetDialog({
           onClick={onClose}
         />
 
-        <div className="relative z-[1] w-full max-w-2xl overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
+        <div className="relative z-[1] flex max-h-[calc(100dvh-3rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
           <Button
             type="button"
             variant="ghost"
@@ -628,8 +628,8 @@ function LeadSheetDialog({
             <X className="h-4 w-4" />
           </Button>
 
-          <div className="p-8">
-            <div className="max-w-md">
+          <div className="shrink-0 px-8 pb-5 pt-8">
+            <div className="max-w-md pr-12">
               {eyebrow ? <p className="text-sm font-medium text-zinc-400">{eyebrow}</p> : null}
               <h2 className={cn("text-4xl font-light leading-none tracking-tighter text-zinc-950", eyebrow && "mt-4")}>
                 {title}
@@ -640,8 +640,8 @@ function LeadSheetDialog({
                 </p>
               ) : null}
             </div>
-            <div className="mt-8">{children}</div>
           </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-8 scrollbar-modern">{children}</div>
         </div>
       </div>
     );
@@ -2282,7 +2282,7 @@ export function NormalUserEventLeadSheet() {
                   type="button"
                   variant="ghost"
                   onClick={closeEmailDialog}
-                  className="h-10 rounded-none border border-zinc-300 bg-white px-5 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                  className="h-11 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
                 >
                   Close
                 </Button>
@@ -2293,7 +2293,7 @@ export function NormalUserEventLeadSheet() {
                       feedback: emailDialog.feedback,
                     })
                   }
-                  className="h-10 gap-2 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
+                  className="h-11 gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700"
                 >
                   <RefreshCcw className="h-4 w-4" />
                   Try Again
@@ -2303,8 +2303,7 @@ export function NormalUserEventLeadSheet() {
           ) : (
             <div className="space-y-7">
               <div className="border-b border-zinc-100 pb-6">
-                <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Selected profile</p>
-                <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
+                <h3 className="text-2xl font-light tracking-tight text-zinc-950">
                   {emailDialog.lead.employeeName || "-"}
                 </h3>
                 <p className="mt-1 text-sm font-light leading-6 text-zinc-500">
@@ -2314,25 +2313,25 @@ export function NormalUserEventLeadSheet() {
 
               {emailDialog.platform === "email" ? (
                 <label className="block space-y-3">
-                  <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Subject</span>
+                  <span className="text-xs font-medium text-zinc-400">Subject</span>
                   <Input
                     value={emailDialog.subject}
                     onChange={(event) => updateEmailDraftField("subject", event.target.value.slice(0, 180))}
-                    className="h-12 rounded-none border-zinc-300 bg-white text-base font-light shadow-none focus-visible:ring-1 focus-visible:ring-zinc-900"
+                    className="h-12 rounded-2xl border-zinc-200 bg-white px-4 text-base font-light shadow-none focus-visible:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500"
                   />
                 </label>
               ) : null}
 
               <label className="block space-y-3">
-                <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                <span className="text-xs font-medium text-zinc-400">
                   {emailDialog.platform === "whatsapp" ? "WhatsApp message" : "Mail body"}
                 </span>
                 <Textarea
                   value={emailDialog.body}
                   onChange={(event) => updateEmailDraftField("body", event.target.value.slice(0, 5000))}
                   className={cn(
-                    "rounded-none border-zinc-300 bg-white text-sm font-light leading-7 shadow-none focus-visible:ring-1 focus-visible:ring-zinc-900",
-                    emailDialog.platform === "whatsapp" ? "min-h-40" : "min-h-72"
+                    "rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-7 shadow-none focus-visible:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500",
+                    emailDialog.platform === "whatsapp" ? "min-h-36" : "min-h-56"
                   )}
                 />
                 <span className="block text-right text-xs font-light text-zinc-400">
@@ -2341,12 +2340,12 @@ export function NormalUserEventLeadSheet() {
               </label>
 
               <label className="block space-y-3 border-t border-zinc-100 pt-6">
-                <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Feedback for regenerate</span>
+                <span className="text-xs font-medium text-zinc-400">Feedback for regenerate</span>
                 <Textarea
                   value={emailDialog.feedback}
                   onChange={(event) => updateEmailFeedback(event.target.value)}
                   placeholder="Example: Make it shorter, stronger, and focus on sponsor ROI."
-                  className="min-h-24 rounded-none border-zinc-300 bg-white text-sm font-light leading-6 shadow-none focus-visible:ring-1 focus-visible:ring-zinc-900"
+                  className="min-h-24 rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-6 shadow-none focus-visible:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500"
                 />
                 <span className="block text-right text-xs font-light text-zinc-400">
                   {emailDialog.feedback.length}/1200
@@ -2362,7 +2361,7 @@ export function NormalUserEventLeadSheet() {
                       feedback: emailDialog.feedback,
                     })
                   }
-                  className="h-10 gap-2 rounded-none border border-zinc-300 bg-white px-4 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                  className="h-11 gap-2 rounded-full border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
                 >
                   <Sparkles className="h-4 w-4" />
                   {emailDialog.feedback.trim() ? "Regenerate with Feedback" : "Regenerate"}
@@ -2373,7 +2372,7 @@ export function NormalUserEventLeadSheet() {
                       type="button"
                       variant="ghost"
                       onClick={() => void copyEmailDraft("subject")}
-                      className="h-10 gap-2 rounded-none border border-zinc-300 bg-white px-4 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                      className="h-11 gap-2 rounded-full border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
                     >
                       <Copy className="h-4 w-4" />
                       {emailDialog.copiedAction === "subject" ? "Copied" : "Subject"}
@@ -2383,7 +2382,7 @@ export function NormalUserEventLeadSheet() {
                     type="button"
                     variant="ghost"
                     onClick={() => void copyEmailDraft("body")}
-                    className="h-10 gap-2 rounded-none border border-zinc-300 bg-white px-4 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                    className="h-11 gap-2 rounded-full border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
                   >
                     <Copy className="h-4 w-4" />
                     {emailDialog.copiedAction === "body"
@@ -2395,7 +2394,7 @@ export function NormalUserEventLeadSheet() {
                   <Button
                     type="button"
                     onClick={() => void copyEmailDraft("full")}
-                    className="h-10 gap-2 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
+                    className="h-11 gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700"
                   >
                     <Copy className="h-4 w-4" />
                     {emailDialog.copiedAction === "full"
