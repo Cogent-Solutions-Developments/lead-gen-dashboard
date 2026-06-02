@@ -2,9 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { Button } from "@/components/ui/button";
-import { EventRegistryPicker } from "@/components/events/EventRegistryPicker";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -356,7 +354,7 @@ const STATUS_DOT_CLASS: Record<string, string> = {
 const DEFAULT_PAGE_SIZE = 100;
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 const SEARCH_DEBOUNCE_MS = 300;
-const DEAL_CLOSED_ANIMATION_SRC = "https://lottie.host/e872d848-c226-4c29-8108-9111e8bd8c9c/npFGm1Le6t.lottie";
+const DEAL_CLOSED_VIDEO_SRC = "/videos/magnific_recreate-the-scene-with-t_2982250313.mp4";
 
 const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
   fullName: "",
@@ -441,6 +439,12 @@ const EVENT_SELECT_CONTENT_CLASS =
 const EVENT_SELECT_ITEM_CLASS =
   "rounded-xl py-2.5 pl-3 pr-9 text-sm font-medium text-zinc-800 transition-colors focus:bg-zinc-100/80 focus:text-zinc-950 focus:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] focus:[&_svg]:!text-zinc-500 data-[highlighted]:bg-zinc-100/80 data-[highlighted]:text-zinc-950 data-[highlighted]:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] data-[highlighted]:[&_svg]:!text-zinc-500 data-[state=checked]:border data-[state=checked]:border-blue-500/20 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]_svg]:h-4 [&_[data-slot=select-item-indicator]_svg]:w-4 [&_[data-slot=select-item-indicator]_svg]:stroke-[2.25]";
 
+const UPLOAD_EVENT_SELECT_CONTENT_CLASS =
+  "z-[120] max-h-[18rem] w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-5rem)] rounded-2xl border border-zinc-200 bg-white/98 p-0 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-[10px]";
+
+const UPLOAD_EVENT_SELECT_ITEM_CLASS =
+  "w-full rounded-xl py-2.5 pl-3 pr-9 text-sm font-medium text-zinc-800 transition-colors focus:bg-zinc-100/80 focus:text-zinc-950 focus:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] focus:[&_svg]:!text-zinc-500 data-[highlighted]:bg-zinc-100/80 data-[highlighted]:text-zinc-950 data-[highlighted]:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] data-[highlighted]:[&_svg]:!text-zinc-500 data-[state=checked]:border data-[state=checked]:border-blue-500/20 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]_svg]:h-3.5 [&_[data-slot=select-item-indicator]_svg]:w-3.5 [&_[data-slot=select-item-indicator]_svg]:stroke-[2.25]";
+
 function humanizeStatusLabel(value: string) {
   const cleaned = asText(value);
   if (!cleaned) return "New";
@@ -492,10 +496,6 @@ function buildEmailHref(value: string) {
 function buildWhatsAppHref(value: string) {
   const digits = value.replace(/\D/g, "");
   return digits.length >= 8 ? `https://wa.me/${digits}` : "";
-}
-
-function firstName(value: string) {
-  return value.trim().split(/\s+/)[0] || "";
 }
 
 function getUserDisplayName(user: ReturnType<typeof useAuth>["user"]) {
@@ -594,6 +594,7 @@ function LeadSheetDialog({
   sidebarContent,
   eyebrow = "Lead Sheet Updates",
   compact = false,
+  compactSize = "default",
 }: {
   open: boolean;
   title: string;
@@ -603,6 +604,7 @@ function LeadSheetDialog({
   sidebarContent?: ReactNode;
   eyebrow?: string;
   compact?: boolean;
+  compactSize?: "default" | "wide";
 }) {
   if (!open) return null;
 
@@ -616,7 +618,12 @@ function LeadSheetDialog({
           onClick={onClose}
         />
 
-        <div className="relative z-[1] flex max-h-[calc(100dvh-3rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
+        <div
+          className={cn(
+            "relative z-[1] flex max-h-[calc(100dvh-3rem)] w-full flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]",
+            compactSize === "wide" ? "max-w-5xl" : "max-w-2xl"
+          )}
+        >
           <Button
             type="button"
             variant="ghost"
@@ -626,7 +633,7 @@ function LeadSheetDialog({
             <X className="h-4 w-4" />
           </Button>
 
-          <div className="shrink-0 px-8 pb-5 pt-8">
+          <div className={cn("shrink-0 px-8", compactSize === "wide" ? "pb-4 pt-8" : "pb-5 pt-8")}>
             <div className="max-w-md pr-12">
               {eyebrow ? <p className="text-sm font-medium text-zinc-400">{eyebrow}</p> : null}
               <h2 className={cn("text-4xl font-light leading-none tracking-tighter text-zinc-950", eyebrow && "mt-4")}>
@@ -639,7 +646,14 @@ function LeadSheetDialog({
               ) : null}
             </div>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-8 scrollbar-modern">{children}</div>
+          <div
+            className={cn(
+              "min-h-0 flex-1 px-8",
+              compactSize === "wide" ? "overflow-hidden pb-8" : "overflow-y-auto pb-8 scrollbar-modern"
+            )}
+          >
+            {children}
+          </div>
         </div>
       </div>
     );
@@ -767,7 +781,9 @@ export function NormalUserEventLeadSheet() {
   }, [fixedWorkflowStatuses, workflowStatuses]);
   const canUseDealBellFlow = role === "sales_user";
   const canUseTemplateUpload = role === "sales_user" || role === "delegate_user" || role === "production_user";
-  const signedInFirstName = firstName(getUserDisplayName(user)) || "there";
+  const isDealClosedStatusChange = Boolean(
+    pendingStatusChange && canUseDealBellFlow && pendingStatusChange.nextStatus === "deal-closed"
+  );
 
   const loadInitialData = useCallback(async () => {
     setLoadingEvents(true);
@@ -955,6 +971,18 @@ export function NormalUserEventLeadSheet() {
       registryEvents.find((item) => item.id === templateUpload.selectedEventId) ?? null,
     [registryEvents, templateUpload.selectedEventId]
   );
+  const templateUploadEventId =
+    selectedTemplateUploadEvent?.id || templateUpload.selectedEventId;
+
+  const templateUploadEventOptions = useMemo(() => {
+    if (!templateUploadEventId) return activeRegistryEvents;
+    const selectedUploadEvent = activeRegistryEvents.find((event) => event.id === templateUploadEventId);
+    if (!selectedUploadEvent) return activeRegistryEvents;
+    return [
+      selectedUploadEvent,
+      ...activeRegistryEvents.filter((event) => event.id !== templateUploadEventId),
+    ];
+  }, [activeRegistryEvents, templateUploadEventId]);
 
   const selectedAgendaEventId = asText(selectedEvent?.eventRegistryId);
   const selectedAgendaEventKey = asText(selectedEvent?.canonicalEventKey || selectedEventKey);
@@ -1667,8 +1695,6 @@ export function NormalUserEventLeadSheet() {
   };
 
   const templateValidation = templateUpload.validation;
-  const templateUploadEventId =
-    selectedTemplateUploadEvent?.id || templateUpload.selectedEventId;
   const templateUploadReady = Boolean(
     templateUpload.file && templateValidation && selectedTemplateUploadEvent?.isActive
   );
@@ -2020,7 +2046,7 @@ export function NormalUserEventLeadSheet() {
                             </div>
                           </div>
 
-                          <div>
+                          <div className="flex h-full flex-col">
                             <div className="flex items-center gap-4">
                               <div className="relative w-full">
                                 <Select
@@ -2045,12 +2071,12 @@ export function NormalUserEventLeadSheet() {
                               </div>
                               {isUpdating && <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />}
                             </div>
-                            <div className="mt-4 space-y-2">
+                            <div className="mt-auto pt-3">
                               {item.workflowComment ? (
                                 <button
                                   type="button"
                                   onClick={() => void openHistory(item)}
-                                  className="block w-full border-l border-zinc-300 pl-3 text-left transition-colors hover:border-zinc-900"
+                                  className="mb-2 block w-full border-l border-zinc-300 pl-3 text-left transition-colors hover:border-zinc-900"
                                 >
                                   <span className="line-clamp-2 text-xs font-light leading-relaxed text-zinc-500">
                                     {item.workflowComment}
@@ -2118,29 +2144,16 @@ export function NormalUserEventLeadSheet() {
       {pendingStatusChange ? (
         <LeadSheetDialog
           open
+          eyebrow=""
           title="Status Note"
-          description="Add a short comment for this state change so the next person can understand the context."
+          description=""
           onClose={closeStatusCommentDialog}
-          sidebarContent={
-            canUseDealBellFlow && pendingStatusChange.nextStatus === "deal-closed" ? (
-              <div className="absolute inset-0">
-                <div className="absolute inset-0 z-10 bg-zinc-950/40" />
-                <video
-                  src="/videos/magnific_recreate-the-scene-with-t_2982250313.mp4"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="h-full w-full object-cover"
-                />
-              </div>
-            ) : null
-          }
+          compact
+          compactSize={isDealClosedStatusChange ? "wide" : "default"}
         >
-          <div className="space-y-8">
-            <div className="border-b border-zinc-100 pb-6">
-              <p className="text-xs font-medium text-zinc-400">Selected profile</p>
-              <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
+          <div className={cn(isDealClosedStatusChange ? "space-y-5" : "space-y-7")}>
+            <div className={cn("border-b border-zinc-100", isDealClosedStatusChange ? "pb-4" : "pb-6")}>
+              <h3 className="text-2xl font-light tracking-tight text-zinc-950">
                 {pendingStatusChange.item.employeeName || "-"}
               </h3>
               <p className="mt-1 text-sm font-light text-zinc-500">
@@ -2148,77 +2161,136 @@ export function NormalUserEventLeadSheet() {
               </p>
             </div>
 
-            {canUseDealBellFlow && pendingStatusChange.nextStatus === "deal-closed" ? (
-              <div className="text-center">
-                <DotLottieReact
-                  src={DEAL_CLOSED_ANIMATION_SRC}
-                  loop
-                  autoplay
-                  className="mx-auto h-36 w-full max-w-sm"
-                />
-                <p className="mt-1 text-lg font-medium tracking-tight text-zinc-950">
-                  Congrats on closing the deal with {pendingStatusChange.item.employeeName || "this lead"}.
-                </p>
-                <p className="mt-1 text-sm font-light text-zinc-500">
-                  Nice work, {signedInFirstName}. Add a final note so the team has the full context.
-                </p>
+            {isDealClosedStatusChange ? (
+              <div className="rounded-2xl border border-zinc-200 bg-white p-2 shadow-[0_18px_38px_-34px_rgba(15,23,42,0.6)]">
+                <div className="grid gap-2 sm:grid-cols-[20rem_minmax(0,1fr)] sm:items-stretch">
+                  <div className="relative mx-auto h-[min(34rem,calc(100dvh-17rem))] w-full max-w-[20rem] overflow-hidden rounded-xl bg-zinc-950 sm:mx-0 sm:max-w-none">
+                    <video
+                      src={DEAL_CLOSED_VIDEO_SRC}
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      className="h-full w-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/30 via-transparent to-transparent" />
+                  </div>
+                  <div className="flex min-w-0 flex-col gap-4 p-3 sm:p-4">
+                    <div className="grid gap-3">
+                      <div className="flex min-h-14 items-center rounded-xl bg-zinc-50/80 px-4 py-3">
+                        <p className="truncate text-base font-light text-zinc-950">
+                          {pendingStatusChange.item.workflowStatusLabel}
+                        </p>
+                      </div>
+                      <div className="hidden items-center justify-center text-zinc-300 sm:flex">
+                        <ChevronRight className="h-4 w-4 rotate-90" />
+                      </div>
+                      <div className="flex min-h-14 items-center rounded-xl border border-emerald-500/20 bg-[#22c55e] px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)]">
+                        <p className="truncate text-base font-semibold">
+                          {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
+                            humanizeStatusLabel(pendingStatusChange.nextStatus)}
+                        </p>
+                      </div>
+                    </div>
+                    <label className="flex min-h-0 flex-1 flex-col gap-3">
+                      <span className="text-xs font-medium text-zinc-400">Comment optional</span>
+                      <Textarea
+                        value={statusComment}
+                        onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
+                        placeholder="Example: Follow up after first call. Asked to reconnect next week."
+                        className="min-h-32 flex-1 resize-none rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-6 shadow-none focus-visible:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
+                      />
+                      <span className="block text-right text-xs font-light text-zinc-400">
+                        {statusComment.length}/2000
+                      </span>
+                    </label>
+                    <div className="mt-auto flex flex-col gap-3 border-t border-zinc-100 pt-4 sm:flex-row sm:items-center sm:justify-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={closeStatusCommentDialog}
+                        className="h-11 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleUpdateStatusClick}
+                        disabled={Boolean(updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`]) || ringingDealBell}
+                        className="h-11 gap-2 rounded-full border border-emerald-500/20 bg-[#22c55e] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)] hover:bg-emerald-600"
+                      >
+                        {updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`] || ringingDealBell ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <MessageSquare className="h-4 w-4" />
+                        )}
+                        Update Status
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
+            ) : (
+              <div className="rounded-2xl border border-zinc-200 bg-white p-1.5">
+                <div className="grid gap-1.5 sm:grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] sm:items-stretch">
+                  <div className="rounded-xl bg-zinc-50/80 px-4 py-3">
+                    <p className="truncate text-base font-light text-zinc-950">
+                      {pendingStatusChange.item.workflowStatusLabel}
+                    </p>
+                  </div>
+                  <div className="hidden items-center justify-center text-zinc-300 sm:flex">
+                    <ChevronRight className="h-4 w-4" />
+                  </div>
+                  <div className="rounded-xl border border-blue-500/20 bg-blue-600 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)]">
+                    <p className="truncate text-base font-semibold">
+                      {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
+                        humanizeStatusLabel(pendingStatusChange.nextStatus)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!isDealClosedStatusChange ? (
+              <label className="block space-y-3">
+                <span className="text-xs font-medium text-zinc-400">Comment optional</span>
+                <Textarea
+                  value={statusComment}
+                  onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
+                  placeholder="Example: Follow up after first call. Asked to reconnect next week."
+                  className="min-h-32 rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-6 shadow-none focus-visible:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500"
+                />
+                <span className="block text-right text-xs font-light text-zinc-400">
+                  {statusComment.length}/2000
+                </span>
+              </label>
             ) : null}
 
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div className="border border-zinc-200 bg-zinc-50/70 p-4">
-                <p className="text-xs font-medium text-zinc-400">Current status</p>
-                <p className="mt-2 text-lg font-light text-zinc-950">
-                  {pendingStatusChange.item.workflowStatusLabel}
-                </p>
+            {!isDealClosedStatusChange ? (
+              <div className="flex flex-col gap-3 border-t border-zinc-100 pt-6 sm:flex-row sm:items-center sm:justify-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={closeStatusCommentDialog}
+                  className="h-11 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleUpdateStatusClick}
+                  disabled={Boolean(updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`]) || ringingDealBell}
+                  className="h-11 gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700"
+                >
+                  {updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`] || ringingDealBell ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <MessageSquare className="h-4 w-4" />
+                  )}
+                  Update Status
+                </Button>
               </div>
-              <div className="border border-zinc-950 bg-white p-4">
-                <p className="text-xs font-medium text-zinc-400">New status</p>
-                <p className="mt-2 text-lg font-light text-zinc-950">
-                  {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
-                    humanizeStatusLabel(pendingStatusChange.nextStatus)}
-                </p>
-              </div>
-            </div>
-
-            <label className="block space-y-3">
-              <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
-                Comment <span className="normal-case tracking-normal text-zinc-400">Optional</span>
-              </span>
-              <Textarea
-                value={statusComment}
-                onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
-                placeholder="Example: Follow up after first call. Asked to reconnect next week."
-                className="min-h-36 rounded-none border-zinc-300 bg-white text-sm font-light shadow-none focus-visible:ring-1 focus-visible:ring-zinc-900"
-              />
-              <span className="block text-right text-xs font-light text-zinc-400">
-                {statusComment.length}/2000
-              </span>
-            </label>
-
-            <div className="flex justify-end gap-3 border-t border-zinc-100 pt-6">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={closeStatusCommentDialog}
-                className="h-10 rounded-none border border-zinc-300 bg-white px-5 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={handleUpdateStatusClick}
-                disabled={Boolean(updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`]) || ringingDealBell}
-                className="h-10 gap-2 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
-              >
-                {updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`] || ringingDealBell ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <MessageSquare className="h-4 w-4" />
-                )}
-                Update Status
-              </Button>
-            </div>
+            ) : null}
           </div>
         </LeadSheetDialog>
       ) : null}
@@ -2249,39 +2321,40 @@ export function NormalUserEventLeadSheet() {
                 </p>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => void generateContentForPlatform(emailDialog.lead, "email")}
-                  className="group rounded-2xl border border-zinc-200 bg-white p-5 text-left shadow-[0_16px_36px_-30px_rgba(15,23,42,0.65)] transition-all hover:border-red-200 hover:bg-zinc-50/70"
-                >
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full border border-red-500/20 bg-[#EF4444] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(239,68,68,0.82)]">
-                    <Mail className="h-5 w-5 stroke-[2.4]" />
-                  </span>
-                  <span className="mt-5 block text-lg font-medium text-zinc-950">Email</span>
-                  <span className="mt-1 block text-sm font-light leading-6 text-zinc-500">
-                    Subject and longer sales narrative for inbox outreach.
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void generateContentForPlatform(emailDialog.lead, "whatsapp")}
-                  className="group rounded-2xl border border-zinc-200 bg-white p-5 text-left shadow-[0_16px_36px_-30px_rgba(15,23,42,0.65)] transition-all hover:border-emerald-200 hover:bg-zinc-50/70"
-                >
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#22c55e]/30 bg-[#22c55e] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-16px_rgba(34,197,94,0.82)]">
-                    <WhatsAppIcon className="h-5 w-5" />
-                  </span>
-                  <span className="mt-5 block text-lg font-medium text-zinc-950">WhatsApp</span>
-                  <span className="mt-1 block text-sm font-light leading-6 text-zinc-500">
-                    Short, direct message for a quick reply.
-                  </span>
-                </button>
+              <div>
+                <div className="flex flex-col gap-3 rounded-full border border-zinc-200 bg-white p-1.5 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => void generateContentForPlatform(emailDialog.lead, "email")}
+                    className="inline-flex h-12 flex-1 items-center justify-center gap-2.5 rounded-full border border-red-500/20 bg-[#EF4444] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(239,68,68,0.85)] transition-colors hover:bg-red-600"
+                  >
+                    <Mail className="h-[18px] w-[18px] stroke-[2.4]" />
+                    Email
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void generateContentForPlatform(emailDialog.lead, "whatsapp")}
+                    className="inline-flex h-12 flex-1 items-center justify-center gap-2.5 rounded-full border border-[#22c55e]/30 bg-[#22c55e] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)] transition-colors hover:bg-emerald-600"
+                  >
+                    <WhatsAppIcon className="h-[18px] w-[18px]" />
+                    WhatsApp
+                  </button>
+                </div>
               </div>
             </div>
           ) : emailDialog.loading ? (
             <div className="flex min-h-[24rem] flex-col items-center justify-center text-center">
               <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-zinc-200 bg-white">
-                <Loader2 className="h-7 w-7 animate-spin text-blue-600" />
+                <Loader2
+                  className={cn(
+                    "h-7 w-7 animate-spin",
+                    emailDialog.platform === "email"
+                      ? "text-red-500"
+                      : emailDialog.platform === "whatsapp"
+                        ? "text-emerald-500"
+                        : "text-blue-600"
+                  )}
+                />
               </div>
               <h3 className="mt-6 text-2xl font-light tracking-tight text-zinc-950">Generating content</h3>
               <p className="mt-2 max-w-sm text-sm font-light leading-6 text-zinc-500">
@@ -2291,7 +2364,14 @@ export function NormalUserEventLeadSheet() {
                 {[0, 1, 2].map((item) => (
                   <div key={item} className="h-3 overflow-hidden bg-zinc-100">
                     <div
-                      className="h-full w-1/2 animate-pulse bg-blue-600/70"
+                      className={cn(
+                        "h-full w-1/2 animate-pulse",
+                        emailDialog.platform === "email"
+                          ? "bg-red-500/70"
+                          : emailDialog.platform === "whatsapp"
+                            ? "bg-emerald-500/70"
+                            : "bg-blue-600/70"
+                      )}
                       style={{ marginLeft: `${item * 16}%` }}
                     />
                   </div>
@@ -2442,46 +2522,79 @@ export function NormalUserEventLeadSheet() {
           <button
             type="button"
             aria-label="Close bell confirmation"
-            className="absolute inset-0 bg-zinc-950/20 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-zinc-950/30 backdrop-blur-[3px]"
             onClick={() => {
               if (!ringingDealBell) setRingBellConfirmOpen(false);
             }}
           />
 
-          <div className="relative z-[1] w-full max-w-md overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_90px_-54px_rgba(2,10,27,0.82)]">
-            <div className="border-b border-zinc-100 px-7 py-6">
-              <h3 className="text-3xl font-light leading-none tracking-[-0.04em] text-zinc-950">
-                Ring the deal bell?
-              </h3>
-              <p className="mt-1.5 max-w-sm text-sm font-light leading-6 text-zinc-500">
-                Let the team know you closed the deal with{" "}
-                <span className="font-medium text-zinc-700">{pendingStatusChange.item.employeeName || "this lead"}</span>.
-              </p>
-            </div>
+          <div className="relative z-[1] w-full max-w-lg overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_90px_-54px_rgba(2,10,27,0.82)]">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={ringingDealBell}
+              className="absolute right-5 top-5 z-20 h-10 w-10 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+              onClick={() => setRingBellConfirmOpen(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
 
-            <div className="flex justify-end gap-3 bg-zinc-50/70 px-7 py-5">
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={ringingDealBell}
-                onClick={() => setRingBellConfirmOpen(false)}
-                className="h-10 rounded-none border border-zinc-300 bg-white px-5 text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                disabled={ringingDealBell}
-                onClick={() => void submitStatusComment({ ringBell: true })}
-                className="h-10 gap-2 rounded-none bg-zinc-950 px-5 text-white hover:bg-blue-600"
-              >
-                {ringingDealBell ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <BellRing className="h-4 w-4" />
-                )}
-                Ring bell
-              </Button>
+            <div className="px-8 pb-8 pt-8">
+              <div className="pr-12">
+                <h3 className="text-4xl font-light leading-none tracking-tighter text-zinc-950">
+                  Ring the deal bell?
+                </h3>
+                <p className="mt-3 text-sm font-light leading-6 text-zinc-500">
+                  Let the team know you closed the deal with{" "}
+                  <span className="font-medium text-zinc-700">
+                    {pendingStatusChange.item.employeeName || "this lead"}
+                  </span>.
+                </p>
+              </div>
+
+              <div className="mt-7 rounded-2xl border border-zinc-200 bg-white p-1.5">
+                <div className="grid gap-1.5 sm:grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] sm:items-stretch">
+                  <div className="rounded-xl bg-zinc-50/80 px-4 py-3">
+                    <p className="truncate text-base font-light text-zinc-950">
+                      {pendingStatusChange.item.workflowStatusLabel}
+                    </p>
+                  </div>
+                  <div className="hidden items-center justify-center text-zinc-300 sm:flex">
+                    <ChevronRight className="h-4 w-4" />
+                  </div>
+                  <div className="rounded-xl border border-emerald-500/20 bg-[#22c55e] px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)]">
+                    <p className="truncate text-base font-semibold">
+                      {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
+                        humanizeStatusLabel(pendingStatusChange.nextStatus)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-7 flex flex-col gap-3 border-t border-zinc-100 pt-6 sm:flex-row sm:items-center sm:justify-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={ringingDealBell}
+                  onClick={() => setRingBellConfirmOpen(false)}
+                  className="h-11 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  disabled={ringingDealBell}
+                  onClick={() => void submitStatusComment({ ringBell: true })}
+                  className="h-11 gap-2 rounded-full border border-emerald-500/20 bg-[#22c55e] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)] hover:bg-emerald-600"
+                >
+                  {ringingDealBell ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <BellRing className="h-4 w-4" />
+                  )}
+                  Ring bell
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -2821,20 +2934,36 @@ export function NormalUserEventLeadSheet() {
         <div className="space-y-7">
           <div>
             <label className="mb-3 block text-xs font-medium text-zinc-400">Related event</label>
-            <EventRegistryPicker
-              events={registryEvents}
+            <Select
               value={templateUploadEventId}
               onValueChange={(value) =>
                 setTemplateUpload((prev) => ({ ...prev, selectedEventId: value }))
               }
-              loading={loadingEvents}
-              disabled={templateUpload.validating || templateUpload.submitting}
-              placeholder="Select event"
-              showStatusTabs={false}
-              inactiveSelectable={false}
-              triggerClassName="!h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light shadow-none transition-colors hover:border-blue-600 hover:text-blue-700"
-              contentClassName="rounded-2xl border-zinc-200 bg-white/98 p-2 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)]"
-            />
+              disabled={loadingEvents || templateUpload.validating || templateUpload.submitting}
+            >
+              <SelectTrigger
+                aria-label="Select upload event"
+                className="group !h-12 w-full justify-start gap-3 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-left text-lg font-light text-zinc-950 shadow-none transition-colors hover:border-blue-600 hover:text-blue-700 focus:ring-0 focus-visible:ring-0 [&>svg]:h-5 [&>svg]:w-5 [&>svg]:opacity-40"
+              >
+                <SelectValue placeholder={loadingEvents ? "Loading events..." : "Select event"} />
+              </SelectTrigger>
+              <SelectContent
+                align="start"
+                position="popper"
+                className={UPLOAD_EVENT_SELECT_CONTENT_CLASS}
+                viewportClassName="w-auto min-w-0 p-4"
+              >
+                {templateUploadEventOptions.map((event) => (
+                  <SelectItem
+                    key={event.id}
+                    value={event.id}
+                    className={UPLOAD_EVENT_SELECT_ITEM_CLASS}
+                  >
+                    {getDisplayEventName(event.eventName)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div
