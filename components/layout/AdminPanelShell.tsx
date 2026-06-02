@@ -45,12 +45,6 @@ const adminTabs = [
     match: (pathname: string) => pathname === "/admin/events",
   },
   {
-    name: "Content Prompts",
-    href: "/admin/content-prompts",
-    icon: FileText,
-    match: (pathname: string) => pathname === "/admin/content-prompts",
-  },
-  {
     name: "Category Registry",
     href: "/admin/categories",
     icon: Tags,

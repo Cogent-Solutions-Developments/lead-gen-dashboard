@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, ty
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { Button } from "@/components/ui/button";
+import { EventRegistryPicker } from "@/components/events/EventRegistryPicker";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -39,7 +40,7 @@ import {
   type WorkflowStatusDefinitionItem,
   type WorkflowStatusHistoryItem,
 } from "@/lib/apiRouter";
-import { createProtectedObjectUrl, getCachedAuthUserDisplayName } from "@/lib/auth";
+import { createProtectedObjectUrl, getCachedAuthUserDisplayName, listActiveEventRegistry, type AdminEventItem } from "@/lib/auth";
 import { persistCampaignUploadSummary } from "@/lib/campaignUploadSummary";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
@@ -152,7 +153,7 @@ type TemplateUploadState = {
   validation: LeadTemplateValidationResponse | null;
   error: string;
   submitting: boolean;
-  selectedEventKey: string;
+  selectedEventId: string;
 };
 
 const LinkedInIcon = ({ className }: { className?: string }) => (
@@ -378,7 +379,7 @@ const EMPTY_TEMPLATE_UPLOAD: TemplateUploadState = {
   validation: null,
   error: "",
   submitting: false,
-  selectedEventKey: "",
+  selectedEventId: "",
 };
 const LEAD_TEMPLATE_ACCEPT = ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const LEAD_TEMPLATE_HEADERS = "Company | Full Name | Job Title | Telephone Number | Mobile | Email | comments";
@@ -436,9 +437,6 @@ function getDisplayEventName(name?: string | null) {
 
 const EVENT_SELECT_CONTENT_CLASS =
   "z-[120] max-h-[18rem] w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-zinc-200 bg-white/98 p-2 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-[10px]";
-
-const MODAL_EVENT_SELECT_CONTENT_CLASS =
-  "z-[120] max-h-[15rem] w-[28rem] max-w-[calc(100vw-5rem)] rounded-2xl border border-zinc-200 bg-white/98 p-3 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-[10px]";
 
 const EVENT_SELECT_ITEM_CLASS =
   "rounded-xl py-2.5 pl-3 pr-9 text-sm font-medium text-zinc-800 transition-colors focus:bg-zinc-100/80 focus:text-zinc-950 focus:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] focus:[&_svg]:!text-zinc-500 data-[highlighted]:bg-zinc-100/80 data-[highlighted]:text-zinc-950 data-[highlighted]:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] data-[highlighted]:[&_svg]:!text-zinc-500 data-[state=checked]:border data-[state=checked]:border-blue-500/20 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]_svg]:h-4 [&_[data-slot=select-item-indicator]_svg]:w-4 [&_[data-slot=select-item-indicator]_svg]:stroke-[2.25]";
@@ -704,6 +702,7 @@ export function NormalUserEventLeadSheet() {
   const uploadParam = searchParams.get("upload") || "";
 
   const [events, setEvents] = useState<EventSummaryItem[]>([]);
+  const [registryEvents, setRegistryEvents] = useState<AdminEventItem[]>([]);
   const [leadPage, setLeadPage] = useState<EventLeadListResponse | null>(null);
   const [workflowStatuses, setWorkflowStatuses] = useState<WorkflowStatusDefinitionItem[]>(
     FIXED_WORKFLOW_STATUSES
@@ -777,6 +776,7 @@ export function NormalUserEventLeadSheet() {
         listEvents(),
         listWorkflowStatuses(),
       ]);
+      const registryRows = await listActiveEventRegistry();
       let finalStatuses = Array.isArray(initialStatusResponse.statuses)
         ? initialStatusResponse.statuses
         : [];
@@ -803,12 +803,14 @@ export function NormalUserEventLeadSheet() {
       }
 
       setEvents(eventsResponse.events || []);
+      setRegistryEvents(registryRows);
       setWorkflowStatuses(buildFixedWorkflowStatuses(finalStatuses, fixedWorkflowStatuses));
     } catch (error: unknown) {
       toast.error("Failed to load lead sheet", {
         description: getErrorMessage(error),
       });
       setEvents([]);
+      setRegistryEvents([]);
       setLeadPage(null);
       setWorkflowStatuses(fixedWorkflowStatuses);
     } finally {
@@ -840,12 +842,58 @@ export function NormalUserEventLeadSheet() {
     setPageOffset(0);
   }, [searchInput, searchParams]);
 
+  const eventSummaryKeySet = useMemo(() => {
+    return new Set(events.map((item) => asText(item.canonicalEventKey)).filter(Boolean));
+  }, [events]);
+
+  const leadSheetEventOptions = useMemo<AdminEventItem[]>(() => {
+    const byKey = new Map<string, AdminEventItem>();
+
+    for (const event of registryEvents) {
+      const eventKey = asText(event.eventKey);
+      if (!eventKey) continue;
+      byKey.set(eventKey, event);
+    }
+
+    for (const event of events) {
+      const eventKey = asText(event.canonicalEventKey);
+      if (!eventKey || byKey.has(eventKey)) continue;
+      byKey.set(eventKey, {
+        id: asText(event.eventRegistryId) || eventKey,
+        eventKey,
+        eventName: asText(event.canonicalEventName) || eventKey,
+        location: null,
+        category: null,
+        date: null,
+        logoStorageObjectId: event.logoStorageObjectId ?? null,
+        logoUrl: event.logoUrl ?? null,
+        isActive: true,
+        createdByUserId: null,
+        createdAt: null,
+        updatedAt: null,
+      });
+    }
+
+    return Array.from(byKey.values());
+  }, [events, registryEvents]);
+
+  const activeRegistryEvents = useMemo(
+    () => registryEvents.filter((event) => event.isActive),
+    [registryEvents]
+  );
+  const hasActiveRegistryEvents = activeRegistryEvents.length > 0;
+  const getRegistryEventKey = useCallback((event: AdminEventItem) => asText(event.eventKey), []);
+  const isLeadSheetEventSelectable = useCallback(
+    (event: AdminEventItem) => event.isActive && eventSummaryKeySet.has(asText(event.eventKey)),
+    [eventSummaryKeySet]
+  );
+
   const selectedEventKey = useMemo(() => {
-    if (eventParam && events.some((item) => item.canonicalEventKey === eventParam)) {
+    if (eventParam && eventSummaryKeySet.has(eventParam)) {
       return eventParam;
     }
     return events[0]?.canonicalEventKey || "";
-  }, [eventParam, events]);
+  }, [eventParam, eventSummaryKeySet, events]);
 
   useEffect(() => {
     if (!events.length || !selectedEventKey || eventParam === selectedEventKey) return;
@@ -882,12 +930,14 @@ export function NormalUserEventLeadSheet() {
 
   useEffect(() => {
     if (uploadParam !== "1" || !canUseTemplateUpload) return;
+    const selectedRegistryEvent =
+      activeRegistryEvents.find((event) => event.eventKey === selectedEventKey) ?? activeRegistryEvents[0] ?? null;
     setTemplateUploadOpen(true);
     setTemplateUpload((prev) => ({
       ...prev,
-      selectedEventKey: prev.selectedEventKey || selectedEventKey,
+      selectedEventId: prev.selectedEventId || selectedRegistryEvent?.id || "",
     }));
-  }, [canUseTemplateUpload, selectedEventKey, uploadParam]);
+  }, [activeRegistryEvents, canUseTemplateUpload, selectedEventKey, uploadParam]);
 
   const loadEventPage = useCallback(async (canonicalEventKey: string, nextOffset: number, query: string) => {
     setLoadingLeads(true);
@@ -938,8 +988,8 @@ export function NormalUserEventLeadSheet() {
 
   const selectedTemplateUploadEvent = useMemo(
     () =>
-      events.find((item) => item.canonicalEventKey === templateUpload.selectedEventKey) ?? null,
-    [events, templateUpload.selectedEventKey]
+      registryEvents.find((item) => item.id === templateUpload.selectedEventId) ?? null,
+    [registryEvents, templateUpload.selectedEventId]
   );
 
   const selectedAgendaEventId = asText(selectedEvent?.eventRegistryId);
@@ -1115,7 +1165,7 @@ export function NormalUserEventLeadSheet() {
   const handleTemplateFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     if (!file) return;
-    if (!templateUpload.selectedEventKey) {
+    if (!templateUpload.selectedEventId) {
       event.target.value = "";
       toast.error("Select the event before uploading the Excel file.");
       return;
@@ -1168,18 +1218,22 @@ export function NormalUserEventLeadSheet() {
     }
 
     const uploadEvent = selectedTemplateUploadEvent;
-    const eventRegistryId = asText(uploadEvent?.eventRegistryId);
+    const eventRegistryId = asText(uploadEvent?.id);
     if (!uploadEvent || !eventRegistryId) {
       toast.error("Select a registered event before submitting.");
+      return;
+    }
+    if (!uploadEvent.isActive) {
+      toast.error("Select an active registered event before submitting.");
       return;
     }
 
     setTemplateUpload((prev) => ({ ...prev, submitting: true, error: "" }));
     try {
       const response = await createCampaignFromUpload({
-        name: uploadEvent.canonicalEventName,
+        name: uploadEvent.eventName,
         eventRegistryId,
-        icp: `Template upload for ${uploadEvent.canonicalEventName}`,
+        icp: `Template upload for ${uploadEvent.eventName}`,
         leadSheet: templateUpload.file,
       });
       const createdCampaigns = response.createdCampaigns?.length ? response.createdCampaigns : [response];
@@ -1190,16 +1244,16 @@ export function NormalUserEventLeadSheet() {
         description:
           createdCampaigns.length > 1
             ? `${response.importSummary.importedLeads.toLocaleString()} leads created across ${createdCampaigns.length.toLocaleString()} category campaigns.`
-            : `${response.importSummary.importedLeads.toLocaleString()} leads added to ${uploadEvent.canonicalEventName}.`,
+            : `${response.importSummary.importedLeads.toLocaleString()} leads added to ${uploadEvent.eventName}.`,
       });
       setTemplateUploadOpen(false);
       setTemplateUpload({
         ...EMPTY_TEMPLATE_UPLOAD,
-        selectedEventKey: uploadEvent.canonicalEventKey,
+        selectedEventId: uploadEvent.id,
       });
 
       const nextParams = new URLSearchParams(searchParams.toString());
-      nextParams.set("event", uploadEvent.canonicalEventKey);
+      nextParams.set("event", response.canonicalEventKey || uploadEvent.eventKey);
       nextParams.delete("upload");
       nextParams.delete("search");
       const nextQuery = nextParams.toString();
@@ -1642,9 +1696,11 @@ export function NormalUserEventLeadSheet() {
   };
 
   const templateValidation = templateUpload.validation;
-  const templateUploadEventKey =
-    selectedTemplateUploadEvent?.canonicalEventKey || templateUpload.selectedEventKey;
-  const templateUploadReady = Boolean(templateUpload.file && templateValidation && selectedTemplateUploadEvent);
+  const templateUploadEventId =
+    selectedTemplateUploadEvent?.id || templateUpload.selectedEventId;
+  const templateUploadReady = Boolean(
+    templateUpload.file && templateValidation && selectedTemplateUploadEvent?.isActive
+  );
 
   return (
     <>
@@ -1688,7 +1744,7 @@ export function NormalUserEventLeadSheet() {
                   <button
                     type="button"
                     onClick={openTemplateUploadDialog}
-                    disabled={!events.length}
+                    disabled={!hasActiveRegistryEvents}
                     className="inline-flex h-9 w-40 items-center justify-center gap-2.5 rounded-full text-sm font-semibold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-50"
                   >
                     <FileUp className="h-4 w-4" />
@@ -1719,8 +1775,26 @@ export function NormalUserEventLeadSheet() {
 
         <div className="grid min-h-0 flex-1 gap-12 overflow-hidden pt-10 xl:grid-cols-[19rem_minmax(0,1fr)]">
           <aside className="shrink-0 space-y-10 overflow-y-auto pr-2 scrollbar-hide">
-            <div>
-              <div>
+            <div className="space-y-6">
+              <div className="space-y-5">
+                <label className="text-xs font-medium text-zinc-400">Context registry</label>
+                <EventRegistryPicker
+                  events={leadSheetEventOptions}
+                  value={selectedEventKey}
+                  onValueChange={handleEventChange}
+                  loading={loadingEvents}
+                  placeholder="Select context"
+                  showStatusLabel={false}
+                  showStatusTabs={false}
+                  inactiveSelectable={false}
+                  getEventValue={getRegistryEventKey}
+                  isEventSelectable={isLeadSheetEventSelectable}
+                  triggerClassName="!h-14 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light shadow-none hover:border-blue-600"
+                  contentClassName="rounded-none border-zinc-300 shadow-xl"
+                />
+              </div>
+
+              <div className="border-t border-zinc-100 pt-6">
                 <label className="text-xs font-medium text-zinc-400">Event agenda</label>
                 <div className="mt-5">
                   {agendaState.loading ? (
@@ -2794,34 +2868,20 @@ export function NormalUserEventLeadSheet() {
         <div className="space-y-7">
           <div>
             <label className="mb-3 block text-xs font-medium text-zinc-400">Related event</label>
-            <Select
-              value={templateUploadEventKey}
+            <EventRegistryPicker
+              events={registryEvents}
+              value={templateUploadEventId}
               onValueChange={(value) =>
-                setTemplateUpload((prev) => ({ ...prev, selectedEventKey: value }))
+                setTemplateUpload((prev) => ({ ...prev, selectedEventId: value }))
               }
-            >
-              <SelectTrigger className="group !h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-left text-lg font-light shadow-none transition-colors hover:text-blue-700 focus:border-blue-600 focus:ring-0 [&>svg]:opacity-40 [&>svg]:transition-colors [&>svg]:group-hover:opacity-70">
-                <span className="min-w-0 truncate">
-                  {getDisplayEventName(selectedTemplateUploadEvent?.canonicalEventName) || "Select event"}
-                </span>
-              </SelectTrigger>
-              <SelectContent
-                align="start"
-                position="popper"
-                className={MODAL_EVENT_SELECT_CONTENT_CLASS}
-                viewportClassName="min-w-0"
-              >
-                {events.map((item) => (
-                  <SelectItem
-                    key={item.canonicalEventKey}
-                    value={item.canonicalEventKey}
-                    className={EVENT_SELECT_ITEM_CLASS}
-                  >
-                    {getDisplayEventName(item.canonicalEventName)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              loading={loadingEvents}
+              disabled={templateUpload.validating || templateUpload.submitting}
+              placeholder="Select event"
+              showStatusTabs={false}
+              inactiveSelectable={false}
+              triggerClassName="!h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light shadow-none transition-colors hover:border-blue-600 hover:text-blue-700"
+              contentClassName="rounded-2xl border-zinc-200 bg-white/98 p-2 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)]"
+            />
           </div>
 
           <div

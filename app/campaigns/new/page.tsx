@@ -9,13 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { EventRegistryPicker } from "@/components/events/EventRegistryPicker";
 import { createCampaign } from "@/lib/apiRouter";
 import { listAdminEvents, type AdminEventItem } from "@/lib/auth";
 
@@ -39,7 +33,7 @@ export default function NewCampaignPage() {
     const loadEvents = async () => {
       setEventsLoading(true);
       try {
-        const rows = await listAdminEvents(false);
+        const rows = await listAdminEvents(true);
         if (!active) return;
         setEvents(rows);
       } catch (error: unknown) {
@@ -67,6 +61,7 @@ export default function NewCampaignPage() {
 
   const validateForm = () => {
     if (!selectedEvent) return "Event selection is required.";
+    if (!selectedEvent.isActive) return "Selected event is inactive. Activate it before creating a campaign.";
     if (!selectedEvent.eventName.trim()) return "Selected event is missing a name.";
     if (!selectedEvent.location?.trim()) return "Selected event is missing a location.";
     if (!selectedEvent.date?.trim()) return "Selected event is missing a date.";
@@ -133,29 +128,22 @@ export default function NewCampaignPage() {
               <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                 Event Name
               </label>
-              <Select
+              <EventRegistryPicker
+                events={events}
                 value={selectedEventId}
                 onValueChange={setSelectedEventId}
+                loading={eventsLoading}
                 disabled={eventsLoading || isSubmitting}
-              >
-                <SelectTrigger className="h-10 border-zinc-300 bg-white">
-                  <SelectValue
-                    placeholder={eventsLoading ? "Loading events..." : "Select an event"}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {events.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.eventName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Select an event"
+                inactiveSelectable={false}
+                showStatusLabel={false}
+                triggerClassName="h-10 min-h-10 border-zinc-300 bg-white py-0"
+              />
               {events.length === 0 && !eventsLoading ? (
                 <p className="text-xs text-zinc-500">
-                  No active events are available.{" "}
+                  No events are available.{" "}
                   <Link href="/admin/events" className="font-semibold text-zinc-700 hover:text-zinc-900">
-                    Activate an event first
+                    Add an event first
                   </Link>
                   .
                 </p>

@@ -6,8 +6,6 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft,
   CalendarDays,
-  Check,
-  ChevronDown,
   Download,
   FileText,
   Trash2,
@@ -18,6 +16,7 @@ import {
   UploadCloud,
 } from "lucide-react";
 import { toast } from "sonner";
+import { EventRegistryPicker } from "@/components/events/EventRegistryPicker";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -30,7 +29,6 @@ import {
 import { listAdminEvents, type AdminEventItem } from "@/lib/auth";
 
 const MAX_AGENDA_BYTES = 20 * 1024 * 1024;
-type EventStatusTab = "active" | "inactive";
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Please try again.";
@@ -70,7 +68,6 @@ function sortEvents(events: AdminEventItem[]) {
 
 export default function AdminAgendasPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const eventPickerRef = useRef<HTMLDivElement | null>(null);
   const [events, setEvents] = useState<AdminEventItem[]>([]);
   const [selectedEventId, setSelectedEventId] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -82,22 +79,11 @@ export default function AdminAgendasPage() {
   const [deleteTarget, setDeleteTarget] = useState<EventAgendaItem | null>(null);
   const [agendas, setAgendas] = useState<EventAgendaItem[]>([]);
   const [agendaError, setAgendaError] = useState("");
-  const [eventPickerOpen, setEventPickerOpen] = useState(false);
-  const [eventStatusTab, setEventStatusTab] = useState<EventStatusTab>("active");
 
   const selectedEvent = useMemo(
     () => events.find((event) => event.id === selectedEventId) ?? null,
     [events, selectedEventId]
   );
-  const groupedEvents = useMemo(
-    () => ({
-      active: sortEvents(events.filter((event) => event.isActive)),
-      inactive: sortEvents(events.filter((event) => !event.isActive)),
-    }),
-    [events]
-  );
-  const visiblePickerEvents = eventStatusTab === "active" ? groupedEvents.active : groupedEvents.inactive;
-  const selectedEventStatusLabel = selectedEvent ? (selectedEvent.isActive ? "Active" : "Inactive") : "";
   const latestAgenda = agendas[0] ?? null;
 
   const loadEvents = useCallback(async () => {
@@ -139,37 +125,6 @@ export default function AdminAgendasPage() {
   useEffect(() => {
     void loadAgendas(selectedEventId);
   }, [loadAgendas, selectedEventId]);
-
-  useEffect(() => {
-    if (!eventPickerOpen) return;
-
-    const handlePointerDown = (event: MouseEvent) => {
-      const target = event.target;
-      if (target instanceof Node && eventPickerRef.current?.contains(target)) return;
-      setEventPickerOpen(false);
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setEventPickerOpen(false);
-    };
-
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [eventPickerOpen]);
-
-  const toggleEventPicker = () => {
-    if (loadingEvents || uploading) return;
-    setEventStatusTab(selectedEvent?.isActive === false ? "inactive" : "active");
-    setEventPickerOpen((current) => !current);
-  };
-
-  const handleEventSelect = (eventId: string) => {
-    setSelectedEventId(eventId);
-    setEventPickerOpen(false);
-  };
 
   const handleFileChange = (file: File | null) => {
     if (!file) {
@@ -304,72 +259,14 @@ export default function AdminAgendasPage() {
           <div className="mt-6 space-y-5">
             <div className="space-y-2">
               <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Event</label>
-              <div ref={eventPickerRef} className="relative">
-                <button
-                  type="button"
-                  onClick={toggleEventPicker}
-                  disabled={loadingEvents || uploading}
-                  className="flex min-h-11 w-full items-center justify-between gap-3 rounded-md border border-zinc-300 bg-white px-3 py-2 text-left text-sm shadow-none transition-colors hover:border-zinc-400 disabled:opacity-60"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className={selectedEvent ? "block truncate font-medium text-zinc-900" : "block text-zinc-400"}>
-                      {loadingEvents ? "Loading events..." : selectedEvent?.eventName || "Select event"}
-                    </span>
-                    {selectedEvent ? (
-                      <span className={selectedEvent.isActive ? "mt-0.5 block text-xs text-emerald-700" : "mt-0.5 block text-xs text-zinc-400"}>
-                        {selectedEventStatusLabel} event
-                      </span>
-                    ) : null}
-                  </span>
-                  <ChevronDown className={eventPickerOpen ? "h-4 w-4 shrink-0 rotate-180 text-zinc-400 transition-transform" : "h-4 w-4 shrink-0 text-zinc-400 transition-transform"} />
-                </button>
-
-                {eventPickerOpen ? (
-                  <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-zinc-300 bg-white shadow-[0_24px_60px_-34px_rgba(2,10,27,0.5)]">
-                    <div className="grid grid-cols-2 gap-1 border-b border-zinc-100 bg-zinc-50/80 p-2">
-                      <button
-                        type="button"
-                        onClick={() => setEventStatusTab("active")}
-                        className={eventStatusTab === "active" ? "h-9 rounded-lg bg-white px-3 text-xs font-bold uppercase tracking-wider text-emerald-700 shadow-sm" : "h-9 rounded-lg px-3 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:bg-white/70 hover:text-zinc-700"}
-                      >
-                        Active ({groupedEvents.active.length})
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEventStatusTab("inactive")}
-                        className={eventStatusTab === "inactive" ? "h-9 rounded-lg bg-white px-3 text-xs font-bold uppercase tracking-wider text-zinc-700 shadow-sm" : "h-9 rounded-lg px-3 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:bg-white/70 hover:text-zinc-700"}
-                      >
-                        Inactive ({groupedEvents.inactive.length})
-                      </button>
-                    </div>
-
-                    <div className="max-h-72 overflow-y-auto p-2">
-                      {visiblePickerEvents.length > 0 ? (
-                        <div className="space-y-1">
-                          {visiblePickerEvents.map((event) => {
-                            const isSelected = event.id === selectedEventId;
-                            return (
-                              <button
-                                key={event.id}
-                                type="button"
-                                onClick={() => handleEventSelect(event.id)}
-                                className={isSelected ? "flex w-full items-center justify-between gap-3 rounded-lg bg-zinc-100 px-3 py-2.5 text-left text-sm font-medium text-zinc-950" : "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-950"}
-                              >
-                                <span className="min-w-0 truncate">{event.eventName}</span>
-                                {isSelected ? <Check className="h-4 w-4 shrink-0 text-zinc-700" /> : null}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="px-3 py-8 text-center text-sm font-medium text-zinc-400">
-                          No {eventStatusTab} events available
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
+              <EventRegistryPicker
+                events={events}
+                value={selectedEventId}
+                onValueChange={setSelectedEventId}
+                loading={loadingEvents}
+                disabled={uploading}
+                placeholder="Select event"
+              />
             </div>
 
             <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50/80 p-5">

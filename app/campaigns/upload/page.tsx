@@ -11,17 +11,11 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { EventRegistryPicker } from "@/components/events/EventRegistryPicker";
 import { createCampaignFromUpload } from "@/lib/apiRouter";
 import { persistCampaignUploadSummary } from "@/lib/campaignUploadSummary";
 import { useAuth } from "@/hooks/useAuth";
-import { getCachedAuthUserDisplayName, listActiveEventRegistry, type AdminEventItem } from "@/lib/auth";
+import { getCachedAuthUserDisplayName, listActiveEventRegistry, listAdminEvents, type AdminEventItem } from "@/lib/auth";
 
 const uploadSteps = [
   { id: "event", label: "Event" },
@@ -105,11 +99,12 @@ export default function UploadCampaignPage() {
   }, [isSuperAdmin, router, user]);
 
   useEffect(() => {
+    if (!user) return;
     let active = true;
     const loadEvents = async () => {
       setEventsLoading(true);
       try {
-        const rows = await listActiveEventRegistry();
+        const rows = isSuperAdmin ? await listAdminEvents(true) : await listActiveEventRegistry();
         if (!active) return;
         setEvents(rows);
       } catch (error: unknown) {
@@ -128,7 +123,7 @@ export default function UploadCampaignPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [isSuperAdmin, user]);
 
   const selectedEvent = useMemo(
     () => events.find((item) => item.id === selectedEventId) ?? null,
@@ -136,7 +131,8 @@ export default function UploadCampaignPage() {
   );
   const eventReady = Boolean(
     selectedEvent?.eventName.trim() &&
-      selectedEvent.location?.trim()
+      selectedEvent.location?.trim() &&
+      selectedEvent.isActive
   );
   const displayName = getDisplayName(user);
   const firstName = displayName.split(/\s+/)[0] || "there";
@@ -153,6 +149,7 @@ export default function UploadCampaignPage() {
 
   const validateForm = () => {
     if (!selectedEvent) return "Event selection is required.";
+    if (!selectedEvent.isActive) return "Selected event is inactive. Activate it before uploading leads.";
     if (!selectedEvent.eventName.trim()) return "Selected event is missing a name.";
     if (!selectedEvent.location?.trim()) return "Selected event is missing a location.";
     return validateLeadSheet(leadSheet);
@@ -160,6 +157,7 @@ export default function UploadCampaignPage() {
 
   const validateEventStep = () => {
     if (!selectedEvent) return "Event selection is required.";
+    if (!selectedEvent.isActive) return "Selected event is inactive. Activate it before uploading leads.";
     if (!selectedEvent.eventName.trim()) return "Selected event is missing a name.";
     if (!selectedEvent.location?.trim()) return "Selected event is missing a location.";
     return null;
@@ -385,22 +383,19 @@ export default function UploadCampaignPage() {
 
                 <div className="space-y-8">
                   <div>
-                    <Select
+                    <EventRegistryPicker
+                      events={events}
                       value={selectedEventId}
                       onValueChange={setSelectedEventId}
+                      loading={eventsLoading}
                       disabled={eventsLoading || isSubmitting}
-                    >
-                      <SelectTrigger className="!h-14 w-full max-w-xl rounded-full border border-zinc-400 bg-white px-5 text-lg font-semibold text-zinc-700 shadow-none transition-colors hover:border-zinc-500 hover:text-zinc-950 focus:border-blue-600 focus:ring-0 [&>svg]:h-5 [&>svg]:w-5 [&>svg]:text-zinc-500">
-                        <SelectValue placeholder={eventsLoading ? "Accessing registry..." : "Choose an event"} />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-zinc-300 bg-white shadow-xl">
-                        {events.map((item) => (
-                          <SelectItem key={item.id} value={item.id} className="py-3 text-base">
-                            {item.eventName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Choose an event"
+                      loadingLabel="Accessing registry..."
+                      showStatusTabs={false}
+                      inactiveSelectable={false}
+                      triggerClassName="!h-14 max-w-xl rounded-full border-zinc-400 px-5 text-lg font-semibold text-zinc-700 hover:border-zinc-500 hover:text-zinc-950"
+                      contentClassName="max-w-xl"
+                    />
                   </div>
 
                   {selectedEvent ? (
