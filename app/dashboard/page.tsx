@@ -171,21 +171,66 @@ async function listSalesMarathonLeaderboard() {
   return summary.runners;
 }
 
-function PixelAvatar({ colorHex, seed }: { colorHex: string; seed: string }) {
-  const url = `https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(seed)}&rowColor=${colorHex.replace('#', '')}&backgroundColor=transparent`;
-  return (
-    <div className="w-6 h-6 overflow-hidden">
-      <img 
-        src={url} 
-        alt="Identicon" 
-        className="w-full h-full object-contain"
-      />
-    </div>
-  );
+function runnerMatchesUser(runner: SalesMarathonRunner, user: ReturnType<typeof useAuth>["user"]) {
+  if (!user) return false;
+  const values = [runner.id, runner.username, runner.name, runner.fullName]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean);
+  const userValues = [user.id, user.username, user.fullName]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean);
+
+  return values.some((value) => userValues.includes(value));
+}
+
+function runnerToAvatarUser(runner: SalesMarathonRunner, currentUser: ReturnType<typeof useAuth>["user"]) {
+  if (runnerMatchesUser(runner, currentUser)) {
+    return {
+      fullName: currentUser?.fullName || runner.fullName || runner.name,
+      username: currentUser?.username || runner.username || runner.name,
+      avatarUrl: currentUser?.avatarUrl || runner.avatarUrl || null,
+    };
+  }
+
+  return {
+    fullName: runner.fullName || runner.name,
+    username: runner.username || runner.name,
+    avatarUrl: runner.avatarUrl || null,
+  };
+}
+
+function getPinnedRunners(runners: SalesMarathonRunner[], user: ReturnType<typeof useAuth>["user"]) {
+  if (!user) return runners;
+
+  const currentRunnerIndex = runners.findIndex((runner) => runnerMatchesUser(runner, user));
+  if (currentRunnerIndex >= 0) {
+    const currentRunner = runners[currentRunnerIndex];
+    return [currentRunner, ...runners.filter((_, index) => index !== currentRunnerIndex)];
+  }
+
+  return [
+    {
+      id: user.id,
+      name: user.fullName?.trim() || user.username || "You",
+      initials: (user.fullName || user.username || "Y")
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join("") || "Y",
+      username: user.username,
+      fullName: user.fullName,
+      avatarUrl: user.avatarUrl || null,
+      avatarStorageObjectId: user.avatarStorageObjectId || null,
+      proposalCount: 0,
+    },
+    ...runners,
+  ];
 }
 
 function SalesMarathon({
   runners,
+  currentUser,
   loading,
   title,
   subtitle,
@@ -193,6 +238,7 @@ function SalesMarathon({
   footnote,
 }: {
   runners: SalesMarathonRunner[];
+  currentUser: ReturnType<typeof useAuth>["user"];
   loading: boolean;
   title: string;
   subtitle: string;
@@ -201,14 +247,15 @@ function SalesMarathon({
 }) {
   const loadingBars = [68, 44, 82, 56, 72, 36, 62];
   const barPalette = [
-    { bg: "bg-[#2977e7]", hex: "2977e7" },
-    { bg: "bg-emerald-500", hex: "10b981" },
-    { bg: "bg-amber-500", hex: "f59e0b" },
-    { bg: "bg-rose-500", hex: "f43f5e" },
-    { bg: "bg-indigo-500", hex: "6366f1" },
-    { bg: "bg-teal-500", hex: "14b8a6" },
-    { bg: "bg-orange-500", hex: "f97316" },
+    { bg: "bg-[#2977e7]" },
+    { bg: "bg-emerald-500" },
+    { bg: "bg-amber-500" },
+    { bg: "bg-rose-500" },
+    { bg: "bg-indigo-500" },
+    { bg: "bg-teal-500" },
+    { bg: "bg-orange-500" },
   ];
+  const displayRunners = getPinnedRunners(runners, currentUser);
 
   return (
     <section className="relative min-h-[35rem] overflow-hidden border border-zinc-200 bg-white px-8 py-8 shadow-sm">
@@ -247,14 +294,16 @@ function SalesMarathon({
               </div>
             </div>
           ))
-        ) : runners.length === 0 ? (
+        ) : displayRunners.length === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center text-sm font-light text-zinc-400 italic">
             No active records for the current period.
           </div>
         ) : (
-          runners.map((runner, index) => {
-            const progress = Math.min(runner.proposalCount / target, 1);
+          displayRunners.map((runner, index) => {
+            const rawProgress = Math.min(runner.proposalCount / target, 1);
+            const progress = runner.proposalCount > 0 ? Math.max(rawProgress, 0.08) : 0;
             const colorItem = barPalette[index % barPalette.length];
+            const isCurrentUser = runnerMatchesUser(runner, currentUser);
             return (
               <div key={runner.id} className="group relative flex h-full flex-1 flex-col items-center justify-end">
                 <div className="mb-4 flex flex-col items-center gap-1">
@@ -263,15 +312,15 @@ function SalesMarathon({
                   </span>
                 </div>
 
-                <div className="relative h-full w-8 bg-zinc-100 overflow-hidden">
+                <div className="kpi-glass-bar relative h-full w-10 overflow-hidden rounded-full">
                   <motion.div
                     initial={{ height: 0 }}
                     animate={{ height: `${progress * 100}%` }}
                     transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
-                    className={`absolute bottom-0 w-full ${colorItem.bg}`}
+                    className={`kpi-glass-fill absolute bottom-1 left-1 right-1 z-[3] ${colorItem.bg}`}
                   />
                   {/* Grid markers */}
-                  <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                  <div className="pointer-events-none absolute inset-0 z-[4] flex flex-col justify-between">
                     {[1, 2, 3, 4].map((i) => (
                       <div key={i} className="w-full h-[1px] bg-white/20" />
                     ))}
@@ -279,7 +328,14 @@ function SalesMarathon({
                 </div>
 
                 <div className="mt-6 flex flex-col items-center gap-3">
-                  <PixelAvatar colorHex={colorItem.hex} seed={runner.id} />
+                  <UserAvatar
+                    user={runnerToAvatarUser(runner, currentUser)}
+                    size="sm"
+                    className={`h-7 w-7 border-white/70 bg-white/60 shadow-[0_8px_16px_-12px_rgba(15,23,42,0.5)] ${
+                      isCurrentUser ? "ring-2 ring-[#2977e7]/30 ring-offset-2 ring-offset-white" : ""
+                    }`}
+                    imageClassName="scale-105"
+                  />
                   <h3 className="max-w-[4.5rem] truncate text-[10px] font-medium tracking-wide text-zinc-950 text-center">
                     {runner.name.split(' ')[0]}
                   </h3>
@@ -311,7 +367,6 @@ export default function DashboardPage() {
   const displayName = firstName(getDisplayName(user));
   const greeting = getTimeGreeting();
   const manifesto = getDailyManifesto(user?.id || "");
-  const workspaceLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
   const kpiCopy = persona === "delegates"
     ? {
         title: "Daily KPI Tracker",
@@ -443,8 +498,8 @@ export default function DashboardPage() {
               ) : null}
             </div>
           </div>
-          <span className="inline-flex h-9 items-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-500">
-            {getDateLabel()}
+          <span className="liquid-glass-chip inline-flex h-10 items-center rounded-full px-4 text-sm font-medium text-zinc-800">
+            <span>{getDateLabel()}</span>
           </span>
         </div>
 
@@ -455,12 +510,13 @@ export default function DashboardPage() {
             transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             className="flex flex-col"
           >
-            <p className="mb-4 text-lg font-normal text-zinc-500">
-              {workspaceLabel} Workspace
-            </p>
-
-            <h1 className="text-[2.125rem] leading-[1.1] tracking-[-0.04em] text-zinc-950 sm:text-[2.75rem]">
-              <span className="font-medium">{greeting}, {displayName}.</span> <span className="font-light">“{manifesto}”</span>
+            <h1 className="max-w-5xl text-zinc-950">
+              <span className="block text-[1.95rem] font-medium leading-[1.08] tracking-[-0.04em] sm:text-[2.45rem]">
+                {greeting}, {displayName}.
+              </span>
+              <span className="mt-4 block max-w-4xl text-[1.55rem] font-light leading-[1.16] tracking-[-0.025em] text-zinc-500 sm:text-[2rem]">
+                “{manifesto}”
+              </span>
             </h1>
 
             <CampaignHeadsUp
@@ -473,6 +529,7 @@ export default function DashboardPage() {
           <div>
             <SalesMarathon
               runners={salesRunners}
+              currentUser={user}
               loading={loadingSalesMarathon}
               title={kpiCopy.title}
               subtitle={kpiCopy.subtitle}

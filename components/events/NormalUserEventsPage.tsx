@@ -134,21 +134,10 @@ export function NormalUserEventsPage() {
       <header className="shrink-0 border-b border-zinc-300 pb-12">
         <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-950"
-            >
-              <ArrowLeft className="mr-2 h-3 w-3" />
-              Return to dashboard
-            </Link>
-
-            <div className="mt-8">
+            <div>
               <h1 className="text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
                 Events
               </h1>
-              <p className="mt-4 max-w-xl text-lg font-light leading-relaxed text-zinc-500">
-                Browse our curated event registry and access real-time prospect intelligence.
-              </p>
             </div>
           </div>
 

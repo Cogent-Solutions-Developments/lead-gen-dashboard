@@ -280,6 +280,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
+            className={isExpanded ? "" : "flex justify-center"}
           >
             <Link href="/">
               <button
@@ -301,6 +302,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
+            className={isExpanded ? "" : "flex justify-center"}
           >
             <Link href="/profile">
               <button

@@ -43,6 +43,10 @@ export type DashboardKpiRunner = {
   id: string;
   name: string;
   initials: string;
+  username?: string;
+  fullName?: string;
+  avatarUrl?: string | null;
+  avatarStorageObjectId?: string | null;
   proposalCount: number;
 };
 
