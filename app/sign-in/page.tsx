@@ -12,6 +12,10 @@ import { setPersona } from "@/lib/persona";
 
 const LOGIN_REVEAL_DELAY_MS = 7600;
 const HERO_GIF_SRC = "/videos/BlockchainEventPromoconverted_1-ezgif.com-optimize%20(1).gif";
+const HERO_TITLE = "I am supernizo";
+const HERO_TAGLINE = "An Enterprise Agentic AI for Intelligent Outreach";
+const HERO_DESCRIPTION =
+  "I am an enterprise agentic AI platform that intelligently identifies your dream customers and prospects, autonomously manages outreach, and streamlines customer engagement at scale.";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -89,9 +93,6 @@ export default function SignInPage() {
           </div>
           <p className="text-lg font-medium tracking-wide text-zinc-950">supernizo</p>
         </div>
-        <p className="hidden text-xs font-medium uppercase tracking-wide text-zinc-400 sm:block">
-          Authorized workspace
-        </p>
       </header>
 
       <main
@@ -106,36 +107,46 @@ export default function SignInPage() {
             <motion.div
               initial={{ opacity: 0, y: 14 }}
               animate={{
-                opacity: 1,
+                opacity: showLogin ? 0 : 1,
                 scale: showLogin ? 0.96 : 1,
-                y: showLogin ? -2 : 0,
+                y: showLogin ? -18 : 0,
               }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
+              transition={{ duration: showLogin ? 0.42 : 0.8, ease: "easeOut" }}
               className="max-w-4xl"
             >
               <h1 className="text-[clamp(2.75rem,5vw,5.25rem)] font-light leading-[0.9] tracking-[-0.065em] text-zinc-950">
-                supernizo
+                {HERO_TITLE}
               </h1>
               <p className="mx-auto mt-5 max-w-2xl text-[clamp(1.1rem,1.65vw,1.55rem)] font-light leading-tight tracking-[-0.025em] text-blue-700">
-                Enterprise agentic AI for intelligent outreach.
+                {HERO_TAGLINE}
               </p>
               <div className="mx-auto mt-6 max-w-2xl text-sm font-light leading-7 text-zinc-500 sm:text-base">
-                <p>
-                  I am an enterprise agentic AI platform that intelligently identifies your dream customers and
-                  prospects, autonomously manages outreach, and streamlines customer engagement at scale.
-                </p>
-                <p className="mt-5 text-sm font-medium text-zinc-950">
-                  Intelligent <span className="px-2 text-zinc-300">/</span> Autonomous{" "}
-                  <span className="px-2 text-zinc-300">/</span> Limitless
-                </p>
+                <p>{HERO_DESCRIPTION}</p>
               </div>
             </motion.div>
           </div>
 
           <motion.div
+            initial={false}
+            animate={{
+              opacity: showLogin ? 1 : 0,
+              y: showLogin ? 0 : 18,
+            }}
+            transition={{ duration: 0.55, delay: showLogin ? 0.48 : 0, ease: "easeOut" }}
+            className="pointer-events-none absolute left-8 top-28 z-30 hidden max-w-2xl pr-10 text-left sm:left-10 sm:top-32 lg:block"
+          >
+            <h1 className="text-[clamp(2.5rem,4.8vw,5rem)] font-light leading-[0.9] tracking-tighter text-zinc-950">
+              {HERO_TITLE}
+            </h1>
+            <p className="mt-4 max-w-xl text-[clamp(1.05rem,1.55vw,1.45rem)] font-light leading-tight tracking-[-0.025em] text-blue-700">
+              {HERO_TAGLINE}
+            </p>
+          </motion.div>
+
+          <motion.div
             aria-hidden="true"
             animate={{
-              left: showLogin ? "-20%" : "50%",
+              left: showLogin ? "-34%" : "50%",
               x: showLogin ? "0%" : "-50%",
               width: showLogin ? "150%" : "min(152vw, 2050px)",
               opacity: showLogin ? [0.34, 0.72, 0.42] : [0.28, 0.62, 0.36],
@@ -154,7 +165,7 @@ export default function SignInPage() {
           <motion.div
             aria-hidden="true"
             animate={{
-              left: showLogin ? "-26%" : "50%",
+              left: showLogin ? "-42%" : "50%",
               x: showLogin ? "0%" : "-50%",
               width: showLogin ? "158%" : "min(152vw, 2050px)",
             }}
@@ -183,17 +194,27 @@ export default function SignInPage() {
             pointerEvents: showLogin ? "auto" : "none",
           }}
           transition={{ duration: 0.65, delay: showLogin ? 0.25 : 0, ease: "easeOut" }}
-          className="absolute inset-x-4 bottom-5 z-30 mx-auto max-w-md rounded-2xl border border-zinc-200 bg-white/94 p-6 text-zinc-950 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-xl sm:bottom-8 sm:p-8 lg:static lg:mx-0 lg:flex lg:h-full lg:max-w-none lg:items-center lg:justify-center lg:rounded-none lg:border-0 lg:bg-transparent lg:px-12 lg:shadow-none"
+          className="absolute inset-x-4 bottom-5 z-30 mx-auto max-w-md rounded-2xl border border-zinc-200 bg-white/94 p-6 text-zinc-950 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-xl sm:bottom-8 sm:p-8 lg:static lg:mx-0 lg:flex lg:h-full lg:max-w-none lg:flex-col lg:items-center lg:justify-center lg:rounded-none lg:border-0 lg:bg-transparent lg:px-12 lg:shadow-none"
         >
+          <motion.div
+            initial={false}
+            animate={{
+              opacity: showLogin ? 1 : 0,
+              y: showLogin ? 0 : 16,
+            }}
+            transition={{ duration: 0.55, delay: showLogin ? 0.42 : 0, ease: "easeOut" }}
+            className="hidden w-full max-w-md pb-7 text-left lg:block"
+          >
+            <p className="text-sm font-light leading-6 text-zinc-500">
+              {HERO_DESCRIPTION}
+            </p>
+          </motion.div>
+
           <div className="w-full max-w-md overflow-hidden rounded-2xl border border-zinc-200 bg-white/88 p-8 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78),inset_0_1px_0_rgba(255,255,255,0.95)] transition-all">
             <div className="mb-8 border-b border-zinc-100 pb-6 text-left">
-              <p className="text-sm font-medium text-zinc-400">Secure workspace</p>
-              <h2 className="mt-3 text-4xl font-light leading-none tracking-tighter text-zinc-950">
+              <h2 className="text-4xl font-light leading-none tracking-tighter text-zinc-950">
                 Sign in
               </h2>
-              <p className="mt-3 text-sm font-light leading-relaxed text-zinc-500">
-                Continue to your assigned outreach workspace.
-              </p>
             </div>
 
             <form className="space-y-7" onSubmit={submit}>
@@ -240,9 +261,6 @@ export default function SignInPage() {
                 )}
               </Button>
 
-              <p className="text-center text-[11px] font-light text-zinc-400">
-                *Confidential workspace. Contact admin for account access.
-              </p>
             </form>
           </div>
         </motion.section>
