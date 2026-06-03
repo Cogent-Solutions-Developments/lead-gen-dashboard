@@ -11,7 +11,6 @@ import {
   Loader2,
   Search,
   Send,
-  Sparkles,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -44,7 +43,7 @@ function uid() {
 
 function errorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
-  return "NizoAI request failed.";
+  return "Nizo AI request failed.";
 }
 
 function mentionLabel(item: NizoAiMention) {
@@ -119,7 +118,7 @@ export default function NizoAiPage() {
         if (active) setMentionResults(data.items || []);
       } catch (error) {
         if (active) setMentionResults([]);
-        console.warn("NizoAI mention search failed", error);
+        console.warn("Nizo AI mention search failed", error);
       } finally {
         if (active) setMentionLoading(false);
       }
@@ -192,7 +191,7 @@ export default function NizoAiPage() {
         },
       ]);
     } catch (error) {
-      toast.error("NizoAI failed", { description: errorMessage(error) });
+      toast.error("Nizo AI failed", { description: errorMessage(error) });
       setMessages((current) => [
         ...current,
         {
@@ -223,8 +222,15 @@ export default function NizoAiPage() {
           Return to dashboard
         </Link>
         <div className="mx-auto mt-28 max-w-xl border border-zinc-200 bg-white p-12 text-center shadow-sm">
-          <Brain className="mx-auto h-10 w-10 text-zinc-300" />
-          <h1 className="mt-6 text-3xl font-extralight tracking-tight text-zinc-950">NizoAI</h1>
+          <div className="flex flex-col items-center justify-center gap-0">
+            <Brain className="h-7 w-7 text-zinc-950" strokeWidth={1.35} />
+            <h1
+              className="text-4xl font-normal leading-none tracking-tight text-zinc-950"
+              style={{ fontFamily: '"Genos", sans-serif' }}
+            >
+              Nizo AI
+            </h1>
+          </div>
           <p className="mt-3 text-sm font-light text-zinc-500">This chat is available to pipeline users.</p>
         </div>
       </div>
@@ -233,17 +239,11 @@ export default function NizoAiPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f7f7f7] font-sans text-zinc-950">
-      <header className="relative z-10 flex items-center justify-between border-b border-zinc-200 bg-[#f7f7f7] px-8 py-5">
+      <header className="relative z-10 flex items-center border-b border-zinc-200 bg-[#f7f7f7] px-8 py-5">
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-light text-zinc-500 transition-colors hover:text-zinc-900">
           <ArrowLeft className="h-4 w-4" />
           Return to dashboard
         </Link>
-        <div className="flex items-center gap-3">
-          <span className="inline-flex h-8 items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-500 shadow-sm">
-            <Sparkles className="h-3.5 w-3.5 text-zinc-400" />
-            Cogent Knowledge Chat
-          </span>
-        </div>
       </header>
 
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-6 py-10 lg:px-8">
@@ -254,10 +254,15 @@ export default function NizoAiPage() {
             transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             className="flex flex-1 flex-col items-center justify-center pb-24 text-center"
           >
-            <div className="mb-6 flex items-center justify-center gap-4">
-              <Brain className="h-12 w-12 text-zinc-200" />
+            <div className="flex flex-col items-center justify-center gap-0">
+              <Brain className="h-9 w-9 text-zinc-950" strokeWidth={1.35} />
+              <h1
+                className="text-[3.5rem] font-normal leading-none tracking-tight text-zinc-950"
+                style={{ fontFamily: '"Genos", sans-serif' }}
+              >
+                Nizo AI
+              </h1>
             </div>
-            <h1 className="text-[2.75rem] font-extralight tracking-tight text-zinc-950">NizoAI</h1>
             <p className="mt-4 max-w-xl text-lg font-light leading-relaxed text-zinc-500">
               Ask about Cogent leads, events, objections, or next-step wording.
             </p>
@@ -368,7 +373,7 @@ export default function NizoAiPage() {
               >
                 <div className="inline-flex items-center gap-3 text-sm font-light text-zinc-500">
                   <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
-                  NizoAI is thinking...
+                  Nizo AI is thinking...
                 </div>
               </motion.div>
             ) : null}
@@ -409,7 +414,7 @@ export default function NizoAiPage() {
                   void sendMessage();
                 }
               }}
-              placeholder="Ask NizoAI about a lead, event, objection, or message..."
+              placeholder="Ask Nizo AI about a lead, event, objection, or message..."
               className="min-h-[100px] resize-none rounded-none border-0 bg-transparent px-5 py-4 text-[15px] font-light text-zinc-950 placeholder:text-zinc-400 focus-visible:ring-0"
               maxLength={4000}
             />

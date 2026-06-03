@@ -46,11 +46,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(() => getStoredAuthSession());
   const [authChecked, setAuthChecked] = useState(false);
   const [sidebarHovered, setSidebarHovered] = useState(false);
-  const [sidebarPinned, setSidebarPinned] = useState(false);
   const role = session?.user.role ?? null;
   const isSuperAdmin = isSuperAdminRole(role);
   const forcedPersona = personaForRole(role);
-  const sidebarExpanded = sidebarHovered || sidebarPinned;
+  const sidebarExpanded = sidebarHovered;
 
   useEffect(() => {
     const unsubscribe = onPersonaChange(() => setSelected(hasPersona()));
@@ -173,9 +172,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <>
       <Sidebar
         isExpanded={sidebarExpanded}
-        isPinned={sidebarPinned}
         onHoverChange={setSidebarHovered}
-        onPinnedChange={setSidebarPinned}
       />
       <main
         className={`min-h-screen bg-transparent transition-[margin] duration-300 ease-out ${

@@ -7,7 +7,6 @@ import {
   Brain,
   LayoutDashboard,
   Rocket,
-  Webhook,
   Plus,
   Upload,
   TrainFront,
@@ -18,15 +17,14 @@ import {
   Loader2,
   X
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { clearPersona } from "@/lib/persona";
 import { usePersona } from "@/hooks/usePersona";
 import { clearAuthSession } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { UserAvatar } from "@/components/profile/UserAvatar";
 import { toast } from "sonner";
-
-const DEAL_CLOSED_VIDEO_SRC = "/videos/magnific_recreate-the-scene-with-t_2982250313.mp4";
+import { getDailyDealBellMedia } from "@/lib/dealBellMedia";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -35,26 +33,28 @@ const navItems = [
   { name: "Upload Campaign", href: "/campaigns/upload", icon: Upload, superOnly: true },
   // { name: "Completed", href: "/completed", icon: CheckCircle },
   { name: "Nizo Finder", normalLabel: "Lead Sheet", href: "/leads", icon: TrainFront },
-  { name: "NizoAI", href: "/nizo-ai", icon: Brain, normalOnly: true },
+  { name: "Nizo AI", href: "/nizo-ai", icon: Brain, normalOnly: true },
   { name: "Admin Panel", href: "/admin", icon: ShieldCheck, superOnly: true },
 ];
+const APP_VERSION_LABEL = "v0.1.0";
 
 type SidebarProps = {
   isExpanded: boolean;
-  isPinned: boolean;
   onHoverChange: (next: boolean) => void;
-  onPinnedChange: (next: boolean) => void;
 };
 
-export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }: SidebarProps) {
+export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { persona } = usePersona();
   const { isSuperAdmin, user } = useAuth();
-  const [rotation, setRotation] = useState(0);
   const [ringingBell, setRingingBell] = useState(false);
   const [ringBellModalOpen, setRingBellModalOpen] = useState(false);
   const personaLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
+  const dealBellMedia = useMemo(
+    () => getDailyDealBellMedia(user?.id || user?.username),
+    [user?.id, user?.username]
+  );
 
   const handleSignOut = async () => {
     try {
@@ -104,20 +104,6 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
     }
   };
 
-  // Logic for random rotation intervals
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-
-    const rotateIcon = () => {
-      setRotation((prev) => prev + 360);
-      const randomDelay = Math.floor(Math.random() * 7000) + 3000;
-      timeoutId = setTimeout(rotateIcon, randomDelay);
-    };
-
-    timeoutId = setTimeout(rotateIcon, 2000);
-    return () => clearTimeout(timeoutId);
-  }, []);
-
   return (
     <>
     <motion.aside
@@ -153,40 +139,25 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
         </svg>
       </div>
 
-      {/* 1. Logo Section */}
-      <button
-        type="button"
-        aria-label={isPinned ? "Collapse sidebar" : "Pin expanded sidebar"}
-        onClick={() => onPinnedChange(!isPinned)}
-        className={`mb-16 grid w-full flex-shrink-0 items-center text-left transition-all ${
-          isExpanded ? "grid-cols-[2.75rem_minmax(0,1fr)] gap-3 px-1" : "grid-cols-1 justify-items-center px-0"
-        }`}
-      >
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1, rotate: rotation }}
-          transition={{ 
-            scale: { type: "spring", stiffness: 260, damping: 20 },
-            rotate: { duration: 2, ease: "easeInOut" }
-          }}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-xl ring-1 ring-white/10 shadow-lg"
-        >
-          <Webhook className="h-6 w-6" />
-        </motion.div>
-        <motion.span
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: isExpanded ? 1 : 0, x: isExpanded ? 0 : -8 }}
-          transition={{ delay: 0.3 }}
-          className={`whitespace-nowrap text-2xl font-normal tracking-wide text-white transition-[width] duration-300 ${
-            isExpanded ? "w-auto" : "w-0 overflow-hidden"
-          }`}
-        >
-          supernizo
-        </motion.span>
-      </button>
+      <div className={`mb-10 min-h-8 px-1 transition-all duration-300 ${isExpanded ? "opacity-100" : "opacity-0"}`}>
+        <div className="flex items-baseline gap-2 whitespace-nowrap">
+          <span className="text-2xl font-normal tracking-wide text-white">
+            supernizo
+          </span>
+          <span
+            className="text-[1.35rem] font-normal leading-none tracking-wide text-white/78"
+            style={{ fontFamily: '"Bungee Hairline", sans-serif' }}
+          >
+            Lite
+          </span>
+        </div>
+        <span className="mt-1 block text-[10px] font-light tracking-[0.22em] text-white/40">
+          {APP_VERSION_LABEL}
+        </span>
+      </div>
 
-      {/* 2. Navigation Items (Scrollable if needed) */}
-      <nav className={`flex-1 overflow-y-auto transition-[margin] duration-300 ${isExpanded ? "-mx-10" : "-mx-6"}`}>
+      {/* 1. Navigation Items (Scrollable if needed) */}
+      <nav className={`flex-1 overflow-y-auto pt-4 transition-[margin] duration-300 ${isExpanded ? "-mx-10" : "-mx-6"}`}>
         {navItems
           .filter((item) => (isSuperAdmin ? !item.normalOnly : !item.superOnly))
           .map((item, index) => {
@@ -375,7 +346,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
             <X className="h-4 w-4" />
           </button>
 
-          <div className="shrink-0 px-8 pb-4 pt-8">
+          <div className="shrink-0 px-7 pb-4 pt-7 sm:px-8 sm:pt-8">
             <div className="max-w-xl pr-12">
               <h2 className="text-4xl font-light leading-none tracking-tighter text-zinc-950">
                 Ring the deal bell
@@ -386,22 +357,20 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-hidden px-8 pb-8">
-            <div className="grid gap-2 rounded-2xl border border-zinc-200 bg-white p-2 shadow-[0_18px_38px_-34px_rgba(15,23,42,0.6)] sm:grid-cols-[20rem_minmax(0,1fr)] sm:items-stretch">
-              <div className="relative mx-auto h-[min(34rem,calc(100dvh-16rem))] w-full max-w-[20rem] overflow-hidden rounded-xl bg-zinc-950 sm:mx-0 sm:max-w-none">
-                <video
-                  src={DEAL_CLOSED_VIDEO_SRC}
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 sm:px-8 sm:pb-8 scrollbar-modern">
+            <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_18px_38px_-34px_rgba(15,23,42,0.6)]">
+              <div className="relative h-[min(27rem,calc(100dvh-18rem))] w-full overflow-hidden bg-zinc-950">
+                <img
+                  src={dealBellMedia.src}
+                  alt=""
+                  aria-hidden="true"
                   className="h-full w-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/30 via-transparent to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-zinc-950/30 via-zinc-950/5 to-transparent" />
               </div>
 
-              <div className="flex min-w-0 flex-col justify-between gap-6 p-4">
-                <div className="rounded-2xl bg-zinc-50/80 p-5">
+              <div className="grid gap-5 border-t border-zinc-100 p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-zinc-400">Deal bell</p>
                   <p className="mt-3 text-2xl font-light tracking-tight text-zinc-950">
                     Let the whole team know.
@@ -411,7 +380,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
                   </p>
                 </div>
 
-                <div className="flex flex-col gap-3 border-t border-zinc-100 pt-4 sm:flex-row sm:items-center sm:justify-end">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                   <button
                     type="button"
                     disabled={ringingBell}

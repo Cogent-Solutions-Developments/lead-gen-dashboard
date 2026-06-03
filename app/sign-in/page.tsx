@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { Loader2, Webhook } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { getAuthLandingPath, getStoredAuthSession, loginWithPassword, personaForRole } from "@/lib/auth";
@@ -17,6 +17,8 @@ const HERO_TAGLINE = "An Enterprise Agentic AI for Intelligent Outreach";
 const HERO_DESCRIPTION =
   "I am an enterprise agentic AI platform that intelligently identifies your dream customers and prospects, autonomously manages outreach, and streamlines customer engagement at scale.";
 const HERO_MEDIA_TRANSITION = { duration: 1.45, ease: [0.16, 1, 0.3, 1] } as const;
+const COMPACT_HERO_VIEWPORT_QUERY = "(min-width: 1024px) and (max-height: 860px)";
+const APP_VERSION_LABEL = "v0.1.0";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -25,9 +27,12 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [compactHeroViewport, setCompactHeroViewport] = useState(false);
   const desktopLayoutClassName = showLogin
     ? "lg:grid-cols-[minmax(0,1.12fr)_minmax(29rem,0.78fr)]"
     : "lg:grid-cols-[minmax(0,1fr)_minmax(0,0fr)]";
+  const introHeroMediaScale = compactHeroViewport ? 0.88 : 0.82;
+  const introHeroMediaY = compactHeroViewport ? -88 : 0;
 
   useEffect(() => {
     let active = true;
@@ -59,6 +64,15 @@ export default function SignInPage() {
     return () => window.clearTimeout(timeoutId);
   }, [prefersReducedMotion]);
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(COMPACT_HERO_VIEWPORT_QUERY);
+    const syncCompactViewport = () => setCompactHeroViewport(mediaQuery.matches);
+
+    syncCompactViewport();
+    mediaQuery.addEventListener("change", syncCompactViewport);
+    return () => mediaQuery.removeEventListener("change", syncCompactViewport);
+  }, []);
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!username.trim() || !password.trim()) {
@@ -87,12 +101,22 @@ export default function SignInPage() {
   return (
     <div className="relative h-dvh overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,#ffffff_0%,#fafafa_42%,#f3f6fb_100%)]" />
-      <header className="absolute left-6 right-6 top-5 z-40 flex h-12 items-center justify-between border-b border-zinc-200/90 pb-4 sm:left-8 sm:right-8 sm:top-7">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full border border-blue-500/20 bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)]">
-            <Webhook className="h-4.5 w-4.5" />
+      <header className="absolute left-6 right-6 top-5 z-40 flex h-14 items-start justify-between border-b border-zinc-200/90 pb-4 sm:left-8 sm:right-8 sm:top-7">
+        <div>
+          <div className="flex items-baseline gap-2 whitespace-nowrap">
+            <span className="text-lg font-medium tracking-wide text-zinc-950">
+              supernizo
+            </span>
+            <span
+              className="text-[1rem] font-normal leading-none tracking-wide text-zinc-700"
+              style={{ fontFamily: '"Bungee Hairline", sans-serif' }}
+            >
+              Lite
+            </span>
           </div>
-          <p className="text-lg font-medium tracking-wide text-zinc-950">supernizo</p>
+          <span className="mt-0.5 block text-[9px] font-light tracking-[0.22em] text-zinc-400">
+            {APP_VERSION_LABEL}
+          </span>
         </div>
       </header>
 
@@ -147,7 +171,8 @@ export default function SignInPage() {
           <motion.div
             aria-hidden="true"
             animate={{
-              scale: showLogin ? 0.96 : 0.82,
+              scale: showLogin ? 0.96 : introHeroMediaScale,
+              y: showLogin ? 0 : introHeroMediaY,
               opacity: 1,
             }}
             transition={HERO_MEDIA_TRANSITION}
