@@ -1268,6 +1268,14 @@ export async function listMyEventLeads(canonicalEventKey: string, params?: Event
   return data;
 }
 
+export async function addMyEventLead(canonicalEventKey: string, payload: EventLeadCreateRequest) {
+  const { data } = await apiClient.post<EventLeadCreateResponse>(
+    `/api/my-leads/events/${encodeURIComponent(canonicalEventKey)}/leads`,
+    payload
+  );
+  return data;
+}
+
 export async function getCampaign(id: string) {
   const { data } = await apiClient.get<CampaignDetail>(`/api/campaigns/${id}`);
   return data;

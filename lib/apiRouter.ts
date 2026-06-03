@@ -169,6 +169,9 @@ export const listMyEvents: typeof sales.listMyEvents = (...args) =>
 export const listMyEventLeads: typeof sales.listMyEventLeads = (...args) =>
   pickModule().listMyEventLeads(...args);
 
+export const addMyEventLead: typeof sales.addMyEventLead = (...args) =>
+  pickModule().addMyEventLead(...args);
+
 export const getCampaign: typeof sales.getCampaign = (...args) =>
   pickModule().getCampaign(...args);
 

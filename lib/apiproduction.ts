@@ -431,6 +431,14 @@ export async function listMyEventLeads(canonicalEventKey: string, params?: Event
   return data;
 }
 
+export async function addMyEventLead(canonicalEventKey: string, payload: EventLeadCreateRequest) {
+  const { data } = await apiClientProduction.post<EventLeadCreateResponse>(
+    `/api/productions/my-leads/events/${encodeURIComponent(canonicalEventKey)}/leads`,
+    payload
+  );
+  return data;
+}
+
 export async function getCampaign(id: string) {
   const { data } = await apiClientProduction.get<CampaignDetail>(
     `/api/productions/campaigns/${id}`

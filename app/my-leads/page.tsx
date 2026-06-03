@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -16,13 +16,17 @@ import {
   Loader2,
   Mail,
   Plus,
+  RefreshCcw,
   Search,
   SlidersHorizontal,
+  Sparkles,
   UploadCloud,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -35,15 +39,20 @@ import { usePersona } from "@/hooks/usePersona";
 import { listActiveEventRegistry, personaForRole, type AdminEventItem } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import {
+  addMyEventLead,
   createMyCampaignFromUpload,
   downloadMyLeadTemplateFile,
+  generateLeadContent,
   listMyAllLeads,
   listMyEventLeads,
   listMyEvents,
   searchMyLeads,
   validateMyLeadTemplateUpload,
+  type EventLeadCreateRequest,
   type EventLeadListItem,
   type EventSummaryItem,
+  type LeadContentGenerationResponse,
+  type LeadContentPlatform,
   type LeadTemplateValidationResponse,
   type LeadItem,
 } from "@/lib/apiRouter";
@@ -84,6 +93,30 @@ type TemplateUploadState = {
   selectedEventId: string;
 };
 
+type AddLeadFormState = {
+  fullName: string;
+  title: string;
+  companyName: string;
+  companyUrl: string;
+  email: string;
+  phone: string;
+  linkedinUrl: string;
+};
+
+type EmailGenerationDialogState = {
+  requestId: number;
+  lead: MyLeadRow;
+  platform: LeadContentPlatform | null;
+  loading: boolean;
+  subject: string;
+  body: string;
+  feedback: string;
+  generatedAt: string;
+  model: string;
+  error: string;
+  copiedAction: "subject" | "body" | "full" | null;
+};
+
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
 
 const SALES_STATUSES: MyLeadStatus[] = [
@@ -116,6 +149,15 @@ const EMPTY_TEMPLATE_UPLOAD: TemplateUploadState = {
   submitting: false,
   selectedEventId: "",
 };
+const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
+  fullName: "",
+  title: "",
+  companyName: "",
+  companyUrl: "",
+  email: "",
+  phone: "",
+  linkedinUrl: "",
+};
 const LEAD_TEMPLATE_ACCEPT = ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const LEAD_TEMPLATE_HEADERS = "Company | Full Name | Job Title | Telephone Number | Mobile | Email | comments";
 const EVENT_SELECT_CONTENT_CLASS =
@@ -130,6 +172,12 @@ const UPLOAD_EVENT_SELECT_ITEM_CLASS =
 const LinkedInIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
     <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.22-.44-2.12-1.54-2.12a1.6 1.6 0 00-1.58 1.14 2.17 2.17 0 00-.1 1.08V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.95 0 3.52 1.27 3.52 4z" />
+  </svg>
+);
+
+const WhatsAppIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={className}>
+    <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232" />
   </svg>
 );
 
@@ -375,6 +423,7 @@ export default function MyLeadsPage() {
   const { isSuperAdmin, role } = useAuth();
   const expectedPersona = personaForRole(role);
   const hasPersonaMismatch = Boolean(expectedPersona && expectedPersona !== persona);
+  const emailGenerationRequestRef = useRef(0);
   const [events, setEvents] = useState<EventSummaryItem[]>([]);
   const [registryEvents, setRegistryEvents] = useState<AdminEventItem[]>([]);
   const [selectedEventKey, setSelectedEventKey] = useState("");
@@ -382,7 +431,11 @@ export default function MyLeadsPage() {
   const [loadingRegistryEvents, setLoadingRegistryEvents] = useState(true);
   const [templateUploadOpen, setTemplateUploadOpen] = useState(false);
   const [templateUpload, setTemplateUpload] = useState<TemplateUploadState>(EMPTY_TEMPLATE_UPLOAD);
+  const [addLeadOpen, setAddLeadOpen] = useState(false);
+  const [addLeadForm, setAddLeadForm] = useState<AddLeadFormState>(EMPTY_ADD_LEAD_FORM);
+  const [addingLead, setAddingLead] = useState(false);
   const [copiedLeadId, setCopiedLeadId] = useState<string | null>(null);
+  const [emailDialog, setEmailDialog] = useState<EmailGenerationDialogState | null>(null);
   const [searchInput, setSearchInput] = useState("");
   const [filters, setFilters] = useState<MyLeadFilterState>(EMPTY_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -668,6 +721,52 @@ export default function MyLeadsPage() {
     setPageOffset(0);
   };
 
+  const closeAddLeadDialog = (force = false) => {
+    if (addingLead && !force) return;
+    setAddLeadOpen(false);
+    setAddLeadForm(EMPTY_ADD_LEAD_FORM);
+  };
+
+  const updateAddLeadField = (field: keyof AddLeadFormState, value: string) => {
+    setAddLeadForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const submitAddLead = async () => {
+    if (!selectedEvent) {
+      toast.error("Select an event first");
+      return;
+    }
+
+    const payload: EventLeadCreateRequest = {
+      fullName: addLeadForm.fullName.trim(),
+      title: addLeadForm.title.trim() || undefined,
+      companyName: addLeadForm.companyName.trim() || undefined,
+      companyUrl: addLeadForm.companyUrl.trim() || undefined,
+      email: addLeadForm.email.trim() || undefined,
+      phone: addLeadForm.phone.trim() || undefined,
+      linkedinUrl: addLeadForm.linkedinUrl.trim() || undefined,
+    };
+
+    if (!payload.fullName) {
+      toast.error("Full name is required");
+      return;
+    }
+
+    setAddingLead(true);
+    try {
+      const created = await addMyEventLead(selectedEvent.canonicalEventKey, payload);
+      closeAddLeadDialog(true);
+      toast.success("Lead added", {
+        description: `${created.employeeName} is now part of ${created.canonicalEventName}.`,
+      });
+      await loadRows();
+    } catch (error: unknown) {
+      toast.error("Failed to add lead", { description: getApiErrorMessage(error) });
+    } finally {
+      setAddingLead(false);
+    }
+  };
+
   const copyLeadDetails = async (item: MyLeadRow) => {
     const copiedAt = new Date().toLocaleString();
     const lines = [
@@ -693,6 +792,129 @@ export default function MyLeadsPage() {
       toast.success("Lead copied");
     } catch (error: unknown) {
       toast.error("Failed to copy lead", { description: getApiErrorMessage(error) });
+    }
+  };
+
+  const closeEmailDialog = () => {
+    setEmailDialog(null);
+  };
+
+  const openEmailGenerator = (item: MyLeadRow) => {
+    const requestId = emailGenerationRequestRef.current + 1;
+    emailGenerationRequestRef.current = requestId;
+    setEmailDialog({
+      requestId,
+      lead: item,
+      platform: null,
+      loading: false,
+      subject: "",
+      body: "",
+      feedback: "",
+      generatedAt: "",
+      model: "",
+      error: "",
+      copiedAction: null,
+    });
+  };
+
+  const generateContentForPlatform = async (
+    item: MyLeadRow,
+    platform: LeadContentPlatform,
+    options: { feedback?: string } = {}
+  ) => {
+    const feedback = asText(options.feedback).slice(0, 1200);
+    const requestId = emailGenerationRequestRef.current + 1;
+    emailGenerationRequestRef.current = requestId;
+    setEmailDialog({
+      requestId,
+      lead: item,
+      platform,
+      loading: true,
+      subject: "",
+      body: "",
+      feedback,
+      generatedAt: "",
+      model: "",
+      error: "",
+      copiedAction: null,
+    });
+
+    try {
+      const response: LeadContentGenerationResponse = await generateLeadContent(item.id, {
+        platform,
+        ...(feedback.trim() ? { feedback: feedback.trim() } : {}),
+      });
+      const subject = asText(response.contentEmailSubject);
+      const body = platform === "whatsapp" ? asText(response.contentWhatsapp) : asText(response.contentEmail);
+      if ((platform === "email" && !subject) || !body) {
+        throw new Error("Generated content was empty.");
+      }
+      setEmailDialog((current) =>
+        current?.requestId === requestId
+          ? {
+              ...current,
+              loading: false,
+              platform,
+              subject,
+              body,
+              generatedAt: asText(response.generatedAt),
+              model: asText(response.model),
+              error: "",
+              copiedAction: null,
+            }
+          : current
+      );
+    } catch (error: unknown) {
+      const message = getApiErrorMessage(error);
+      setEmailDialog((current) =>
+        current?.requestId === requestId
+          ? {
+              ...current,
+              loading: false,
+              error: message,
+            }
+          : current
+      );
+      toast.error("Draft was not ready", { description: message });
+    }
+  };
+
+  const updateEmailDraftField = (field: "subject" | "body", value: string) => {
+    setEmailDialog((current) => (current ? { ...current, [field]: value } : current));
+  };
+
+  const updateEmailFeedback = (value: string) => {
+    setEmailDialog((current) => (current ? { ...current, feedback: value.slice(0, 1200) } : current));
+  };
+
+  const copyEmailDraft = async (mode: "subject" | "body" | "full") => {
+    if (!emailDialog || emailDialog.loading || emailDialog.error) return;
+    const subject = emailDialog.subject.trim();
+    const body = emailDialog.body.trim();
+    const text =
+      emailDialog.platform === "whatsapp"
+        ? body
+        : mode === "subject"
+          ? subject
+          : mode === "body"
+            ? body
+            : [`Subject: ${subject}`, "", body].join("\n");
+    if (!text.trim()) {
+      toast.error("Nothing to copy");
+      return;
+    }
+
+    try {
+      await writeClipboardText(text);
+      setEmailDialog((current) => (current ? { ...current, copiedAction: mode } : current));
+      window.setTimeout(() => {
+        setEmailDialog((current) =>
+          current?.copiedAction === mode ? { ...current, copiedAction: null } : current
+        );
+      }, 1500);
+      toast.success(emailDialog.platform === "whatsapp" ? "WhatsApp content copied" : mode === "full" ? "Email copied" : "Content copied");
+    } catch (error: unknown) {
+      toast.error("Failed to copy", { description: getApiErrorMessage(error) });
     }
   };
 
@@ -746,8 +968,9 @@ export default function MyLeadsPage() {
 
                 <button
                   type="button"
-                  onClick={showBackendPendingToast}
-                  className="inline-flex h-9 w-40 items-center justify-center gap-2.5 rounded-full border border-blue-500/20 bg-blue-600 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700"
+                  onClick={() => setAddLeadOpen(true)}
+                  disabled={!selectedEvent}
+                  className="inline-flex h-9 w-40 items-center justify-center gap-2.5 rounded-full border border-blue-500/20 bg-blue-600 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:opacity-50"
                 >
                   <Plus className="h-4 w-4" />
                   Add a lead
@@ -918,9 +1141,20 @@ export default function MyLeadsPage() {
                               <Copy className="h-3.5 w-3.5" />
                               <span className="text-xs font-medium">{copiedLeadId === item.id ? "Copied" : "Copy lead"}</span>
                             </button>
-                            <button type="button" onClick={showBackendPendingToast} className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-zinc-400 transition-colors hover:border-blue-600 hover:text-zinc-950">
-                              <Mail className="h-3.5 w-3.5" />
-                              <span className="text-xs font-medium">Generate content</span>
+                            <button
+                              type="button"
+                              onClick={() => openEmailGenerator(item)}
+                              disabled={emailDialog?.loading && emailDialog.lead.id === item.id}
+                              className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-zinc-400 transition-colors hover:border-blue-600 hover:text-zinc-950 disabled:pointer-events-none disabled:opacity-40"
+                            >
+                              {emailDialog?.loading && emailDialog.lead.id === item.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Mail className="h-3.5 w-3.5" />
+                              )}
+                              <span className="text-xs font-medium">
+                                {emailDialog?.loading && emailDialog.lead.id === item.id ? "Generating" : "Generate content"}
+                              </span>
                             </button>
                           </div>
                         </div>
@@ -1108,6 +1342,227 @@ export default function MyLeadsPage() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {emailDialog ? (
+        <LeadSheetDialog
+          open
+          eyebrow=""
+          title={
+            emailDialog.platform === "whatsapp"
+              ? "WhatsApp Draft"
+              : emailDialog.platform === "email"
+                ? "Email Draft"
+                : "Generate Content"
+          }
+          description=""
+          onClose={closeEmailDialog}
+        >
+          {!emailDialog.platform && !emailDialog.loading && !emailDialog.error ? (
+            <div className="space-y-7">
+              <div className="border-b border-zinc-100 pb-6">
+                <h3 className="text-2xl font-light tracking-tight text-zinc-950">
+                  {emailDialog.lead.employeeName || "-"}
+                </h3>
+                <p className="mt-1 text-sm font-light leading-6 text-zinc-500">
+                  {[emailDialog.lead.title, emailDialog.lead.company].filter(Boolean).join(" at ") || "-"}
+                </p>
+              </div>
+
+              <div>
+                <div className="flex flex-col gap-3 rounded-full border border-zinc-200 bg-white p-1.5 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => void generateContentForPlatform(emailDialog.lead, "email")}
+                    className="inline-flex h-12 flex-1 items-center justify-center gap-2.5 rounded-full border border-red-500/20 bg-[#EF4444] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(239,68,68,0.85)] transition-colors hover:bg-red-600"
+                  >
+                    <Mail className="h-[18px] w-[18px] stroke-[2.4]" />
+                    Email
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void generateContentForPlatform(emailDialog.lead, "whatsapp")}
+                    className="inline-flex h-12 flex-1 items-center justify-center gap-2.5 rounded-full border border-[#22c55e]/30 bg-[#22c55e] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)] transition-colors hover:bg-emerald-600"
+                  >
+                    <WhatsAppIcon className="h-[18px] w-[18px]" />
+                    WhatsApp
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : emailDialog.loading ? (
+            <div className="flex min-h-[24rem] flex-col items-center justify-center text-center">
+              <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-zinc-200 bg-white">
+                <Loader2
+                  className={cn(
+                    "h-7 w-7 animate-spin",
+                    emailDialog.platform === "email"
+                      ? "text-red-500"
+                      : emailDialog.platform === "whatsapp"
+                        ? "text-emerald-500"
+                        : "text-blue-600"
+                  )}
+                />
+              </div>
+              <h3 className="mt-6 text-2xl font-light tracking-tight text-zinc-950">Generating content</h3>
+              <p className="mt-2 max-w-sm text-sm font-light leading-6 text-zinc-500">
+                Building a sales narrative from the lead, company, and event context.
+              </p>
+              <div className="mt-8 w-full max-w-md space-y-3">
+                {[0, 1, 2].map((item) => (
+                  <div key={item} className="h-3 overflow-hidden bg-zinc-100">
+                    <div
+                      className={cn(
+                        "h-full w-1/2 animate-pulse",
+                        emailDialog.platform === "email"
+                          ? "bg-red-500/70"
+                          : emailDialog.platform === "whatsapp"
+                            ? "bg-emerald-500/70"
+                            : "bg-blue-600/70"
+                      )}
+                      style={{ marginLeft: `${item * 16}%` }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : emailDialog.error ? (
+            <div className="space-y-6">
+              <div className="border border-red-200 bg-red-50 p-5">
+                <p className="text-sm font-medium text-red-700">Draft was not ready</p>
+                <p className="mt-2 text-sm font-light leading-6 text-red-700">{emailDialog.error}</p>
+              </div>
+              <div className="flex justify-end gap-3 border-t border-zinc-100 pt-6">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={closeEmailDialog}
+                  className="h-11 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                >
+                  Close
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() =>
+                    void generateContentForPlatform(emailDialog.lead, emailDialog.platform || "email", {
+                      feedback: emailDialog.feedback,
+                    })
+                  }
+                  className="h-11 gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700"
+                >
+                  <RefreshCcw className="h-4 w-4" />
+                  Try Again
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-7">
+              <div className="border-b border-zinc-100 pb-6">
+                <h3 className="text-2xl font-light tracking-tight text-zinc-950">
+                  {emailDialog.lead.employeeName || "-"}
+                </h3>
+                <p className="mt-1 text-sm font-light leading-6 text-zinc-500">
+                  {[emailDialog.lead.title, emailDialog.lead.company].filter(Boolean).join(" at ") || "-"}
+                </p>
+              </div>
+
+              {emailDialog.platform === "email" ? (
+                <label className="block space-y-3">
+                  <span className="text-xs font-medium text-zinc-400">Subject</span>
+                  <Input
+                    value={emailDialog.subject}
+                    onChange={(event) => updateEmailDraftField("subject", event.target.value.slice(0, 180))}
+                    className="h-12 rounded-2xl border-zinc-200 bg-white px-4 text-base font-light shadow-none focus-visible:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500"
+                  />
+                </label>
+              ) : null}
+
+              <label className="block space-y-3">
+                <span className="text-xs font-medium text-zinc-400">
+                  {emailDialog.platform === "whatsapp" ? "WhatsApp message" : "Mail body"}
+                </span>
+                <Textarea
+                  value={emailDialog.body}
+                  onChange={(event) => updateEmailDraftField("body", event.target.value.slice(0, 5000))}
+                  className={cn(
+                    "rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-7 shadow-none focus-visible:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500",
+                    emailDialog.platform === "whatsapp" ? "min-h-36" : "min-h-56"
+                  )}
+                />
+                <span className="block text-right text-xs font-light text-zinc-400">
+                  {emailDialog.body.length}/5000
+                </span>
+              </label>
+
+              <label className="block space-y-3 border-t border-zinc-100 pt-6">
+                <span className="text-xs font-medium text-zinc-400">Feedback for regenerate</span>
+                <Textarea
+                  value={emailDialog.feedback}
+                  onChange={(event) => updateEmailFeedback(event.target.value)}
+                  placeholder="Example: Make it shorter, stronger, and focus on sponsor ROI."
+                  className="min-h-24 rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-6 shadow-none focus-visible:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500"
+                />
+                <span className="block text-right text-xs font-light text-zinc-400">
+                  {emailDialog.feedback.length}/1200
+                </span>
+              </label>
+
+              <div className="flex flex-col gap-3 border-t border-zinc-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() =>
+                    void generateContentForPlatform(emailDialog.lead, emailDialog.platform || "email", {
+                      feedback: emailDialog.feedback,
+                    })
+                  }
+                  className="h-11 gap-2 rounded-full border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  {emailDialog.feedback.trim() ? "Regenerate with Feedback" : "Regenerate"}
+                </Button>
+                <div className="flex flex-wrap justify-end gap-3">
+                  {emailDialog.platform === "email" ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => void copyEmailDraft("subject")}
+                      className="h-11 gap-2 rounded-full border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                    >
+                      <Copy className="h-4 w-4" />
+                      {emailDialog.copiedAction === "subject" ? "Copied" : "Subject"}
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => void copyEmailDraft("body")}
+                    className="h-11 gap-2 rounded-full border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                  >
+                    <Copy className="h-4 w-4" />
+                    {emailDialog.copiedAction === "body"
+                      ? "Copied"
+                      : emailDialog.platform === "whatsapp"
+                        ? "Message"
+                        : "Body"}
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => void copyEmailDraft("full")}
+                    className="h-11 gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700"
+                  >
+                    <Copy className="h-4 w-4" />
+                    {emailDialog.copiedAction === "full"
+                      ? "Copied"
+                      : emailDialog.platform === "whatsapp"
+                        ? "Copy WhatsApp"
+                        : "Copy Email"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </LeadSheetDialog>
       ) : null}
 
       <LeadSheetDialog
@@ -1315,6 +1770,130 @@ export default function MyLeadsPage() {
               )}
             </Button>
           </div>
+        </div>
+      </LeadSheetDialog>
+
+      <LeadSheetDialog
+        open={addLeadOpen}
+        title="Add Lead"
+        description=""
+        eyebrow=""
+        onClose={closeAddLeadDialog}
+      >
+        <div className="grid gap-x-8 gap-y-8 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="mb-3 block text-xs font-medium text-zinc-400">
+              Full Name
+            </label>
+            <Input
+              value={addLeadForm.fullName}
+              onChange={(event) => updateAddLeadField("fullName", event.target.value)}
+              placeholder="Lead name"
+              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="mb-3 block text-xs font-medium text-zinc-400">
+              Title
+            </label>
+            <Input
+              value={addLeadForm.title}
+              onChange={(event) => updateAddLeadField("title", event.target.value)}
+              placeholder="Job title"
+              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+            />
+          </div>
+
+          <div>
+            <label className="mb-3 block text-xs font-medium text-zinc-400">
+              Company Name
+            </label>
+            <Input
+              value={addLeadForm.companyName}
+              onChange={(event) => updateAddLeadField("companyName", event.target.value)}
+              placeholder="Company"
+              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+            />
+          </div>
+
+          <div>
+            <label className="mb-3 block text-xs font-medium text-zinc-400">
+              Company URL
+            </label>
+            <Input
+              value={addLeadForm.companyUrl}
+              onChange={(event) => updateAddLeadField("companyUrl", event.target.value)}
+              placeholder="https://company.com"
+              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+            />
+          </div>
+
+          <div>
+            <label className="mb-3 block text-xs font-medium text-zinc-400">
+              Email
+            </label>
+            <Input
+              value={addLeadForm.email}
+              onChange={(event) => updateAddLeadField("email", event.target.value)}
+              placeholder="name@company.com"
+              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+            />
+          </div>
+
+          <div>
+            <label className="mb-3 block text-xs font-medium text-zinc-400">
+              Phone
+            </label>
+            <Input
+              value={addLeadForm.phone}
+              onChange={(event) => updateAddLeadField("phone", event.target.value)}
+              placeholder="+60 ..."
+              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="mb-3 block text-xs font-medium text-zinc-400">
+              LinkedIn URL
+            </label>
+            <Input
+              value={addLeadForm.linkedinUrl}
+              onChange={(event) => updateAddLeadField("linkedinUrl", event.target.value)}
+              placeholder="https://linkedin.com/in/..."
+              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+            />
+          </div>
+        </div>
+
+        <div className="mt-8 flex items-center justify-between">
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-11 rounded-none border-b border-transparent px-0 text-sm font-medium text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-transparent hover:text-zinc-950"
+            onClick={() => closeAddLeadDialog()}
+            disabled={addingLead}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-7 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700 disabled:border-blue-400/20 disabled:bg-blue-600/55 disabled:text-white/80 disabled:opacity-100 disabled:shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-18px_rgba(37,99,235,0.75)]"
+            onClick={() => void submitAddLead()}
+            disabled={addingLead || !selectedEvent}
+          >
+            {addingLead ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Adding...
+              </>
+            ) : (
+              <>
+                <Plus className="h-3.5 w-3.5" />
+                Add a lead
+              </>
+            )}
+          </Button>
         </div>
       </LeadSheetDialog>
     </>
