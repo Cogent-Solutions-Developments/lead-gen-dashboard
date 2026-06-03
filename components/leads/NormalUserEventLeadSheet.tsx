@@ -1916,7 +1916,7 @@ export function NormalUserEventLeadSheet() {
                 </div>
               ) : (
                 <div className="w-full">
-                  <div className="grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-3 text-sm font-light text-zinc-500">
+                  <div className="sticky top-0 z-20 grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 bg-[#f7f7f7]/95 py-3 text-sm font-light text-zinc-500 backdrop-blur">
                     <div>Identity details</div>
                     <div>Contact channels</div>
                     <div>Status</div>
@@ -2162,7 +2162,7 @@ export function NormalUserEventLeadSheet() {
 
             {isDealClosedStatusChange ? (
               <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_18px_38px_-34px_rgba(15,23,42,0.6)]">
-                <div className="relative h-[clamp(17rem,36vw,27rem)] w-full overflow-hidden bg-zinc-950">
+                <div className="relative h-[clamp(19rem,40vw,30rem)] w-full overflow-hidden bg-zinc-950">
                   <img
                     src={dealBellMedia.src}
                     alt=""
