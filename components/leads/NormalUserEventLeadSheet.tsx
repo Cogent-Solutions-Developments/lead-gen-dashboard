@@ -2162,7 +2162,7 @@ export function NormalUserEventLeadSheet() {
 
             {isDealClosedStatusChange ? (
               <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_18px_38px_-34px_rgba(15,23,42,0.6)]">
-                <div className="relative h-[clamp(16rem,34vw,25rem)] w-full overflow-hidden bg-zinc-950">
+                <div className="relative h-[clamp(17rem,36vw,27rem)] w-full overflow-hidden bg-zinc-950">
                   <img
                     src={dealBellMedia.src}
                     alt=""
