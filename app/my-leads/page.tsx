@@ -627,10 +627,6 @@ export default function MyLeadsPage() {
 
   if (!role || isSuperAdmin || hasPersonaMismatch) return null;
 
-  const showBackendPendingToast = () => {
-    toast.info("My Leads backend is not connected yet.");
-  };
-
   const openTemplateUploadDialog = () => {
     const currentEventKey = selectedEvent?.canonicalEventKey || selectedEventKey || events[0]?.canonicalEventKey || "";
     const selectedRegistryEvent =
