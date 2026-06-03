@@ -42,6 +42,7 @@ import { createProtectedObjectUrl, getCachedAuthUserDisplayName, listActiveEvent
 import { persistCampaignUploadSummary } from "@/lib/campaignUploadSummary";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
+import { getDailyDealBellMedia } from "@/lib/dealBellMedia";
 import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
@@ -354,7 +355,6 @@ const STATUS_DOT_CLASS: Record<string, string> = {
 const DEFAULT_PAGE_SIZE = 100;
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 const SEARCH_DEBOUNCE_MS = 300;
-const DEAL_CLOSED_VIDEO_SRC = "/videos/magnific_recreate-the-scene-with-t_2982250313.mp4";
 
 const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
   fullName: "",
@@ -646,12 +646,7 @@ function LeadSheetDialog({
               ) : null}
             </div>
           </div>
-          <div
-            className={cn(
-              "min-h-0 flex-1 px-8",
-              compactSize === "wide" ? "overflow-hidden pb-8" : "overflow-y-auto pb-8 scrollbar-modern"
-            )}
-          >
+          <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-8 scrollbar-modern">
             {children}
           </div>
         </div>
@@ -714,6 +709,10 @@ export function NormalUserEventLeadSheet() {
   const targetLeadId = searchParams.get("lead") || "";
   const initialSearch = searchParams.get("search") || "";
   const uploadParam = searchParams.get("upload") || "";
+  const dealBellMedia = useMemo(
+    () => getDailyDealBellMedia(user?.id || user?.username),
+    [user?.id, user?.username]
+  );
 
   const [events, setEvents] = useState<EventSummaryItem[]>([]);
   const [registryEvents, setRegistryEvents] = useState<AdminEventItem[]>([]);
@@ -2162,72 +2161,71 @@ export function NormalUserEventLeadSheet() {
             </div>
 
             {isDealClosedStatusChange ? (
-              <div className="rounded-2xl border border-zinc-200 bg-white p-2 shadow-[0_18px_38px_-34px_rgba(15,23,42,0.6)]">
-                <div className="grid gap-2 sm:grid-cols-[20rem_minmax(0,1fr)] sm:items-stretch">
-                  <div className="relative mx-auto h-[min(34rem,calc(100dvh-17rem))] w-full max-w-[20rem] overflow-hidden rounded-xl bg-zinc-950 sm:mx-0 sm:max-w-none">
-                    <video
-                      src={DEAL_CLOSED_VIDEO_SRC}
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      className="h-full w-full object-cover"
+              <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_18px_38px_-34px_rgba(15,23,42,0.6)]">
+                <div className="relative aspect-[16/9] max-h-[18rem] overflow-hidden bg-zinc-950">
+                  <img
+                    src={dealBellMedia.src}
+                    alt=""
+                    aria-hidden="true"
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-zinc-950/30 via-zinc-950/5 to-transparent" />
+                </div>
+
+                <div className="grid gap-5 border-t border-zinc-100 p-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+                  <div className="grid content-start gap-3">
+                    <div className="flex min-h-14 items-center rounded-xl bg-zinc-50/80 px-4 py-3">
+                      <p className="truncate text-base font-light text-zinc-950">
+                        {pendingStatusChange.item.workflowStatusLabel}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-center text-zinc-300">
+                      <ChevronRight className="h-4 w-4 rotate-90" />
+                    </div>
+                    <div className="flex min-h-14 items-center rounded-xl border border-emerald-500/20 bg-[#22c55e] px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)]">
+                      <p className="truncate text-base font-semibold">
+                        {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
+                          humanizeStatusLabel(pendingStatusChange.nextStatus)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <label className="flex min-h-0 flex-col gap-3">
+                    <span className="text-xs font-medium text-zinc-400">Comment optional</span>
+                    <Textarea
+                      value={statusComment}
+                      onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
+                      placeholder="Example: Follow up after first call. Asked to reconnect next week."
+                      className="min-h-32 resize-none rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-6 shadow-none focus-visible:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500 lg:min-h-40"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/30 via-transparent to-transparent" />
-                  </div>
-                  <div className="flex min-w-0 flex-col gap-4 p-3 sm:p-4">
-                    <div className="grid gap-3">
-                      <div className="flex min-h-14 items-center rounded-xl bg-zinc-50/80 px-4 py-3">
-                        <p className="truncate text-base font-light text-zinc-950">
-                          {pendingStatusChange.item.workflowStatusLabel}
-                        </p>
-                      </div>
-                      <div className="hidden items-center justify-center text-zinc-300 sm:flex">
-                        <ChevronRight className="h-4 w-4 rotate-90" />
-                      </div>
-                      <div className="flex min-h-14 items-center rounded-xl border border-emerald-500/20 bg-[#22c55e] px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)]">
-                        <p className="truncate text-base font-semibold">
-                          {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
-                            humanizeStatusLabel(pendingStatusChange.nextStatus)}
-                        </p>
-                      </div>
-                    </div>
-                    <label className="flex min-h-0 flex-1 flex-col gap-3">
-                      <span className="text-xs font-medium text-zinc-400">Comment optional</span>
-                      <Textarea
-                        value={statusComment}
-                        onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
-                        placeholder="Example: Follow up after first call. Asked to reconnect next week."
-                        className="min-h-32 flex-1 resize-none rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-6 shadow-none focus-visible:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
-                      />
-                      <span className="block text-right text-xs font-light text-zinc-400">
-                        {statusComment.length}/2000
-                      </span>
-                    </label>
-                    <div className="mt-auto flex flex-col gap-3 border-t border-zinc-100 pt-4 sm:flex-row sm:items-center sm:justify-end">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={closeStatusCommentDialog}
-                        className="h-11 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={handleUpdateStatusClick}
-                        disabled={Boolean(updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`]) || ringingDealBell}
-                        className="h-11 gap-2 rounded-full border border-emerald-500/20 bg-[#22c55e] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)] hover:bg-emerald-600"
-                      >
-                        {updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`] || ringingDealBell ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <MessageSquare className="h-4 w-4" />
-                        )}
-                        Update Status
-                      </Button>
-                    </div>
-                  </div>
+                    <span className="block text-right text-xs font-light text-zinc-400">
+                      {statusComment.length}/2000
+                    </span>
+                  </label>
+                </div>
+
+                <div className="flex flex-col gap-3 border-t border-zinc-100 px-4 pb-4 pt-4 sm:flex-row sm:items-center sm:justify-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={closeStatusCommentDialog}
+                    className="h-11 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleUpdateStatusClick}
+                    disabled={Boolean(updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`]) || ringingDealBell}
+                    className="h-11 gap-2 rounded-full border border-emerald-500/20 bg-[#22c55e] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)] hover:bg-emerald-600"
+                  >
+                    {updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`] || ringingDealBell ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <MessageSquare className="h-4 w-4" />
+                    )}
+                    Update Status
+                  </Button>
                 </div>
               </div>
             ) : (

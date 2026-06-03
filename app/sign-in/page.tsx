@@ -17,6 +17,7 @@ const HERO_TAGLINE = "An Enterprise Agentic AI for Intelligent Outreach";
 const HERO_DESCRIPTION =
   "I am an enterprise agentic AI platform that intelligently identifies your dream customers and prospects, autonomously manages outreach, and streamlines customer engagement at scale.";
 const HERO_MEDIA_TRANSITION = { duration: 1.45, ease: [0.16, 1, 0.3, 1] } as const;
+const COMPACT_HERO_VIEWPORT_QUERY = "(min-width: 1024px) and (max-height: 860px)";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -25,9 +26,12 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [compactHeroViewport, setCompactHeroViewport] = useState(false);
   const desktopLayoutClassName = showLogin
     ? "lg:grid-cols-[minmax(0,1.12fr)_minmax(29rem,0.78fr)]"
     : "lg:grid-cols-[minmax(0,1fr)_minmax(0,0fr)]";
+  const introHeroMediaScale = compactHeroViewport ? 0.88 : 0.82;
+  const introHeroMediaY = compactHeroViewport ? -88 : 0;
 
   useEffect(() => {
     let active = true;
@@ -58,6 +62,15 @@ export default function SignInPage() {
     const timeoutId = window.setTimeout(() => setShowLogin(true), LOGIN_REVEAL_DELAY_MS);
     return () => window.clearTimeout(timeoutId);
   }, [prefersReducedMotion]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(COMPACT_HERO_VIEWPORT_QUERY);
+    const syncCompactViewport = () => setCompactHeroViewport(mediaQuery.matches);
+
+    syncCompactViewport();
+    mediaQuery.addEventListener("change", syncCompactViewport);
+    return () => mediaQuery.removeEventListener("change", syncCompactViewport);
+  }, []);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -147,7 +160,8 @@ export default function SignInPage() {
           <motion.div
             aria-hidden="true"
             animate={{
-              scale: showLogin ? 0.96 : 0.82,
+              scale: showLogin ? 0.96 : introHeroMediaScale,
+              y: showLogin ? 0 : introHeroMediaY,
               opacity: 1,
             }}
             transition={HERO_MEDIA_TRANSITION}

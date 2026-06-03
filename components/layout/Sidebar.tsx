@@ -18,15 +18,14 @@ import {
   Loader2,
   X
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { clearPersona } from "@/lib/persona";
 import { usePersona } from "@/hooks/usePersona";
 import { clearAuthSession } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { UserAvatar } from "@/components/profile/UserAvatar";
 import { toast } from "sonner";
-
-const DEAL_CLOSED_VIDEO_SRC = "/videos/magnific_recreate-the-scene-with-t_2982250313.mp4";
+import { getDailyDealBellMedia } from "@/lib/dealBellMedia";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -55,6 +54,10 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
   const [ringingBell, setRingingBell] = useState(false);
   const [ringBellModalOpen, setRingBellModalOpen] = useState(false);
   const personaLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
+  const dealBellMedia = useMemo(
+    () => getDailyDealBellMedia(user?.id || user?.username),
+    [user?.id, user?.username]
+  );
 
   const handleSignOut = async () => {
     try {
@@ -375,7 +378,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
             <X className="h-4 w-4" />
           </button>
 
-          <div className="shrink-0 px-8 pb-4 pt-8">
+          <div className="shrink-0 px-7 pb-4 pt-7 sm:px-8 sm:pt-8">
             <div className="max-w-xl pr-12">
               <h2 className="text-4xl font-light leading-none tracking-tighter text-zinc-950">
                 Ring the deal bell
@@ -386,22 +389,20 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-hidden px-8 pb-8">
-            <div className="grid gap-2 rounded-2xl border border-zinc-200 bg-white p-2 shadow-[0_18px_38px_-34px_rgba(15,23,42,0.6)] sm:grid-cols-[20rem_minmax(0,1fr)] sm:items-stretch">
-              <div className="relative mx-auto h-[min(34rem,calc(100dvh-16rem))] w-full max-w-[20rem] overflow-hidden rounded-xl bg-zinc-950 sm:mx-0 sm:max-w-none">
-                <video
-                  src={DEAL_CLOSED_VIDEO_SRC}
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 sm:px-8 sm:pb-8 scrollbar-modern">
+            <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_18px_38px_-34px_rgba(15,23,42,0.6)]">
+              <div className="relative h-[min(27rem,calc(100dvh-18rem))] w-full overflow-hidden bg-zinc-950">
+                <img
+                  src={dealBellMedia.src}
+                  alt=""
+                  aria-hidden="true"
                   className="h-full w-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/30 via-transparent to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-zinc-950/30 via-zinc-950/5 to-transparent" />
               </div>
 
-              <div className="flex min-w-0 flex-col justify-between gap-6 p-4">
-                <div className="rounded-2xl bg-zinc-50/80 p-5">
+              <div className="grid gap-5 border-t border-zinc-100 p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-zinc-400">Deal bell</p>
                   <p className="mt-3 text-2xl font-light tracking-tight text-zinc-950">
                     Let the whole team know.
@@ -411,7 +412,7 @@ export function Sidebar({ isExpanded, isPinned, onHoverChange, onPinnedChange }:
                   </p>
                 </div>
 
-                <div className="flex flex-col gap-3 border-t border-zinc-100 pt-4 sm:flex-row sm:items-center sm:justify-end">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                   <button
                     type="button"
                     disabled={ringingBell}
