@@ -739,6 +739,107 @@
     background: linear-gradient(180deg, rgb(255 255 255 / 0.3) 0%, transparent 40%);
   }
 
+  .supernizo-toast {
+    --toast-accent: #145acc;
+    position: relative !important;
+    overflow: hidden !important;
+    width: var(--width) !important;
+    max-width: calc(100vw - 2rem) !important;
+    min-height: 54px !important;
+    padding: 14px 16px !important;
+    border: 1px solid rgb(226 232 240) !important;
+    border-radius: 10px !important;
+    color: rgb(15 23 42) !important;
+    background-color: white !important;
+    background-image: none !important;
+    box-shadow:
+      0 18px 30px -26px rgb(15 23 42 / 0.32),
+      0 8px 14px -14px rgb(15 23 42 / 0.16) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .supernizo-toast::before,
+  .supernizo-toast::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  .supernizo-toast > * {
+    position: relative !important;
+    z-index: 1 !important;
+  }
+
+  .supernizo-toast-content,
+  .supernizo-toast [data-content] {
+    display: grid !important;
+    gap: 2px !important;
+    padding: 0 !important;
+  }
+
+  .supernizo-toast-title,
+  .supernizo-toast [data-title] {
+    color: rgb(15 23 42) !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    line-height: 1.32 !important;
+  }
+
+  .supernizo-toast-description,
+  .supernizo-toast [data-description] {
+    color: rgb(100 116 139) !important;
+    font-size: 12.5px !important;
+    font-weight: 450 !important;
+    line-height: 1.38 !important;
+  }
+
+  .supernizo-toast-icon,
+  .supernizo-toast [data-icon] {
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    margin-right: 12px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    color: var(--toast-accent) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .supernizo-toast-icon svg,
+  .supernizo-toast [data-icon] svg {
+    filter: none;
+  }
+
+  .supernizo-toast-close,
+  .supernizo-toast [data-close-button] {
+    display: none !important;
+  }
+
+  .supernizo-toast-close:hover,
+  .supernizo-toast [data-close-button]:hover {
+    color: rgb(15 23 42) !important;
+    background: rgb(248 250 252) !important;
+    border-color: rgb(203 213 225) !important;
+  }
+
+  .supernizo-toast-success {
+    --toast-accent: #145acc;
+  }
+
+  .supernizo-toast-info,
+  .supernizo-toast-loading {
+    --toast-accent: #145acc;
+  }
+
+  .supernizo-toast-warning {
+    --toast-accent: #d97706;
+  }
+
+  .supernizo-toast-error {
+    --toast-accent: #dc2626;
+  }
+
 }
 
 @layer base {
