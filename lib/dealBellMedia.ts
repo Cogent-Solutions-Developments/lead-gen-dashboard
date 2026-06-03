@@ -6,10 +6,8 @@ export type DealBellMedia = {
 };
 
 export const DEAL_BELL_MEDIA: DealBellMedia[] = [
-  { src: "/videos/asnnha.gif", label: "Deal bell celebration 1", width: 360, height: 148 },
   { src: "/videos/asnnn7.gif", label: "Deal bell celebration 2", width: 360, height: 205 },
   { src: "/videos/asnnt5.gif", label: "Deal bell celebration 3", width: 360, height: 202 },
-  { src: "/videos/asnob7.gif", label: "Deal bell celebration 5", width: 360, height: 201 },
   { src: "/videos/asnp1v.gif", label: "Deal bell celebration 8", width: 360, height: 202 },
 ];
 
