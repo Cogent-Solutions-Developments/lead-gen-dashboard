@@ -2162,27 +2162,27 @@ export function NormalUserEventLeadSheet() {
 
             {isDealClosedStatusChange ? (
               <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_18px_38px_-34px_rgba(15,23,42,0.6)]">
-                <div className="relative aspect-[16/9] max-h-[18rem] overflow-hidden bg-zinc-950">
+                <div className="relative h-[clamp(16rem,34vw,25rem)] w-full overflow-hidden bg-zinc-950">
                   <img
                     src={dealBellMedia.src}
                     alt=""
                     aria-hidden="true"
                     className="h-full w-full object-cover"
                   />
-                  <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-zinc-950/30 via-zinc-950/5 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-zinc-950/35 via-zinc-950/8 to-transparent" />
                 </div>
 
-                <div className="grid gap-5 border-t border-zinc-100 p-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-                  <div className="grid content-start gap-3">
-                    <div className="flex min-h-14 items-center rounded-xl bg-zinc-50/80 px-4 py-3">
+                <div className="grid items-stretch gap-4 border-t border-zinc-100 p-3 sm:p-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+                  <div className="grid h-full min-h-44 grid-rows-[1fr_auto_1fr] gap-2 rounded-2xl bg-zinc-50/70 p-2 lg:min-h-48">
+                    <div className="flex min-h-0 items-center rounded-xl bg-white px-4 py-2">
                       <p className="truncate text-base font-light text-zinc-950">
                         {pendingStatusChange.item.workflowStatusLabel}
                       </p>
                     </div>
                     <div className="flex items-center justify-center text-zinc-300">
-                      <ChevronRight className="h-4 w-4 rotate-90" />
+                      <ChevronRight className="h-3.5 w-3.5 rotate-90" />
                     </div>
-                    <div className="flex min-h-14 items-center rounded-xl border border-emerald-500/20 bg-[#22c55e] px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)]">
+                    <div className="flex min-h-0 items-center rounded-xl border border-emerald-500/20 bg-[#22c55e] px-4 py-2 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)]">
                       <p className="truncate text-base font-semibold">
                         {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
                           humanizeStatusLabel(pendingStatusChange.nextStatus)}
@@ -2190,13 +2190,13 @@ export function NormalUserEventLeadSheet() {
                     </div>
                   </div>
 
-                  <label className="flex min-h-0 flex-col gap-3">
+                  <label className="flex min-h-44 flex-col gap-3 lg:min-h-48">
                     <span className="text-xs font-medium text-zinc-400">Comment optional</span>
                     <Textarea
                       value={statusComment}
                       onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
                       placeholder="Example: Follow up after first call. Asked to reconnect next week."
-                      className="min-h-32 resize-none rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-6 shadow-none focus-visible:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500 lg:min-h-40"
+                      className="min-h-0 flex-1 resize-none rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-6 shadow-none focus-visible:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
                     />
                     <span className="block text-right text-xs font-light text-zinc-400">
                       {statusComment.length}/2000
@@ -2204,7 +2204,7 @@ export function NormalUserEventLeadSheet() {
                   </label>
                 </div>
 
-                <div className="flex flex-col gap-3 border-t border-zinc-100 px-4 pb-4 pt-4 sm:flex-row sm:items-center sm:justify-end">
+                <div className="flex flex-col gap-3 border-t border-zinc-100 px-4 pb-4 pt-4 sm:flex-row sm:items-center sm:justify-end sm:px-5 sm:pb-5">
                   <Button
                     type="button"
                     variant="ghost"
