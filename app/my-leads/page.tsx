@@ -46,6 +46,7 @@ import {
   createMyCampaignFromUpload,
   downloadMyLeadTemplateFile,
   generateLeadContent,
+  getLeadWorkflowStatusHistory,
   listMyAllLeads,
   listMyEventLeads,
   listMyEvents,
@@ -60,6 +61,7 @@ import {
   type LeadTemplateValidationResponse,
   type LeadItem,
   type WorkflowStatus,
+  type WorkflowStatusHistoryItem,
 } from "@/lib/apiRouter";
 
 type MyLeadStatus = {
@@ -85,6 +87,7 @@ type MyLeadRow = {
   workflowStatusLabel: string;
   workflowComment: string;
   workflowCommentUpdatedAt: string;
+  workflowCommentHistoryCount: number;
   canonicalEventName: string;
   isManualLead: boolean;
 };
@@ -232,6 +235,13 @@ function humanizeStatusLabel(value: string) {
     .join(" ");
 }
 
+function formatDateTime(value?: string | null) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString();
+}
+
 function normalizeSearch(value: string) {
   return value.trim().toLowerCase();
 }
@@ -322,6 +332,7 @@ function mapLeadItemToRow(item: LeadItem | EventLeadListItem): MyLeadRow {
     workflowStatusLabel: item.workflowStatusLabel || workflowStatus,
     workflowComment: item.workflowComment || "",
     workflowCommentUpdatedAt: item.workflowCommentUpdatedAt || "",
+    workflowCommentHistoryCount: Number(item.workflowCommentHistoryCount || 0),
     canonicalEventName: item.canonicalEventName || item.eventName || "",
     isManualLead: Boolean(item.isManualLead),
   };
@@ -476,6 +487,10 @@ export default function MyLeadsPage() {
   const [updatingLeadIds, setUpdatingLeadIds] = useState<Record<string, boolean>>({});
   const [pendingStatusChange, setPendingStatusChange] = useState<PendingStatusChange | null>(null);
   const [statusComment, setStatusComment] = useState("");
+  const [historyLead, setHistoryLead] = useState<MyLeadRow | null>(null);
+  const [historyItems, setHistoryItems] = useState<WorkflowStatusHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [ringBellConfirmOpen, setRingBellConfirmOpen] = useState(false);
   const [ringingDealBell, setRingingDealBell] = useState(false);
   const [searchInput, setSearchInput] = useState("");
@@ -833,6 +848,7 @@ export default function MyLeadsPage() {
                 workflowStatusLabel: nextLabel,
                 workflowComment: asText(response.workflowComment),
                 workflowCommentUpdatedAt: asText(response.workflowCommentUpdatedAt),
+                workflowCommentHistoryCount: Number(response.workflowCommentHistoryCount || 0),
               }
             : row
         )
@@ -1074,6 +1090,29 @@ export default function MyLeadsPage() {
     } catch (error: unknown) {
       toast.error("Failed to copy", { description: getApiErrorMessage(error) });
     }
+  };
+
+  const openHistory = async (item: MyLeadRow) => {
+    setHistoryLead(item);
+    setHistoryItems([]);
+    setHistoryError(null);
+    setHistoryLoading(true);
+    try {
+      const response = await getLeadWorkflowStatusHistory(item.id);
+      setHistoryItems(Array.isArray(response.history) ? response.history : []);
+    } catch (error: unknown) {
+      const message = getApiErrorMessage(error);
+      setHistoryError(message);
+      toast.error("Failed to load comment history", { description: message });
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const closeHistory = () => {
+    setHistoryLead(null);
+    setHistoryItems([]);
+    setHistoryError(null);
   };
 
   return (
@@ -1346,7 +1385,7 @@ export default function MyLeadsPage() {
                         ) : null}
                         <div className="mt-auto pt-3">
                           {item.workflowComment ? (
-                            <button type="button" onClick={showBackendPendingToast} className="mb-2 block w-full border-l border-zinc-300 pl-3 text-left transition-colors hover:border-zinc-900">
+                            <button type="button" onClick={() => void openHistory(item)} className="mb-2 block w-full border-l border-zinc-300 pl-3 text-left transition-colors hover:border-zinc-900">
                               <span className="line-clamp-2 text-xs font-light leading-relaxed text-zinc-500">
                                 {item.workflowComment}
                               </span>
@@ -1358,9 +1397,11 @@ export default function MyLeadsPage() {
                               ) : null}
                             </button>
                           ) : null}
-                          <button type="button" onClick={showBackendPendingToast} className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950">
+                          <button type="button" onClick={() => void openHistory(item)} className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950">
                             <History className="h-3.5 w-3.5" />
-                            Comment history
+                            {item.workflowCommentHistoryCount > 0
+                              ? `${item.workflowCommentHistoryCount} comment${item.workflowCommentHistoryCount === 1 ? "" : "s"}`
+                              : "Comment history"}
                           </button>
                         </div>
                       </div>
@@ -1744,6 +1785,97 @@ export default function MyLeadsPage() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {historyLead ? (
+        <LeadSheetDialog
+          open
+          title="Comment History"
+          description=""
+          eyebrow=""
+          onClose={closeHistory}
+        >
+          <div className="space-y-6">
+            <div className="border-b border-zinc-100 pb-6">
+              <p className="text-xs font-medium normal-case tracking-normal text-zinc-400">Selected profile</p>
+              <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
+                {historyLead.employeeName || "-"}
+              </h3>
+              <p className="mt-1 text-sm font-light text-zinc-500">{historyLead.company || "-"}</p>
+            </div>
+
+            {historyLoading ? (
+              <div className="flex h-32 items-center justify-center text-sm font-light text-zinc-400">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Loading history...
+              </div>
+            ) : historyError ? (
+              <div className="border border-red-200 bg-red-50 p-4 text-sm font-light text-red-700">
+                {historyError}
+              </div>
+            ) : historyItems.length === 0 ? (
+              <div className="border border-zinc-200 bg-zinc-50/70 p-6 text-sm font-light text-zinc-500">
+                No comments have been recorded for this lead yet.
+              </div>
+            ) : (
+              <div className="border-y border-zinc-300">
+                <div className="flex items-center justify-between border-b border-zinc-200 py-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-zinc-400">Timeline</span>
+                  </div>
+                  <span className="text-xs font-light text-zinc-400">
+                    {historyItems.length} update{historyItems.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+
+                <div className="max-h-[26rem] overflow-y-auto pr-1 scrollbar-modern">
+                  {historyItems.map((entry) => {
+                    const statusLabel = entry.workflowStatusLabel || humanizeStatusLabel(entry.workflowStatus);
+                    const actorName =
+                      asText(entry.updatedByUserDisplayName) ||
+                      asText(entry.updatedByUsername) ||
+                      "Unknown user";
+
+                    return (
+                      <article
+                        key={entry.id}
+                        className="group grid grid-cols-[2.75rem_minmax(0,1fr)] border-b border-zinc-100 last:border-b-0"
+                      >
+                        <div className="relative flex justify-center">
+                          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-blue-500/35" />
+                          <span className="relative mt-5 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-blue-500 bg-white shadow-[0_0_0_3px_rgba(37,99,235,0.08)]">
+                            <span className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(entry.workflowStatus)}`} />
+                          </span>
+                        </div>
+
+                        <div className="min-w-0 py-5 transition-colors group-hover:bg-zinc-50/40">
+                          <div className="flex flex-wrap items-start justify-between gap-3 pr-1">
+                            <div className="min-w-0">
+                              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                                <h4 className="text-base font-medium tracking-tight text-zinc-950">{statusLabel}</h4>
+                              </div>
+                              <p className="mt-1 text-xs font-light text-zinc-400">Updated by {actorName}</p>
+                            </div>
+
+                            <time className="shrink-0 text-right text-xs font-light leading-5 text-zinc-400">
+                              {formatDateTime(entry.createdAt) || "Time unavailable"}
+                            </time>
+                          </div>
+
+                          <div className="mt-3 max-w-xl border-l border-zinc-200 pl-3">
+                            <p className="whitespace-pre-wrap text-sm font-light leading-6 text-zinc-600">
+                              {entry.comment || "No comment added."}
+                            </p>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </LeadSheetDialog>
       ) : null}
 
       {emailDialog ? (
