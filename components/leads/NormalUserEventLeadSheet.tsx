@@ -14,18 +14,27 @@ import {
 } from "@/components/ui/select";
 import {
   addEventLead,
-  createCampaignFromUpload,
-  downloadLeadTemplateFile,
+  addMyLeadsEventLead,
+  createCampaignFromUpload as createSharedCampaignFromUpload,
+  createMyLeadsCampaignFromUpload,
+  downloadLeadTemplateFile as downloadSharedLeadTemplateFile,
+  downloadMyLeadsCampaignExport,
+  downloadMyLeadsLeadTemplateFile,
   createWorkflowStatus,
   downloadEventAgendaFile,
   generateLeadContent,
   getLeadWorkflowStatusHistory,
   listEventAgendas,
-  listEventLeads,
-  listEvents,
+  listEventLeads as listSharedEventLeads,
+  listEvents as listSharedEvents,
+  listMyLeadsCampaigns,
+  listMyLeadsEventLeads,
+  listMyLeadsEvents,
   listWorkflowStatuses,
   updateLeadWorkflowStatus,
-  validateLeadTemplateUpload,
+  validateLeadTemplateUpload as validateSharedLeadTemplateUpload,
+  validateMyLeadsLeadTemplateUpload,
+  type CampaignListItem,
   type EventLeadCreateRequest,
   type EventLeadListItem,
   type EventLeadListResponse,
@@ -714,6 +723,44 @@ function updateSearchParam(pathname: string, searchParams: URLSearchParams, key:
   return query ? `${pathname}?${query}` : pathname;
 }
 
+type LeadSheetDataMode = "shared" | "my-leads";
+
+type NormalUserEventLeadSheetProps = {
+  mode?: LeadSheetDataMode;
+};
+
+function humanizeCampaignStatus(value?: string | null) {
+  const cleaned = asText(value);
+  if (!cleaned) return "Unknown";
+  return cleaned
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function formatCampaignTimestamp(value?: string | null) {
+  const text = asText(value);
+  if (!text) return "";
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) return text;
+  return parsed.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function buildCampaignExportFileName(campaign: Pick<CampaignListItem, "name" | "id">) {
+  const slug =
+    asText(campaign.name)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 72) || "my-leads-campaign";
+  return `${slug}-${asText(campaign.id).slice(0, 8) || "export"}.csv`;
+}
+
 function LeadSheetDialog({
   open,
   title,
@@ -828,7 +875,7 @@ function LeadSheetDialog({
   );
 }
 
-export function NormalUserEventLeadSheet() {
+export function NormalUserEventLeadSheet({ mode = "shared" }: NormalUserEventLeadSheetProps) {
   const { persona } = usePersona();
   const { role, user } = useAuth();
   const router = useRouter();
@@ -845,6 +892,9 @@ export function NormalUserEventLeadSheet() {
 
   const [events, setEvents] = useState<EventSummaryItem[]>([]);
   const [registryEvents, setRegistryEvents] = useState<AdminEventItem[]>([]);
+  const [myLeadCampaigns, setMyLeadCampaigns] = useState<CampaignListItem[]>([]);
+  const [loadingMyLeadCampaigns, setLoadingMyLeadCampaigns] = useState(false);
+  const [exportingCampaignId, setExportingCampaignId] = useState("");
   const [leadPage, setLeadPage] = useState<EventLeadListResponse | null>(null);
   const [workflowStatuses, setWorkflowStatuses] = useState<WorkflowStatusDefinitionItem[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
@@ -883,6 +933,35 @@ export function NormalUserEventLeadSheet() {
   const targetLeadRowRef = useRef<HTMLDivElement | null>(null);
   const emailGenerationRequestRef = useRef(0);
   const previousSelectedEventKeyRef = useRef("");
+  const isMyLeadsMode = mode === "my-leads";
+
+  const leadSheetApi = useMemo(
+    () =>
+      isMyLeadsMode
+        ? {
+            listEvents: () => listMyLeadsEvents(persona),
+            listEventLeads: (
+              canonicalEventKey: string,
+              params: Parameters<typeof listMyLeadsEventLeads>[1]
+            ) => listMyLeadsEventLeads(canonicalEventKey, params, persona),
+            createCampaignFromUpload: (payload: Parameters<typeof createMyLeadsCampaignFromUpload>[0]) =>
+              createMyLeadsCampaignFromUpload(payload, persona),
+            addEventLead: (canonicalEventKey: string, payload: EventLeadCreateRequest) =>
+              addMyLeadsEventLead(canonicalEventKey, payload, persona),
+            validateLeadTemplateUpload: (file: File | Blob) =>
+              validateMyLeadsLeadTemplateUpload(file, persona),
+            downloadLeadTemplateFile: () => downloadMyLeadsLeadTemplateFile(undefined, persona),
+          }
+        : {
+            listEvents: listSharedEvents,
+            listEventLeads: listSharedEventLeads,
+            createCampaignFromUpload: createSharedCampaignFromUpload,
+            addEventLead,
+            validateLeadTemplateUpload: validateSharedLeadTemplateUpload,
+            downloadLeadTemplateFile: downloadSharedLeadTemplateFile,
+          },
+    [isMyLeadsMode, persona]
+  );
 
   const resetFilters = useCallback(() => {
     setFilters(EMPTY_FILTERS);
@@ -911,7 +990,9 @@ export function NormalUserEventLeadSheet() {
     return workflowStatuses.length > 0 ? workflowStatuses : fixedWorkflowStatuses;
   }, [fixedWorkflowStatuses, workflowStatuses]);
   const canUseDealBellFlow = role === "sales_user";
-  const canUseTemplateUpload = role === "sales_user" || role === "delegate_user" || role === "production_user";
+  const isPipelineUserRole = role === "sales_user" || role === "delegate_user" || role === "production_user";
+  const canUseTemplateUpload = isMyLeadsMode && isPipelineUserRole;
+  const canUseManualLeadAdd = isMyLeadsMode && isPipelineUserRole;
   const isDealClosedStatusChange = Boolean(
     pendingStatusChange && canUseDealBellFlow && pendingStatusChange.nextStatus === "deal-closed"
   );
@@ -920,7 +1001,7 @@ export function NormalUserEventLeadSheet() {
     setLoadingEvents(true);
     try {
       const [eventsResponse, initialStatusResponse] = await Promise.all([
-        listEvents(),
+        leadSheetApi.listEvents(),
         listWorkflowStatuses(),
       ]);
       const registryRows = await listActiveEventRegistry();
@@ -963,11 +1044,38 @@ export function NormalUserEventLeadSheet() {
     } finally {
       setLoadingEvents(false);
     }
-  }, [fixedWorkflowStatuses]);
+  }, [fixedWorkflowStatuses, leadSheetApi]);
+
+  const loadMyLeadCampaigns = useCallback(async () => {
+    if (!isMyLeadsMode) {
+      setMyLeadCampaigns([]);
+      return;
+    }
+
+    setLoadingMyLeadCampaigns(true);
+    try {
+      const response = await listMyLeadsCampaigns(
+        { status: "all", limit: 20, offset: 0 },
+        persona
+      );
+      setMyLeadCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
+    } catch (error: unknown) {
+      toast.error("Failed to load My Leads campaigns", {
+        description: getErrorMessage(error),
+      });
+      setMyLeadCampaigns([]);
+    } finally {
+      setLoadingMyLeadCampaigns(false);
+    }
+  }, [isMyLeadsMode, persona]);
 
   useEffect(() => {
     void loadInitialData();
   }, [loadInitialData]);
+
+  useEffect(() => {
+    void loadMyLeadCampaigns();
+  }, [loadMyLeadCampaigns]);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -1053,7 +1161,7 @@ export function NormalUserEventLeadSheet() {
   const loadEventPage = useCallback(async (canonicalEventKey: string, nextOffset: number, query: string) => {
     setLoadingLeads(true);
     try {
-      const response = await listEventLeads(canonicalEventKey, {
+      const response = await leadSheetApi.listEventLeads(canonicalEventKey, {
         limit: pageSize,
         offset: nextOffset,
         search: query || undefined,
@@ -1078,7 +1186,7 @@ export function NormalUserEventLeadSheet() {
     } finally {
       setLoadingLeads(false);
     }
-  }, [filters.category, filters.status, pageSize]);
+  }, [filters.category, filters.status, leadSheetApi, pageSize]);
 
   useEffect(() => {
     if (!selectedEventKey) {
@@ -1249,11 +1357,12 @@ export function NormalUserEventLeadSheet() {
 
   const refreshData = useCallback(async () => {
     await loadInitialData();
+    await loadMyLeadCampaigns();
     if (selectedEventKey) {
       await loadEventPage(selectedEventKey, pageOffset, searchQuery);
       await loadSelectedEventAgendas();
     }
-  }, [loadEventPage, loadInitialData, loadSelectedEventAgendas, pageOffset, searchQuery, selectedEventKey]);
+  }, [loadEventPage, loadInitialData, loadMyLeadCampaigns, loadSelectedEventAgendas, pageOffset, searchQuery, selectedEventKey]);
 
   const clearUploadRouteFlag = useCallback(() => {
     if (uploadParam !== "1") return;
@@ -1289,7 +1398,7 @@ export function NormalUserEventLeadSheet() {
 
   const handleTemplateDownload = async () => {
     try {
-      await downloadLeadTemplateFile();
+      await leadSheetApi.downloadLeadTemplateFile();
       toast.success("Template download started");
     } catch (error: unknown) {
       toast.error("Template download failed", { description: getErrorMessage(error) });
@@ -1325,7 +1434,7 @@ export function NormalUserEventLeadSheet() {
     }));
 
     try {
-      const validation = await validateLeadTemplateUpload(file);
+      const validation = await leadSheetApi.validateLeadTemplateUpload(file);
       setTemplateUpload((prev) => ({
         ...prev,
         validation,
@@ -1364,7 +1473,7 @@ export function NormalUserEventLeadSheet() {
 
     setTemplateUpload((prev) => ({ ...prev, submitting: true, error: "" }));
     try {
-      const response = await createCampaignFromUpload({
+      const response = await leadSheetApi.createCampaignFromUpload({
         name: uploadEvent.eventName,
         eventRegistryId,
         icp: `Template upload for ${uploadEvent.eventName}`,
@@ -1404,6 +1513,23 @@ export function NormalUserEventLeadSheet() {
         error: getErrorMessage(error),
       }));
       toast.error("Upload failed", { description: getErrorMessage(error) });
+    }
+  };
+
+  const handleMyLeadCampaignExport = async (campaign: CampaignListItem) => {
+    if (!isMyLeadsMode || exportingCampaignId) return;
+    setExportingCampaignId(campaign.id);
+    try {
+      await downloadMyLeadsCampaignExport(campaign.id, buildCampaignExportFileName(campaign), persona);
+      toast.success("Campaign export started", {
+        description: campaign.name,
+      });
+    } catch (error: unknown) {
+      toast.error("Export failed", {
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setExportingCampaignId("");
     }
   };
 
@@ -1792,6 +1918,7 @@ export function NormalUserEventLeadSheet() {
   };
 
   const submitAddLead = async () => {
+    if (!canUseManualLeadAdd) return;
     if (!selectedEvent) {
       toast.error("Select an event first");
       return;
@@ -1814,7 +1941,7 @@ export function NormalUserEventLeadSheet() {
 
     setAddingLead(true);
     try {
-      const created = await addEventLead(selectedEvent.canonicalEventKey, payload);
+      const created = await leadSheetApi.addEventLead(selectedEvent.canonicalEventKey, payload);
       closeAddLeadDialog(true);
       toast.success("Lead added", {
         description: `${created.employeeName} is now part of ${created.canonicalEventName}.`,
@@ -1880,6 +2007,100 @@ export function NormalUserEventLeadSheet() {
 
         <div className="grid min-h-0 flex-1 gap-12 overflow-hidden pt-10 xl:grid-cols-[19rem_minmax(0,1fr)]">
           <aside className="shrink-0 space-y-10 overflow-y-auto pr-2 scrollbar-hide">
+            {isMyLeadsMode ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-xs font-medium text-zinc-400">My campaigns</label>
+                  <button
+                    type="button"
+                    onClick={() => void loadMyLeadCampaigns()}
+                    disabled={loadingMyLeadCampaigns}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950 disabled:opacity-50"
+                    title="Refresh campaigns"
+                  >
+                    {loadingMyLeadCampaigns ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCcw className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </div>
+
+                <div className="max-h-72 space-y-2 overflow-y-auto pr-1 scrollbar-modern">
+                  {loadingMyLeadCampaigns && myLeadCampaigns.length === 0 ? (
+                    <div className="space-y-2">
+                      {Array.from({ length: 3 }).map((_, index) => (
+                        <div key={index} className="h-20 animate-pulse rounded-xl border border-zinc-100 bg-white/60" />
+                      ))}
+                    </div>
+                  ) : myLeadCampaigns.length === 0 ? (
+                    <div className="rounded-xl border border-zinc-200 bg-white/70 px-4 py-4 text-sm font-light leading-6 text-zinc-500">
+                      No personal campaigns yet.
+                    </div>
+                  ) : (
+                    myLeadCampaigns.map((campaign) => {
+                      const eventKey = asText(campaign.canonicalEventKey);
+                      const isSelected = eventKey && eventKey === selectedEventKey;
+                      return (
+                        <div
+                          key={campaign.id}
+                          className={cn(
+                            "rounded-xl border bg-white/80 px-3 py-3 shadow-[0_12px_28px_-24px_rgba(2,10,27,0.55)] transition-colors",
+                            isSelected ? "border-blue-300" : "border-zinc-200 hover:border-zinc-300"
+                          )}
+                        >
+                          <button
+                            type="button"
+                            disabled={!eventKey}
+                            onClick={() => eventKey && handleEventChange(eventKey)}
+                            className="block w-full min-w-0 text-left disabled:cursor-not-allowed"
+                          >
+                            <span className="block truncate text-sm font-semibold text-zinc-950">
+                              {campaign.name || "Untitled campaign"}
+                            </span>
+                            <span className="mt-1 block truncate text-[11px] font-light text-zinc-500">
+                              {campaign.canonicalEventName || campaign.category || "Personal upload"}
+                            </span>
+                          </button>
+
+                          <div className="mt-3 flex items-center justify-between gap-2">
+                            <div className="min-w-0 text-[11px] text-zinc-400">
+                              <span>{Number(campaign.totalLeads || 0).toLocaleString()} leads</span>
+                              {campaign.createdAt ? (
+                                <>
+                                  <span className="mx-1.5">/</span>
+                                  <span>{formatCampaignTimestamp(campaign.createdAt)}</span>
+                                </>
+                              ) : null}
+                            </div>
+                            <div className="flex shrink-0 items-center gap-1.5">
+                              <span className="hidden rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-medium text-zinc-500 2xl:inline-flex">
+                                {humanizeCampaignStatus(campaign.status)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => void handleMyLeadCampaignExport(campaign)}
+                                disabled={Boolean(exportingCampaignId)}
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-400 transition-colors hover:border-blue-500 hover:text-blue-600 disabled:opacity-50"
+                                title="Export campaign"
+                              >
+                                {exportingCampaignId === campaign.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Download className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                              {eventKey ? <ChevronRight className="h-3.5 w-3.5 text-zinc-300" /> : null}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            ) : null}
+
             <div className="space-y-6">
               <div>
                 <label className="text-xs font-medium text-zinc-400">Event agenda</label>
@@ -3237,7 +3458,7 @@ export function NormalUserEventLeadSheet() {
       </LeadSheetDialog>
 
       <LeadSheetDialog
-        open={addLeadOpen}
+        open={canUseManualLeadAdd && addLeadOpen}
         title="Add Lead"
         description=""
         eyebrow=""
