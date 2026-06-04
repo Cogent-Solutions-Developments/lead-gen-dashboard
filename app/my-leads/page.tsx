@@ -13,6 +13,7 @@ import {
   Download,
   FileSpreadsheet,
   FileUp,
+  Headset,
   History,
   Loader2,
   Mail,
@@ -128,6 +129,15 @@ type EmailGenerationDialogState = {
 type PendingStatusChange = {
   item: MyLeadRow;
   nextStatus: string;
+};
+
+type ContactChoiceLead = {
+  name: string;
+  email: string;
+  phone: string;
+  emailHref: string;
+  telHref: string;
+  whatsappHref: string;
 };
 
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
@@ -246,6 +256,26 @@ function formatDateTime(value?: string | null) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
   return parsed.toLocaleString();
+}
+
+function normalizeDialPhone(value: string) {
+  const digits = value.replace(/\D/g, "");
+  return digits.length >= 8 ? `900${digits}` : "";
+}
+
+function buildTelHref(value: string) {
+  const phone = normalizeDialPhone(value);
+  return phone ? `tel:${phone}` : "";
+}
+
+function buildEmailHref(value: string) {
+  const email = asText(value);
+  return email ? `mailto:${email}` : "";
+}
+
+function buildWhatsAppHref(value: string) {
+  const digits = value.replace(/\D/g, "");
+  return digits.length >= 8 ? `https://wa.me/${digits}` : "";
 }
 
 function normalizeSearch(value: string) {
@@ -499,6 +529,7 @@ export default function MyLeadsPage() {
   const [addLeadForm, setAddLeadForm] = useState<AddLeadFormState>(EMPTY_ADD_LEAD_FORM);
   const [addingLead, setAddingLead] = useState(false);
   const [copiedLeadId, setCopiedLeadId] = useState<string | null>(null);
+  const [contactChoiceLead, setContactChoiceLead] = useState<ContactChoiceLead | null>(null);
   const [emailDialog, setEmailDialog] = useState<EmailGenerationDialogState | null>(null);
   const [updatingLeadIds, setUpdatingLeadIds] = useState<Record<string, boolean>>({});
   const [pendingStatusChange, setPendingStatusChange] = useState<PendingStatusChange | null>(null);
@@ -1333,8 +1364,22 @@ export default function MyLeadsPage() {
                     <div>Contact channels</div>
                     <div>Status</div>
                   </div>
-                  {pagedRows.map((item) => (
-                    <div key={item.id} className="group grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-6 transition-all duration-300 hover:bg-zinc-50/60">
+                  {pagedRows.map((item) => {
+                    const emailHref = item.email ? buildEmailHref(item.email) : "";
+                    const telHref = item.phone ? buildTelHref(item.phone) : "";
+                    const whatsappHref = item.phone ? buildWhatsAppHref(item.phone) : "";
+                    const openContactChoice = () =>
+                      setContactChoiceLead({
+                        name: item.employeeName,
+                        email: item.email,
+                        phone: item.phone,
+                        emailHref,
+                        telHref,
+                        whatsappHref,
+                      });
+
+                    return (
+                      <div key={item.id} className="group grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-6 transition-all duration-300 hover:bg-zinc-50/60">
                       <div className="pr-8">
                         <div className="flex flex-col gap-1.5">
                           <div className="flex items-center gap-5">
@@ -1352,20 +1397,30 @@ export default function MyLeadsPage() {
                         <div className="flex flex-col gap-2">
                           <div className="flex items-center gap-4">
                             {item.email ? (
-                              <>
+                              <button
+                                type="button"
+                                onClick={openContactChoice}
+                                className="inline-flex min-w-0 items-center gap-4 text-left"
+                                title="Choose contact method"
+                              >
                                 <EmailIcon className="h-3.5 w-3.5 text-[#EF4444]" />
-                                <span className="truncate text-sm font-light tracking-tight text-zinc-700">{item.email}</span>
-                              </>
+                                <span className="truncate text-sm font-light tracking-tight text-zinc-700 transition-colors hover:text-zinc-950">{item.email}</span>
+                              </button>
                             ) : (
                               <span className="text-sm font-light tracking-tight text-zinc-700">-</span>
                             )}
                           </div>
                           <div className="flex items-center gap-4">
                             {item.phone ? (
-                              <>
+                              <button
+                                type="button"
+                                onClick={openContactChoice}
+                                className="inline-flex min-w-0 items-center gap-4 text-left"
+                                title="Choose contact method"
+                              >
                                 <PhoneIcon className="h-3.5 w-3.5 text-[#22C55E]" />
-                                <span className="truncate text-sm font-light text-zinc-500">{item.phone}</span>
-                              </>
+                                <span className="truncate text-sm font-light text-zinc-500 transition-colors hover:text-zinc-950">{item.phone}</span>
+                              </button>
                             ) : (
                               <span className="text-sm font-light text-zinc-500">-</span>
                             )}
@@ -1454,8 +1509,9 @@ export default function MyLeadsPage() {
                           </button>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1834,6 +1890,73 @@ export default function MyLeadsPage() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {contactChoiceLead ? (
+        <LeadSheetDialog
+          open
+          title="Contact channel"
+          description=""
+          eyebrow=""
+          onClose={() => setContactChoiceLead(null)}
+        >
+          <div className="space-y-6">
+            <div className="border-b border-zinc-100 pb-5">
+              <h3 className="text-2xl font-light tracking-tight text-zinc-950">
+                {contactChoiceLead.name || "This lead"}
+              </h3>
+              <div className="mt-3 space-y-1.5 text-sm font-light text-zinc-500">
+                {contactChoiceLead.email ? (
+                  <p className="truncate">{contactChoiceLead.email}</p>
+                ) : null}
+                {contactChoiceLead.phone ? (
+                  <p className="tabular-nums">{contactChoiceLead.phone}</p>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Button
+                type="button"
+                disabled={!contactChoiceLead.emailHref}
+                onClick={() => {
+                  window.location.href = contactChoiceLead.emailHref;
+                  setContactChoiceLead(null);
+                }}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-red-500/20 bg-[#EF4444] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(239,68,68,0.95)] hover:bg-red-600 disabled:border-red-400/20 disabled:bg-red-500/55 disabled:text-white/80 disabled:opacity-100 disabled:shadow-none"
+              >
+                <Mail className="h-3.5 w-3.5 stroke-[2.4]" />
+                Email
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={!contactChoiceLead.telHref}
+                onClick={() => {
+                  window.location.href = contactChoiceLead.telHref;
+                  setContactChoiceLead(null);
+                }}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-950 shadow-none transition-colors hover:border-blue-600 hover:bg-white hover:text-blue-600 disabled:opacity-50"
+              >
+                <Headset className="h-3.5 w-3.5" />
+                Linkus
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={!contactChoiceLead.whatsappHref}
+                onClick={() => {
+                  window.open(contactChoiceLead.whatsappHref, "_blank", "noopener,noreferrer");
+                  setContactChoiceLead(null);
+                }}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#22c55e]/30 bg-[#22c55e] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-16px_rgba(34,197,94,0.85)] transition-colors hover:bg-[#16a34a] hover:text-white disabled:opacity-50"
+              >
+                <WhatsAppIcon className="h-3.5 w-3.5" />
+                WhatsApp
+              </Button>
+            </div>
+          </div>
+        </LeadSheetDialog>
       ) : null}
 
       {historyLead ? (
