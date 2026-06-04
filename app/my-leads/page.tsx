@@ -218,11 +218,17 @@ const EmailIcon = ({ className }: { className?: string }) => (
 );
 
 function getStatusDotClass(status: string) {
-  if (status === "deal-closed" || status === "confirmed") return "bg-emerald-500";
-  if (status === "proposal-sent" || status === "pending") return "bg-blue-500";
-  if (status === "follow-up" || status === "first-call") return "bg-amber-500";
-  if (status === "deal-dead") return "bg-rose-500";
-  return "bg-zinc-300";
+  const statusDotClass: Record<string, string> = {
+    new: "bg-[#0aefff] shadow-[0_0_0_3px_rgba(10,239,255,0.20)]",
+    "first-call": "bg-[#147df5] shadow-[0_0_0_3px_rgba(20,125,245,0.20)]",
+    "follow-up": "bg-[#ff8700] shadow-[0_0_0_3px_rgba(255,135,0,0.20)]",
+    "proposal-sent": "bg-[#a855f7] shadow-[0_0_0_3px_rgba(168,85,247,0.20)]",
+    "deal-closed": "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
+    "deal-dead": "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]",
+    pending: "bg-[#a855f7] shadow-[0_0_0_3px_rgba(168,85,247,0.20)]",
+    confirmed: "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
+  };
+  return statusDotClass[status] ?? "bg-zinc-400";
 }
 
 function humanizeStatusLabel(value: string) {

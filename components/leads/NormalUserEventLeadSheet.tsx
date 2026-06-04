@@ -55,7 +55,6 @@ import {
   Download,
   Eye,
   FileSpreadsheet,
-  FileUp,
   Headset,
   History,
   Loader2,
@@ -1732,33 +1731,6 @@ export function NormalUserEventLeadSheet() {
             </div>
 
             <div className="ml-auto flex min-w-max flex-nowrap items-center justify-end gap-8">
-              <div
-                className="inline-flex h-12 shrink-0 items-center gap-1.5 rounded-full border border-zinc-200 bg-white p-1.5"
-                aria-label="Lead sheet actions"
-              >
-                {canUseTemplateUpload ? (
-                  <button
-                    type="button"
-                    onClick={openTemplateUploadDialog}
-                    disabled={!hasActiveRegistryEvents}
-                    className="inline-flex h-9 w-40 items-center justify-center gap-2.5 rounded-full text-sm font-semibold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-50"
-                  >
-                    <FileUp className="h-4 w-4" />
-                    Upload leads
-                  </button>
-                ) : null}
-
-                <button
-                  type="button"
-                  onClick={() => setAddLeadOpen(true)}
-                  disabled={!selectedEvent}
-                  className="inline-flex h-9 w-40 items-center justify-center gap-2.5 rounded-full border border-blue-500/20 bg-blue-600 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:opacity-50"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add a lead
-                </button>
-              </div>
-
               <div className="flex shrink-0 items-baseline gap-3">
                 <span className="text-sm font-medium text-zinc-400">Leads To Cover</span>
                 <span className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
