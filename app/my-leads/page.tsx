@@ -344,12 +344,19 @@ function mapLeadItemToRow(item: LeadItem | EventLeadListItem): MyLeadRow {
   };
 }
 
-function myLeadSearchParams(query: string, filters: MyLeadFilterState) {
+function myLeadSearchParams(
+  query: string,
+  filters: MyLeadFilterState,
+  limit: number,
+  offset: number,
+  canonicalEventKey?: string
+) {
   return {
-    limit: 200,
-    offset: 0,
+    limit,
+    offset,
     search: query.trim() || undefined,
     workflowStatus: filters.status === "all" ? undefined : filters.status,
+    canonicalEventKey,
     hasEmail:
       filters.contact === "email" || filters.contact === "complete"
         ? true
@@ -474,6 +481,7 @@ export default function MyLeadsPage() {
   const expectedPersona = personaForRole(role);
   const hasPersonaMismatch = Boolean(expectedPersona && expectedPersona !== persona);
   const emailGenerationRequestRef = useRef(0);
+  const rowsRequestRef = useRef(0);
   const dealBellMedia = useMemo(
     () => getDailyDealBellMedia(user?.id || user?.username),
     [user?.id, user?.username]
@@ -482,6 +490,8 @@ export default function MyLeadsPage() {
   const [registryEvents, setRegistryEvents] = useState<AdminEventItem[]>([]);
   const [selectedEventKey, setSelectedEventKey] = useState("");
   const [rows, setRows] = useState<MyLeadRow[]>([]);
+  const [leadListMeta, setLeadListMeta] = useState({ total: 0, hasMore: false });
+  const [loadingEvents, setLoadingEvents] = useState(true);
   const [loadingRegistryEvents, setLoadingRegistryEvents] = useState(true);
   const [templateUploadOpen, setTemplateUploadOpen] = useState(false);
   const [templateUpload, setTemplateUpload] = useState<TemplateUploadState>(EMPTY_TEMPLATE_UPLOAD);
@@ -551,8 +561,12 @@ export default function MyLeadsPage() {
   );
 
   const loadEvents = useCallback(async () => {
-    if (!role || isSuperAdmin || hasPersonaMismatch) return;
+    if (!role || isSuperAdmin || hasPersonaMismatch) {
+      setLoadingEvents(false);
+      return;
+    }
 
+    setLoadingEvents(true);
     try {
       const response = await listMyEvents();
       const nextEvents = Array.isArray(response.events) ? response.events : [];
@@ -565,6 +579,8 @@ export default function MyLeadsPage() {
       setEvents([]);
       setSelectedEventKey("");
       toast.error("Failed to load My Leads events", { description: getApiErrorMessage(error) });
+    } finally {
+      setLoadingEvents(false);
     }
   }, [hasPersonaMismatch, isSuperAdmin, role]);
 
@@ -590,30 +606,50 @@ export default function MyLeadsPage() {
     void loadRegistryEvents();
   }, [loadRegistryEvents]);
 
+  useEffect(() => {
+    rowsRequestRef.current += 1;
+  }, [filters, loadingEvents, pageOffset, pageSize, searchInput, selectedEventKey]);
+
   const loadRows = useCallback(async () => {
-    if (!role || isSuperAdmin || hasPersonaMismatch) return;
+    if (!role || isSuperAdmin || hasPersonaMismatch || loadingEvents) return;
+    if (events.length > 0 && !selectedEventKey) return;
+
+    const requestId = ++rowsRequestRef.current;
 
     try {
       const shouldSearchOrFilter =
         searchInput.trim().length > 0 || filters.status !== "all" || filters.contact !== "all";
-      const response = selectedEventKey
+      const shouldUseScopedSearch = Boolean(selectedEventKey && filters.contact !== "all");
+      const response = shouldUseScopedSearch
+        ? await searchMyLeads(myLeadSearchParams(searchInput, filters, pageSize, pageOffset, selectedEventKey))
+        : selectedEventKey
         ? await listMyEventLeads(selectedEventKey, {
-            limit: 200,
-            offset: 0,
+            limit: pageSize,
+            offset: pageOffset,
             search: searchInput.trim() || undefined,
             workflowStatus: filters.status === "all" ? undefined : filters.status,
             sort: "createdAt:desc",
           })
         : shouldSearchOrFilter
-          ? await searchMyLeads(myLeadSearchParams(searchInput, filters))
+          ? await searchMyLeads(myLeadSearchParams(searchInput, filters, pageSize, pageOffset))
           : await listMyAllLeads();
+      if (requestId !== rowsRequestRef.current) return;
+
       const items = "items" in response ? response.items : "leads" in response ? response.leads : [];
-      setRows((Array.isArray(items) ? items : []).map(mapLeadItemToRow));
+      const safeItems = Array.isArray(items) ? items : [];
+      const total = Number("total" in response ? response.total : safeItems.length);
+      setRows(safeItems.map(mapLeadItemToRow));
+      setLeadListMeta({
+        total: Number.isFinite(total) ? total : safeItems.length,
+        hasMore: Boolean("hasMore" in response ? response.hasMore : pageOffset + pageSize < total),
+      });
     } catch (error: unknown) {
+      if (requestId !== rowsRequestRef.current) return;
       setRows([]);
+      setLeadListMeta({ total: 0, hasMore: false });
       toast.error("Failed to load My Leads", { description: getApiErrorMessage(error) });
     }
-  }, [filters, hasPersonaMismatch, isSuperAdmin, role, searchInput, selectedEventKey]);
+  }, [events.length, filters, hasPersonaMismatch, isSuperAdmin, loadingEvents, pageOffset, pageSize, role, searchInput, selectedEventKey]);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -623,13 +659,16 @@ export default function MyLeadsPage() {
     return () => window.clearTimeout(handle);
   }, [loadRows]);
 
+  const usesServerPagination = Boolean(
+    selectedEventKey || searchInput.trim().length > 0 || filters.status !== "all" || filters.contact !== "all"
+  );
   const visibleRows = useMemo(() => filterRows(rows, searchInput, filters), [filters, rows, searchInput]);
-  const pagedRows = visibleRows.slice(pageOffset, pageOffset + pageSize);
+  const pagedRows = usesServerPagination ? visibleRows : visibleRows.slice(pageOffset, pageOffset + pageSize);
   const activeFilterCount = [filters.status !== "all", filters.contact !== "all"].filter(Boolean).length;
-  const pageTotal = visibleRows.length;
+  const pageTotal = usesServerPagination ? leadListMeta.total : visibleRows.length;
   const pageRangeStart = pagedRows.length > 0 ? pageOffset + 1 : 0;
   const pageRangeEnd = pageOffset + pagedRows.length;
-  const hasMore = pageOffset + pageSize < pageTotal;
+  const hasMore = usesServerPagination ? leadListMeta.hasMore : pageOffset + pageSize < pageTotal;
 
   if (!role || isSuperAdmin || hasPersonaMismatch) return null;
 
