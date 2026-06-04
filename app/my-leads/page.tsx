@@ -1187,8 +1187,8 @@ export default function MyLeadsPage() {
         </header>
 
         <div className="grid min-h-0 flex-1 gap-12 overflow-hidden pt-10 xl:grid-cols-[19rem_minmax(0,1fr)]">
-          <aside className="shrink-0 space-y-10 overflow-y-auto pr-2 scrollbar-hide">
-            <div className="space-y-6">
+          <aside className="relative min-h-0 shrink-0 overflow-hidden pr-2">
+            <div className="h-full space-y-6 overflow-y-auto pb-72 pr-1 scrollbar-hide">
               <div className="mt-8">
                 <label className="mb-4 block text-xs font-medium text-zinc-400">Search intelligence</label>
                 <div className="relative h-11 w-full rounded-full border border-zinc-300 bg-white px-4 shadow-[0_22px_60px_-52px_rgba(2,10,27,0.42)] transition-colors focus-within:border-zinc-400">
@@ -1263,6 +1263,14 @@ export default function MyLeadsPage() {
                   </div>
                 </div>
               </div>
+            </div>
+            <div className="pointer-events-none absolute bottom-[-0.25rem] left-0 right-2 hidden h-80 overflow-hidden xl:block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/videos/BlockchainEventPromoconverted_1-ezgif.com-optimize%20(1).gif"
+                alt=""
+                className="absolute bottom-0 left-1/2 w-[38rem] max-w-none -translate-x-1/2 object-contain"
+              />
             </div>
           </aside>
 
