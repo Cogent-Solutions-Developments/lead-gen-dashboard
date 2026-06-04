@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   BellRing,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -135,6 +136,11 @@ type ContactChoiceLead = {
   name: string;
   emails: string[];
   phones: string[];
+};
+
+type ContactDropdownState = {
+  leadId: string;
+  kind: "email" | "phone";
 };
 
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
@@ -675,6 +681,7 @@ export default function MyLeadsPage() {
   const [addingLead, setAddingLead] = useState(false);
   const [copiedLeadId, setCopiedLeadId] = useState<string | null>(null);
   const [contactChoiceLead, setContactChoiceLead] = useState<ContactChoiceLead | null>(null);
+  const [contactDropdown, setContactDropdown] = useState<ContactDropdownState | null>(null);
   const [emailDialog, setEmailDialog] = useState<EmailGenerationDialogState | null>(null);
   const [updatingLeadIds, setUpdatingLeadIds] = useState<Record<string, boolean>>({});
   const [pendingStatusChange, setPendingStatusChange] = useState<PendingStatusChange | null>(null);
@@ -698,6 +705,19 @@ export default function MyLeadsPage() {
     }
     if (hasPersonaMismatch) router.replace("/dashboard");
   }, [hasPersonaMismatch, isSuperAdmin, router]);
+
+  useEffect(() => {
+    if (!contactDropdown) return;
+
+    const closeDropdown = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest("[data-contact-dropdown-root]")) return;
+      setContactDropdown(null);
+    };
+
+    document.addEventListener("pointerdown", closeDropdown);
+    return () => document.removeEventListener("pointerdown", closeDropdown);
+  }, [contactDropdown]);
 
   const statusOptions = useMemo(
     () => (persona === "delegates" || persona === "production" ? DELEGATE_STATUSES : SALES_STATUSES),
@@ -1516,14 +1536,21 @@ export default function MyLeadsPage() {
                     <div>Status</div>
                   </div>
                   {pagedRows.map((item) => {
-                    const visibleEmails = item.emails.slice(0, 3);
-                    const visiblePhones = item.phones.slice(0, 3);
+                    const primaryEmail = item.emails[0] || "";
+                    const primaryPhone = item.phones[0] || "";
+                    const emailDropdownOpen = contactDropdown?.leadId === item.id && contactDropdown.kind === "email";
+                    const phoneDropdownOpen = contactDropdown?.leadId === item.id && contactDropdown.kind === "phone";
                     const openContactChoice = () =>
                       setContactChoiceLead({
                         name: item.employeeName,
                         emails: item.emails,
                         phones: item.phones,
                       });
+                    const toggleContactDropdown = (kind: "email" | "phone") => {
+                      setContactDropdown((current) =>
+                        current?.leadId === item.id && current.kind === kind ? null : { leadId: item.id, kind }
+                      );
+                    };
 
                     return (
                       <div key={item.id} className="group grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-6 transition-all duration-300 hover:bg-zinc-50/60">
@@ -1543,43 +1570,121 @@ export default function MyLeadsPage() {
                       <div className="pr-8">
                         <div className="flex flex-col gap-2">
                           <div className="space-y-1.5">
-                            {visibleEmails.length > 0 ? (
-                              visibleEmails.map((email, index) => (
+                            {primaryEmail ? (
+                              <div className="relative flex min-w-0 items-center gap-2" data-contact-dropdown-root>
                               <button
-                                key={`${item.id}-email-${email}`}
                                 type="button"
-                                onClick={openContactChoice}
-                                className="inline-flex min-w-0 items-center gap-4 text-left"
+                                  onClick={() => {
+                                    setContactDropdown(null);
+                                    openContactChoice();
+                                  }}
+                                  className={cn(
+                                    "inline-flex min-w-0 items-center gap-4 text-left",
+                                    item.emails.length > 1 ? "max-w-[calc(100%-2.5rem)]" : "max-w-full"
+                                  )}
                                 title="Choose contact method"
                               >
                                 <EmailIcon className="h-3.5 w-3.5 shrink-0 text-[#EF4444]" />
-                                <span className="truncate text-sm font-light tracking-tight text-zinc-700 transition-colors hover:text-zinc-950">{email}</span>
-                                {index === 2 && item.emails.length > 3 ? (
-                                  <span className="shrink-0 text-[10px] font-medium text-zinc-400">+{item.emails.length - 3}</span>
-                                ) : null}
+                                  <span className="truncate text-sm font-light tracking-tight text-zinc-700 transition-colors hover:text-zinc-950">{primaryEmail}</span>
                               </button>
-                              ))
+                                {item.emails.length > 1 ? (
+                                  <div className="relative shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleContactDropdown("email")}
+                                      className="inline-flex h-6 w-8 items-center justify-center rounded-lg border border-white/10 bg-zinc-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_10px_18px_-15px_rgba(2,10,27,0.9)] transition-colors hover:bg-zinc-700"
+                                      aria-label="Show all email addresses"
+                                      aria-expanded={emailDropdownOpen}
+                                    >
+                                      <ChevronDown className={cn("h-4 w-4 transition-transform", emailDropdownOpen ? "rotate-180" : "")} />
+                                    </button>
+                                    {emailDropdownOpen ? (
+                                      <div className="absolute left-0 top-full z-50 mt-1.5 w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_18px_42px_-28px_rgba(2,10,27,0.42)]">
+                                        <div className="border-b border-zinc-100 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                                          Emails
+                                        </div>
+                                        <div className="max-h-40 overflow-y-auto p-1">
+                                          {item.emails.map((email, index) => (
+                                            <button
+                                              key={`${item.id}-email-option-${email}`}
+                                              type="button"
+                                              onClick={() => {
+                                                setContactDropdown(null);
+                                                openContactChoice();
+                                              }}
+                                              className="flex w-full min-w-0 items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-xs font-light text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-950"
+                                            >
+                                              <EmailIcon className="h-3.5 w-3.5 shrink-0 text-[#EF4444]" />
+                                              <span className="min-w-0 flex-1 truncate">{email}</span>
+                                              <span className="shrink-0 text-[10px] font-medium text-zinc-400">{index + 1}</span>
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                ) : null}
+                              </div>
                             ) : (
                               <span className="text-sm font-light tracking-tight text-zinc-700">-</span>
                             )}
                           </div>
                           <div className="space-y-1.5">
-                            {visiblePhones.length > 0 ? (
-                              visiblePhones.map((phone, index) => (
+                            {primaryPhone ? (
+                              <div className="relative flex min-w-0 items-center gap-2" data-contact-dropdown-root>
                               <button
-                                key={`${item.id}-phone-${phone}`}
                                 type="button"
-                                onClick={openContactChoice}
-                                className="inline-flex min-w-0 items-center gap-4 text-left"
+                                  onClick={() => {
+                                    setContactDropdown(null);
+                                    openContactChoice();
+                                  }}
+                                  className={cn(
+                                    "inline-flex min-w-0 items-center gap-4 text-left",
+                                    item.phones.length > 1 ? "max-w-[calc(100%-2.5rem)]" : "max-w-full"
+                                  )}
                                 title="Choose contact method"
                               >
                                 <PhoneIcon className="h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
-                                <span className="truncate text-sm font-light text-zinc-500 transition-colors hover:text-zinc-950">{phone}</span>
-                                {index === 2 && item.phones.length > 3 ? (
-                                  <span className="shrink-0 text-[10px] font-medium text-zinc-400">+{item.phones.length - 3}</span>
-                                ) : null}
+                                  <span className="truncate text-sm font-light text-zinc-500 transition-colors hover:text-zinc-950">{primaryPhone}</span>
                               </button>
-                              ))
+                                {item.phones.length > 1 ? (
+                                  <div className="relative shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleContactDropdown("phone")}
+                                      className="inline-flex h-6 w-8 items-center justify-center rounded-lg border border-white/10 bg-zinc-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_10px_18px_-15px_rgba(2,10,27,0.9)] transition-colors hover:bg-zinc-700"
+                                      aria-label="Show all phone numbers"
+                                      aria-expanded={phoneDropdownOpen}
+                                    >
+                                      <ChevronDown className={cn("h-4 w-4 transition-transform", phoneDropdownOpen ? "rotate-180" : "")} />
+                                    </button>
+                                    {phoneDropdownOpen ? (
+                                      <div className="absolute left-0 top-full z-50 mt-1.5 w-52 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_18px_42px_-28px_rgba(2,10,27,0.42)]">
+                                        <div className="border-b border-zinc-100 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                                          Phones
+                                        </div>
+                                        <div className="max-h-40 overflow-y-auto p-1">
+                                          {item.phones.map((phone, index) => (
+                                            <button
+                                              key={`${item.id}-phone-option-${phone}`}
+                                              type="button"
+                                              onClick={() => {
+                                                setContactDropdown(null);
+                                                openContactChoice();
+                                              }}
+                                              className="flex w-full min-w-0 items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-xs font-light tabular-nums text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-950"
+                                            >
+                                              <PhoneIcon className="h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
+                                              <span className="min-w-0 flex-1 truncate">{phone}</span>
+                                              <span className="shrink-0 text-[10px] font-medium text-zinc-400">{index + 1}</span>
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                ) : null}
+                              </div>
                             ) : (
                               <span className="text-sm font-light text-zinc-500">-</span>
                             )}
