@@ -1485,7 +1485,7 @@ export default function MyLeadsPage() {
                 </div>
               </div>
             </div>
-            <div className="my-leads-side-media pointer-events-none fixed bottom-0 left-[calc(6rem+1.75rem)] z-0 hidden w-[19rem] overflow-hidden xl:block" aria-hidden="true">
+            <div className="my-leads-side-media pointer-events-none fixed bottom-0 z-0 hidden w-[19rem] overflow-hidden xl:block" aria-hidden="true">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/videos/BlockchainEventPromoconverted_1-ezgif.com-optimize%20(1).gif"

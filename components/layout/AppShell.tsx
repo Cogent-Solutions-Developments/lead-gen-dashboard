@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { clearPersona, getStoredPersona, hasPersona, onPersonaChange, setPersona } from "@/lib/persona";
@@ -178,6 +178,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className={`min-h-screen bg-transparent transition-[margin] duration-300 ease-out ${
           sidebarExpanded ? "ml-72" : "ml-24"
         } ${isFlushContentRoute ? "p-0" : "p-6"}`}
+        style={{ "--app-sidebar-width": sidebarExpanded ? "18rem" : "6rem" } as CSSProperties}
       >
         {children}
       </main>

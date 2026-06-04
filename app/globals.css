@@ -936,6 +936,8 @@
 
   .my-leads-side-media {
     height: 22rem;
+    left: calc(var(--app-sidebar-width, 6rem) + 1.75rem);
+    transition: left 300ms ease-out;
   }
 
   .my-leads-side-media__image {
