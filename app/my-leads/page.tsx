@@ -2503,12 +2503,8 @@ export default function MyLeadsPage() {
 
           <div
             className={cn(
-              "group flex min-h-20 items-center gap-3 rounded-2xl border px-4 py-3 transition-all",
-              !selectedTemplateUploadEvent
-                ? "border-zinc-200 bg-zinc-50/80"
-                : templateUpload.error
-                  ? "border-red-300 bg-red-50/40"
-                  : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50/70"
+              "group flex min-h-16 items-center gap-3 py-1 transition-opacity",
+              !selectedTemplateUploadEvent ? "opacity-60" : ""
             )}
           >
             <label
