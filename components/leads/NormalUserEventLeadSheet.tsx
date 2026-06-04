@@ -300,14 +300,6 @@ const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
 
 const DELEGATE_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
   {
-    id: "workflow-delegate-new",
-    statusKey: "new",
-    label: "New",
-    isSystemDefault: true,
-    sortOrder: 0,
-    isActive: true,
-  },
-  {
     id: "workflow-delegate-first-call",
     statusKey: "first-call",
     label: "First Call",
@@ -316,19 +308,51 @@ const DELEGATE_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     isActive: true,
   },
   {
-    id: "workflow-delegate-follow-up",
-    statusKey: "follow-up",
-    label: "Followup",
+    id: "workflow-delegate-email-sent",
+    statusKey: "email-sent",
+    label: "Email Sent",
     isSystemDefault: true,
     sortOrder: 2,
     isActive: true,
   },
   {
-    id: "workflow-delegate-pending",
-    statusKey: "pending",
-    label: "Pending",
+    id: "workflow-delegate-whatsapp-sent",
+    statusKey: "whatsapp-sent",
+    label: "Whatsapp Sent",
     isSystemDefault: true,
     sortOrder: 3,
+    isActive: true,
+  },
+  {
+    id: "workflow-delegate-1st-follow-up",
+    statusKey: "1st-follow-up",
+    label: "1st Follow up",
+    isSystemDefault: true,
+    sortOrder: 4,
+    isActive: true,
+  },
+  {
+    id: "workflow-delegate-2nd-follow-up",
+    statusKey: "2nd-follow-up",
+    label: "2nd Follow up",
+    isSystemDefault: true,
+    sortOrder: 5,
+    isActive: true,
+  },
+  {
+    id: "workflow-delegate-3rd-follow-up",
+    statusKey: "3rd-follow-up",
+    label: "3rd Follow up",
+    isSystemDefault: true,
+    sortOrder: 6,
+    isActive: true,
+  },
+  {
+    id: "workflow-delegate-declined",
+    statusKey: "declined",
+    label: "Declined",
+    isSystemDefault: true,
+    sortOrder: 7,
     isActive: true,
   },
   {
@@ -336,7 +360,82 @@ const DELEGATE_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     statusKey: "confirmed",
     label: "Confirmed",
     isSystemDefault: true,
+    sortOrder: 8,
+    isActive: true,
+  },
+];
+
+const PRODUCTION_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
+  {
+    id: "workflow-production-first-call",
+    statusKey: "first-call",
+    label: "First Call",
+    isSystemDefault: true,
+    sortOrder: 1,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-email-sent",
+    statusKey: "email-sent",
+    label: "Email Sent",
+    isSystemDefault: true,
+    sortOrder: 2,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-whatsapp-sent",
+    statusKey: "whatsapp-sent",
+    label: "Whatsapp Sent",
+    isSystemDefault: true,
+    sortOrder: 3,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-1st-follow-up",
+    statusKey: "1st-follow-up",
+    label: "1st Follow up",
+    isSystemDefault: true,
     sortOrder: 4,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-2nd-follow-up",
+    statusKey: "2nd-follow-up",
+    label: "2nd Follow up",
+    isSystemDefault: true,
+    sortOrder: 5,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-3rd-follow-up",
+    statusKey: "3rd-follow-up",
+    label: "3rd Follow up",
+    isSystemDefault: true,
+    sortOrder: 6,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-pending",
+    statusKey: "pending",
+    label: "Pending",
+    isSystemDefault: true,
+    sortOrder: 7,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-declined",
+    statusKey: "declined",
+    label: "Declined",
+    isSystemDefault: true,
+    sortOrder: 8,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-confirmed",
+    statusKey: "confirmed",
+    label: "Confirmed",
+    isSystemDefault: true,
+    sortOrder: 9,
     isActive: true,
   },
 ];
@@ -348,7 +447,13 @@ const STATUS_DOT_CLASS: Record<string, string> = {
   "proposal-sent": "bg-[#a855f7] shadow-[0_0_0_3px_rgba(168,85,247,0.20)]",
   "deal-closed": "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
   "deal-dead": "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]",
+  "email-sent": "bg-[#2563eb] shadow-[0_0_0_3px_rgba(37,99,235,0.20)]",
+  "whatsapp-sent": "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.22)]",
+  "1st-follow-up": "bg-[#ff8700] shadow-[0_0_0_3px_rgba(255,135,0,0.20)]",
+  "2nd-follow-up": "bg-[#f59e0b] shadow-[0_0_0_3px_rgba(245,158,11,0.20)]",
+  "3rd-follow-up": "bg-[#f97316] shadow-[0_0_0_3px_rgba(249,115,22,0.20)]",
   pending: "bg-[#a855f7] shadow-[0_0_0_3px_rgba(168,85,247,0.20)]",
+  declined: "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]",
   confirmed: "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
 };
 const DEFAULT_PAGE_SIZE = 100;
@@ -716,9 +821,7 @@ export function NormalUserEventLeadSheet() {
   const [events, setEvents] = useState<EventSummaryItem[]>([]);
   const [registryEvents, setRegistryEvents] = useState<AdminEventItem[]>([]);
   const [leadPage, setLeadPage] = useState<EventLeadListResponse | null>(null);
-  const [workflowStatuses, setWorkflowStatuses] = useState<WorkflowStatusDefinitionItem[]>(
-    FIXED_WORKFLOW_STATUSES
-  );
+  const [workflowStatuses, setWorkflowStatuses] = useState<WorkflowStatusDefinitionItem[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [loadingLeads, setLoadingLeads] = useState(false);
   const [searchInput, setSearchInput] = useState(initialSearch);
@@ -770,7 +873,12 @@ export function NormalUserEventLeadSheet() {
   }, [workflowStatuses]);
 
   const fixedWorkflowStatuses = useMemo(
-    () => persona === "delegates" || persona === "production" ? DELEGATE_WORKFLOW_STATUSES : FIXED_WORKFLOW_STATUSES,
+    () =>
+      persona === "production"
+        ? PRODUCTION_WORKFLOW_STATUSES
+        : persona === "delegates"
+          ? DELEGATE_WORKFLOW_STATUSES
+          : FIXED_WORKFLOW_STATUSES,
     [persona]
   );
 

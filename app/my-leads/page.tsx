@@ -155,10 +155,25 @@ const SALES_STATUSES: MyLeadStatus[] = [
 ];
 
 const DELEGATE_STATUSES: MyLeadStatus[] = [
-  { statusKey: "new", label: "New" },
   { statusKey: "first-call", label: "First Call" },
-  { statusKey: "follow-up", label: "Followups" },
+  { statusKey: "email-sent", label: "Email Sent" },
+  { statusKey: "whatsapp-sent", label: "Whatsapp Sent" },
+  { statusKey: "1st-follow-up", label: "1st Follow up" },
+  { statusKey: "2nd-follow-up", label: "2nd Follow up" },
+  { statusKey: "3rd-follow-up", label: "3rd Follow up" },
+  { statusKey: "declined", label: "Declined" },
+  { statusKey: "confirmed", label: "Confirmed" },
+];
+
+const PRODUCTION_STATUSES: MyLeadStatus[] = [
+  { statusKey: "first-call", label: "First Call" },
+  { statusKey: "email-sent", label: "Email Sent" },
+  { statusKey: "whatsapp-sent", label: "Whatsapp Sent" },
+  { statusKey: "1st-follow-up", label: "1st Follow up" },
+  { statusKey: "2nd-follow-up", label: "2nd Follow up" },
+  { statusKey: "3rd-follow-up", label: "3rd Follow up" },
   { statusKey: "pending", label: "Pending" },
+  { statusKey: "declined", label: "Declined" },
   { statusKey: "confirmed", label: "Confirmed" },
 ];
 
@@ -262,7 +277,13 @@ function getStatusDotClass(status: string) {
     "proposal-sent": "bg-[#a855f7] shadow-[0_0_0_3px_rgba(168,85,247,0.20)]",
     "deal-closed": "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
     "deal-dead": "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]",
+    "email-sent": "bg-[#2563eb] shadow-[0_0_0_3px_rgba(37,99,235,0.20)]",
+    "whatsapp-sent": "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.22)]",
+    "1st-follow-up": "bg-[#ff8700] shadow-[0_0_0_3px_rgba(255,135,0,0.20)]",
+    "2nd-follow-up": "bg-[#f59e0b] shadow-[0_0_0_3px_rgba(245,158,11,0.20)]",
+    "3rd-follow-up": "bg-[#f97316] shadow-[0_0_0_3px_rgba(249,115,22,0.20)]",
     pending: "bg-[#a855f7] shadow-[0_0_0_3px_rgba(168,85,247,0.20)]",
+    declined: "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]",
     confirmed: "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
   };
   return statusDotClass[status] ?? "bg-zinc-400";
@@ -720,7 +741,12 @@ export default function MyLeadsPage() {
   }, [contactDropdown]);
 
   const statusOptions = useMemo(
-    () => (persona === "delegates" || persona === "production" ? DELEGATE_STATUSES : SALES_STATUSES),
+    () =>
+      persona === "production"
+        ? PRODUCTION_STATUSES
+        : persona === "delegates"
+          ? DELEGATE_STATUSES
+          : SALES_STATUSES,
     [persona]
   );
   const selectedEvent = useMemo(
@@ -1540,6 +1566,9 @@ export default function MyLeadsPage() {
                     const primaryPhone = item.phones[0] || "";
                     const emailDropdownOpen = contactDropdown?.leadId === item.id && contactDropdown.kind === "email";
                     const phoneDropdownOpen = contactDropdown?.leadId === item.id && contactDropdown.kind === "phone";
+                    const selectedStatusValue = statusOptions.some((option) => option.statusKey === item.workflowStatus)
+                      ? item.workflowStatus
+                      : undefined;
                     const openContactChoice = () =>
                       setContactChoiceLead({
                         name: item.employeeName,
@@ -1727,7 +1756,7 @@ export default function MyLeadsPage() {
 
                       <div className="flex h-full flex-col">
                         <Select
-                          value={item.workflowStatus}
+                          value={selectedStatusValue}
                           onValueChange={(value) => handleStatusSelection(item, value)}
                           disabled={Boolean(updatingLeadIds[item.id])}
                         >
