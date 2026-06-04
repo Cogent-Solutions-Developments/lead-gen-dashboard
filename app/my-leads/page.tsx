@@ -1600,7 +1600,7 @@ export default function MyLeadsPage() {
                                     </button>
                                     {emailDropdownOpen ? (
                                       <div className="absolute left-0 top-full z-50 mt-1.5 w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_18px_42px_-28px_rgba(2,10,27,0.42)]">
-                                        <div className="border-b border-zinc-100 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                                        <div className="border-b border-zinc-100 px-2.5 py-1.5 text-[10px] font-semibold tracking-normal text-zinc-400">
                                           Emails
                                         </div>
                                         <div className="max-h-40 overflow-y-auto p-1">
@@ -1660,7 +1660,7 @@ export default function MyLeadsPage() {
                                     </button>
                                     {phoneDropdownOpen ? (
                                       <div className="absolute left-0 top-full z-50 mt-1.5 w-52 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_18px_42px_-28px_rgba(2,10,27,0.42)]">
-                                        <div className="border-b border-zinc-100 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                                        <div className="border-b border-zinc-100 px-2.5 py-1.5 text-[10px] font-semibold tracking-normal text-zinc-400">
                                           Phones
                                         </div>
                                         <div className="max-h-40 overflow-y-auto p-1">
@@ -2169,21 +2169,13 @@ export default function MyLeadsPage() {
               <h3 className="text-2xl font-light tracking-tight text-zinc-950">
                 {contactChoiceLead.name || "This lead"}
               </h3>
-              <div className="mt-3 space-y-1.5 text-sm font-light text-zinc-500">
-                {contactChoiceLead.emails.length > 0 ? (
-                  <p className="truncate">{contactChoiceLead.emails.join(", ")}</p>
-                ) : null}
-                {contactChoiceLead.phones.length > 0 ? (
-                  <p className="tabular-nums">{contactChoiceLead.phones.join(", ")}</p>
-                ) : null}
-              </div>
             </div>
 
             <div className="space-y-3">
               {contactChoiceLead.emails.map((email, index) => (
-                <div key={`contact-email-${email}`} className="grid gap-3 border border-zinc-200 bg-white p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                <div key={`contact-email-${email}`} className="grid gap-3 border-b border-zinc-100 px-1 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">Email {index + 1}</p>
+                    <p className="text-[11px] font-medium tracking-normal text-zinc-400">email {index + 1}</p>
                     <p className="mt-1 truncate text-sm font-light text-zinc-700">{email}</p>
                   </div>
                   <Button
@@ -2202,9 +2194,9 @@ export default function MyLeadsPage() {
               ))}
 
               {contactChoiceLead.phones.map((phone, index) => (
-                <div key={`contact-phone-${phone}`} className="grid gap-3 border border-zinc-200 bg-white p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
+                <div key={`contact-phone-${phone}`} className="grid gap-3 border-b border-zinc-100 px-1 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">Phone {index + 1}</p>
+                    <p className="text-[11px] font-medium tracking-normal text-zinc-400">phone {index + 1}</p>
                     <p className="mt-1 truncate text-sm font-light tabular-nums text-zinc-700">{phone}</p>
                   </div>
                   <Button
@@ -2237,7 +2229,7 @@ export default function MyLeadsPage() {
               ))}
 
               {contactChoiceLead.emails.length === 0 && contactChoiceLead.phones.length === 0 ? (
-                <div className="border border-zinc-200 bg-zinc-50/70 p-5 text-sm font-light text-zinc-500">
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-5 text-sm font-light text-zinc-500">
                   No contact channels are available for this lead.
                 </div>
               ) : null}
