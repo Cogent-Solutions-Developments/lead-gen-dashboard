@@ -290,6 +290,155 @@ export async function downloadLeadTemplateFile(fileName = "lead-upload-template.
   window.setTimeout(() => window.URL.revokeObjectURL(url), 500);
 }
 
+export async function getMyRecentCampaigns(limit?: number) {
+  const params = typeof limit === "number" ? { limit } : undefined;
+  const { data } = await apiClientProduction.get<{ campaigns: RecentCampaign[] }>(
+    "/api/productions/my-leads/campaigns/recent",
+    { params }
+  );
+  return data;
+}
+
+export async function listMyCampaigns(params: { status?: string; limit?: number; offset?: number }) {
+  const { data } = await apiClientProduction.get<{
+    campaigns: CampaignListItem[];
+    total: number;
+    hasMore: boolean;
+  }>("/api/productions/my-leads/campaigns", { params });
+  return data;
+}
+
+export async function createMyCampaignFromUpload(payload: UploadCampaignRequest) {
+  const formData = new FormData();
+  formData.append("name", payload.name.trim());
+  formData.append("location", payload.location?.trim() ?? "");
+  formData.append("category", payload.category?.trim() ?? "");
+  formData.append("date", payload.date?.trim() ?? "");
+  formData.append("eventRegistryId", payload.eventRegistryId?.trim() ?? "");
+  formData.append("icp", payload.icp?.trim() ?? "");
+
+  const leadSheetName =
+    typeof File !== "undefined" && payload.leadSheet instanceof File && payload.leadSheet.name
+      ? payload.leadSheet.name
+      : "lead-sheet.csv";
+
+  formData.append("leadSheet", payload.leadSheet, leadSheetName);
+
+  const { data } = await apiClientProduction.post<UploadCampaignResponse>(
+    "/api/productions/my-leads/campaigns",
+    formData
+  );
+  return data;
+}
+
+export async function validateMyLeadTemplateUpload(file: File | Blob) {
+  const formData = new FormData();
+  const fileName =
+    typeof File !== "undefined" && file instanceof File && file.name
+      ? file.name
+      : "lead-upload-template.xlsx";
+
+  formData.append("leadSheet", file, fileName);
+
+  const { data } = await apiClientProduction.post<LeadTemplateValidationResponse>(
+    "/api/productions/my-leads/lead-template/validate",
+    formData
+  );
+  return data;
+}
+
+export async function downloadMyLeadTemplateFile(fileName = "lead-upload-template.xlsx") {
+  const { data } = await apiClientProduction.get<Blob>("/api/productions/my-leads/lead-template", {
+    responseType: "blob",
+  });
+  const url = window.URL.createObjectURL(data);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName || "lead-upload-template.xlsx";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => window.URL.revokeObjectURL(url), 500);
+}
+
+export async function getMyCampaign(id: string) {
+  const { data } = await apiClientProduction.get<CampaignDetail>(
+    `/api/productions/my-leads/campaigns/${id}`
+  );
+  return data;
+}
+
+export function exportMyCampaignCsvUrl(id: string) {
+  return `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/productions/my-leads/campaigns/${id}/export`;
+}
+
+export async function getMyCampaignLeads(id: string, status: string = "all") {
+  const { data } = await apiClientProduction.get<{ leads: LeadItem[]; total: number }>(
+    `/api/productions/my-leads/campaigns/${id}/leads`,
+    { params: { status } }
+  );
+  return data;
+}
+
+export async function listMyAllLeads() {
+  const { data } = await apiClientProduction.get<{ leads: LeadItem[]; total: number }>(
+    "/api/productions/my-leads/all/leads"
+  );
+  return data;
+}
+
+export async function searchMyLeads(params?: GlobalLeadSearchParams) {
+  const { data } = await apiClientProduction.get<GlobalLeadSearchResponse>("/api/productions/my-leads/leads/search", {
+    params: {
+      limit: params?.limit,
+      offset: params?.offset,
+      search: params?.search,
+      approvalStatus: params?.approvalStatus,
+      workflowStatus: params?.workflowStatus,
+      canonicalEventKey: params?.canonicalEventKey,
+      campaignId: params?.campaignId,
+      hasEmail: params?.hasEmail,
+      hasPhone: params?.hasPhone,
+      hasLinkedin: params?.hasLinkedin,
+      hasWebsite: params?.hasWebsite,
+      sortBy: params?.sortBy,
+      sortDir: params?.sortDir,
+    },
+  });
+  return data;
+}
+
+export async function listMyEvents() {
+  const { data } = await apiClientProduction.get<EventSummaryResponse>("/api/productions/my-leads/events");
+  return data;
+}
+
+export async function listMyEventLeads(canonicalEventKey: string, params?: EventLeadListParams) {
+  const { data } = await apiClientProduction.get<EventLeadListResponse>(
+    `/api/productions/my-leads/events/${encodeURIComponent(canonicalEventKey)}/leads`,
+    {
+      params: {
+        limit: params?.limit,
+        offset: params?.offset,
+        search: params?.search,
+        workflowStatus: params?.workflowStatus,
+        category: params?.category,
+        includeManual: params?.includeManual,
+        sort: params?.sort,
+      },
+    }
+  );
+  return data;
+}
+
+export async function addMyEventLead(canonicalEventKey: string, payload: EventLeadCreateRequest) {
+  const { data } = await apiClientProduction.post<EventLeadCreateResponse>(
+    `/api/productions/my-leads/events/${encodeURIComponent(canonicalEventKey)}/leads`,
+    payload
+  );
+  return data;
+}
+
 export async function getCampaign(id: string) {
   const { data } = await apiClientProduction.get<CampaignDetail>(
     `/api/productions/campaigns/${id}`
