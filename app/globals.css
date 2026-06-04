@@ -933,4 +933,32 @@
   .scrollbar-modern::-webkit-scrollbar-corner {
     background: transparent;
   }
+
+  .my-leads-side-media {
+    height: 20rem;
+  }
+
+  .my-leads-side-media__image {
+    width: 38rem;
+  }
+
+  @media (max-height: 900px) {
+    .my-leads-side-media {
+      height: 12rem;
+    }
+
+    .my-leads-side-media__image {
+      width: 28rem;
+    }
+  }
+
+  @media (max-height: 760px) {
+    .my-leads-side-media {
+      height: 9rem;
+    }
+
+    .my-leads-side-media__image {
+      width: 22rem;
+    }
+  }
 }
