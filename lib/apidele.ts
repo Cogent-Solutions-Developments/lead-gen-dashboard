@@ -17,6 +17,7 @@ import type {
   DeleteBlockedDetail,
   DeleteCampaignResponse,
   DashboardKpiLeaderboard,
+  DashboardPeriod,
   DashboardPersonalSummary,
   DashboardStats,
   DeleteCampaignResult,
@@ -85,6 +86,7 @@ export type {
   DeleteBlockedDetail,
   DeleteCampaignResponse,
   DashboardKpiLeaderboard,
+  DashboardPeriod,
   DashboardPersonalSummary,
   DashboardStats,
   DeleteCampaignResult,
@@ -180,9 +182,10 @@ export async function getDashboardStats() {
   return data;
 }
 
-export async function getDashboardPersonalSummary() {
+export async function getDashboardPersonalSummary(params?: { date?: string; period?: DashboardPeriod }) {
   const { data } = await apiClientDelegate.get<DashboardPersonalSummary>(
-    "/api/delegates/dashboard/personal-summary"
+    "/api/delegates/dashboard/personal-summary",
+    { params: { date: params?.date, period: params?.period } }
   );
   return {
     ...data,
@@ -191,10 +194,10 @@ export async function getDashboardPersonalSummary() {
   };
 }
 
-export async function getDashboardKpiLeaderboard(params?: { date?: string }) {
+export async function getDashboardKpiLeaderboard(params?: { date?: string; period?: DashboardPeriod }) {
   const { data } = await apiClientDelegate.get<DashboardKpiLeaderboard>(
     "/api/delegates/dashboard/kpi-leaderboard",
-    { params: { date: params?.date } }
+    { params: { date: params?.date, period: params?.period } }
   );
   return {
     ...data,
