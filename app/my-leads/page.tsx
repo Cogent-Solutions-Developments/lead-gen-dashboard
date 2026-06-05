@@ -1608,7 +1608,7 @@ export default function MyLeadsPage() {
                                   }}
                                   className={cn(
                                     "inline-flex min-w-0 items-center gap-4 text-left",
-                                    item.emails.length > 1 ? "max-w-[calc(100%-2.5rem)]" : "max-w-full"
+                                    item.emails.length > 1 ? "max-w-[calc(100%-2.25rem)]" : "max-w-full"
                                   )}
                                 title="Choose contact method"
                               >
@@ -1620,11 +1620,11 @@ export default function MyLeadsPage() {
                                     <button
                                       type="button"
                                       onClick={() => toggleContactDropdown("email")}
-                                      className="inline-flex h-6 w-8 items-center justify-center rounded-lg border border-white/10 bg-zinc-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_10px_18px_-15px_rgba(2,10,27,0.9)] transition-colors hover:bg-zinc-700"
+                                      className="inline-flex h-6 w-7 items-center justify-center rounded-lg border border-white/10 bg-zinc-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_10px_18px_-15px_rgba(2,10,27,0.9)] transition-colors hover:bg-zinc-700"
                                       aria-label="Show all email addresses"
                                       aria-expanded={emailDropdownOpen}
                                     >
-                                      <ChevronDown className={cn("h-4 w-4 transition-transform", emailDropdownOpen ? "rotate-180" : "")} />
+                                      <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", emailDropdownOpen ? "rotate-180" : "")} />
                                     </button>
                                     {emailDropdownOpen ? (
                                       <div className="absolute left-0 top-full z-50 mt-1.5 w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_18px_42px_-28px_rgba(2,10,27,0.42)]">
@@ -1668,7 +1668,7 @@ export default function MyLeadsPage() {
                                   }}
                                   className={cn(
                                     "inline-flex min-w-0 items-center gap-4 text-left",
-                                    item.phones.length > 1 ? "max-w-[calc(100%-2.5rem)]" : "max-w-full"
+                                    item.phones.length > 1 ? "max-w-[calc(100%-2.25rem)]" : "max-w-full"
                                   )}
                                 title="Choose contact method"
                               >
@@ -1680,11 +1680,11 @@ export default function MyLeadsPage() {
                                     <button
                                       type="button"
                                       onClick={() => toggleContactDropdown("phone")}
-                                      className="inline-flex h-6 w-8 items-center justify-center rounded-lg border border-white/10 bg-zinc-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_10px_18px_-15px_rgba(2,10,27,0.9)] transition-colors hover:bg-zinc-700"
+                                      className="inline-flex h-6 w-7 items-center justify-center rounded-lg border border-white/10 bg-zinc-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_10px_18px_-15px_rgba(2,10,27,0.9)] transition-colors hover:bg-zinc-700"
                                       aria-label="Show all phone numbers"
                                       aria-expanded={phoneDropdownOpen}
                                     >
-                                      <ChevronDown className={cn("h-4 w-4 transition-transform", phoneDropdownOpen ? "rotate-180" : "")} />
+                                      <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", phoneDropdownOpen ? "rotate-180" : "")} />
                                     </button>
                                     {phoneDropdownOpen ? (
                                       <div className="absolute left-0 top-full z-50 mt-1.5 w-52 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_18px_42px_-28px_rgba(2,10,27,0.42)]">
