@@ -133,9 +133,11 @@ function EventRowsSkeleton({ viewMode }: { viewMode: EventViewMode }) {
       {[0, 1, 2].map((index) => (
         <div
           key={index}
-          className="grid min-h-[11rem] animate-pulse overflow-hidden rounded-lg border border-zinc-200 bg-white/70 sm:h-[11rem] sm:min-h-0 sm:grid-cols-[10rem_minmax(0,1fr)] 2xl:h-[12rem] 2xl:grid-cols-[11rem_minmax(0,1fr)]"
-        >
-          <div className="min-h-[11rem] bg-zinc-100 sm:min-h-0 2xl:min-h-0" />
+            className="grid min-h-[11rem] animate-pulse overflow-hidden rounded-lg border border-zinc-200 bg-white/70 sm:h-[11rem] sm:min-h-0 sm:grid-cols-[10.25rem_minmax(0,1fr)] 2xl:h-[12rem] 2xl:grid-cols-[11rem_minmax(0,1fr)]"
+          >
+          <div className="min-h-[11rem] bg-zinc-100 p-4 sm:min-h-0 2xl:min-h-0">
+            <div className="h-full w-full bg-zinc-200/70" />
+          </div>
 
           <div className="grid min-w-0 gap-6 p-6 sm:grid-cols-[minmax(12rem,1fr)_minmax(12rem,16rem)_auto] sm:items-center 2xl:p-7">
             <div>
@@ -171,15 +173,15 @@ function EventImagePanel({
       className={
         viewMode === "grid"
           ? "relative flex h-full min-h-[8.25rem] items-center justify-center overflow-hidden text-2xl font-semibold text-zinc-400"
-          : "relative flex min-h-[11rem] items-center justify-center overflow-hidden text-3xl font-semibold text-zinc-400 sm:h-full sm:min-h-0"
+          : "relative flex min-h-[11rem] items-center justify-center overflow-hidden p-4 text-2xl font-semibold text-zinc-400 sm:h-full sm:min-h-0"
       }
     >
       <ProtectedImage
         src={item.logoUrl}
         directUrlPath={item.logoUrl ? `${item.logoUrl}/download-url` : undefined}
         alt=""
-        className={`h-full w-full transition-transform duration-500 group-hover:scale-[1.04] ${
-          viewMode === "grid" ? "object-contain p-3" : "object-cover"
+        className={`h-full w-full transition-transform duration-500 group-hover:scale-[1.03] ${
+          viewMode === "grid" ? "object-contain p-3" : "object-contain"
         }`}
         fallback={item.canonicalEventName.slice(0, 2).toUpperCase()}
       />
@@ -398,7 +400,7 @@ export function NormalUserEventsPage() {
                   >
                     <Link
                       href={`/leads?event=${encodeURIComponent(item.canonicalEventKey)}`}
-                      className="grid min-h-[11rem] h-full sm:h-[11rem] sm:min-h-0 sm:grid-cols-[10rem_minmax(0,1fr)] 2xl:h-[12rem] 2xl:grid-cols-[11rem_minmax(0,1fr)]"
+                      className="grid min-h-[11rem] h-full sm:h-[11rem] sm:min-h-0 sm:grid-cols-[10.25rem_minmax(0,1fr)] 2xl:h-[12rem] 2xl:grid-cols-[11rem_minmax(0,1fr)]"
                     >
                       <EventImagePanel item={item} />
 
