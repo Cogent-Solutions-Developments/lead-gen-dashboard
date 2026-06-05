@@ -357,6 +357,63 @@ export type SystemMonitorSnapshot = {
   warnings?: SystemMonitorWarning[];
 };
 
+export type AdminUserPerformancePeriod = "daily" | "monthly" | "yearly";
+
+export type AdminUserPerformanceRunner = {
+  userId?: string | null;
+  id?: string | null;
+  username?: string | null;
+  fullName?: string | null;
+  full_name?: string | null;
+  name?: string | null;
+  role?: AuthRole | string | null;
+  avatarUrl?: string | null;
+  avatar_url?: string | null;
+  total?: number;
+  count?: number;
+  value?: number;
+  kpiCount?: number;
+  kpi_count?: number;
+  metricValue?: number;
+  metric_value?: number;
+  rank?: number;
+};
+
+export type AdminUserPerformanceCluster = {
+  pipeline: "sales" | "delegate" | "production" | string;
+  label: string;
+  role: AuthRole | string;
+  metricKey: string;
+  metricLabel: string;
+  accent: string;
+  ownerUserId?: string | null;
+  total: number;
+  activeUsers: number;
+  contributors: number;
+  averagePerUser: number;
+  topUser?: AdminUserPerformanceRunner | Record<string, unknown> | null;
+  runners: AdminUserPerformanceRunner[];
+};
+
+export type AdminUserPerformanceSummary = {
+  totalKpis: number;
+  activeUsers: number;
+  contributors: number;
+  averagePerUser: number;
+  topPipeline?: AdminUserPerformanceCluster | Record<string, unknown> | null;
+  topUser?: AdminUserPerformanceRunner | Record<string, unknown> | null;
+};
+
+export type AdminUserPerformanceResponse = {
+  period: AdminUserPerformancePeriod | string;
+  date: string;
+  periodStart?: string | null;
+  periodEnd?: string | null;
+  generatedAt?: string | null;
+  summary: AdminUserPerformanceSummary;
+  clusters: AdminUserPerformanceCluster[];
+};
+
 export type SystemOperationLogService = {
   service: string;
   source?: "file" | "docker" | string;
@@ -1270,6 +1327,17 @@ export async function downloadAdminCategoryExport() {
 
 export async function fetchSystemMonitorSnapshot() {
   return authRequest<SystemMonitorSnapshot>("/api/admin/system-monitor");
+}
+
+export async function fetchAdminUserPerformance(options: {
+  period?: AdminUserPerformancePeriod;
+  date?: string;
+} = {}) {
+  const params = new URLSearchParams();
+  if (options.period) params.set("period", options.period);
+  if (options.date) params.set("date", options.date);
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return authRequest<AdminUserPerformanceResponse>(`/api/admin/user-performance${suffix}`);
 }
 
 export async function listSystemOperationLogServices() {

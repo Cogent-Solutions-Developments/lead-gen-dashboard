@@ -2695,39 +2695,68 @@ export default function MyLeadsPage() {
 
           {templateValidation ? (
             <div className="space-y-5">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="border border-zinc-200 p-4">
-                  <p className="text-xs font-medium text-zinc-400">Sheets</p>
-                  <p className="mt-2 text-2xl font-light tabular-nums text-zinc-950">
-                    {templateValidation.sheetCount.toLocaleString()}
-                  </p>
+              <div className="border-y border-blue-100 py-5">
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-4">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_16px_30px_-18px_rgba(37,99,235,0.95)]">
+                      <span className="h-2.5 w-2.5 rounded-full bg-white" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-base font-medium text-zinc-950">Ready to add</p>
+                      <p className="mt-1 truncate text-sm font-light text-zinc-500">
+                        {getDisplayEventName(selectedTemplateUploadEvent?.eventName)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-left sm:text-right">
+                    <p className="text-5xl font-light tabular-nums tracking-tight text-zinc-950">
+                      {templateValidation.importRows.toLocaleString()}
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-zinc-400">leads prepared</p>
+                  </div>
                 </div>
-                <div className="border border-zinc-200 p-4">
-                  <p className="text-xs font-medium text-zinc-400">Leads ready</p>
-                  <p className="mt-2 text-2xl font-light tabular-nums text-zinc-950">
-                    {templateValidation.importRows.toLocaleString()}
-                  </p>
-                </div>
-                <div className="border border-zinc-200 p-4">
-                  <p className="text-xs font-medium text-zinc-400">Skipped rows</p>
-                  <p className="mt-2 text-2xl font-light tabular-nums text-zinc-950">
-                    {templateValidation.invalidRows.toLocaleString()}
-                  </p>
+
+                <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-zinc-100 pt-4 text-sm">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-zinc-400">Sheets</span>
+                    <span className="text-xl font-light tabular-nums text-zinc-950">
+                      {templateValidation.sheetCount.toLocaleString()}
+                    </span>
+                  </div>
+                  <span className="hidden h-5 w-px bg-zinc-200 sm:block" />
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-zinc-400">Rows checked</span>
+                    <span className="text-xl font-light tabular-nums text-zinc-950">
+                      {templateValidation.rawRows.toLocaleString()}
+                    </span>
+                  </div>
+                  <span className="hidden h-5 w-px bg-zinc-200 sm:block" />
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-zinc-400">Skipped</span>
+                    <span className="text-xl font-light tabular-nums text-zinc-950">
+                      {templateValidation.invalidRows.toLocaleString()}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="mb-3 block text-xs font-medium text-zinc-400">Detected categories</label>
-                <div className="max-h-36 space-y-2 overflow-y-auto pr-1 scrollbar-modern">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                  <p className="text-sm font-medium text-zinc-500">Detected categories</p>
+                  <p className="text-xs font-medium text-zinc-400">
+                    {templateValidation.categories.length.toLocaleString()} found
+                  </p>
+                </div>
+                <div className="max-h-32 overflow-y-auto border-y border-zinc-100 scrollbar-modern">
                   {templateValidation.categories.map((category) => (
                     <div
                       key={category.name}
-                      className="flex items-center justify-between gap-4 border border-zinc-200 px-4 py-3"
+                      className="flex items-center justify-between gap-4 border-b border-zinc-100 py-3 last:border-b-0"
                     >
                       <span className="min-w-0 truncate text-sm font-semibold text-zinc-950">
                         {category.name}
                       </span>
-                      <span className="shrink-0 text-xs font-medium text-zinc-400">
+                      <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
                         {category.validRows.toLocaleString()} leads
                       </span>
                     </div>
@@ -2736,8 +2765,14 @@ export default function MyLeadsPage() {
               </div>
 
               {templateValidation.invalidReasons.length > 0 ? (
-                <div className="border-l border-amber-300 pl-4 text-sm font-light leading-6 text-amber-700">
-                  {templateValidation.invalidReasons[0]}
+                <div className="flex items-start gap-3 border-t border-zinc-100 pt-4 text-sm">
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                  <div>
+                    <p className="font-medium text-zinc-700">Some rows were skipped</p>
+                    <p className="mt-1 font-light leading-6 text-zinc-500">
+                      {templateValidation.invalidReasons[0]}
+                    </p>
+                  </div>
                 </div>
               ) : null}
             </div>
