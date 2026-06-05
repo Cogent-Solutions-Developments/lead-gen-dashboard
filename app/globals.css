@@ -935,7 +935,9 @@
   }
 
   .my-leads-side-media {
-    height: 20rem;
+    height: 22rem;
+    left: calc(var(--app-sidebar-width, 6rem) + 1.75rem);
+    transition: left 300ms ease-out;
   }
 
   .my-leads-side-media__image {
@@ -944,7 +946,7 @@
 
   @media (max-height: 900px) {
     .my-leads-side-media {
-      height: 12rem;
+      height: 16rem;
     }
 
     .my-leads-side-media__image {
@@ -954,7 +956,7 @@
 
   @media (max-height: 760px) {
     .my-leads-side-media {
-      height: 9rem;
+      height: 13rem;
     }
 
     .my-leads-side-media__image {

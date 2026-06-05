@@ -32,8 +32,14 @@ export type DashboardPersonalStatsItem = {
   statusCounts: Record<string, number>;
 };
 
+export type DashboardPeriod = "daily" | "monthly" | "yearly";
+
 export type DashboardPersonalSummary = {
   pipeline?: string;
+  period?: DashboardPeriod;
+  date?: string;
+  periodStart?: string | null;
+  periodEnd?: string | null;
   generatedAt?: string | null;
   statuses: WorkflowStatusDefinitionItem[];
   items: DashboardPersonalStatsItem[];
@@ -52,7 +58,10 @@ export type DashboardKpiRunner = {
 
 export type DashboardKpiLeaderboard = {
   pipeline?: string;
+  period?: DashboardPeriod;
   date?: string;
+  periodStart?: string | null;
+  periodEnd?: string | null;
   generatedAt?: string | null;
   runners: DashboardKpiRunner[];
 };
@@ -1038,8 +1047,10 @@ export async function getDashboardStats() {
   return data;
 }
 
-export async function getDashboardPersonalSummary() {
-  const { data } = await apiClient.get<DashboardPersonalSummary>("/api/dashboard/personal-summary");
+export async function getDashboardPersonalSummary(params?: { date?: string; period?: DashboardPeriod }) {
+  const { data } = await apiClient.get<DashboardPersonalSummary>("/api/dashboard/personal-summary", {
+    params: { date: params?.date, period: params?.period },
+  });
   return {
     ...data,
     statuses: Array.isArray(data.statuses) ? data.statuses : [],
@@ -1047,9 +1058,9 @@ export async function getDashboardPersonalSummary() {
   };
 }
 
-export async function getDashboardKpiLeaderboard(params?: { date?: string }) {
+export async function getDashboardKpiLeaderboard(params?: { date?: string; period?: DashboardPeriod }) {
   const { data } = await apiClient.get<DashboardKpiLeaderboard>("/api/dashboard/kpi-leaderboard", {
-    params: { date: params?.date },
+    params: { date: params?.date, period: params?.period },
   });
   return {
     ...data,

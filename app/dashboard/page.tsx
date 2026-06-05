@@ -9,6 +9,7 @@ import { getCachedAuthUserDisplayName } from "@/lib/auth";
 import {
   getDashboardKpiLeaderboard,
   getDashboardPersonalSummary,
+  type DashboardPeriod,
   type DashboardKpiRunner,
   type DashboardPersonalStatsItem,
   type WorkflowStatusDefinitionItem,
@@ -32,7 +33,6 @@ const SALES_MARATHON_CACHE_KEY = "dashboard:sales-marathon";
 const DELEGATE_KPI_CACHE_KEY = "dashboard:delegate-kpi";
 const PRODUCTION_KPI_CACHE_KEY = "dashboard:production-kpi";
 const DASHBOARD_AUTO_REFRESH_MS = 60_000;
-
 function readSessionCache<T>(key: string): T | null {
   if (typeof window === "undefined") return null;
   try {
@@ -52,8 +52,8 @@ function writeSessionCache<T>(key: string, value: T) {
   }
 }
 
-function personalStatsCacheKey(persona: string, userId?: string) {
-  return `dashboard:personal-stats:v4:${persona}:${userId || "anonymous"}`;
+function personalStatsCacheKey(persona: string, period: DashboardPeriod, userId?: string) {
+  return `dashboard:personal-stats:v5:${persona}:${period}:${userId || "anonymous"}`;
 }
 
 const FALLBACK_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
@@ -93,9 +93,9 @@ const DELEGATE_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     isActive: true,
   },
   {
-    id: "dashboard-delegate-pending",
-    statusKey: "pending",
-    label: "Pending",
+    id: "dashboard-delegate-contacted",
+    statusKey: "contacted",
+    label: "Contacted",
     isSystemDefault: true,
     sortOrder: 1,
     isActive: true,
@@ -152,6 +152,35 @@ function getLocalDateParam() {
   return `${year}-${month}-${day}`;
 }
 
+function periodLabel(period: DashboardPeriod) {
+  if (period === "monthly") return "Monthly";
+  if (period === "yearly") return "Yearly";
+  return "Daily";
+}
+
+function periodPhrase(period: DashboardPeriod) {
+  if (period === "monthly") return "this month";
+  if (period === "yearly") return "this year";
+  return "today";
+}
+
+function daysInCurrentPeriod(period: DashboardPeriod) {
+  const now = new Date();
+  if (period === "yearly") {
+    const start = new Date(now.getFullYear(), 0, 1);
+    const end = new Date(now.getFullYear() + 1, 0, 1);
+    return Math.round((end.getTime() - start.getTime()) / 86_400_000);
+  }
+  if (period === "monthly") {
+    return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  }
+  return 1;
+}
+
+function periodTarget(dailyTarget: number, period: DashboardPeriod) {
+  return Math.max(dailyTarget * daysInCurrentPeriod(period), dailyTarget);
+}
+
 function getTimeGreeting() {
   const hour = new Date().getHours();
 
@@ -166,8 +195,8 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Could not load dashboard data.";
 }
 
-async function listSalesMarathonLeaderboard() {
-  const summary = await getDashboardKpiLeaderboard({ date: getLocalDateParam() });
+async function listSalesMarathonLeaderboard(period: DashboardPeriod) {
+  const summary = await getDashboardKpiLeaderboard({ date: getLocalDateParam(), period });
   return summary.runners;
 }
 
@@ -358,6 +387,7 @@ function SalesMarathon({
 export default function DashboardPage() {
   const { user } = useAuth();
   const { persona } = usePersona();
+  const period: DashboardPeriod = "daily";
   const [salesRunners, setSalesRunners] = useState<SalesMarathonRunner[]>([]);
   const [loadingSalesMarathon, setLoadingSalesMarathon] = useState(true);
   const [eventHeadsUp, setEventHeadsUp] = useState<EventHeadsUpItem[]>([]);
@@ -367,34 +397,36 @@ export default function DashboardPage() {
   const displayName = firstName(getDisplayName(user));
   const greeting = getTimeGreeting();
   const manifesto = getDailyManifesto(user?.id || "");
+  const periodName = periodLabel(period);
+  const periodText = periodPhrase(period);
   const kpiCopy = persona === "delegates"
     ? {
-        title: "Daily KPI Tracker",
+        title: `${periodName} KPI Tracker`,
         subtitle: "3 delegate confirmations a day keeps the event worries away.",
-        target: 3,
-        footnote: "* This data reflects delegate confirmations recorded today.",
+        target: periodTarget(3, period),
+        footnote: `* This data reflects delegate confirmations recorded ${periodText}.`,
       }
     : persona === "production"
       ? {
-          title: "Daily KPI Tracker",
+          title: `${periodName} KPI Tracker`,
           subtitle: "3 speaker confirmations a day keeps the event worries away.",
-          target: 3,
-          footnote: "* This data reflects speaker confirmations recorded today.",
+          target: periodTarget(3, period),
+          footnote: `* This data reflects speaker confirmations recorded ${periodText}.`,
         }
     : {
-        title: "Daily KPI Tracker",
+        title: `${periodName} KPI Tracker`,
         subtitle: "5 proposals a day keeps the sales stress far away.",
-        target: 5,
+        target: periodTarget(5, period),
         footnote: "* This data reflects the total number of proposals sent within the last 24-hour cycle.",
       };
 
   const loadSalesMarathon = useCallback(async (mode: "initial" | "refresh") => {
     const cacheKey =
       persona === "delegates"
-        ? DELEGATE_KPI_CACHE_KEY
+        ? `${DELEGATE_KPI_CACHE_KEY}:${period}`
         : persona === "production"
-          ? PRODUCTION_KPI_CACHE_KEY
-          : SALES_MARATHON_CACHE_KEY;
+          ? `${PRODUCTION_KPI_CACHE_KEY}:${period}`
+          : `${SALES_MARATHON_CACHE_KEY}:${period}`;
       if (mode === "initial") {
         const cached = readSessionCache<SalesMarathonRunner[]>(cacheKey);
         if (cached) {
@@ -406,7 +438,7 @@ export default function DashboardPage() {
       }
 
       try {
-        const runners = await listSalesMarathonLeaderboard();
+        const runners = await listSalesMarathonLeaderboard(period);
         setSalesRunners(runners);
         writeSessionCache(cacheKey, runners);
       } catch (error) {
@@ -415,7 +447,7 @@ export default function DashboardPage() {
       } finally {
         setLoadingSalesMarathon(false);
       }
-    }, [persona]);
+    }, [period, persona]);
 
   const loadPersonalStats = useCallback(async (mode: "initial" | "refresh") => {
     if (!userId) {
@@ -423,7 +455,7 @@ export default function DashboardPage() {
       return;
     }
 
-    const cacheKey = personalStatsCacheKey(persona, userId);
+    const cacheKey = personalStatsCacheKey(persona, period, userId);
     if (mode === "initial") {
       const cached = readSessionCache<PersonalStatsCache>(cacheKey);
       if (cached) {
@@ -436,7 +468,7 @@ export default function DashboardPage() {
     }
 
     try {
-      const summary = await getDashboardPersonalSummary();
+      const summary = await getDashboardPersonalSummary({ date: getLocalDateParam(), period });
       const activeStatuses = summary.statuses.length ? summary.statuses : dashboardStatusesForPersona(persona);
       const nextItems = summary.items || [];
       setWorkflowStatuses(activeStatuses);
@@ -451,7 +483,7 @@ export default function DashboardPage() {
     } finally {
       setLoadingEventHeadsUp(false);
     }
-  }, [persona, userId]);
+  }, [period, persona, userId]);
 
   useEffect(() => {
     void loadSalesMarathon("initial");
@@ -486,8 +518,8 @@ export default function DashboardPage() {
   return (
     <div className="flex h-screen flex-1 flex-col overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">
       <header className="relative isolate h-full min-h-0 w-full overflow-y-auto px-8 py-7 lg:px-12">
-        <div className="relative z-10 flex w-full items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+        <div className="relative z-10 flex w-full flex-wrap items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
             <UserAvatar user={user} size="lg" className="bg-white shadow-sm" />
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-zinc-950">
@@ -498,9 +530,11 @@ export default function DashboardPage() {
               ) : null}
             </div>
           </div>
-          <span className="inline-flex h-10 items-center rounded-full border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-800">
-            {getDateLabel()}
-          </span>
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
+            <span className="inline-flex h-10 items-center rounded-full border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-800">
+              {getDateLabel()}
+            </span>
+          </div>
         </div>
 
         <div className="relative z-10 mt-10 grid items-stretch gap-10 text-left xl:grid-cols-[minmax(0,1fr)_26rem]">
@@ -523,6 +557,7 @@ export default function DashboardPage() {
               items={eventHeadsUp}
               statuses={workflowStatuses}
               loading={loadingEventHeadsUp}
+              period={period}
             />
           </motion.div>
 
