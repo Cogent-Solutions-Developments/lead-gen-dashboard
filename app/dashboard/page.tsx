@@ -33,12 +33,6 @@ const SALES_MARATHON_CACHE_KEY = "dashboard:sales-marathon";
 const DELEGATE_KPI_CACHE_KEY = "dashboard:delegate-kpi";
 const PRODUCTION_KPI_CACHE_KEY = "dashboard:production-kpi";
 const DASHBOARD_AUTO_REFRESH_MS = 60_000;
-const DASHBOARD_PERIOD_OPTIONS: Array<{ value: DashboardPeriod; label: string }> = [
-  { value: "daily", label: "Daily" },
-  { value: "monthly", label: "Monthly" },
-  { value: "yearly", label: "Yearly" },
-];
-
 function readSessionCache<T>(key: string): T | null {
   if (typeof window === "undefined") return null;
   try {
@@ -159,7 +153,9 @@ function getLocalDateParam() {
 }
 
 function periodLabel(period: DashboardPeriod) {
-  return DASHBOARD_PERIOD_OPTIONS.find((option) => option.value === period)?.label || "Daily";
+  if (period === "monthly") return "Monthly";
+  if (period === "yearly") return "Yearly";
+  return "Daily";
 }
 
 function periodPhrase(period: DashboardPeriod) {
@@ -391,7 +387,7 @@ function SalesMarathon({
 export default function DashboardPage() {
   const { user } = useAuth();
   const { persona } = usePersona();
-  const [period, setPeriod] = useState<DashboardPeriod>("daily");
+  const period: DashboardPeriod = "daily";
   const [salesRunners, setSalesRunners] = useState<SalesMarathonRunner[]>([]);
   const [loadingSalesMarathon, setLoadingSalesMarathon] = useState(true);
   const [eventHeadsUp, setEventHeadsUp] = useState<EventHeadsUpItem[]>([]);
@@ -406,22 +402,22 @@ export default function DashboardPage() {
   const kpiCopy = persona === "delegates"
     ? {
         title: `${periodName} KPI Tracker`,
-        subtitle: `Track delegate confirmations recorded ${periodText}.`,
+        subtitle: "3 delegate confirmations a day keeps the event worries away.",
         target: periodTarget(3, period),
         footnote: `* This data reflects delegate confirmations recorded ${periodText}.`,
       }
     : persona === "production"
       ? {
           title: `${periodName} KPI Tracker`,
-          subtitle: `Track speaker confirmations recorded ${periodText}.`,
+          subtitle: "3 speaker confirmations a day keeps the event worries away.",
           target: periodTarget(3, period),
           footnote: `* This data reflects speaker confirmations recorded ${periodText}.`,
         }
     : {
         title: `${periodName} KPI Tracker`,
-        subtitle: `Track proposals sent ${periodText}.`,
+        subtitle: "5 proposals a day keeps the sales stress far away.",
         target: periodTarget(5, period),
-        footnote: `* This data reflects proposals sent ${periodText}.`,
+        footnote: "* This data reflects the total number of proposals sent within the last 24-hour cycle.",
       };
 
   const loadSalesMarathon = useCallback(async (mode: "initial" | "refresh") => {
@@ -535,26 +531,6 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
-            <div className="inline-flex h-10 overflow-hidden rounded-full border border-zinc-200 bg-white p-1 shadow-sm">
-              {DASHBOARD_PERIOD_OPTIONS.map((option) => {
-                const active = option.value === period;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => setPeriod(option.value)}
-                    className={`h-8 rounded-full px-3 text-xs font-medium transition-colors ${
-                      active
-                        ? "bg-zinc-950 text-white"
-                        : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950"
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
             <span className="inline-flex h-10 items-center rounded-full border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-800">
               {getDateLabel()}
             </span>
