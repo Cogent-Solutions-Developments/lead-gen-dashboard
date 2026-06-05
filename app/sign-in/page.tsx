@@ -118,20 +118,20 @@ export default function SignInPage() {
   return (
     <div className="relative h-dvh overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,#ffffff_0%,#fafafa_42%,#f3f6fb_100%)]" />
-      <header className="absolute left-5 right-5 top-4 z-40 flex h-10 items-start justify-between border-b border-zinc-200/80 pb-3 sm:left-7 sm:right-7 sm:top-5">
+      <header className="absolute left-5 right-5 top-4 z-40 flex h-12 items-start justify-between border-b border-zinc-200/80 pb-3 sm:left-7 sm:right-7 sm:top-5">
         <div>
           <div className="flex items-baseline gap-2 whitespace-nowrap">
-            <span className="text-base font-medium tracking-normal text-zinc-950">
+            <span className="text-xl font-normal tracking-normal text-zinc-950">
               supernizo
             </span>
             <span
-              className="text-[0.95rem] font-normal leading-none tracking-normal text-zinc-700"
+              className="text-[1.1rem] font-normal leading-none tracking-normal text-zinc-700"
               style={{ fontFamily: '"Bungee Hairline", sans-serif' }}
             >
               Lite
             </span>
           </div>
-          <span className="mt-0.5 block text-[8px] font-light tracking-[0.18em] text-zinc-400">
+          <span className="mt-0.5 block text-[9px] font-light tracking-[0.18em] text-zinc-400">
             {APP_VERSION_LABEL}
           </span>
         </div>
@@ -157,7 +157,8 @@ export default function SignInPage() {
               className="max-w-4xl"
             >
               <h1 className="text-[clamp(2.75rem,5vw,5.25rem)] font-light leading-[0.9] tracking-[-0.065em] text-zinc-950">
-                {HERO_TITLE}
+                <span>I am </span>
+                <span className="tracking-[-0.025em]">supernizo</span>
               </h1>
               <p className="mx-auto mt-5 max-w-2xl text-[clamp(1.1rem,1.65vw,1.55rem)] font-light leading-tight tracking-[-0.025em] text-zinc-700">
                 {HERO_TAGLINE}
@@ -178,7 +179,8 @@ export default function SignInPage() {
             className="pointer-events-none absolute inset-x-0 top-28 z-30 hidden px-8 text-center sm:top-32 lg:block [@media_(min-width:1800px)_and_(min-height:950px)]:top-40"
           >
             <h1 className="mx-auto max-w-2xl text-[clamp(2.5rem,4.8vw,5rem)] font-light leading-[0.9] tracking-tighter text-zinc-950">
-              {HERO_TITLE}
+              <span>I am </span>
+              <span className="tracking-[-0.025em]">supernizo</span>
             </h1>
             <p className="mx-auto mt-4 max-w-xl text-[clamp(1.05rem,1.55vw,1.45rem)] font-light leading-tight tracking-[-0.025em] text-zinc-700">
               {HERO_TAGLINE}
