@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ImagePlus,
   Loader2,
+  Palette,
   Save,
   Trash2,
   X,
@@ -124,6 +125,50 @@ function FieldRow({
   );
 }
 
+type ProfileCompletionItem = {
+  label: string;
+  complete: boolean;
+};
+
+function ProfileCompletionTracker({ items }: { items: ProfileCompletionItem[] }) {
+  const completedCount = items.filter((item) => item.complete).length;
+  const completionPercent = Math.round((completedCount / items.length) * 100);
+
+  if (completionPercent >= 100) {
+    return (
+      <div className="border-b border-zinc-100 pb-5 pt-1">
+        <p className="text-sm font-light text-zinc-500">Profile complete</p>
+        <p className="mt-1 text-xs font-light text-zinc-400">
+          Thanks for keeping your details up to date.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-b border-zinc-100 pb-5 pt-1">
+      <div className="flex items-end justify-between gap-5">
+        <div>
+          <p className="text-sm font-light text-zinc-500">Profile completion</p>
+          <p className="mt-1 text-xs font-light text-zinc-400">
+            {completedCount} of {items.length} details set
+          </p>
+        </div>
+        <span className="text-3xl font-light tabular-nums tracking-tight text-zinc-950">
+          {completionPercent}%
+        </span>
+      </div>
+
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-200">
+        <div
+          className="h-full rounded-full bg-blue-600 shadow-[0_8px_18px_-12px_rgba(37,99,235,0.95)] transition-[width]"
+          style={{ width: `${completionPercent}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [profile, setProfile] = useState<MyProfile | null>(null);
@@ -131,6 +176,7 @@ export default function ProfilePage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState("");
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+  const [themeDialogOpen, setThemeDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
@@ -251,6 +297,18 @@ export default function ProfilePage() {
   const roleLabel = profile ? getRoleLabel(profile.role) : "Account";
   const avatarActionsDisabled = avatarBusy || loading;
   const displayDesignation = form.designation.trim() || "Designation not set";
+  const profileCompletionItems: ProfileCompletionItem[] = [
+    {
+      label: "Profile image",
+      complete: Boolean(profile?.avatarStorageObjectId || profile?.avatarUrl),
+    },
+    { label: "Name", complete: Boolean(form.fullName.trim()) },
+    { label: "Designation", complete: Boolean(form.designation.trim()) },
+    { label: "Mobile", complete: Boolean(form.mobilePhone.trim()) },
+    { label: "Birth date", complete: Boolean(form.dateOfBirth.trim()) },
+    { label: "Joined date", complete: Boolean(form.companyJoinedDate.trim()) },
+    { label: "Address", complete: Boolean(form.address.trim()) },
+  ];
 
   return (
     <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">
@@ -266,15 +324,26 @@ export default function ProfilePage() {
             </h1>
           </div>
 
-          <Button
-            type="button"
-            onClick={() => void handleSaveProfile()}
-            disabled={loading || saving}
-            className="h-12 w-fit rounded-full border border-blue-500/20 bg-blue-600 px-7 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700 disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            Save profile
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setThemeDialogOpen(true)}
+              className="h-12 rounded-full border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+            >
+              <Palette className="mr-2 h-4 w-4" />
+              Theme
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleSaveProfile()}
+              disabled={loading || saving}
+              className="h-12 w-fit rounded-full border border-blue-500/20 bg-blue-600 px-7 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700 disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              Save profile
+            </Button>
+          </div>
         </header>
 
         <div className="grid min-h-0 flex-1 gap-10 overflow-hidden pt-6 xl:grid-cols-[19rem_minmax(0,1fr)]">
@@ -331,6 +400,8 @@ export default function ProfilePage() {
                   <SummaryRow label="Joined" value={displayDate(form.companyJoinedDate)} />
                   <SummaryRow label="Address" value={form.address} />
                 </div>
+
+                <ProfileCompletionTracker items={profileCompletionItems} />
               </div>
 
               <input
@@ -503,6 +574,55 @@ export default function ProfilePage() {
                     Remove image
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {themeDialogOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/30 p-4 backdrop-blur-[3px]">
+          <button
+            type="button"
+            aria-label="Close theme selector dialog"
+            className="absolute inset-0 cursor-default"
+            onClick={() => setThemeDialogOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="theme-selector-dialog-title"
+            className="relative w-full max-w-xl overflow-hidden rounded-[2rem] border border-zinc-200 bg-white shadow-[0_28px_80px_-42px_rgba(2,10,27,0.72)]"
+          >
+            <button
+              type="button"
+              aria-label="Close theme selector dialog"
+              onClick={() => setThemeDialogOpen(false)}
+              className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-500 transition-colors hover:border-zinc-900 hover:text-zinc-950"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <div className="px-8 pb-8 pt-8">
+              <h2 id="theme-selector-dialog-title" className="text-4xl font-light tracking-tight text-zinc-950">
+                Theme selector
+              </h2>
+
+              <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                {[0, 1, 2].map((item) => (
+                  <div key={item} className="rounded-2xl border border-zinc-200 bg-white p-3">
+                    <div className="h-20 animate-pulse rounded-xl bg-zinc-100" />
+                    <div className="mt-3 h-2.5 w-2/3 animate-pulse rounded-full bg-zinc-100" />
+                    <div className="mt-2 h-2.5 w-1/2 animate-pulse rounded-full bg-zinc-100" />
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-8 border-y border-zinc-100 py-5">
+                <p className="text-2xl font-light tracking-tight text-zinc-950">Coming soon</p>
+                <p className="mt-2 text-sm font-light leading-6 text-zinc-500">
+                  Theme controls are being prepared for this workspace.
+                </p>
               </div>
             </div>
           </div>
