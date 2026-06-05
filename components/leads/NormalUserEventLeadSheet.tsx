@@ -3143,7 +3143,7 @@ export function NormalUserEventLeadSheet() {
 
           {templateUpload.error ? (
             <div className="border-y border-red-200 bg-transparent py-4 text-sm">
-              <div className="flex gap-3">
+              <div className="flex items-center gap-3">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_10px_20px_-14px_rgba(220,38,38,0.9)]">
                   <AlertTriangle className="h-4 w-4" />
                 </span>
