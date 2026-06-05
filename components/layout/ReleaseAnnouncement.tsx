@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  Check,
   ChevronLeft,
   ChevronRight,
   X,
@@ -12,6 +13,7 @@ import type { AuthSession } from "@/lib/auth";
 
 const RELEASE_VERSION = "v0.3.0";
 const RELEASE_STORAGE_PREFIX = "supernizo.release.v0.3.0.login-dismissed";
+const RELEASE_PERMANENT_STORAGE_PREFIX = "supernizo.release.v0.3.0.never-show";
 const RELEASE_STORAGE_EVENT = "supernizo-release-dismissed";
 const RELEASE_EXPIRES_AT = new Date(2026, 5, 10).getTime();
 
@@ -21,20 +23,12 @@ const releaseFeatures = [
     description: "Personal lead uploads now live in My Leads, isolated by sales, delegate, and production users.",
   },
   {
-    title: "Database separation",
-    description: "The shared Lead Sheet area is now Database, keeping admin/shared records separate from personal uploads.",
-  },
-  {
     title: "Cleaner upload flow",
     description: "Upload templates now use persona-specific columns, validation, and a calmer error state.",
   },
   {
     title: "Multi-contact channels",
     description: "Delegate and production records can show multiple emails and phone numbers without crowding the sheet.",
-  },
-  {
-    title: "Daily dashboard focus",
-    description: "KPI tracker and summary cards now open directly on the daily view.",
   },
   {
     title: "Profile refresh",
@@ -48,34 +42,52 @@ function releaseStorageKey(session: AuthSession) {
   return `${RELEASE_STORAGE_PREFIX}.${userKey}.${loginKey}`;
 }
 
+function permanentReleaseStorageKey(session: AuthSession) {
+  const userKey = session.user.id || session.user.username || "user";
+  return `${RELEASE_PERMANENT_STORAGE_PREFIX}.${userKey}`;
+}
+
 function releaseIsActive() {
   return Date.now() < RELEASE_EXPIRES_AT;
 }
 
 export function ReleaseAnnouncement({ session }: { session: AuthSession }) {
   const storageKey = releaseStorageKey(session);
+  const permanentStorageKey = permanentReleaseStorageKey(session);
   const canOpenMyLeads = session.user.role !== "super_admin_user";
   const [activeIndex, setActiveIndex] = useState(0);
-  const activeFeature = releaseFeatures[activeIndex];
+  const [neverShowAgain, setNeverShowAgain] = useState(false);
+  const safeActiveIndex = Math.min(activeIndex, releaseFeatures.length - 1);
+  const activeFeature = releaseFeatures[safeActiveIndex] || releaseFeatures[0];
 
   const dismiss = useCallback(() => {
-    window.sessionStorage.setItem(storageKey, "true");
+    if (neverShowAgain) {
+      window.localStorage.setItem(permanentStorageKey, "true");
+    } else {
+      window.sessionStorage.setItem(storageKey, "true");
+    }
     window.dispatchEvent(new CustomEvent(RELEASE_STORAGE_EVENT));
-  }, [storageKey]);
+  }, [neverShowAgain, permanentStorageKey, storageKey]);
 
   const showPreviousFeature = useCallback(() => {
-    setActiveIndex((current) => (current === 0 ? releaseFeatures.length - 1 : current - 1));
+    setActiveIndex((current) => {
+      const normalized = ((current % releaseFeatures.length) + releaseFeatures.length) % releaseFeatures.length;
+      return normalized === 0 ? releaseFeatures.length - 1 : normalized - 1;
+    });
   }, []);
 
   const showNextFeature = useCallback(() => {
-    setActiveIndex((current) => (current + 1) % releaseFeatures.length);
+    setActiveIndex((current) => {
+      const normalized = ((current % releaseFeatures.length) + releaseFeatures.length) % releaseFeatures.length;
+      return (normalized + 1) % releaseFeatures.length;
+    });
   }, []);
 
   const dismissed = useSyncExternalStore(
     useCallback(
       (onStoreChange) => {
         const onStorage = (event: StorageEvent) => {
-          if (event.key === storageKey) onStoreChange();
+          if (event.key === storageKey || event.key === permanentStorageKey) onStoreChange();
         };
         const onReleaseStorage = () => onStoreChange();
 
@@ -86,12 +98,13 @@ export function ReleaseAnnouncement({ session }: { session: AuthSession }) {
           window.removeEventListener(RELEASE_STORAGE_EVENT, onReleaseStorage);
         };
       },
-      [storageKey],
+      [permanentStorageKey, storageKey],
     ),
     useCallback(() => {
       if (!releaseIsActive()) return "true";
+      if (window.localStorage.getItem(permanentStorageKey) === "true") return "true";
       return window.sessionStorage.getItem(storageKey) || "false";
-    }, [storageKey]),
+    }, [permanentStorageKey, storageKey]),
     () => "true",
   );
 
@@ -176,10 +189,26 @@ export function ReleaseAnnouncement({ session }: { session: AuthSession }) {
                   </p>
                 </div>
 
-                <div className="mt-8 border-t border-zinc-200 pt-5">
-                  <p className="text-sm font-light leading-6 text-zinc-500">
-                    Built for faster daily execution across every pipeline team.
-                  </p>
+                <div className="mb-6 mt-8 border-t border-zinc-200 pt-5">
+                  <label className="flex cursor-pointer items-center gap-3 text-sm font-light text-zinc-500">
+                    <span
+                      className={[
+                        "flex h-5 w-5 items-center justify-center rounded-md border transition-colors",
+                        neverShowAgain
+                          ? "border-blue-600 bg-blue-600 text-white"
+                          : "border-zinc-300 bg-white text-transparent",
+                      ].join(" ")}
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={neverShowAgain}
+                      onChange={(event) => setNeverShowAgain(event.target.checked)}
+                      className="sr-only"
+                    />
+                    Don&apos;t show this update again
+                  </label>
                 </div>
               </div>
 
@@ -208,7 +237,7 @@ export function ReleaseAnnouncement({ session }: { session: AuthSession }) {
                       className="mx-auto flex h-full max-w-md flex-col items-center justify-center text-center"
                     >
                       <p className="text-sm font-medium tabular-nums text-zinc-400">
-                        {String(activeIndex + 1).padStart(2, "0")} / {String(releaseFeatures.length).padStart(2, "0")}
+                        {String(safeActiveIndex + 1).padStart(2, "0")} / {String(releaseFeatures.length).padStart(2, "0")}
                       </p>
                       <h3 className="mt-4 text-[clamp(1.65rem,2.25vw,2.45rem)] font-light leading-[1.06] tracking-tighter text-zinc-950">
                         {activeFeature.title}
@@ -238,7 +267,7 @@ export function ReleaseAnnouncement({ session }: { session: AuthSession }) {
                       onClick={() => setActiveIndex(index)}
                       className={[
                         "h-1.5 rounded-full transition-all",
-                        index === activeIndex ? "w-9 bg-blue-600" : "w-1.5 bg-zinc-200 hover:bg-zinc-300",
+                        index === safeActiveIndex ? "w-9 bg-blue-600" : "w-1.5 bg-zinc-200 hover:bg-zinc-300",
                       ].join(" ")}
                     />
                   ))}
