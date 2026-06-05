@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Tags,
   UserRound,
+  UsersRound,
   Webhook,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,12 @@ const adminTabs = [
     href: "/admin/users",
     icon: ShieldCheck,
     match: (pathname: string) => pathname === "/admin/users",
+  },
+  {
+    name: "User Performance",
+    href: "/admin/user-performance",
+    icon: UsersRound,
+    match: (pathname: string) => pathname === "/admin/user-performance",
   },
   {
     name: "Event Registry",

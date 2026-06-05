@@ -5,11 +5,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Brain,
+  Database,
   LayoutDashboard,
   Rocket,
   Plus,
   Upload,
-  TrainFront,
   UserRound,
   LogOut,
   ShieldCheck,
@@ -32,12 +32,12 @@ const navItems = [
   { name: "New Campaign", href: "/campaigns/new", icon: Plus, superOnly: true },
   { name: "Upload Campaign", href: "/campaigns/upload", icon: Upload, superOnly: true },
   // { name: "Completed", href: "/completed", icon: CheckCircle },
-  { name: "Nizo Finder", normalLabel: "Lead Sheet", href: "/leads", icon: TrainFront },
+  { name: "Nizo Finder", normalLabel: "Database", href: "/leads", icon: Database },
   { name: "My Leads", href: "/my-leads", icon: UserRound, normalOnly: true },
   { name: "Nizo AI", href: "/nizo-ai", icon: Brain, normalOnly: true },
   { name: "Admin Panel", href: "/admin", icon: ShieldCheck, superOnly: true },
 ];
-const APP_VERSION_LABEL = "v0.2.1";
+const APP_VERSION_LABEL = "v0.3.0";
 
 type SidebarProps = {
   isExpanded: boolean;

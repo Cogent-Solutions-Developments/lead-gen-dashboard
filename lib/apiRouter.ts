@@ -24,6 +24,7 @@ export type {
   DeleteBlocker,
   DeleteCampaignResponse,
   DashboardStats,
+  DashboardPeriod,
   DashboardKpiLeaderboard,
   DashboardKpiRunner,
   DashboardPersonalStatsItem,

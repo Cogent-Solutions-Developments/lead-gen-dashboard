@@ -64,7 +64,6 @@ import {
   RefreshCcw,
   Search,
   SlidersHorizontal,
-  Sparkles,
   UploadCloud,
   X,
 } from "lucide-react";
@@ -300,14 +299,6 @@ const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
 
 const DELEGATE_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
   {
-    id: "workflow-delegate-new",
-    statusKey: "new",
-    label: "New",
-    isSystemDefault: true,
-    sortOrder: 0,
-    isActive: true,
-  },
-  {
     id: "workflow-delegate-first-call",
     statusKey: "first-call",
     label: "First Call",
@@ -316,19 +307,51 @@ const DELEGATE_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     isActive: true,
   },
   {
-    id: "workflow-delegate-follow-up",
-    statusKey: "follow-up",
-    label: "Followup",
+    id: "workflow-delegate-email-sent",
+    statusKey: "email-sent",
+    label: "Email Sent",
     isSystemDefault: true,
     sortOrder: 2,
     isActive: true,
   },
   {
-    id: "workflow-delegate-pending",
-    statusKey: "pending",
-    label: "Pending",
+    id: "workflow-delegate-whatsapp-sent",
+    statusKey: "whatsapp-sent",
+    label: "Whatsapp Sent",
     isSystemDefault: true,
     sortOrder: 3,
+    isActive: true,
+  },
+  {
+    id: "workflow-delegate-1st-follow-up",
+    statusKey: "1st-follow-up",
+    label: "1st Follow up",
+    isSystemDefault: true,
+    sortOrder: 4,
+    isActive: true,
+  },
+  {
+    id: "workflow-delegate-2nd-follow-up",
+    statusKey: "2nd-follow-up",
+    label: "2nd Follow up",
+    isSystemDefault: true,
+    sortOrder: 5,
+    isActive: true,
+  },
+  {
+    id: "workflow-delegate-3rd-follow-up",
+    statusKey: "3rd-follow-up",
+    label: "3rd Follow up",
+    isSystemDefault: true,
+    sortOrder: 6,
+    isActive: true,
+  },
+  {
+    id: "workflow-delegate-declined",
+    statusKey: "declined",
+    label: "Declined",
+    isSystemDefault: true,
+    sortOrder: 7,
     isActive: true,
   },
   {
@@ -336,7 +359,82 @@ const DELEGATE_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     statusKey: "confirmed",
     label: "Confirmed",
     isSystemDefault: true,
+    sortOrder: 8,
+    isActive: true,
+  },
+];
+
+const PRODUCTION_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
+  {
+    id: "workflow-production-first-call",
+    statusKey: "first-call",
+    label: "First Call",
+    isSystemDefault: true,
+    sortOrder: 1,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-email-sent",
+    statusKey: "email-sent",
+    label: "Email Sent",
+    isSystemDefault: true,
+    sortOrder: 2,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-whatsapp-sent",
+    statusKey: "whatsapp-sent",
+    label: "Whatsapp Sent",
+    isSystemDefault: true,
+    sortOrder: 3,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-1st-follow-up",
+    statusKey: "1st-follow-up",
+    label: "1st Follow up",
+    isSystemDefault: true,
     sortOrder: 4,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-2nd-follow-up",
+    statusKey: "2nd-follow-up",
+    label: "2nd Follow up",
+    isSystemDefault: true,
+    sortOrder: 5,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-3rd-follow-up",
+    statusKey: "3rd-follow-up",
+    label: "3rd Follow up",
+    isSystemDefault: true,
+    sortOrder: 6,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-pending",
+    statusKey: "pending",
+    label: "Pending",
+    isSystemDefault: true,
+    sortOrder: 7,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-declined",
+    statusKey: "declined",
+    label: "Declined",
+    isSystemDefault: true,
+    sortOrder: 8,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-confirmed",
+    statusKey: "confirmed",
+    label: "Confirmed",
+    isSystemDefault: true,
+    sortOrder: 9,
     isActive: true,
   },
 ];
@@ -348,7 +446,13 @@ const STATUS_DOT_CLASS: Record<string, string> = {
   "proposal-sent": "bg-[#a855f7] shadow-[0_0_0_3px_rgba(168,85,247,0.20)]",
   "deal-closed": "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
   "deal-dead": "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]",
+  "email-sent": "bg-[#2563eb] shadow-[0_0_0_3px_rgba(37,99,235,0.20)]",
+  "whatsapp-sent": "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.22)]",
+  "1st-follow-up": "bg-[#ff8700] shadow-[0_0_0_3px_rgba(255,135,0,0.20)]",
+  "2nd-follow-up": "bg-[#f59e0b] shadow-[0_0_0_3px_rgba(245,158,11,0.20)]",
+  "3rd-follow-up": "bg-[#f97316] shadow-[0_0_0_3px_rgba(249,115,22,0.20)]",
   pending: "bg-[#a855f7] shadow-[0_0_0_3px_rgba(168,85,247,0.20)]",
+  declined: "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]",
   confirmed: "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
 };
 const DEFAULT_PAGE_SIZE = 100;
@@ -379,7 +483,6 @@ const EMPTY_TEMPLATE_UPLOAD: TemplateUploadState = {
   selectedEventId: "",
 };
 const LEAD_TEMPLATE_ACCEPT = ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const LEAD_TEMPLATE_HEADERS = "Company | Full Name | Job Title | Telephone Number | Mobile | Email | comments";
 const UNCATEGORIZED_CATEGORY_LABEL = "Competing Events";
 
 function getErrorMessage(error: unknown) {
@@ -452,6 +555,33 @@ function humanizeStatusLabel(value: string) {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function getTemplateUploadErrorCopy(message: string) {
+  const text = asText(message);
+  const normalized = text.toLowerCase();
+
+  if (normalized.includes("header") || normalized.includes("sheet")) {
+    return {
+      title: "Template layout needs attention",
+      body: "This workbook does not match the upload template for this persona.",
+      hint: "Download the template again, keep the header row unchanged, and paste the leads into that file.",
+    };
+  }
+
+  if (normalized.includes(".xlsx") || normalized.includes("excel")) {
+    return {
+      title: "Use the Excel template",
+      body: "This upload accepts the official .xlsx template only.",
+      hint: "Download the template, fill it in, and upload that file.",
+    };
+  }
+
+  return {
+    title: "Template needs a quick check",
+    body: "We could not validate this file yet.",
+    hint: "Review the file format and try again.",
+  };
 }
 
 function formatDateTime(value?: string | null) {
@@ -716,9 +846,7 @@ export function NormalUserEventLeadSheet() {
   const [events, setEvents] = useState<EventSummaryItem[]>([]);
   const [registryEvents, setRegistryEvents] = useState<AdminEventItem[]>([]);
   const [leadPage, setLeadPage] = useState<EventLeadListResponse | null>(null);
-  const [workflowStatuses, setWorkflowStatuses] = useState<WorkflowStatusDefinitionItem[]>(
-    FIXED_WORKFLOW_STATUSES
-  );
+  const [workflowStatuses, setWorkflowStatuses] = useState<WorkflowStatusDefinitionItem[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [loadingLeads, setLoadingLeads] = useState(false);
   const [searchInput, setSearchInput] = useState(initialSearch);
@@ -770,7 +898,12 @@ export function NormalUserEventLeadSheet() {
   }, [workflowStatuses]);
 
   const fixedWorkflowStatuses = useMemo(
-    () => persona === "delegates" || persona === "production" ? DELEGATE_WORKFLOW_STATUSES : FIXED_WORKFLOW_STATUSES,
+    () =>
+      persona === "production"
+        ? PRODUCTION_WORKFLOW_STATUSES
+        : persona === "delegates"
+          ? DELEGATE_WORKFLOW_STATUSES
+          : FIXED_WORKFLOW_STATUSES,
     [persona]
   );
 
@@ -1109,6 +1242,10 @@ export function NormalUserEventLeadSheet() {
   const hasMore = Boolean(leadPage?.hasMore);
   const isLoading = loadingEvents || (loadingLeads && !leadPage && Boolean(selectedEventKey));
   const latestAgenda = agendaState.agendas[0] ?? null;
+  const templateUploadErrorCopy = useMemo(
+    () => getTemplateUploadErrorCopy(templateUpload.error),
+    [templateUpload.error]
+  );
 
   const refreshData = useCallback(async () => {
     await loadInitialData();
@@ -2438,9 +2575,9 @@ export function NormalUserEventLeadSheet() {
                       feedback: emailDialog.feedback,
                     })
                   }
-                  className="h-11 gap-2 rounded-full border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                  className="h-11 gap-2 rounded-full border border-zinc-900/10 bg-zinc-950 px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_12px_26px_-18px_rgba(24,24,27,0.95)] hover:bg-zinc-800"
                 >
-                  <Sparkles className="h-4 w-4" />
+                  <RefreshCcw className="h-4 w-4" />
                   {emailDialog.feedback.trim() ? "Regenerate with Feedback" : "Regenerate"}
                 </Button>
                 <div className="flex flex-wrap justify-end gap-3">
@@ -3004,12 +3141,15 @@ export function NormalUserEventLeadSheet() {
           </div>
 
           {templateUpload.error ? (
-            <div className="flex gap-3 border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <div>
-                <p className="font-semibold">Template check failed</p>
-                <p className="mt-1 font-light leading-6">{templateUpload.error}</p>
-                <p className="mt-2 text-xs font-medium text-red-500">Expected headers: {LEAD_TEMPLATE_HEADERS}</p>
+            <div className="border-y border-red-200 bg-transparent py-4 text-sm">
+              <div className="flex items-center gap-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_10px_20px_-14px_rgba(220,38,38,0.9)]">
+                  <AlertTriangle className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="font-medium text-red-700">{templateUploadErrorCopy.title}</p>
+                  <p className="mt-2 text-xs font-medium leading-5 text-red-600">{templateUploadErrorCopy.hint}</p>
+                </div>
               </div>
             </div>
           ) : null}

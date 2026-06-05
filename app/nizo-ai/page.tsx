@@ -1,10 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft,
   AtSign,
   Brain,
   Copy,
@@ -217,10 +215,6 @@ export default function NizoAiPage() {
   if (isSuperAdmin || !isPipelineUser) {
     return (
       <div className="min-h-screen bg-[#f7f7f7] px-8 py-8 font-sans text-zinc-950">
-        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-light text-zinc-500 transition-colors hover:text-zinc-900">
-          <ArrowLeft className="h-4 w-4" />
-          Return to dashboard
-        </Link>
         <div className="mx-auto mt-28 max-w-xl border border-zinc-200 bg-white p-12 text-center shadow-sm">
           <div className="flex flex-col items-center justify-center gap-0">
             <Brain className="h-7 w-7 text-zinc-950" strokeWidth={1.35} />
@@ -239,13 +233,6 @@ export default function NizoAiPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f7f7f7] font-sans text-zinc-950">
-      <header className="relative z-10 flex items-center border-b border-zinc-200 bg-[#f7f7f7] px-8 py-5">
-        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-light text-zinc-500 transition-colors hover:text-zinc-900">
-          <ArrowLeft className="h-4 w-4" />
-          Return to dashboard
-        </Link>
-      </header>
-
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-6 py-10 lg:px-8">
         {messages.length === 0 ? (
           <motion.section 
@@ -382,7 +369,7 @@ export default function NizoAiPage() {
         )}
       </main>
 
-      <footer className="sticky bottom-0 z-20 border-t border-zinc-200 bg-[#f7f7f7] px-6 py-6 lg:px-8">
+      <footer className="sticky bottom-0 z-20 bg-[#f7f7f7]/95 px-6 py-6 backdrop-blur-xl lg:px-8">
         <div className="mx-auto w-full max-w-4xl">
           {selectedMentions.length ? (
             <div className="mb-4 flex flex-wrap gap-2">
@@ -391,7 +378,7 @@ export default function NizoAiPage() {
                   key={`${item.type}-${item.id}`}
                   type="button"
                   onClick={() => removeMention(item)}
-                  className="inline-flex items-center gap-1.5 rounded-none border border-zinc-300 bg-white px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-600 shadow-[0_12px_28px_-24px_rgba(15,23,42,0.7)] transition-colors hover:border-zinc-300 hover:text-zinc-950"
                 >
                   @{mentionLabel(item)}
                   <X className="h-3.5 w-3.5 text-zinc-400" />
@@ -400,7 +387,7 @@ export default function NizoAiPage() {
             </div>
           ) : null}
 
-          <div className="relative border border-zinc-200 bg-white shadow-sm transition-shadow focus-within:border-zinc-300 focus-within:ring-1 focus-within:ring-zinc-200">
+          <div className="relative overflow-hidden rounded-[1.75rem] border border-zinc-200 bg-white shadow-[0_24px_70px_-52px_rgba(15,23,42,0.78),inset_0_1px_0_rgba(255,255,255,0.95)] transition-shadow focus-within:border-blue-500/30 focus-within:shadow-[0_28px_80px_-54px_rgba(37,99,235,0.55),inset_0_1px_0_rgba(255,255,255,0.95)]">
             <Textarea
               value={draft}
               onChange={(event) => {
@@ -415,13 +402,13 @@ export default function NizoAiPage() {
                 }
               }}
               placeholder="Ask Nizo AI about a lead, event, objection, or message..."
-              className="min-h-[100px] resize-none rounded-none border-0 bg-transparent px-5 py-4 text-[15px] font-light text-zinc-950 placeholder:text-zinc-400 focus-visible:ring-0"
+              className="min-h-[110px] resize-none rounded-none border-0 bg-transparent px-6 py-5 text-[15px] font-light leading-7 text-zinc-950 placeholder:text-zinc-400 focus-visible:ring-0"
               maxLength={4000}
             />
 
             {mentionActive ? (
-              <div className="absolute bottom-[calc(100%+1rem)] left-0 w-full max-w-xl border border-zinc-200 bg-white shadow-lg">
-                <div className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50 px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-zinc-500">
+              <div className="absolute bottom-[calc(100%+1rem)] left-0 w-full max-w-xl overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_24px_70px_-48px_rgba(15,23,42,0.82)]">
+                <div className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50/80 px-4 py-3 text-xs font-medium text-zinc-500">
                   <Search className="h-3.5 w-3.5" />
                   {mentionQuery ? `Search: ${mentionQuery}` : "Recent Context"}
                 </div>
@@ -439,7 +426,7 @@ export default function NizoAiPage() {
                         onClick={() => addMention(item)}
                         className="flex w-full items-start gap-4 px-4 py-2.5 text-left transition-colors hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none"
                       >
-                        <span className="mt-0.5 inline-flex min-w-[3.5rem] items-center justify-center border border-zinc-200 bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                        <span className="mt-0.5 inline-flex min-w-[3.5rem] items-center justify-center rounded-full border border-zinc-200 bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">
                           {item.type}
                         </span>
                         <span className="min-w-0 flex-1">
@@ -457,12 +444,12 @@ export default function NizoAiPage() {
               </div>
             ) : null}
 
-            <div className="flex items-center justify-between gap-3 border-t border-zinc-100 bg-zinc-50/50 px-3 py-2.5">
+            <div className="flex items-center justify-between gap-3 border-t border-zinc-100 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-4 py-3">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-9 gap-2 rounded-none font-light text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950"
+                className="h-10 gap-2 rounded-full px-4 font-light text-zinc-500 transition-colors hover:bg-white hover:text-zinc-950 hover:shadow-[0_10px_24px_-22px_rgba(15,23,42,0.8)]"
                 onClick={() => setMentionOpen((value) => !value)}
                 aria-label="Mention lead or event"
               >
@@ -474,7 +461,7 @@ export default function NizoAiPage() {
                 size="icon"
                 disabled={!canSend}
                 onClick={() => void sendMessage()}
-                className="h-9 w-9 rounded-none bg-zinc-950 text-white transition-colors hover:bg-zinc-800 disabled:bg-zinc-200 disabled:text-zinc-400"
+                className="h-11 w-11 rounded-full border border-blue-500/20 bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_12px_26px_-18px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-300 disabled:shadow-none"
                 aria-label="Send message"
               >
                 {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

@@ -5,13 +5,12 @@ import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   BellRing,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  CheckCircle2,
   Clock3,
   Copy,
   Download,
-  FileSpreadsheet,
   FileUp,
   Headset,
   History,
@@ -22,7 +21,6 @@ import {
   RefreshCcw,
   Search,
   SlidersHorizontal,
-  Sparkles,
   UploadCloud,
   X,
 } from "lucide-react";
@@ -82,6 +80,8 @@ type MyLeadRow = {
   company: string;
   email: string;
   phone: string;
+  emails: string[];
+  phones: string[];
   linkedinUrl: string;
   companyUrl: string;
   workflowStatus: string;
@@ -133,11 +133,13 @@ type PendingStatusChange = {
 
 type ContactChoiceLead = {
   name: string;
-  email: string;
-  phone: string;
-  emailHref: string;
-  telHref: string;
-  whatsappHref: string;
+  emails: string[];
+  phones: string[];
+};
+
+type ContactDropdownState = {
+  leadId: string;
+  kind: "email" | "phone";
 };
 
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
@@ -152,10 +154,25 @@ const SALES_STATUSES: MyLeadStatus[] = [
 ];
 
 const DELEGATE_STATUSES: MyLeadStatus[] = [
-  { statusKey: "new", label: "New" },
   { statusKey: "first-call", label: "First Call" },
-  { statusKey: "follow-up", label: "Followups" },
+  { statusKey: "email-sent", label: "Email Sent" },
+  { statusKey: "whatsapp-sent", label: "Whatsapp Sent" },
+  { statusKey: "1st-follow-up", label: "1st Follow up" },
+  { statusKey: "2nd-follow-up", label: "2nd Follow up" },
+  { statusKey: "3rd-follow-up", label: "3rd Follow up" },
+  { statusKey: "declined", label: "Declined" },
+  { statusKey: "confirmed", label: "Confirmed" },
+];
+
+const PRODUCTION_STATUSES: MyLeadStatus[] = [
+  { statusKey: "first-call", label: "First Call" },
+  { statusKey: "email-sent", label: "Email Sent" },
+  { statusKey: "whatsapp-sent", label: "Whatsapp Sent" },
+  { statusKey: "1st-follow-up", label: "1st Follow up" },
+  { statusKey: "2nd-follow-up", label: "2nd Follow up" },
+  { statusKey: "3rd-follow-up", label: "3rd Follow up" },
   { statusKey: "pending", label: "Pending" },
+  { statusKey: "declined", label: "Declined" },
   { statusKey: "confirmed", label: "Confirmed" },
 ];
 
@@ -182,7 +199,6 @@ const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
   linkedinUrl: "",
 };
 const LEAD_TEMPLATE_ACCEPT = ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const LEAD_TEMPLATE_HEADERS = "Company | Full Name | Job Title | Telephone Number | Mobile | Email | comments";
 const EVENT_SELECT_CONTENT_CLASS =
   "z-[120] max-h-[18rem] w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-zinc-200 bg-white/98 p-2 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-[10px]";
 const EVENT_SELECT_ITEM_CLASS =
@@ -235,10 +251,43 @@ function getStatusDotClass(status: string) {
     "proposal-sent": "bg-[#a855f7] shadow-[0_0_0_3px_rgba(168,85,247,0.20)]",
     "deal-closed": "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
     "deal-dead": "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]",
+    "email-sent": "bg-[#2563eb] shadow-[0_0_0_3px_rgba(37,99,235,0.20)]",
+    "whatsapp-sent": "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.22)]",
+    "1st-follow-up": "bg-[#ff8700] shadow-[0_0_0_3px_rgba(255,135,0,0.20)]",
+    "2nd-follow-up": "bg-[#f59e0b] shadow-[0_0_0_3px_rgba(245,158,11,0.20)]",
+    "3rd-follow-up": "bg-[#f97316] shadow-[0_0_0_3px_rgba(249,115,22,0.20)]",
     pending: "bg-[#a855f7] shadow-[0_0_0_3px_rgba(168,85,247,0.20)]",
+    declined: "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]",
     confirmed: "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
   };
   return statusDotClass[status] ?? "bg-zinc-400";
+}
+
+function getTemplateUploadErrorCopy(message: string) {
+  const text = asText(message);
+  const normalized = text.toLowerCase();
+
+  if (normalized.includes("header") || normalized.includes("sheet")) {
+    return {
+      title: "Template layout needs attention",
+      body: "This workbook does not match the upload template for this persona.",
+      hint: "Download the template again, keep the header row unchanged, and paste the leads into that file.",
+    };
+  }
+
+  if (normalized.includes(".xlsx") || normalized.includes("excel")) {
+    return {
+      title: "Use the Excel template",
+      body: "This upload accepts the official .xlsx template only.",
+      hint: "Download the template, fill it in, and upload that file.",
+    };
+  }
+
+  return {
+    title: "Template needs a quick check",
+    body: "We could not validate this file yet.",
+    hint: "Review the file format and try again.",
+  };
 }
 
 function humanizeStatusLabel(value: string) {
@@ -335,6 +384,126 @@ function getDisplayEventName(value: string | null | undefined) {
   return shortName?.trim() || cleanName;
 }
 
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function textValues(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap(textValues);
+  const text = asText(value);
+  if (text) return [text];
+  const record = readRecord(value);
+  if (!record) return [];
+  return ["value", "text", "address", "email", "emails", "emailAddress", "emailAddresses", "phone", "phones", "number", "phoneNumber", "phoneNumbers"]
+    .flatMap((key) => textValues(record[key]));
+}
+
+function uniqText(values: string[], kind: "email" | "phone") {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  values
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .forEach((value) => {
+      const key = kind === "email" ? value.toLowerCase() : value.replace(/\D/g, "") || value.toLowerCase();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      result.push(value);
+    });
+
+  return result;
+}
+
+function collectContactChannelValues(value: unknown, kind: "email" | "phone"): string[] {
+  if (Array.isArray(value)) return value.flatMap((item) => collectContactChannelValues(item, kind));
+
+  const record = readRecord(value);
+  if (!record) {
+    return textValues(value).filter((text) =>
+      kind === "email" ? text.includes("@") : text.replace(/\D/g, "").length >= 8 && !text.includes("@")
+    );
+  }
+
+  const channelType = [record.type, record.channel, record.kind, record.label, record.name]
+    .map(asText)
+    .join(" ")
+    .toLowerCase();
+  const candidates = textValues(record);
+
+  return candidates.filter((candidate) => {
+    const digits = candidate.replace(/\D/g, "");
+    if (kind === "email") return candidate.includes("@") || channelType.includes("email");
+    return (
+      !candidate.includes("@") &&
+      digits.length >= 8 &&
+      (channelType.includes("phone") ||
+        channelType.includes("mobile") ||
+        channelType.includes("telephone") ||
+        channelType.includes("whatsapp") ||
+        !channelType.includes("email"))
+    );
+  });
+}
+
+function getNestedRecord(source: Record<string, unknown>, key: string) {
+  return readRecord(source[key]) ?? {};
+}
+
+function collectLeadContacts(item: LeadItem | EventLeadListItem, kind: "email" | "phone") {
+  const source = item as unknown as Record<string, unknown>;
+  const directKeys = kind === "email"
+    ? [
+        "email",
+        "emails",
+        "emailAddress",
+        "emailAddresses",
+        "email1",
+        "email2",
+        "email3",
+        "email_1",
+        "email_2",
+        "email_3",
+        "primaryEmail",
+        "secondaryEmail",
+        "tertiaryEmail",
+      ]
+    : [
+        "phone",
+        "phones",
+        "phoneNumber",
+        "phoneNumbers",
+        "phoneNumber1",
+        "phoneNumber2",
+        "phoneNumber3",
+        "phone1",
+        "phone2",
+        "phone3",
+        "phone_1",
+        "phone_2",
+        "phone_3",
+        "mobile",
+        "mobile1",
+        "mobile2",
+        "mobile3",
+        "telephone",
+        "telephoneNumber",
+      ];
+  const directValues = directKeys.flatMap((key) => textValues(source[key]));
+  const linkedinInsights = getNestedRecord(source, "linkedinInsights");
+  const linkedinInsightsSnake = getNestedRecord(source, "linkedin_insights");
+  const channelValues = [
+    source.contactChannels,
+    source.contact_channels,
+    linkedinInsights.contactChannels,
+    linkedinInsights.contact_channels,
+    linkedinInsightsSnake.contactChannels,
+    linkedinInsightsSnake.contact_channels,
+  ].flatMap((value) => collectContactChannelValues(value, kind));
+
+  return uniqText([...directValues, ...channelValues], kind);
+}
+
 async function writeClipboardText(text: string) {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
@@ -355,13 +524,17 @@ async function writeClipboardText(text: string) {
 
 function mapLeadItemToRow(item: LeadItem | EventLeadListItem): MyLeadRow {
   const workflowStatus = item.workflowStatus || "new";
+  const emails = collectLeadContacts(item, "email");
+  const phones = collectLeadContacts(item, "phone");
   return {
     id: item.id,
     employeeName: item.employeeName || "",
     title: item.title || "",
     company: item.company || "",
-    email: item.email || "",
-    phone: item.phone || "",
+    email: emails[0] || "",
+    phone: phones[0] || "",
+    emails,
+    phones,
     linkedinUrl: item.linkedinUrl || "",
     companyUrl: item.companyUrl || "",
     workflowStatus,
@@ -410,10 +583,10 @@ function filterRows(rows: MyLeadRow[], query: string, filters: MyLeadFilterState
   const search = normalizeSearch(query);
   return rows.filter((row) => {
     if (filters.status !== "all" && row.workflowStatus !== filters.status) return false;
-    if (filters.contact === "email" && !row.email) return false;
-    if (filters.contact === "phone" && !row.phone) return false;
-    if (filters.contact === "complete" && (!row.email || !row.phone)) return false;
-    if (filters.contact === "missing-contact" && (row.email || row.phone)) return false;
+    if (filters.contact === "email" && row.emails.length === 0) return false;
+    if (filters.contact === "phone" && row.phones.length === 0) return false;
+    if (filters.contact === "complete" && (row.emails.length === 0 || row.phones.length === 0)) return false;
+    if (filters.contact === "missing-contact" && (row.emails.length > 0 || row.phones.length > 0)) return false;
     if (filters.contact === "linkedin" && !row.linkedinUrl) return false;
     if (filters.contact === "website" && !row.companyUrl) return false;
     if (!search) return true;
@@ -422,8 +595,8 @@ function filterRows(rows: MyLeadRow[], query: string, filters: MyLeadFilterState
       row.employeeName,
       row.title,
       row.company,
-      row.email,
-      row.phone,
+      row.emails.join(" "),
+      row.phones.join(" "),
       row.linkedinUrl,
       row.companyUrl,
       row.workflowStatusLabel,
@@ -530,6 +703,7 @@ export default function MyLeadsPage() {
   const [addingLead, setAddingLead] = useState(false);
   const [copiedLeadId, setCopiedLeadId] = useState<string | null>(null);
   const [contactChoiceLead, setContactChoiceLead] = useState<ContactChoiceLead | null>(null);
+  const [contactDropdown, setContactDropdown] = useState<ContactDropdownState | null>(null);
   const [emailDialog, setEmailDialog] = useState<EmailGenerationDialogState | null>(null);
   const [updatingLeadIds, setUpdatingLeadIds] = useState<Record<string, boolean>>({});
   const [pendingStatusChange, setPendingStatusChange] = useState<PendingStatusChange | null>(null);
@@ -554,8 +728,26 @@ export default function MyLeadsPage() {
     if (hasPersonaMismatch) router.replace("/dashboard");
   }, [hasPersonaMismatch, isSuperAdmin, router]);
 
+  useEffect(() => {
+    if (!contactDropdown) return;
+
+    const closeDropdown = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest("[data-contact-dropdown-root]")) return;
+      setContactDropdown(null);
+    };
+
+    document.addEventListener("pointerdown", closeDropdown);
+    return () => document.removeEventListener("pointerdown", closeDropdown);
+  }, [contactDropdown]);
+
   const statusOptions = useMemo(
-    () => (persona === "delegates" || persona === "production" ? DELEGATE_STATUSES : SALES_STATUSES),
+    () =>
+      persona === "production"
+        ? PRODUCTION_STATUSES
+        : persona === "delegates"
+          ? DELEGATE_STATUSES
+          : SALES_STATUSES,
     [persona]
   );
   const selectedEvent = useMemo(
@@ -583,6 +775,10 @@ export default function MyLeadsPage() {
     ];
   }, [activeRegistryEvents, templateUploadEventId]);
   const templateValidation = templateUpload.validation;
+  const templateUploadErrorCopy = useMemo(
+    () => getTemplateUploadErrorCopy(templateUpload.error),
+    [templateUpload.error]
+  );
   const templateUploadReady = Boolean(
     templateUpload.file && templateValidation && selectedTemplateUploadEvent?.isActive
   );
@@ -1021,8 +1217,8 @@ export default function MyLeadsPage() {
       `Company: ${item.company || "-"}`,
       `Status: ${item.workflowStatusLabel || item.workflowStatus}`,
       "",
-      `Email: ${item.email || "-"}`,
-      `Phone: ${item.phone || "-"}`,
+      `Email: ${item.emails.length ? item.emails.join(", ") : "-"}`,
+      `Phone: ${item.phones.length ? item.phones.join(", ") : "-"}`,
       `LinkedIn: ${item.linkedinUrl || "-"}`,
       `Website: ${item.companyUrl || "-"}`,
       "",
@@ -1258,9 +1454,8 @@ export default function MyLeadsPage() {
 
         <div className="grid min-h-0 flex-1 gap-12 overflow-hidden pt-10 xl:grid-cols-[19rem_minmax(0,1fr)]">
           <aside className="relative min-h-0 shrink-0 overflow-hidden pr-2">
-            <div className="h-full space-y-6 overflow-y-auto pb-72 pr-1 scrollbar-hide">
-              <div className="mt-8">
-                <label className="mb-4 block text-xs font-medium text-zinc-400">Search intelligence</label>
+            <div className="relative z-20 space-y-6 bg-[#f7f7f7] pb-6 pr-1">
+              <div>
                 <div className="relative h-11 w-full rounded-full border border-zinc-300 bg-white px-4 shadow-[0_22px_60px_-52px_rgba(2,10,27,0.42)] transition-colors focus-within:border-zinc-400">
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                   <input
@@ -1334,7 +1529,7 @@ export default function MyLeadsPage() {
                 </div>
               </div>
             </div>
-            <div className="my-leads-side-media pointer-events-none fixed bottom-0 left-[calc(6rem+1.75rem)] z-10 hidden w-[19rem] overflow-hidden xl:block" aria-hidden="true">
+            <div className="my-leads-side-media pointer-events-none fixed bottom-0 z-0 hidden w-[19rem] overflow-hidden xl:block" aria-hidden="true">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/videos/BlockchainEventPromoconverted_1-ezgif.com-optimize%20(1).gif"
@@ -1365,18 +1560,24 @@ export default function MyLeadsPage() {
                     <div>Status</div>
                   </div>
                   {pagedRows.map((item) => {
-                    const emailHref = item.email ? buildEmailHref(item.email) : "";
-                    const telHref = item.phone ? buildTelHref(item.phone) : "";
-                    const whatsappHref = item.phone ? buildWhatsAppHref(item.phone) : "";
+                    const primaryEmail = item.emails[0] || "";
+                    const primaryPhone = item.phones[0] || "";
+                    const emailDropdownOpen = contactDropdown?.leadId === item.id && contactDropdown.kind === "email";
+                    const phoneDropdownOpen = contactDropdown?.leadId === item.id && contactDropdown.kind === "phone";
+                    const selectedStatusValue = statusOptions.some((option) => option.statusKey === item.workflowStatus)
+                      ? item.workflowStatus
+                      : undefined;
                     const openContactChoice = () =>
                       setContactChoiceLead({
                         name: item.employeeName,
-                        email: item.email,
-                        phone: item.phone,
-                        emailHref,
-                        telHref,
-                        whatsappHref,
+                        emails: item.emails,
+                        phones: item.phones,
                       });
+                    const toggleContactDropdown = (kind: "email" | "phone") => {
+                      setContactDropdown((current) =>
+                        current?.leadId === item.id && current.kind === kind ? null : { leadId: item.id, kind }
+                      );
+                    };
 
                     return (
                       <div key={item.id} className="group grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-6 transition-all duration-300 hover:bg-zinc-50/60">
@@ -1395,32 +1596,122 @@ export default function MyLeadsPage() {
 
                       <div className="pr-8">
                         <div className="flex flex-col gap-2">
-                          <div className="flex items-center gap-4">
-                            {item.email ? (
+                          <div className="space-y-1.5">
+                            {primaryEmail ? (
+                              <div className="relative flex min-w-0 items-center gap-2" data-contact-dropdown-root>
                               <button
                                 type="button"
-                                onClick={openContactChoice}
-                                className="inline-flex min-w-0 items-center gap-4 text-left"
+                                  onClick={() => {
+                                    setContactDropdown(null);
+                                    openContactChoice();
+                                  }}
+                                  className={cn(
+                                    "inline-flex min-w-0 items-center gap-4 text-left",
+                                    item.emails.length > 1 ? "max-w-[calc(100%-2.25rem)]" : "max-w-full"
+                                  )}
                                 title="Choose contact method"
                               >
-                                <EmailIcon className="h-3.5 w-3.5 text-[#EF4444]" />
-                                <span className="truncate text-sm font-light tracking-tight text-zinc-700 transition-colors hover:text-zinc-950">{item.email}</span>
+                                <EmailIcon className="h-3.5 w-3.5 shrink-0 text-[#EF4444]" />
+                                  <span className="truncate text-sm font-light tracking-tight text-zinc-700 transition-colors hover:text-zinc-950">{primaryEmail}</span>
                               </button>
+                                {item.emails.length > 1 ? (
+                                  <div className="relative shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleContactDropdown("email")}
+                                      className="inline-flex h-6 w-7 items-center justify-center rounded-lg border border-white/10 bg-zinc-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_10px_18px_-15px_rgba(2,10,27,0.9)] transition-colors hover:bg-zinc-700"
+                                      aria-label="Show all email addresses"
+                                      aria-expanded={emailDropdownOpen}
+                                    >
+                                      <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", emailDropdownOpen ? "rotate-180" : "")} />
+                                    </button>
+                                    {emailDropdownOpen ? (
+                                      <div className="absolute left-0 top-full z-50 mt-1.5 w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_18px_42px_-28px_rgba(2,10,27,0.42)]">
+                                        <div className="border-b border-zinc-100 px-2.5 py-1.5 text-[10px] font-semibold tracking-normal text-zinc-400">
+                                          Emails
+                                        </div>
+                                        <div className="max-h-40 overflow-y-auto p-1">
+                                          {item.emails.map((email, index) => (
+                                            <button
+                                              key={`${item.id}-email-option-${email}`}
+                                              type="button"
+                                              onClick={() => {
+                                                setContactDropdown(null);
+                                                openContactChoice();
+                                              }}
+                                              className="flex w-full min-w-0 items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-xs font-light text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-950"
+                                            >
+                                              <EmailIcon className="h-3.5 w-3.5 shrink-0 text-[#EF4444]" />
+                                              <span className="min-w-0 flex-1 truncate">{email}</span>
+                                              <span className="shrink-0 text-[10px] font-medium text-zinc-400">{index + 1}</span>
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                ) : null}
+                              </div>
                             ) : (
                               <span className="text-sm font-light tracking-tight text-zinc-700">-</span>
                             )}
                           </div>
-                          <div className="flex items-center gap-4">
-                            {item.phone ? (
+                          <div className="space-y-1.5">
+                            {primaryPhone ? (
+                              <div className="relative flex min-w-0 items-center gap-2" data-contact-dropdown-root>
                               <button
                                 type="button"
-                                onClick={openContactChoice}
-                                className="inline-flex min-w-0 items-center gap-4 text-left"
+                                  onClick={() => {
+                                    setContactDropdown(null);
+                                    openContactChoice();
+                                  }}
+                                  className={cn(
+                                    "inline-flex min-w-0 items-center gap-4 text-left",
+                                    item.phones.length > 1 ? "max-w-[calc(100%-2.25rem)]" : "max-w-full"
+                                  )}
                                 title="Choose contact method"
                               >
-                                <PhoneIcon className="h-3.5 w-3.5 text-[#22C55E]" />
-                                <span className="truncate text-sm font-light text-zinc-500 transition-colors hover:text-zinc-950">{item.phone}</span>
+                                <PhoneIcon className="h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
+                                  <span className="truncate text-sm font-light text-zinc-500 transition-colors hover:text-zinc-950">{primaryPhone}</span>
                               </button>
+                                {item.phones.length > 1 ? (
+                                  <div className="relative shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleContactDropdown("phone")}
+                                      className="inline-flex h-6 w-7 items-center justify-center rounded-lg border border-white/10 bg-zinc-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_10px_18px_-15px_rgba(2,10,27,0.9)] transition-colors hover:bg-zinc-700"
+                                      aria-label="Show all phone numbers"
+                                      aria-expanded={phoneDropdownOpen}
+                                    >
+                                      <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", phoneDropdownOpen ? "rotate-180" : "")} />
+                                    </button>
+                                    {phoneDropdownOpen ? (
+                                      <div className="absolute left-0 top-full z-50 mt-1.5 w-52 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_18px_42px_-28px_rgba(2,10,27,0.42)]">
+                                        <div className="border-b border-zinc-100 px-2.5 py-1.5 text-[10px] font-semibold tracking-normal text-zinc-400">
+                                          Phones
+                                        </div>
+                                        <div className="max-h-40 overflow-y-auto p-1">
+                                          {item.phones.map((phone, index) => (
+                                            <button
+                                              key={`${item.id}-phone-option-${phone}`}
+                                              type="button"
+                                              onClick={() => {
+                                                setContactDropdown(null);
+                                                openContactChoice();
+                                              }}
+                                              className="flex w-full min-w-0 items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-xs font-light tabular-nums text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-950"
+                                            >
+                                              <PhoneIcon className="h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
+                                              <span className="min-w-0 flex-1 truncate">{phone}</span>
+                                              <span className="shrink-0 text-[10px] font-medium text-zinc-400">{index + 1}</span>
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                ) : null}
+                              </div>
                             ) : (
                               <span className="text-sm font-light text-zinc-500">-</span>
                             )}
@@ -1463,7 +1754,7 @@ export default function MyLeadsPage() {
 
                       <div className="flex h-full flex-col">
                         <Select
-                          value={item.workflowStatus}
+                          value={selectedStatusValue}
                           onValueChange={(value) => handleStatusSelection(item, value)}
                           disabled={Boolean(updatingLeadIds[item.id])}
                         >
@@ -1905,55 +2196,70 @@ export default function MyLeadsPage() {
               <h3 className="text-2xl font-light tracking-tight text-zinc-950">
                 {contactChoiceLead.name || "This lead"}
               </h3>
-              <div className="mt-3 space-y-1.5 text-sm font-light text-zinc-500">
-                {contactChoiceLead.email ? (
-                  <p className="truncate">{contactChoiceLead.email}</p>
-                ) : null}
-                {contactChoiceLead.phone ? (
-                  <p className="tabular-nums">{contactChoiceLead.phone}</p>
-                ) : null}
-              </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Button
-                type="button"
-                disabled={!contactChoiceLead.emailHref}
-                onClick={() => {
-                  window.location.href = contactChoiceLead.emailHref;
-                  setContactChoiceLead(null);
-                }}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-red-500/20 bg-[#EF4444] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(239,68,68,0.95)] hover:bg-red-600 disabled:border-red-400/20 disabled:bg-red-500/55 disabled:text-white/80 disabled:opacity-100 disabled:shadow-none"
-              >
-                <Mail className="h-3.5 w-3.5 stroke-[2.4]" />
-                Email
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={!contactChoiceLead.telHref}
-                onClick={() => {
-                  window.location.href = contactChoiceLead.telHref;
-                  setContactChoiceLead(null);
-                }}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-950 shadow-none transition-colors hover:border-blue-600 hover:bg-white hover:text-blue-600 disabled:opacity-50"
-              >
-                <Headset className="h-3.5 w-3.5" />
-                Linkus
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={!contactChoiceLead.whatsappHref}
-                onClick={() => {
-                  window.open(contactChoiceLead.whatsappHref, "_blank", "noopener,noreferrer");
-                  setContactChoiceLead(null);
-                }}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#22c55e]/30 bg-[#22c55e] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-16px_rgba(34,197,94,0.85)] transition-colors hover:bg-[#16a34a] hover:text-white disabled:opacity-50"
-              >
-                <WhatsAppIcon className="h-3.5 w-3.5" />
-                WhatsApp
-              </Button>
+            <div className="space-y-3">
+              {contactChoiceLead.emails.map((email, index) => (
+                <div key={`contact-email-${email}`} className="grid gap-3 border-b border-zinc-100 px-1 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-medium tracking-normal text-zinc-400">email {index + 1}</p>
+                    <p className="mt-1 truncate text-sm font-light text-zinc-700">{email}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    disabled={!buildEmailHref(email)}
+                    onClick={() => {
+                      window.location.href = buildEmailHref(email);
+                      setContactChoiceLead(null);
+                    }}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-red-500/20 bg-[#EF4444] px-4 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(239,68,68,0.95)] hover:bg-red-600 disabled:border-red-400/20 disabled:bg-red-500/55 disabled:text-white/80 disabled:opacity-100 disabled:shadow-none"
+                  >
+                    <Mail className="h-3.5 w-3.5 stroke-[2.4]" />
+                    Email
+                  </Button>
+                </div>
+              ))}
+
+              {contactChoiceLead.phones.map((phone, index) => (
+                <div key={`contact-phone-${phone}`} className="grid gap-3 border-b border-zinc-100 px-1 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-medium tracking-normal text-zinc-400">phone {index + 1}</p>
+                    <p className="mt-1 truncate text-sm font-light tabular-nums text-zinc-700">{phone}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={!buildTelHref(phone)}
+                    onClick={() => {
+                      window.location.href = buildTelHref(phone);
+                      setContactChoiceLead(null);
+                    }}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-950 shadow-none transition-colors hover:border-blue-600 hover:bg-white hover:text-blue-600 disabled:opacity-50"
+                  >
+                    <Headset className="h-3.5 w-3.5" />
+                    Linkus
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={!buildWhatsAppHref(phone)}
+                    onClick={() => {
+                      window.open(buildWhatsAppHref(phone), "_blank", "noopener,noreferrer");
+                      setContactChoiceLead(null);
+                    }}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-[#22c55e]/30 bg-[#22c55e] px-4 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-16px_rgba(34,197,94,0.85)] transition-colors hover:bg-[#16a34a] hover:text-white disabled:opacity-50"
+                  >
+                    <WhatsAppIcon className="h-3.5 w-3.5" />
+                    WhatsApp
+                  </Button>
+                </div>
+              ))}
+
+              {contactChoiceLead.emails.length === 0 && contactChoiceLead.phones.length === 0 ? (
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-5 text-sm font-light text-zinc-500">
+                  No contact channels are available for this lead.
+                </div>
+              ) : null}
             </div>
           </div>
         </LeadSheetDialog>
@@ -2222,9 +2528,9 @@ export default function MyLeadsPage() {
                       feedback: emailDialog.feedback,
                     })
                   }
-                  className="h-11 gap-2 rounded-full border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                  className="h-11 gap-2 rounded-full border border-zinc-900/10 bg-zinc-950 px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_12px_26px_-18px_rgba(24,24,27,0.95)] hover:bg-zinc-800"
                 >
-                  <Sparkles className="h-4 w-4" />
+                  <RefreshCcw className="h-4 w-4" />
                   {emailDialog.feedback.trim() ? "Regenerate with Feedback" : "Regenerate"}
                 </Button>
                 <div className="flex flex-wrap justify-end gap-3">
@@ -2280,7 +2586,6 @@ export default function MyLeadsPage() {
       >
         <div className="space-y-7">
           <div>
-            <label className="mb-3 block text-xs font-medium text-zinc-400">Related event</label>
             <Select
               value={templateUploadEventId}
               onValueChange={(value) =>
@@ -2321,12 +2626,8 @@ export default function MyLeadsPage() {
 
           <div
             className={cn(
-              "group flex min-h-20 items-center gap-3 rounded-2xl border px-4 py-3 transition-all",
-              !selectedTemplateUploadEvent
-                ? "border-zinc-200 bg-zinc-50/80"
-                : templateUpload.error
-                  ? "border-red-300 bg-red-50/40"
-                  : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50/70"
+              "group flex min-h-16 items-center gap-3 py-1 transition-opacity",
+              !selectedTemplateUploadEvent ? "opacity-60" : ""
             )}
           >
             <label
@@ -2338,15 +2639,6 @@ export default function MyLeadsPage() {
                   : "cursor-pointer"
               )}
             >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors group-hover:border-zinc-300 group-hover:text-zinc-500">
-                {templateUpload.validating ? (
-                  <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-                ) : templateValidation ? (
-                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                ) : (
-                  <FileSpreadsheet className="h-5 w-5" />
-                )}
-              </span>
               <span className="min-w-0 flex-1 text-left">
                 <span className="block truncate text-sm font-semibold text-zinc-950">
                   {!selectedTemplateUploadEvent
@@ -2387,51 +2679,83 @@ export default function MyLeadsPage() {
           </div>
 
           {templateUpload.error ? (
-            <div className="flex gap-3 border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <div>
-                <p className="font-semibold">Template check failed</p>
-                <p className="mt-1 font-light leading-6">{templateUpload.error}</p>
-                <p className="mt-2 text-xs font-medium text-red-500">Expected headers: {LEAD_TEMPLATE_HEADERS}</p>
+            <div className="border-y border-red-200 bg-transparent py-4 text-sm">
+              <div className="flex items-center gap-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_10px_20px_-14px_rgba(220,38,38,0.9)]">
+                  <AlertTriangle className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="font-medium text-red-700">{templateUploadErrorCopy.title}</p>
+                  <p className="mt-2 text-xs font-medium leading-5 text-red-600">{templateUploadErrorCopy.hint}</p>
+                </div>
               </div>
             </div>
           ) : null}
 
           {templateValidation ? (
             <div className="space-y-5">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="border border-zinc-200 p-4">
-                  <p className="text-xs font-medium text-zinc-400">Sheets</p>
-                  <p className="mt-2 text-2xl font-light tabular-nums text-zinc-950">
-                    {templateValidation.sheetCount.toLocaleString()}
-                  </p>
+              <div className="border-y border-blue-100 py-5">
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-4">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_16px_30px_-18px_rgba(37,99,235,0.95)]">
+                      <span className="h-2.5 w-2.5 rounded-full bg-white" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-base font-medium text-zinc-950">Ready to add</p>
+                      <p className="mt-1 truncate text-sm font-light text-zinc-500">
+                        {getDisplayEventName(selectedTemplateUploadEvent?.eventName)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-left sm:text-right">
+                    <p className="text-5xl font-light tabular-nums tracking-tight text-zinc-950">
+                      {templateValidation.importRows.toLocaleString()}
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-zinc-400">leads prepared</p>
+                  </div>
                 </div>
-                <div className="border border-zinc-200 p-4">
-                  <p className="text-xs font-medium text-zinc-400">Leads ready</p>
-                  <p className="mt-2 text-2xl font-light tabular-nums text-zinc-950">
-                    {templateValidation.importRows.toLocaleString()}
-                  </p>
-                </div>
-                <div className="border border-zinc-200 p-4">
-                  <p className="text-xs font-medium text-zinc-400">Skipped rows</p>
-                  <p className="mt-2 text-2xl font-light tabular-nums text-zinc-950">
-                    {templateValidation.invalidRows.toLocaleString()}
-                  </p>
+
+                <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-zinc-100 pt-4 text-sm">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-zinc-400">Sheets</span>
+                    <span className="text-xl font-light tabular-nums text-zinc-950">
+                      {templateValidation.sheetCount.toLocaleString()}
+                    </span>
+                  </div>
+                  <span className="hidden h-5 w-px bg-zinc-200 sm:block" />
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-zinc-400">Rows checked</span>
+                    <span className="text-xl font-light tabular-nums text-zinc-950">
+                      {templateValidation.rawRows.toLocaleString()}
+                    </span>
+                  </div>
+                  <span className="hidden h-5 w-px bg-zinc-200 sm:block" />
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-zinc-400">Skipped</span>
+                    <span className="text-xl font-light tabular-nums text-zinc-950">
+                      {templateValidation.invalidRows.toLocaleString()}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="mb-3 block text-xs font-medium text-zinc-400">Detected categories</label>
-                <div className="max-h-36 space-y-2 overflow-y-auto pr-1 scrollbar-modern">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                  <p className="text-sm font-medium text-zinc-500">Detected categories</p>
+                  <p className="text-xs font-medium text-zinc-400">
+                    {templateValidation.categories.length.toLocaleString()} found
+                  </p>
+                </div>
+                <div className="max-h-32 overflow-y-auto border-y border-zinc-100 scrollbar-modern">
                   {templateValidation.categories.map((category) => (
                     <div
                       key={category.name}
-                      className="flex items-center justify-between gap-4 border border-zinc-200 px-4 py-3"
+                      className="flex items-center justify-between gap-4 border-b border-zinc-100 py-3 last:border-b-0"
                     >
                       <span className="min-w-0 truncate text-sm font-semibold text-zinc-950">
                         {category.name}
                       </span>
-                      <span className="shrink-0 text-xs font-medium text-zinc-400">
+                      <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
                         {category.validRows.toLocaleString()} leads
                       </span>
                     </div>
@@ -2440,8 +2764,14 @@ export default function MyLeadsPage() {
               </div>
 
               {templateValidation.invalidReasons.length > 0 ? (
-                <div className="border-l border-amber-300 pl-4 text-sm font-light leading-6 text-amber-700">
-                  {templateValidation.invalidReasons[0]}
+                <div className="flex items-start gap-3 border-t border-zinc-100 pt-4 text-sm">
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                  <div>
+                    <p className="font-medium text-zinc-700">Some rows were skipped</p>
+                    <p className="mt-1 font-light leading-6 text-zinc-500">
+                      {templateValidation.invalidReasons[0]}
+                    </p>
+                  </div>
                 </div>
               ) : null}
             </div>
