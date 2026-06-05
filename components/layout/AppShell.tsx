@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { ReleaseAnnouncement } from "@/components/layout/ReleaseAnnouncement";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { clearPersona, getStoredPersona, hasPersona, onPersonaChange, setPersona } from "@/lib/persona";
 import {
@@ -159,11 +160,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (isAuthRoute || isChooser) {
-    return <main className="min-h-screen bg-transparent">{children}</main>;
+    return (
+      <>
+        <main className="min-h-screen bg-transparent">{children}</main>
+        {!isAuthRoute ? <ReleaseAnnouncement session={session} /> : null}
+      </>
+    );
   }
 
   if (isAdminAreaRoute) {
-    return <>{children}</>;
+    return (
+      <>
+        {children}
+        <ReleaseAnnouncement session={session} />
+      </>
+    );
   }
 
   if (!selected) return null;
@@ -182,6 +193,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         {children}
       </main>
+      <ReleaseAnnouncement session={session} />
     </>
   );
 }
