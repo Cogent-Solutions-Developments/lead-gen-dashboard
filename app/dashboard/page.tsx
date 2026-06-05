@@ -331,6 +331,7 @@ function SalesMarathon({
           displayRunners.map((runner, index) => {
             const rawProgress = Math.min(runner.proposalCount / target, 1);
             const progress = runner.proposalCount > 0 ? Math.max(rawProgress, 0.08) : 0;
+            const fillHeight = progress >= 1 ? "calc(100% - 0.5rem)" : `${progress * 100}%`;
             const colorItem = barPalette[index % barPalette.length];
             const isCurrentUser = runnerMatchesUser(runner, currentUser);
             return (
@@ -344,9 +345,9 @@ function SalesMarathon({
                 <div className="kpi-glass-bar relative h-full w-10 overflow-hidden rounded-full">
                   <motion.div
                     initial={{ height: 0 }}
-                    animate={{ height: `${progress * 100}%` }}
+                    animate={{ height: fillHeight }}
                     transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
-                    className={`kpi-glass-fill absolute bottom-1 left-1 right-1 z-[3] ${colorItem.bg}`}
+                    className={`kpi-glass-fill absolute bottom-1 left-1 right-1 z-[3] rounded-full ${colorItem.bg}`}
                   />
                   {/* Grid markers */}
                   <div className="pointer-events-none absolute inset-0 z-[4] flex flex-col justify-between">
