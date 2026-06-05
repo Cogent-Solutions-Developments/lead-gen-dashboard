@@ -13,6 +13,11 @@ export type AuthUser = {
   username: string;
   role: AuthRole;
   fullName?: string;
+  designation?: string;
+  dateOfBirth?: string | null;
+  mobilePhone?: string;
+  address?: string;
+  companyJoinedDate?: string | null;
   bio?: string;
   avatarStorageObjectId?: string | null;
   avatarUrl?: string | null;
@@ -82,6 +87,16 @@ export type MyProfile = AuthUser & {
   bio: string;
   avatarStorageObjectId?: string | null;
   avatarUrl?: string | null;
+};
+
+export type MyProfileUpdateInput = {
+  fullName?: string;
+  designation?: string;
+  dateOfBirth?: string | null;
+  mobilePhone?: string;
+  address?: string;
+  companyJoinedDate?: string | null;
+  bio?: string;
 };
 
 export type AdminStorageObjectItem = {
@@ -501,6 +516,11 @@ function getBaseUrl() {
 function normalizeUser(raw: unknown): AuthUser {
   const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const fullName = source.fullName ?? source.full_name;
+  const designation = source.designation;
+  const dateOfBirth = source.dateOfBirth ?? source.date_of_birth;
+  const mobilePhone = source.mobilePhone ?? source.mobile_phone;
+  const address = source.address;
+  const companyJoinedDate = source.companyJoinedDate ?? source.company_joined_date;
   const bio = source.bio ?? "";
   const avatarStorageObjectId = source.avatarStorageObjectId ?? source.avatar_storage_object_id;
   const avatarUrl = source.avatarUrl ?? source.avatar_url;
@@ -515,6 +535,11 @@ function normalizeUser(raw: unknown): AuthUser {
     username: String(source.username || ""),
     role: normalizeAuthRole(source.role),
     fullName: fullName == null ? "" : String(fullName),
+    designation: designation == null ? "" : String(designation),
+    dateOfBirth: dateOfBirth == null ? null : String(dateOfBirth),
+    mobilePhone: mobilePhone == null ? "" : String(mobilePhone),
+    address: address == null ? "" : String(address),
+    companyJoinedDate: companyJoinedDate == null ? null : String(companyJoinedDate),
     bio: bio == null ? "" : String(bio),
     avatarStorageObjectId: avatarStorageObjectId == null ? null : String(avatarStorageObjectId),
     avatarUrl: avatarUrl == null ? null : String(avatarUrl),
@@ -853,7 +878,7 @@ export async function getMyProfile() {
   return normalizeProfile(data.profile);
 }
 
-export async function updateMyProfile(payload: { fullName?: string; bio?: string }) {
+export async function updateMyProfile(payload: MyProfileUpdateInput) {
   const data = await authRequest<{ profile: MyProfile }>("/api/me/profile", {
     method: "PATCH",
     body: JSON.stringify(payload),
