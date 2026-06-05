@@ -4,7 +4,10 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
   Camera,
+  CalendarDays,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   ImagePlus,
   Loader2,
   Palette,
@@ -51,6 +54,22 @@ const FIELD_INPUT_CLASS =
   "h-9 rounded-none border-0 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none outline-none placeholder:text-zinc-300 focus-visible:border-transparent focus-visible:ring-0 disabled:opacity-60";
 const FIELD_TEXTAREA_CLASS =
   "min-h-20 resize-none rounded-none border-0 bg-transparent px-0 py-0 text-lg font-light leading-6 tracking-tight text-zinc-950 shadow-none outline-none placeholder:text-zinc-300 focus-visible:border-transparent focus-visible:ring-0 disabled:opacity-60";
+const MONTH_OPTIONS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+const YEAR_PAGE_SIZE = 16;
+type DatePickerPanel = "days" | "months" | "years";
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Please try again.";
@@ -94,12 +113,301 @@ function displayDate(value: string) {
   });
 }
 
+function parseDateValue(value: string) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function toDateValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function sameDate(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function calendarDaysForMonth(date: Date) {
+  const firstOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+  const start = new Date(firstOfMonth);
+  start.setDate(firstOfMonth.getDate() - firstOfMonth.getDay());
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const next = new Date(start);
+    next.setDate(start.getDate() + index);
+    return next;
+  });
+}
+
+function yearPageStartFor(year: number, fromYear: number, toYear: number) {
+  const clampedYear = Math.min(Math.max(year, fromYear), toYear);
+  return fromYear + Math.floor((clampedYear - fromYear) / YEAR_PAGE_SIZE) * YEAR_PAGE_SIZE;
+}
+
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-5 border-b border-zinc-100 py-3">
       <span className="text-sm font-light text-zinc-500">{label}</span>
       <span className="min-w-0 truncate text-right text-sm font-light text-zinc-950">{value || "Not set"}</span>
     </div>
+  );
+}
+
+function DatePickerField({
+  value,
+  onChange,
+  disabled,
+  placeholder = "Select date",
+  title,
+  fromYear = 1900,
+  toYear = new Date().getFullYear() + 5,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  placeholder?: string;
+  title: string;
+  fromYear?: number;
+  toYear?: number;
+}) {
+  const selectedDate = parseDateValue(value);
+  const [open, setOpen] = useState(false);
+  const [viewDate, setViewDate] = useState<Date>(() => selectedDate ?? new Date());
+  const [panel, setPanel] = useState<DatePickerPanel>("days");
+  const [yearPageStart, setYearPageStart] = useState(() =>
+    yearPageStartFor((selectedDate ?? new Date()).getFullYear(), fromYear, toYear),
+  );
+  const today = new Date();
+  const days = calendarDaysForMonth(viewDate);
+  const yearPage = Array.from({ length: YEAR_PAGE_SIZE }, (_, index) => yearPageStart + index);
+
+  const openPicker = () => {
+    const nextViewDate = selectedDate ?? new Date();
+    setViewDate(nextViewDate);
+    setPanel("days");
+    setYearPageStart(yearPageStartFor(nextViewDate.getFullYear(), fromYear, toYear));
+    setOpen(true);
+  };
+
+  const goBack = () => {
+    if (panel === "years") {
+      setYearPageStart((current) => Math.max(fromYear, current - YEAR_PAGE_SIZE));
+      return;
+    }
+    setViewDate((current) => new Date(current.getFullYear(), current.getMonth() - (panel === "months" ? 12 : 1), 1));
+  };
+
+  const goForward = () => {
+    if (panel === "years") {
+      setYearPageStart((current) => Math.min(yearPageStartFor(toYear, fromYear, toYear), current + YEAR_PAGE_SIZE));
+      return;
+    }
+    setViewDate((current) => new Date(current.getFullYear(), current.getMonth() + (panel === "months" ? 12 : 1), 1));
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={openPicker}
+        disabled={disabled}
+        className="flex h-9 w-full min-w-0 items-center justify-between gap-5 text-left text-lg font-light tracking-tight text-zinc-950 transition-colors hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <span className={value ? "truncate" : "truncate text-zinc-300"}>
+          {value ? displayDate(value) : placeholder}
+        </span>
+        <CalendarDays className="h-4 w-4 shrink-0 text-zinc-500" />
+      </button>
+
+      {open ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/25 p-4 backdrop-blur-[3px]">
+          <button
+            type="button"
+            aria-label="Close date picker"
+            className="absolute inset-0 cursor-default"
+            onClick={() => setOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+            className="relative w-full max-w-sm overflow-hidden rounded-[1.75rem] border border-zinc-200 bg-white shadow-[0_28px_80px_-42px_rgba(2,10,27,0.72)]"
+          >
+            <div className="border-b border-zinc-100 px-5 py-4">
+              <div className="flex items-center justify-between gap-4">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition-colors hover:border-zinc-900 hover:text-zinc-950"
+                  aria-label="Previous"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPanel((current) => (current === "months" ? "days" : "months"))}
+                    className={[
+                      "h-10 min-w-0 flex-1 rounded-full px-4 text-sm font-medium transition-colors",
+                      panel === "months"
+                        ? "bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.95)]"
+                        : "border border-zinc-200 bg-white text-zinc-950 hover:border-zinc-300",
+                    ].join(" ")}
+                  >
+                    {MONTH_OPTIONS[viewDate.getMonth()]}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setYearPageStart(yearPageStartFor(viewDate.getFullYear(), fromYear, toYear));
+                      setPanel((current) => (current === "years" ? "days" : "years"));
+                    }}
+                    className={[
+                      "h-10 w-20 rounded-full px-4 text-sm font-medium tabular-nums transition-colors",
+                      panel === "years"
+                        ? "bg-zinc-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_22px_-16px_rgba(2,6,23,0.85)]"
+                        : "border border-zinc-200 bg-white text-zinc-950 hover:border-zinc-300",
+                    ].join(" ")}
+                  >
+                    {viewDate.getFullYear()}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={goForward}
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition-colors hover:border-zinc-900 hover:text-zinc-950"
+                  aria-label="Next"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="px-5 pb-5 pt-4">
+              {panel === "months" ? (
+                <div className="grid grid-cols-3 gap-2">
+                  {MONTH_OPTIONS.map((month, index) => {
+                    const isCurrentMonth = index === viewDate.getMonth();
+                    return (
+                      <button
+                        key={month}
+                        type="button"
+                        onClick={() => {
+                          setViewDate((current) => new Date(current.getFullYear(), index, 1));
+                          setPanel("days");
+                        }}
+                        className={[
+                          "h-11 rounded-full text-sm font-medium transition-colors",
+                          isCurrentMonth
+                            ? "bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.95)]"
+                            : "border border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:text-zinc-950",
+                        ].join(" ")}
+                      >
+                        {month.slice(0, 3)}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : panel === "years" ? (
+                <div>
+                  <div className="mb-3 flex items-center justify-between text-xs font-medium text-zinc-400">
+                    <span>Select year</span>
+                    <span className="tabular-nums">
+                      {yearPageStart}-{Math.min(yearPageStart + YEAR_PAGE_SIZE - 1, toYear)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {yearPage.map((year) => {
+                      const disabledYear = year < fromYear || year > toYear;
+                      const isCurrentYear = year === viewDate.getFullYear();
+                      return (
+                        <button
+                          key={year}
+                          type="button"
+                          disabled={disabledYear}
+                          onClick={() => {
+                            setViewDate((current) => new Date(year, current.getMonth(), 1));
+                            setPanel("days");
+                          }}
+                          className={[
+                            "h-11 rounded-full text-sm font-medium tabular-nums transition-colors disabled:cursor-not-allowed disabled:opacity-30",
+                            isCurrentYear
+                              ? "bg-zinc-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_22px_-16px_rgba(2,6,23,0.85)]"
+                              : "border border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:text-zinc-950",
+                          ].join(" ")}
+                        >
+                          {year}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-zinc-400">
+                    {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                      <span key={day} className="py-1">
+                        {day}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="mt-2 grid grid-cols-7 gap-1">
+                    {days.map((day) => {
+                      const dayValue = toDateValue(day);
+                      const isCurrentMonth = day.getMonth() === viewDate.getMonth();
+                      const isSelected = selectedDate ? sameDate(day, selectedDate) : false;
+                      const isToday = sameDate(day, today);
+
+                      return (
+                        <button
+                          key={dayValue}
+                          type="button"
+                          onClick={() => {
+                            onChange(dayValue);
+                            setOpen(false);
+                          }}
+                          className={[
+                            "flex h-9 items-center justify-center rounded-full text-sm font-medium transition-colors",
+                            isSelected
+                              ? "border border-blue-500/20 bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)]"
+                              : isToday
+                                ? "border border-blue-500/20 bg-blue-50 text-blue-700"
+                                : isCurrentMonth
+                                  ? "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
+                                  : "text-zinc-300 hover:bg-zinc-50",
+                          ].join(" ")}
+                        >
+                          {day.getDate()}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              <div className="mt-5 flex items-center border-t border-zinc-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange("");
+                    setOpen(false);
+                  }}
+                  className="border-b border-transparent pb-1 text-sm font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -136,7 +444,7 @@ function ProfileCompletionTracker({ items }: { items: ProfileCompletionItem[] })
 
   if (completionPercent >= 100) {
     return (
-      <div className="border-b border-zinc-100 pb-5 pt-1">
+      <div className="border-b border-zinc-100 pb-1 pt-0">
         <p className="text-sm font-light text-zinc-500">Profile complete</p>
         <p className="mt-1 text-xs font-light text-zinc-400">
           Thanks for keeping your details up to date.
@@ -146,7 +454,7 @@ function ProfileCompletionTracker({ items }: { items: ProfileCompletionItem[] })
   }
 
   return (
-    <div className="border-b border-zinc-100 pb-5 pt-1">
+    <div className="border-b border-zinc-100 pb-1 pt-0">
       <div className="flex items-end justify-between gap-5">
         <div>
           <p className="text-sm font-light text-zinc-500">Profile completion</p>
@@ -159,7 +467,7 @@ function ProfileCompletionTracker({ items }: { items: ProfileCompletionItem[] })
         </span>
       </div>
 
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-200">
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-200">
         <div
           className="h-full rounded-full bg-blue-600 shadow-[0_8px_18px_-12px_rgba(37,99,235,0.95)] transition-[width]"
           style={{ width: `${completionPercent}%` }}
@@ -331,7 +639,7 @@ export default function ProfilePage() {
               onClick={() => setThemeDialogOpen(true)}
               className="h-12 rounded-full border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
             >
-              <Palette className="mr-2 h-4 w-4" />
+              <Palette className="mr-1 h-4 w-4" />
               Theme
             </Button>
             <Button
@@ -340,7 +648,7 @@ export default function ProfilePage() {
               disabled={loading || saving}
               className="h-12 w-fit rounded-full border border-blue-500/20 bg-blue-600 px-7 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700 disabled:opacity-50"
             >
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              {saving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Save className="mr-1 h-4 w-4" />}
               Save profile
             </Button>
           </div>
@@ -400,8 +708,6 @@ export default function ProfilePage() {
                   <SummaryRow label="Joined" value={displayDate(form.companyJoinedDate)} />
                   <SummaryRow label="Address" value={form.address} />
                 </div>
-
-                <ProfileCompletionTracker items={profileCompletionItems} />
               </div>
 
               <input
@@ -411,6 +717,10 @@ export default function ProfilePage() {
                 className="hidden"
                 onChange={(event) => handleSelectFile(event.target.files?.[0] ?? null)}
               />
+
+              <div className="mt-auto pt-6">
+                <ProfileCompletionTracker items={profileCompletionItems} />
+              </div>
             </div>
           </aside>
 
@@ -456,22 +766,21 @@ export default function ProfilePage() {
               </FieldRow>
 
               <FieldRow label="Date of birth">
-                <Input
-                  type="date"
+                <DatePickerField
+                  title="Date of birth"
                   value={form.dateOfBirth}
-                  onChange={(event) => updateField("dateOfBirth", event.target.value)}
+                  onChange={(value) => updateField("dateOfBirth", value)}
                   disabled={loading || saving}
-                  className={FIELD_INPUT_CLASS}
+                  toYear={new Date().getFullYear()}
                 />
               </FieldRow>
 
               <FieldRow label="Company joined date">
-                <Input
-                  type="date"
+                <DatePickerField
+                  title="Company joined date"
                   value={form.companyJoinedDate}
-                  onChange={(event) => updateField("companyJoinedDate", event.target.value)}
+                  onChange={(value) => updateField("companyJoinedDate", value)}
                   disabled={loading || saving}
-                  className={FIELD_INPUT_CLASS}
                 />
               </FieldRow>
 
