@@ -10,14 +10,14 @@ import { Button } from "@/components/ui/button";
 import { getAuthLandingPath, getStoredAuthSession, loginWithPassword, personaForRole } from "@/lib/auth";
 import { setPersona } from "@/lib/persona";
 
-const LOGIN_REVEAL_DELAY_MS = 7600;
-const HERO_GIF_SRC = "/videos/BlockchainEventPromoconverted_1-ezgif.com-optimize%20(1).gif";
+const LOGIN_REVEAL_DELAY_MS = 6000;
+const HERO_GIF_SRC = "/videos/supernizo-figure-cropped.webp";
 const HERO_TITLE = "I am supernizo";
 const HERO_TAGLINE = "An Enterprise Agentic AI for Intelligent Outreach";
 const HERO_DESCRIPTION =
   "I am an enterprise agentic AI platform that intelligently identifies your dream customers and prospects, autonomously manages outreach, and streamlines customer engagement at scale.";
 const HERO_MEDIA_TRANSITION = { duration: 1.45, ease: [0.16, 1, 0.3, 1] } as const;
-const COMPACT_HERO_VIEWPORT_QUERY = "(min-width: 1024px) and (max-height: 860px)";
+const LAPTOP_HERO_VIEWPORT_QUERY = "(min-width: 1024px) and (max-width: 1728px) and (max-height: 940px)";
 const APP_VERSION_LABEL = "v0.3.0";
 
 export default function SignInPage() {
@@ -27,12 +27,29 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
-  const [compactHeroViewport, setCompactHeroViewport] = useState(false);
+  const [laptopHeroViewport, setLaptopHeroViewport] = useState(false);
   const desktopLayoutClassName = showLogin
     ? "lg:grid-cols-[minmax(0,1.12fr)_minmax(29rem,0.78fr)]"
     : "lg:grid-cols-[minmax(0,1fr)_minmax(0,0fr)]";
-  const introHeroMediaScale = compactHeroViewport ? 0.88 : 0.82;
-  const introHeroMediaY = compactHeroViewport ? -88 : 0;
+  const heroMediaStyle = showLogin
+    ? {
+        bottom: laptopHeroViewport ? "-4dvh" : "-2dvh",
+        width: laptopHeroViewport ? "clamp(320px, 26vw, 420px)" : "clamp(380px, 30vw, 520px)",
+        height: "auto",
+      }
+    : laptopHeroViewport
+      ? {
+          top: "58dvh",
+          bottom: "auto",
+          width: "clamp(360px, 28vw, 420px)",
+          height: "auto",
+        }
+      : {
+          top: "56dvh",
+          bottom: "auto",
+          width: "clamp(500px, 28vw, 600px)",
+          height: "auto",
+        };
 
   useEffect(() => {
     let active = true;
@@ -65,12 +82,12 @@ export default function SignInPage() {
   }, [prefersReducedMotion]);
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia(COMPACT_HERO_VIEWPORT_QUERY);
-    const syncCompactViewport = () => setCompactHeroViewport(mediaQuery.matches);
+    const mediaQuery = window.matchMedia(LAPTOP_HERO_VIEWPORT_QUERY);
+    const syncLaptopViewport = () => setLaptopHeroViewport(mediaQuery.matches);
 
-    syncCompactViewport();
-    mediaQuery.addEventListener("change", syncCompactViewport);
-    return () => mediaQuery.removeEventListener("change", syncCompactViewport);
+    syncLaptopViewport();
+    mediaQuery.addEventListener("change", syncLaptopViewport);
+    return () => mediaQuery.removeEventListener("change", syncLaptopViewport);
   }, []);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -101,20 +118,20 @@ export default function SignInPage() {
   return (
     <div className="relative h-dvh overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,#ffffff_0%,#fafafa_42%,#f3f6fb_100%)]" />
-      <header className="absolute left-6 right-6 top-5 z-40 flex h-14 items-start justify-between border-b border-zinc-200/90 pb-4 sm:left-8 sm:right-8 sm:top-7">
+      <header className="absolute left-5 right-5 top-4 z-40 flex h-10 items-start justify-between border-b border-zinc-200/80 pb-3 sm:left-7 sm:right-7 sm:top-5">
         <div>
           <div className="flex items-baseline gap-2 whitespace-nowrap">
-            <span className="text-lg font-medium tracking-wide text-zinc-950">
+            <span className="text-base font-medium tracking-normal text-zinc-950">
               supernizo
             </span>
             <span
-              className="text-[1rem] font-normal leading-none tracking-wide text-zinc-700"
+              className="text-[0.95rem] font-normal leading-none tracking-normal text-zinc-700"
               style={{ fontFamily: '"Bungee Hairline", sans-serif' }}
             >
               Lite
             </span>
           </div>
-          <span className="mt-0.5 block text-[9px] font-light tracking-[0.22em] text-zinc-400">
+          <span className="mt-0.5 block text-[8px] font-light tracking-[0.18em] text-zinc-400">
             {APP_VERSION_LABEL}
           </span>
         </div>
@@ -158,7 +175,7 @@ export default function SignInPage() {
               y: showLogin ? 0 : 18,
             }}
             transition={{ duration: 0.55, delay: showLogin ? 0.48 : 0, ease: "easeOut" }}
-            className="pointer-events-none absolute inset-x-0 top-28 z-30 hidden px-8 text-center sm:top-32 lg:block"
+            className="pointer-events-none absolute inset-x-0 top-28 z-30 hidden px-8 text-center sm:top-32 lg:block [@media_(min-width:1800px)_and_(min-height:950px)]:top-40"
           >
             <h1 className="mx-auto max-w-2xl text-[clamp(2.5rem,4.8vw,5rem)] font-light leading-[0.9] tracking-tighter text-zinc-950">
               {HERO_TITLE}
@@ -171,23 +188,29 @@ export default function SignInPage() {
           <motion.div
             aria-hidden="true"
             animate={{
-              scale: showLogin ? 0.96 : introHeroMediaScale,
-              y: showLogin ? 0 : introHeroMediaY,
+              scale: 1,
+              y: 0,
               opacity: 1,
             }}
             transition={HERO_MEDIA_TRANSITION}
-            className="pointer-events-none absolute inset-0 z-10 origin-bottom overflow-hidden"
+            className="pointer-events-none absolute inset-0 z-0 origin-bottom overflow-hidden"
           >
-            <Image
-              src={HERO_GIF_SRC}
-              alt=""
-              fill
-              priority
-              unoptimized
-              sizes={showLogin ? "(min-width: 1024px) 56vw, 100vw" : "100vw"}
-              className="object-contain object-bottom"
-              draggable={false}
-            />
+            <div
+              className="absolute left-1/2 max-w-none -translate-x-1/2 overflow-hidden"
+              style={heroMediaStyle}
+            >
+              <Image
+                src={HERO_GIF_SRC}
+                alt=""
+                width={640}
+                height={592}
+                priority
+                unoptimized
+                sizes={showLogin ? "(min-width: 1024px) 30vw, 60vw" : "(min-width: 1024px) 30vw, 70vw"}
+                className="block h-auto w-full max-w-none object-contain [mask-image:linear-gradient(to_bottom,transparent_0%,black_2.5%,black_100%)]"
+                draggable={false}
+              />
+            </div>
           </motion.div>
 
           <motion.div

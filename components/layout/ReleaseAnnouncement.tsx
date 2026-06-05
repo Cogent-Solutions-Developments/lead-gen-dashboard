@@ -19,24 +19,22 @@ const RELEASE_EXPIRES_AT = new Date(2026, 5, 10).getTime();
 
 const releaseFeatures = [
   {
-    title: "My Leads workspace",
-    description: "Personal lead uploads now live in My Leads, isolated by sales, delegate, and production users.",
+    title: "Custom Department Statuses",
+    description:
+      "The Status column now updates automatically based on your department, so Sales, Delegate, and Production teams each see the workflow that matches their day.",
   },
   {
-    title: "Database rename",
-    description: "The shared Lead Sheet page is now called Database, keeping shared records easier to identify.",
+    title: "New Lead Upload Template",
+    description: "The upload sheet template has been updated to make importing customer lists smoother and easier to validate.",
   },
   {
-    title: "Cleaner upload flow",
-    description: "Upload templates now use persona-specific columns, validation, and a calmer error state.",
+    title: "Expanded Profile Details",
+    description:
+      "You can now add your designation, address, mobile number, date of birth, and company join date directly to your profile.",
   },
   {
-    title: "Multi-contact channels",
-    description: "Delegate and production records can show multiple emails and phone numbers without crowding the sheet.",
-  },
-  {
-    title: "Profile refresh",
-    description: "Profile details, completion progress, avatar controls, theme preview, and custom date picker are updated.",
+    title: "Clearer Shared Records",
+    description: "The shared Lead Sheet page is now called Database, making group records easier to find and separate from personal work.",
   },
 ];
 

@@ -21,7 +21,6 @@ import {
   RefreshCcw,
   Search,
   SlidersHorizontal,
-  Sparkles,
   UploadCloud,
   X,
 } from "lucide-react";
@@ -2529,9 +2528,9 @@ export default function MyLeadsPage() {
                       feedback: emailDialog.feedback,
                     })
                   }
-                  className="h-11 gap-2 rounded-full border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                  className="h-11 gap-2 rounded-full border border-zinc-900/10 bg-zinc-950 px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_12px_26px_-18px_rgba(24,24,27,0.95)] hover:bg-zinc-800"
                 >
-                  <Sparkles className="h-4 w-4" />
+                  <RefreshCcw className="h-4 w-4" />
                   {emailDialog.feedback.trim() ? "Regenerate with Feedback" : "Regenerate"}
                 </Button>
                 <div className="flex flex-wrap justify-end gap-3">
