@@ -37,7 +37,7 @@ const navItems = [
   { name: "Nizo AI", href: "/nizo-ai", icon: Brain, normalOnly: true },
   { name: "Admin Panel", href: "/admin", icon: ShieldCheck, superOnly: true },
 ];
-const APP_VERSION_LABEL = "v0.2.1";
+const APP_VERSION_LABEL = "v0.3.0";
 
 type SidebarProps = {
   isExpanded: boolean;

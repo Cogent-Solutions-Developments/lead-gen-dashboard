@@ -18,7 +18,7 @@ const HERO_DESCRIPTION =
   "I am an enterprise agentic AI platform that intelligently identifies your dream customers and prospects, autonomously manages outreach, and streamlines customer engagement at scale.";
 const HERO_MEDIA_TRANSITION = { duration: 1.45, ease: [0.16, 1, 0.3, 1] } as const;
 const COMPACT_HERO_VIEWPORT_QUERY = "(min-width: 1024px) and (max-height: 860px)";
-const APP_VERSION_LABEL = "v0.2.1";
+const APP_VERSION_LABEL = "v0.3.0";
 
 export default function SignInPage() {
   const router = useRouter();
