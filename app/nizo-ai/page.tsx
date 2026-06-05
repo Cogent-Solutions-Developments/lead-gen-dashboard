@@ -1,10 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft,
   AtSign,
   Brain,
   Copy,
@@ -217,10 +215,6 @@ export default function NizoAiPage() {
   if (isSuperAdmin || !isPipelineUser) {
     return (
       <div className="min-h-screen bg-[#f7f7f7] px-8 py-8 font-sans text-zinc-950">
-        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-light text-zinc-500 transition-colors hover:text-zinc-900">
-          <ArrowLeft className="h-4 w-4" />
-          Return to dashboard
-        </Link>
         <div className="mx-auto mt-28 max-w-xl border border-zinc-200 bg-white p-12 text-center shadow-sm">
           <div className="flex flex-col items-center justify-center gap-0">
             <Brain className="h-7 w-7 text-zinc-950" strokeWidth={1.35} />
@@ -239,13 +233,6 @@ export default function NizoAiPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f7f7f7] font-sans text-zinc-950">
-      <header className="relative z-10 flex items-center border-b border-zinc-200 bg-[#f7f7f7] px-8 py-5">
-        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-light text-zinc-500 transition-colors hover:text-zinc-900">
-          <ArrowLeft className="h-4 w-4" />
-          Return to dashboard
-        </Link>
-      </header>
-
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-6 py-10 lg:px-8">
         {messages.length === 0 ? (
           <motion.section 
