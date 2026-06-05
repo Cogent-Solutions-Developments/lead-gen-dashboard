@@ -484,7 +484,6 @@ const EMPTY_TEMPLATE_UPLOAD: TemplateUploadState = {
   selectedEventId: "",
 };
 const LEAD_TEMPLATE_ACCEPT = ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const LEAD_TEMPLATE_HEADERS = "Company | Full Name | Job Title | Telephone Number | Mobile | Email | comments";
 const UNCATEGORIZED_CATEGORY_LABEL = "Competing Events";
 
 function getErrorMessage(error: unknown) {
@@ -557,6 +556,33 @@ function humanizeStatusLabel(value: string) {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function getTemplateUploadErrorCopy(message: string) {
+  const text = asText(message);
+  const normalized = text.toLowerCase();
+
+  if (normalized.includes("header") || normalized.includes("sheet")) {
+    return {
+      title: "Template layout needs attention",
+      body: "This workbook does not match the upload template for this persona.",
+      hint: "Download the template again, keep the header row unchanged, and paste the leads into that file.",
+    };
+  }
+
+  if (normalized.includes(".xlsx") || normalized.includes("excel")) {
+    return {
+      title: "Use the Excel template",
+      body: "This upload accepts the official .xlsx template only.",
+      hint: "Download the template, fill it in, and upload that file.",
+    };
+  }
+
+  return {
+    title: "Template needs a quick check",
+    body: "We could not validate this file yet.",
+    hint: "Review the file format and try again.",
+  };
 }
 
 function formatDateTime(value?: string | null) {
@@ -1217,6 +1243,10 @@ export function NormalUserEventLeadSheet() {
   const hasMore = Boolean(leadPage?.hasMore);
   const isLoading = loadingEvents || (loadingLeads && !leadPage && Boolean(selectedEventKey));
   const latestAgenda = agendaState.agendas[0] ?? null;
+  const templateUploadErrorCopy = useMemo(
+    () => getTemplateUploadErrorCopy(templateUpload.error),
+    [templateUpload.error]
+  );
 
   const refreshData = useCallback(async () => {
     await loadInitialData();
@@ -3112,12 +3142,15 @@ export function NormalUserEventLeadSheet() {
           </div>
 
           {templateUpload.error ? (
-            <div className="flex gap-3 border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <div>
-                <p className="font-semibold">Template check failed</p>
-                <p className="mt-1 font-light leading-6">{templateUpload.error}</p>
-                <p className="mt-2 text-xs font-medium text-red-500">Expected headers: {LEAD_TEMPLATE_HEADERS}</p>
+            <div className="border-y border-red-200 bg-transparent py-4 text-sm">
+              <div className="flex gap-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_10px_20px_-14px_rgba(220,38,38,0.9)]">
+                  <AlertTriangle className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="font-medium text-red-700">{templateUploadErrorCopy.title}</p>
+                  <p className="mt-2 text-xs font-medium leading-5 text-red-600">{templateUploadErrorCopy.hint}</p>
+                </div>
               </div>
             </div>
           ) : null}

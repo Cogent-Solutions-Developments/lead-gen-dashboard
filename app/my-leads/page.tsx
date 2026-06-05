@@ -200,31 +200,6 @@ const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
   linkedinUrl: "",
 };
 const LEAD_TEMPLATE_ACCEPT = ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const SALES_LEAD_TEMPLATE_HEADERS = [
-  "Company",
-  "Full Name",
-  "Job Title",
-  "Telephone Number",
-  "Mobile",
-  "Email",
-  "Company Web URL",
-  "LinkedIn Profile URL",
-  "comments",
-];
-const MULTI_CONTACT_LEAD_TEMPLATE_HEADERS = [
-  "Full Name",
-  "Job Title",
-  "Company",
-  "Company Web URL",
-  "Phone Number 1",
-  "Phone Number 2",
-  "Phone Number 3",
-  "Email 1",
-  "Email 2",
-  "Email 3",
-  "LinkedIn Profile URL",
-  "comments",
-];
 const EVENT_SELECT_CONTENT_CLASS =
   "z-[120] max-h-[18rem] w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-zinc-200 bg-white/98 p-2 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-[10px]";
 const EVENT_SELECT_ITEM_CLASS =
@@ -287,6 +262,33 @@ function getStatusDotClass(status: string) {
     confirmed: "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
   };
   return statusDotClass[status] ?? "bg-zinc-400";
+}
+
+function getTemplateUploadErrorCopy(message: string) {
+  const text = asText(message);
+  const normalized = text.toLowerCase();
+
+  if (normalized.includes("header") || normalized.includes("sheet")) {
+    return {
+      title: "Template layout needs attention",
+      body: "This workbook does not match the upload template for this persona.",
+      hint: "Download the template again, keep the header row unchanged, and paste the leads into that file.",
+    };
+  }
+
+  if (normalized.includes(".xlsx") || normalized.includes("excel")) {
+    return {
+      title: "Use the Excel template",
+      body: "This upload accepts the official .xlsx template only.",
+      hint: "Download the template, fill it in, and upload that file.",
+    };
+  }
+
+  return {
+    title: "Template needs a quick check",
+    body: "We could not validate this file yet.",
+    hint: "Review the file format and try again.",
+  };
 }
 
 function humanizeStatusLabel(value: string) {
@@ -774,13 +776,10 @@ export default function MyLeadsPage() {
     ];
   }, [activeRegistryEvents, templateUploadEventId]);
   const templateValidation = templateUpload.validation;
-  const templateHeaderFallback =
-    persona === "delegates" || persona === "production"
-      ? MULTI_CONTACT_LEAD_TEMPLATE_HEADERS
-      : SALES_LEAD_TEMPLATE_HEADERS;
-  const expectedTemplateHeaders =
-    templateValidation?.expectedHeaders?.length ? templateValidation.expectedHeaders : templateHeaderFallback;
-  const expectedTemplateHeaderText = expectedTemplateHeaders.join(" | ");
+  const templateUploadErrorCopy = useMemo(
+    () => getTemplateUploadErrorCopy(templateUpload.error),
+    [templateUpload.error]
+  );
   const templateUploadReady = Boolean(
     templateUpload.file && templateValidation && selectedTemplateUploadEvent?.isActive
   );
@@ -2680,29 +2679,16 @@ export default function MyLeadsPage() {
             </button>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_18px_46px_-42px_rgba(2,10,27,0.42)]">
-            <div className="border-b border-zinc-100 px-4 py-3">
-              <p className="text-xs font-medium text-zinc-400">Template columns</p>
-            </div>
-            <div className="flex flex-wrap gap-2 px-4 py-3">
-              {expectedTemplateHeaders.map((header, index) => (
-                <span
-                  key={`${header}-${index}`}
-                  className="inline-flex h-8 items-center rounded-full border border-zinc-200 bg-zinc-50 px-3 text-xs font-medium text-zinc-600"
-                >
-                  {header}
-                </span>
-              ))}
-            </div>
-          </div>
-
           {templateUpload.error ? (
-            <div className="flex gap-3 border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <div>
-                <p className="font-semibold">Template check failed</p>
-                <p className="mt-1 font-light leading-6">{templateUpload.error}</p>
-                <p className="mt-2 text-xs font-medium text-red-500">Expected headers: {expectedTemplateHeaderText}</p>
+            <div className="border-y border-red-200 bg-transparent py-4 text-sm">
+              <div className="flex gap-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_10px_20px_-14px_rgba(220,38,38,0.9)]">
+                  <AlertTriangle className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="font-medium text-red-700">{templateUploadErrorCopy.title}</p>
+                  <p className="mt-2 text-xs font-medium leading-5 text-red-600">{templateUploadErrorCopy.hint}</p>
+                </div>
               </div>
             </div>
           ) : null}
