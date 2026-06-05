@@ -9,7 +9,7 @@ import {
   ChevronRight,
   X,
 } from "lucide-react";
-import type { AuthSession } from "@/lib/auth";
+import { isSuperAdminRole, type AuthSession } from "@/lib/auth";
 
 const RELEASE_VERSION = "v0.3.0";
 const RELEASE_STORAGE_PREFIX = "supernizo.release.v0.3.0.login-dismissed";
@@ -58,7 +58,8 @@ function releaseIsActive() {
 export function ReleaseAnnouncement({ session }: { session: AuthSession }) {
   const storageKey = releaseStorageKey(session);
   const permanentStorageKey = permanentReleaseStorageKey(session);
-  const canOpenMyLeads = session.user.role !== "super_admin_user";
+  const isAdminSession = isSuperAdminRole(session.user.role);
+  const canOpenMyLeads = !isAdminSession;
   const [activeIndex, setActiveIndex] = useState(0);
   const [neverShowAgain, setNeverShowAgain] = useState(false);
   const safeActiveIndex = Math.min(activeIndex, releaseFeatures.length - 1);
@@ -105,14 +106,14 @@ export function ReleaseAnnouncement({ session }: { session: AuthSession }) {
       [permanentStorageKey, storageKey],
     ),
     useCallback(() => {
-      if (!releaseIsActive()) return "true";
+      if (isAdminSession || !releaseIsActive()) return "true";
       if (window.localStorage.getItem(permanentStorageKey) === "true") return "true";
       return window.sessionStorage.getItem(storageKey) || "false";
-    }, [permanentStorageKey, storageKey]),
+    }, [isAdminSession, permanentStorageKey, storageKey]),
     () => "true",
   );
 
-  const open = dismissed !== "true";
+  const open = !isAdminSession && dismissed !== "true";
 
   useEffect(() => {
     if (!open) return;
