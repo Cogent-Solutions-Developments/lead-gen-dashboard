@@ -23,6 +23,10 @@ const releaseFeatures = [
     description: "Personal lead uploads now live in My Leads, isolated by sales, delegate, and production users.",
   },
   {
+    title: "Database rename",
+    description: "The shared Lead Sheet page is now called Database, keeping shared records easier to identify.",
+  },
+  {
     title: "Cleaner upload flow",
     description: "Upload templates now use persona-specific columns, validation, and a calmer error state.",
   },
