@@ -1380,7 +1380,7 @@ export default function MyLeadsPage() {
 
   return (
     <div className="my-leads-heavy h-[100dvh] min-h-0 overflow-hidden">
-      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-transparent p-6 pb-28 font-sans">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-transparent p-6 font-sans">
         <header className="min-h-[6.25rem] shrink-0 border-b border-zinc-300 pb-11">
           <div className="flex min-w-0 items-center gap-7 whitespace-nowrap overflow-hidden">
             <div className="min-w-0 flex-1">

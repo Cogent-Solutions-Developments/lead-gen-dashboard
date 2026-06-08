@@ -1804,7 +1804,7 @@ export function NormalUserEventLeadSheet() {
 
   return (
     <>
-      <div className="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-transparent p-6 pb-28 font-sans">
+      <div className="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-transparent p-6 font-sans">
         {headerEventSelectOpen ? (
           <div className="pointer-events-none absolute inset-0 z-[90] bg-[rgba(2,8,18,0.08)] backdrop-blur-[3px]" />
         ) : null}
