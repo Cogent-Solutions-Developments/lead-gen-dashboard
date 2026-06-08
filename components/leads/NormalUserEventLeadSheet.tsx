@@ -123,7 +123,7 @@ type PendingStatusChange = {
 };
 
 const EVENT_SELECT_CONTENT_CLASS =
-  "z-[120] max-h-[18rem] w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-white/16 bg-[#070b12]/95 p-2 text-zinc-100 shadow-[0_24px_70px_-46px_rgba(0,0,0,0.85)] backdrop-blur-[24px]";
+  "z-[120] max-h-[18rem] w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-white/42 bg-[linear-gradient(180deg,rgba(9,14,22,0.72)_0%,rgba(5,8,13,0.56)_100%)] p-2 text-zinc-100 ring-1 ring-white/14 shadow-[inset_0_1px_0_rgba(255,255,255,0.26),inset_0_-1px_0_rgba(255,255,255,0.06),0_24px_70px_-46px_rgba(0,0,0,0.9),0_0_38px_-28px_rgba(59,130,246,0.65)] backdrop-blur-[34px]";
 const EVENT_SELECT_ITEM_CLASS =
   "rounded-xl py-2.5 pl-3 pr-9 text-sm font-medium text-zinc-200 transition-colors focus:bg-[rgba(255,255,255,0.06)] focus:text-white data-[highlighted]:bg-[rgba(255,255,255,0.06)] data-[highlighted]:text-white data-[state=checked]:border data-[state=checked]:border-blue-500/30 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]_svg]:h-4 [&_[data-slot=select-item-indicator]_svg]:w-4 [&_[data-slot=select-item-indicator]_svg]:stroke-[2.25]";
 
