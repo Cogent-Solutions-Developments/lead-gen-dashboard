@@ -199,13 +199,13 @@ const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
 };
 const LEAD_TEMPLATE_ACCEPT = ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const EVENT_SELECT_CONTENT_CLASS =
-  "z-[120] max-h-[18rem] w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-zinc-200 bg-white/98 p-2 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-[10px]";
+  "z-[120] max-h-[18rem] w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-white/16 bg-[#070b12]/95 p-2 text-zinc-100 shadow-[0_24px_70px_-46px_rgba(0,0,0,0.85)] backdrop-blur-[24px]";
 const EVENT_SELECT_ITEM_CLASS =
-  "rounded-xl py-2.5 pl-3 pr-9 text-sm font-medium text-zinc-800 transition-colors focus:bg-zinc-100/80 focus:text-zinc-950 focus:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] focus:[&_svg]:!text-zinc-500 data-[highlighted]:bg-zinc-100/80 data-[highlighted]:text-zinc-950 data-[highlighted]:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] data-[highlighted]:[&_svg]:!text-zinc-500 data-[state=checked]:border data-[state=checked]:border-blue-500/20 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]_svg]:h-4 [&_[data-slot=select-item-indicator]_svg]:w-4 [&_[data-slot=select-item-indicator]_svg]:stroke-[2.25]";
+  "rounded-xl py-2.5 pl-3 pr-9 text-sm font-medium text-zinc-200 transition-colors focus:bg-[rgba(255,255,255,0.06)] focus:text-white data-[highlighted]:bg-[rgba(255,255,255,0.06)] data-[highlighted]:text-white data-[state=checked]:border data-[state=checked]:border-blue-500/30 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]_svg]:h-4 [&_[data-slot=select-item-indicator]_svg]:w-4 [&_[data-slot=select-item-indicator]_svg]:stroke-[2.25]";
 const UPLOAD_EVENT_SELECT_CONTENT_CLASS =
-  "z-[120] max-h-[18rem] w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-5rem)] rounded-2xl border border-zinc-200 bg-white/98 p-0 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-[10px]";
+  "z-[120] max-h-[18rem] w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-5rem)] rounded-2xl border border-white/16 bg-[#070b12]/95 p-0 text-zinc-100 shadow-[0_24px_70px_-46px_rgba(0,0,0,0.85)] backdrop-blur-[24px]";
 const UPLOAD_EVENT_SELECT_ITEM_CLASS =
-  "w-full rounded-xl py-2.5 pl-3 pr-9 text-sm font-medium text-zinc-800 transition-colors focus:bg-zinc-100/80 focus:text-zinc-950 focus:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] focus:[&_svg]:!text-zinc-500 data-[highlighted]:bg-zinc-100/80 data-[highlighted]:text-zinc-950 data-[highlighted]:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] data-[highlighted]:[&_svg]:!text-zinc-500 data-[state=checked]:border data-[state=checked]:border-blue-500/20 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]_svg]:h-3.5 [&_[data-slot=select-item-indicator]_svg]:w-3.5 [&_[data-slot=select-item-indicator]_svg]:stroke-[2.25]";
+  "w-full rounded-xl py-2.5 pl-3 pr-9 text-sm font-medium text-zinc-200 transition-colors focus:bg-[rgba(255,255,255,0.06)] focus:text-white data-[highlighted]:bg-[rgba(255,255,255,0.06)] data-[highlighted]:text-white data-[state=checked]:border data-[state=checked]:border-blue-500/30 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]_svg]:h-3.5 [&_[data-slot=select-item-indicator]_svg]:w-3.5 [&_[data-slot=select-item-indicator]_svg]:stroke-[2.25]";
 
 const LinkedInIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -636,20 +636,20 @@ function LeadSheetDialog({
       <button
         type="button"
         aria-label="Close dialog"
-        className="absolute inset-0 bg-zinc-950/30 backdrop-blur-[3px]"
+        className="absolute inset-0 bg-black/70 backdrop-blur-[7px]"
         onClick={onClose}
       />
 
       <div
         className={cn(
-          "relative z-[1] flex max-h-[calc(100dvh-3rem)] w-full flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]",
+          "relative z-[1] flex max-h-[calc(100dvh-3rem)] w-full flex-col overflow-hidden rounded-3xl border border-white/42 bg-[#151a22]/62 text-zinc-100 ring-1 ring-white/32 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14),0_32px_80px_-48px_rgba(2,10,27,0.82),0_12px_28px_-20px_rgba(2,10,27,0.72)] backdrop-blur-[38px]",
           compactSize === "wide" ? "max-w-5xl" : "max-w-2xl"
         )}
       >
         <Button
           type="button"
           variant="ghost"
-          className="absolute right-5 top-5 z-20 h-10 w-10 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+          className="absolute right-5 top-5 z-20 h-10 w-10 rounded-full border border-white/18 bg-transparent p-0 text-zinc-300 shadow-none hover:border-white/35 hover:bg-[rgba(255,255,255,0.06)] hover:text-white"
           onClick={onClose}
         >
           <X className="h-4 w-4" />
@@ -1379,15 +1379,15 @@ export default function MyLeadsPage() {
   };
 
   return (
-    <div className="my-leads-heavy">
-      <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
+    <div className="my-leads-heavy h-[100dvh] min-h-0 overflow-hidden">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-transparent p-6 pb-28 font-sans">
         <header className="min-h-[6.25rem] shrink-0 border-b border-zinc-300 pb-11">
           <div className="flex min-w-0 items-center gap-7 whitespace-nowrap overflow-hidden">
             <div className="min-w-0 flex-1">
               <Select value={selectedEventKey || "my-leads"} onValueChange={handleEventChange}>
                 <SelectTrigger
                   aria-label="Select lead source"
-                  className="group !h-auto w-fit max-w-full justify-start gap-4 whitespace-normal rounded-none border-0 bg-transparent p-0 text-left text-zinc-950 shadow-none transition-colors hover:text-blue-700 focus:ring-0 focus-visible:ring-0 [&>svg]:mt-1 [&>svg]:h-7 [&>svg]:w-7 [&>svg]:opacity-40 [&>svg]:transition-colors [&>svg]:group-hover:opacity-70"
+                  className="group !h-auto w-fit max-w-full justify-start gap-4 whitespace-normal rounded-none border-0 !bg-transparent p-0 text-left text-zinc-950 shadow-none transition-colors hover:text-blue-700 dark:!bg-transparent dark:hover:!bg-transparent focus:ring-0 focus-visible:ring-0 [&>svg]:mt-1 [&>svg]:h-7 [&>svg]:w-7 [&>svg]:opacity-40 [&>svg]:transition-colors [&>svg]:group-hover:opacity-70"
                 >
                   <span className="line-clamp-2 min-w-0 text-3xl font-light leading-[1.12] tracking-[-0.025em] sm:text-4xl 2xl:text-5xl">
                     {selectedEventLabel}
@@ -1415,12 +1415,12 @@ export default function MyLeadsPage() {
             </div>
 
             <div className="ml-auto flex min-w-max flex-nowrap items-center justify-end gap-8">
-              <div className="inline-flex h-12 shrink-0 items-center gap-1.5 rounded-full border border-zinc-200 bg-white p-1.5" aria-label="My leads actions">
+              <div className="inline-flex h-12 shrink-0 items-center gap-1.5 rounded-full border border-white/18 bg-transparent p-1.5" aria-label="My leads actions">
                 <button
                   type="button"
                   onClick={openTemplateUploadDialog}
                   disabled={loadingRegistryEvents || !hasActiveRegistryEvents}
-                  className="inline-flex h-9 w-40 items-center justify-center gap-2.5 rounded-full text-sm font-semibold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-50"
+                  className="inline-flex h-9 w-40 items-center justify-center gap-2.5 rounded-full text-sm font-semibold text-zinc-400 transition-colors hover:bg-[rgba(255,255,255,0.04)] hover:text-zinc-100 disabled:opacity-50"
                 >
                   <FileUp className="h-4 w-4" />
                   Upload leads
@@ -1449,9 +1449,9 @@ export default function MyLeadsPage() {
 
         <div className="grid min-h-0 flex-1 gap-12 overflow-hidden pt-10 xl:grid-cols-[19rem_minmax(0,1fr)]">
           <aside className="relative min-h-0 shrink-0 overflow-hidden pr-2">
-            <div className="relative z-20 space-y-6 bg-[#f7f7f7] pb-6 pr-1">
+            <div className="relative z-20 space-y-6 bg-transparent pb-6 pr-1">
               <div>
-                <div className="relative h-11 w-full rounded-full border border-zinc-300 bg-white px-4 shadow-[0_22px_60px_-52px_rgba(2,10,27,0.42)] transition-colors focus-within:border-zinc-400">
+                <div className="relative h-11 w-full rounded-full border border-white/18 bg-transparent px-4 shadow-none transition-colors focus-within:border-white/35">
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                   <input
                     value={searchInput}
@@ -1470,13 +1470,13 @@ export default function MyLeadsPage() {
                 <button
                   type="button"
                   onClick={() => setFilterOpen(true)}
-                  className="flex h-11 w-full items-center justify-between rounded-full border border-zinc-300 bg-white px-4 text-left shadow-[0_18px_46px_-42px_rgba(2,10,27,0.42)] transition-colors hover:border-zinc-400"
+                  className="flex h-11 w-full items-center justify-between rounded-full border border-white/18 bg-transparent px-4 text-left shadow-none transition-colors hover:border-white/35"
                 >
                   <span className="inline-flex items-center gap-4 text-sm font-light text-zinc-500">
                     <SlidersHorizontal className="h-4 w-4" />
                     Advanced filters
                   </span>
-                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-zinc-100 px-1.5 text-xs font-medium tabular-nums text-zinc-500">
+                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-white/12 bg-transparent px-1.5 text-xs font-medium tabular-nums text-zinc-500">
                     {activeFilterCount}
                   </span>
                 </button>
@@ -1509,12 +1509,12 @@ export default function MyLeadsPage() {
                         setPageOffset(0);
                       }}
                     >
-                      <SelectTrigger className="h-9 w-16 justify-end gap-1 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-xl font-light tabular-nums tracking-tight text-zinc-950 shadow-none transition-colors focus:border-blue-600 focus:ring-0 [&>svg]:ml-0">
+                      <SelectTrigger className="h-9 w-16 justify-end gap-1 rounded-none border-0 border-b border-zinc-300 !bg-transparent px-0 text-xl font-light tabular-nums tracking-tight text-zinc-950 shadow-none transition-colors dark:!bg-transparent dark:hover:!bg-transparent focus:border-blue-600 focus:ring-0 [&>svg]:ml-0">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent align="end" className="rounded-none border-zinc-300 shadow-xl">
+                      <SelectContent align="end" className="rounded-xl border-white/16 bg-[#070b12]/95 text-zinc-100 shadow-xl backdrop-blur-[24px]">
                         {PAGE_SIZE_OPTIONS.map((option) => (
-                          <SelectItem key={option} value={String(option)} className="py-2.5 text-sm">
+                          <SelectItem key={option} value={String(option)} className="rounded-lg py-2.5 text-sm focus:bg-[rgba(255,255,255,0.06)] focus:text-white data-[highlighted]:bg-[rgba(255,255,255,0.06)]">
                             {option}
                           </SelectItem>
                         ))}
@@ -1530,7 +1530,7 @@ export default function MyLeadsPage() {
             <div className="min-h-0 flex-1 overflow-auto pr-4 scrollbar-modern">
               {pagedRows.length === 0 ? (
                 <div className="w-full">
-                  <div className="sticky top-0 z-20 grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 bg-[#f7f7f7]/95 py-3 text-sm font-light text-zinc-500 backdrop-blur">
+                  <div className="sticky top-0 z-20 grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 bg-[#05070b]/95 py-3 text-sm font-light text-zinc-500 backdrop-blur">
                     <div>Identity details</div>
                     <div>Contact channels</div>
                     <div>Status</div>
@@ -1541,7 +1541,7 @@ export default function MyLeadsPage() {
                 </div>
               ) : (
                 <div className="w-full">
-                  <div className="sticky top-0 z-20 grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 bg-[#f7f7f7]/95 py-3 text-sm font-light text-zinc-500 backdrop-blur">
+                  <div className="sticky top-0 z-20 grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 bg-[#05070b]/95 py-3 text-sm font-light text-zinc-500 backdrop-blur">
                     <div>Identity details</div>
                     <div>Contact channels</div>
                     <div>Status</div>
@@ -1567,13 +1567,13 @@ export default function MyLeadsPage() {
                     };
 
                     return (
-                      <div key={item.id} className="group grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-6 transition-all duration-300 hover:bg-zinc-50/60">
+                      <div key={item.id} className="group grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-6 transition-all duration-300 hover:bg-transparent">
                       <div className="pr-8">
                         <div className="flex flex-col gap-1.5">
                           <div className="flex items-center gap-5">
                             <span className="text-xl font-light tracking-tight text-zinc-950">{item.employeeName || "-"}</span>
                             {item.isManualLead ? (
-                              <span className="rounded-full border border-zinc-300 bg-white px-2 py-0.5 text-xs font-medium text-zinc-500">Manual</span>
+                              <span className="rounded-full border border-white/18 bg-transparent px-2 py-0.5 text-xs font-medium text-zinc-500">Manual</span>
                             ) : null}
                           </div>
                           <span className="max-w-sm text-base font-light leading-relaxed text-zinc-700">{item.title || "-"}</span>
@@ -1613,8 +1613,8 @@ export default function MyLeadsPage() {
                                       <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", emailDropdownOpen ? "rotate-180" : "")} />
                                     </button>
                                     {emailDropdownOpen ? (
-                                      <div className="absolute left-0 top-full z-50 mt-1.5 w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_18px_42px_-28px_rgba(2,10,27,0.42)]">
-                                        <div className="border-b border-zinc-100 px-2.5 py-1.5 text-[10px] font-semibold tracking-normal text-zinc-400">
+                                      <div className="absolute left-0 top-full z-50 mt-1.5 w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-white/16 bg-[#070b12]/95 shadow-[0_18px_42px_-28px_rgba(0,0,0,0.7)] backdrop-blur-[24px]">
+                                        <div className="border-b border-white/10 px-2.5 py-1.5 text-[10px] font-semibold tracking-normal text-zinc-400">
                                           Emails
                                         </div>
                                         <div className="max-h-40 overflow-y-auto p-1">
@@ -1626,7 +1626,7 @@ export default function MyLeadsPage() {
                                                 setContactDropdown(null);
                                                 openContactChoice();
                                               }}
-                                              className="flex w-full min-w-0 items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-xs font-light text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-950"
+                                              className="flex w-full min-w-0 items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-xs font-light text-zinc-300 transition-colors hover:bg-[rgba(255,255,255,0.06)] hover:text-white"
                                             >
                                               <EmailIcon className="h-3.5 w-3.5 shrink-0 text-[#EF4444]" />
                                               <span className="min-w-0 flex-1 truncate">{email}</span>
@@ -1673,8 +1673,8 @@ export default function MyLeadsPage() {
                                       <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", phoneDropdownOpen ? "rotate-180" : "")} />
                                     </button>
                                     {phoneDropdownOpen ? (
-                                      <div className="absolute left-0 top-full z-50 mt-1.5 w-52 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_18px_42px_-28px_rgba(2,10,27,0.42)]">
-                                        <div className="border-b border-zinc-100 px-2.5 py-1.5 text-[10px] font-semibold tracking-normal text-zinc-400">
+                                      <div className="absolute left-0 top-full z-50 mt-1.5 w-52 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-white/16 bg-[#070b12]/95 shadow-[0_18px_42px_-28px_rgba(0,0,0,0.7)] backdrop-blur-[24px]">
+                                        <div className="border-b border-white/10 px-2.5 py-1.5 text-[10px] font-semibold tracking-normal text-zinc-400">
                                           Phones
                                         </div>
                                         <div className="max-h-40 overflow-y-auto p-1">
@@ -1686,7 +1686,7 @@ export default function MyLeadsPage() {
                                                 setContactDropdown(null);
                                                 openContactChoice();
                                               }}
-                                              className="flex w-full min-w-0 items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-xs font-light tabular-nums text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-950"
+                                              className="flex w-full min-w-0 items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-xs font-light tabular-nums text-zinc-300 transition-colors hover:bg-[rgba(255,255,255,0.06)] hover:text-white"
                                             >
                                               <PhoneIcon className="h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
                                               <span className="min-w-0 flex-1 truncate">{phone}</span>
@@ -1745,12 +1745,12 @@ export default function MyLeadsPage() {
                           onValueChange={(value) => handleStatusSelection(item, value)}
                           disabled={Boolean(updatingLeadIds[item.id])}
                         >
-                          <SelectTrigger className="h-10 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-base font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0 disabled:opacity-50">
+                          <SelectTrigger className="h-10 w-full rounded-none border-0 border-b border-zinc-300 !bg-transparent px-0 text-base font-light shadow-none transition-colors dark:!bg-transparent dark:hover:!bg-transparent focus:border-blue-600 focus:ring-0 disabled:opacity-50">
                             <SelectValue placeholder={item.workflowStatusLabel} />
                           </SelectTrigger>
-                          <SelectContent className="rounded-none border-zinc-300 shadow-2xl">
+                          <SelectContent className="rounded-xl border-white/16 bg-[#070b12]/95 text-zinc-100 shadow-2xl backdrop-blur-[24px]">
                             {statusOptions.map((option) => (
-                              <SelectItem key={option.statusKey} value={option.statusKey} className="text-xs py-2.5">
+                              <SelectItem key={option.statusKey} value={option.statusKey} className="rounded-lg py-2.5 text-xs focus:bg-[rgba(255,255,255,0.06)] focus:text-white data-[highlighted]:bg-[rgba(255,255,255,0.06)]">
                                 <span className="flex items-center gap-3">
                                   <span className={`ml-1 h-2.5 w-2.5 shrink-0 rounded-full ${getStatusDotClass(option.statusKey)}`} />
                                   {option.label}
@@ -1807,7 +1807,7 @@ export default function MyLeadsPage() {
                 <Button
                   variant="ghost"
                   aria-label="Previous page"
-                  className="h-11 w-11 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none transition-all hover:border-zinc-900 hover:bg-white hover:text-zinc-950 disabled:opacity-30"
+                  className="h-11 w-11 rounded-full border border-white/18 bg-transparent p-0 text-zinc-500 shadow-none transition-all hover:border-white/35 hover:bg-[rgba(255,255,255,0.04)] hover:text-zinc-100 disabled:opacity-30"
                   onClick={() => setPageOffset((prev) => Math.max(0, prev - pageSize))}
                   disabled={pageOffset === 0}
                 >
@@ -1833,16 +1833,16 @@ export default function MyLeadsPage() {
           <button
             type="button"
             aria-label="Close filters"
-            className="absolute inset-0 bg-zinc-950/30 backdrop-blur-[3px]"
+            className="absolute inset-0 bg-black/70 backdrop-blur-[7px]"
             onClick={() => setFilterOpen(false)}
           />
 
-          <div className="relative z-[1] w-full max-w-xl overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
+          <div className="relative z-[1] w-full max-w-xl overflow-hidden rounded-3xl border border-white/42 bg-[#151a22]/62 text-zinc-100 ring-1 ring-white/32 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14),0_32px_80px_-48px_rgba(2,10,27,0.82),0_12px_28px_-20px_rgba(2,10,27,0.72)] backdrop-blur-[38px]">
             <div className="relative p-8 pb-28">
               <Button
                 type="button"
                 variant="ghost"
-                className="absolute right-5 top-5 h-10 w-10 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                className="absolute right-5 top-5 h-10 w-10 rounded-full border border-white/18 bg-transparent p-0 text-zinc-300 shadow-none hover:border-white/35 hover:bg-[rgba(255,255,255,0.06)] hover:text-white"
                 onClick={() => setFilterOpen(false)}
               >
                 <X className="h-4 w-4" />
@@ -1858,18 +1858,18 @@ export default function MyLeadsPage() {
                       setPageOffset(0);
                     }}
                   >
-                    <SelectTrigger className="!h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
+                    <SelectTrigger className="!h-12 w-full rounded-none border-0 border-b border-zinc-300 !bg-transparent px-0 text-lg font-light shadow-none transition-colors dark:!bg-transparent dark:hover:!bg-transparent focus:border-blue-600 focus:ring-0">
                       <SelectValue placeholder="All statuses" />
                     </SelectTrigger>
-                    <SelectContent position="popper" className="z-[120] rounded-none border-zinc-300 bg-white shadow-2xl">
-                      <SelectItem value="all">
+                    <SelectContent position="popper" className="z-[120] rounded-2xl border-white/16 bg-[#070b12]/95 p-1 text-zinc-100 shadow-2xl backdrop-blur-[24px]">
+                      <SelectItem value="all" className="rounded-xl py-2.5 text-sm focus:bg-[rgba(255,255,255,0.06)] focus:text-white data-[highlighted]:bg-[rgba(255,255,255,0.06)]">
                         <span className="flex items-center gap-3">
                           <span className="ml-1 h-2.5 w-2.5 shrink-0 rounded-full bg-zinc-300" />
                           All statuses
                         </span>
                       </SelectItem>
                       {statusOptions.map((option) => (
-                        <SelectItem key={option.statusKey} value={option.statusKey}>
+                        <SelectItem key={option.statusKey} value={option.statusKey} className="rounded-xl py-2.5 text-sm focus:bg-[rgba(255,255,255,0.06)] focus:text-white data-[highlighted]:bg-[rgba(255,255,255,0.06)]">
                           <span className="flex items-center gap-3">
                             <span className={`ml-1 h-2.5 w-2.5 shrink-0 rounded-full ${getStatusDotClass(option.statusKey)}`} />
                             {option.label}
@@ -1881,7 +1881,7 @@ export default function MyLeadsPage() {
                 </div>
 
                 <div className="space-y-4">
-                  <label className="block text-sm font-semibold text-zinc-950">By contact intelligence:</label>
+                  <label className="block text-sm font-semibold text-zinc-100">By contact intelligence:</label>
                   <div className="flex flex-wrap gap-2.5">
                     {[
                       { value: "all", label: "All profiles" },
@@ -1904,8 +1904,8 @@ export default function MyLeadsPage() {
                         }}
                         className={`inline-flex h-10 items-center rounded-full border px-4 text-sm font-semibold transition-all ${
                           filters.contact === option.value
-                            ? "border-blue-600 bg-white text-blue-600 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.85)]"
-                            : "border-zinc-300 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
+                            ? "border-blue-500 bg-blue-600/15 text-blue-300 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.85)]"
+                            : "border-white/18 bg-transparent text-zinc-100 shadow-none hover:border-blue-500/60 hover:text-blue-300"
                         }`}
                       >
                         {option.label}
@@ -1915,10 +1915,10 @@ export default function MyLeadsPage() {
                 </div>
               </div>
 
-              <div className="absolute bottom-8 left-8 right-8 flex items-center justify-between border-t border-zinc-100 pt-6">
+              <div className="absolute bottom-8 left-8 right-8 flex items-center justify-between border-t border-white/12 pt-6">
                 <button
                   type="button"
-                  className="border-b border-transparent pb-1 text-sm font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950"
+                  className="border-b border-transparent pb-1 text-sm font-medium text-zinc-400 transition-colors hover:border-white/45 hover:text-white"
                   onClick={resetFilters}
                 >
                   Reset model

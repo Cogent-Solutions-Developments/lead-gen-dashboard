@@ -41,15 +41,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isChooser = pathname === "/" || pathname === "/choose-persona";
   const isAuthRoute = pathname === "/sign-in";
   const isAdminAreaRoute = isAdminAreaPath(pathname);
-  const isFlushContentRoute =
-    pathname === "/nizo-ai" ||
-    pathname === "/dashboard" ||
-    pathname === "/campaigns";
   const [selected, setSelected] = useState<boolean>(() => hasPersona());
   const [session, setSession] = useState<AuthSession | null>(() => getStoredAuthSession());
   const [authChecked, setAuthChecked] = useState(false);
   const role = session?.user.role ?? null;
   const isSuperAdmin = isSuperAdminRole(role);
+  const isFlushContentRoute =
+    pathname === "/nizo-ai" ||
+    pathname === "/dashboard" ||
+    pathname === "/campaigns" ||
+    pathname === "/my-leads" ||
+    (pathname === "/leads" && !isSuperAdmin);
   const forcedPersona = personaForRole(role);
 
   useEffect(() => {
