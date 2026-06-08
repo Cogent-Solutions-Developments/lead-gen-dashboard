@@ -1915,12 +1915,12 @@ export function NormalUserEventLeadSheet() {
                           type="button"
                           onClick={() => void handleAgendaView(latestAgenda)}
                           disabled={agendaState.viewingId === latestAgenda.id}
-                          className="inline-flex h-9 items-center gap-2 rounded-full border border-white/28 bg-white/[0.06] px-4 text-sm font-semibold text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.16)] backdrop-blur-[24px] transition hover:border-white/45 hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-50"
+                          className="inline-flex h-9 items-center gap-2 rounded-full border border-white/85 bg-white/68 px-4 text-sm font-semibold text-zinc-950 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px] transition hover:border-white/95 hover:bg-white/78 disabled:cursor-not-allowed disabled:opacity-55"
                         >
                           {agendaState.viewingId === latestAgenda.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <Loader2 className="h-4 w-4 animate-spin text-zinc-950" />
                           ) : (
-                            <Eye className="h-4 w-4" />
+                            <Eye className="h-4 w-4 text-zinc-950" />
                           )}
                           View
                         </button>
@@ -2027,7 +2027,7 @@ export function NormalUserEventLeadSheet() {
                 </div>
               ) : (
                 <div className="w-full">
-                  <div className="grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-3 text-sm font-light text-zinc-500">
+                  <div className="sticky top-0 z-30 grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 bg-[#05070a]/90 py-3 text-sm font-light text-zinc-500 shadow-[0_16px_28px_-24px_rgba(0,0,0,0.95)] backdrop-blur-2xl">
                     <div>Identity details</div>
                     <div>Contact channels</div>
                     <div>Status</div>
