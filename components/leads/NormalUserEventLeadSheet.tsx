@@ -122,6 +122,11 @@ type PendingStatusChange = {
   nextStatus: WorkflowStatus;
 };
 
+const EVENT_SELECT_CONTENT_CLASS =
+  "z-[120] max-h-[18rem] w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-white/16 bg-[#070b12]/95 p-2 text-zinc-100 shadow-[0_24px_70px_-46px_rgba(0,0,0,0.85)] backdrop-blur-[24px]";
+const EVENT_SELECT_ITEM_CLASS =
+  "rounded-xl py-2.5 pl-3 pr-9 text-sm font-medium text-zinc-200 transition-colors focus:bg-[rgba(255,255,255,0.06)] focus:text-white data-[highlighted]:bg-[rgba(255,255,255,0.06)] data-[highlighted]:text-white data-[state=checked]:border data-[state=checked]:border-blue-500/30 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]_svg]:h-4 [&_[data-slot=select-item-indicator]_svg]:w-4 [&_[data-slot=select-item-indicator]_svg]:stroke-[2.25]";
+
 type ContactChoiceLead = {
   name: string;
   email: string;
@@ -1826,13 +1831,14 @@ export function NormalUserEventLeadSheet() {
                       side="bottom"
                       align="start"
                       sideOffset={42}
-                      className="z-[120] rounded-2xl border border-white/58 bg-[linear-gradient(180deg,rgba(8,12,18,0.52)_0%,rgba(5,8,13,0.52)_100%)] p-1 text-zinc-100 ring-1 ring-white/14 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-1px_0_rgba(255,255,255,0.06),0_12px_28px_-18px_rgba(2,10,27,0.9),0_4px_12px_-8px_rgba(2,10,27,0.74)] backdrop-blur-[34px]"
+                      className={EVENT_SELECT_CONTENT_CLASS}
+                      viewportClassName="h-auto min-w-0 p-1"
                     >
                       {events.map((item) => (
                         <SelectItem
                           key={item.canonicalEventKey}
                           value={item.canonicalEventKey}
-                          className="rounded-xl py-2.5 text-sm font-medium text-zinc-100 focus:bg-white/14 focus:text-white data-[state=checked]:bg-white/18 data-[state=checked]:text-white"
+                          className={EVENT_SELECT_ITEM_CLASS}
                         >
                           {getEventDisplayTitle(item.canonicalEventName)}
                         </SelectItem>
