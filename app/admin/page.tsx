@@ -26,6 +26,13 @@ const adminTasks = [
     metric: "Access",
   },
   {
+    title: "User Performance",
+    description: "Review sales, delegate, and production KPI contribution from one admin view.",
+    href: "/admin/user-performance",
+    icon: Activity,
+    metric: "KPI",
+  },
+  {
     title: "Event Registry",
     description: "Register events and control whether they are available for campaign workflows.",
     href: "/admin/events",

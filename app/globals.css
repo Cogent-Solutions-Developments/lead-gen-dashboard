@@ -1005,4 +1005,115 @@
       0 0 64px #172554;
     animation: battery-glow-fade 3s cubic-bezier(0.25, 1, 0.5, 1) infinite;
   }
+
+  .my-leads-heavy,
+  .profile-heavy {
+    color: #f8fafc;
+  }
+
+  .my-leads-heavy [class*="text-zinc-950"],
+  .my-leads-heavy [class*="text-zinc-900"],
+  .my-leads-heavy [class*="text-zinc-800"],
+  .profile-heavy [class*="text-zinc-950"],
+  .profile-heavy [class*="text-zinc-900"],
+  .profile-heavy [class*="text-zinc-800"] {
+    color: #f8fafc !important;
+  }
+
+  .my-leads-heavy [class*="text-zinc-700"],
+  .my-leads-heavy [class*="text-zinc-600"],
+  .profile-heavy [class*="text-zinc-700"],
+  .profile-heavy [class*="text-zinc-600"] {
+    color: #d1d5db !important;
+  }
+
+  .my-leads-heavy [class*="text-zinc-500"],
+  .my-leads-heavy [class*="text-zinc-400"],
+  .my-leads-heavy [class*="text-zinc-300"],
+  .profile-heavy [class*="text-zinc-500"],
+  .profile-heavy [class*="text-zinc-400"],
+  .profile-heavy [class*="text-zinc-300"] {
+    color: #aeb8c7 !important;
+  }
+
+  .my-leads-heavy [class*="placeholder:text-zinc-"]::placeholder,
+  .profile-heavy [class*="placeholder:text-zinc-"]::placeholder {
+    color: rgb(174 184 199 / 0.78) !important;
+  }
+
+  .my-leads-heavy [class*="border-zinc-"],
+  .my-leads-heavy [class*="border-b border-zinc-"],
+  .my-leads-heavy [class*="border-t border-zinc-"],
+  .my-leads-heavy [class*="border-y border-zinc-"],
+  .my-leads-heavy [class*="border-l border-zinc-"],
+  .profile-heavy [class*="border-zinc-"],
+  .profile-heavy [class*="border-b border-zinc-"],
+  .profile-heavy [class*="border-t border-zinc-"],
+  .profile-heavy [class*="border-y border-zinc-"],
+  .profile-heavy [class*="border-l border-zinc-"] {
+    border-color: rgb(255 255 255 / 0.18) !important;
+  }
+
+  .my-leads-heavy [class*="bg-white"],
+  .my-leads-heavy [class*="bg-zinc-50"],
+  .my-leads-heavy [class*="bg-zinc-100"],
+  .my-leads-heavy [class*="bg-[#f7f7f7]"],
+  .profile-heavy [class*="bg-white"],
+  .profile-heavy [class*="bg-zinc-50"],
+  .profile-heavy [class*="bg-zinc-100"],
+  .profile-heavy [class*="bg-[#f7f7f7]"] {
+    background-color: rgb(255 255 255 / 0.06) !important;
+    background-image: none !important;
+  }
+
+  .my-leads-heavy [class*="bg-white/"],
+  .my-leads-heavy [class*="bg-zinc-50/"],
+  .my-leads-heavy [class*="bg-[#f7f7f7]/"],
+  .profile-heavy [class*="bg-white/"],
+  .profile-heavy [class*="bg-zinc-50/"],
+  .profile-heavy [class*="bg-[#f7f7f7]/"] {
+    background-color: rgb(8 13 22 / 0.74) !important;
+    background-image: none !important;
+  }
+
+  .my-leads-heavy header,
+  .my-leads-heavy aside,
+  .my-leads-heavy main,
+  .profile-heavy header,
+  .profile-heavy aside,
+  .profile-heavy main {
+    color: #f8fafc;
+  }
+
+  .my-leads-heavy input,
+  .my-leads-heavy textarea,
+  .profile-heavy input,
+  .profile-heavy textarea {
+    color: #f8fafc !important;
+  }
+
+  .my-leads-heavy [data-slot="select-content"],
+  .my-leads-heavy [role="listbox"],
+  .profile-heavy [data-slot="select-content"],
+  .profile-heavy [role="listbox"] {
+    color: #f8fafc;
+  }
+
+  .my-leads-heavy [class*="shadow-[0_18px_42px"],
+  .my-leads-heavy [class*="shadow-[0_24px_70px"],
+  .my-leads-heavy [class*="shadow-[0_32px_80px"],
+  .profile-heavy [class*="shadow-[0_18px_42px"],
+  .profile-heavy [class*="shadow-[0_24px_70px"],
+  .profile-heavy [class*="shadow-[0_32px_80px"] {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.12),
+      0 24px 70px -46px rgb(2 10 27 / 0.95) !important;
+  }
+
+  .my-leads-heavy .rounded-full[class*="border"],
+  .my-leads-heavy button.rounded-full[class*="border"],
+  .profile-heavy .rounded-full[class*="border"],
+  .profile-heavy button.rounded-full[class*="border"] {
+    backdrop-filter: blur(28px);
+  }
 }

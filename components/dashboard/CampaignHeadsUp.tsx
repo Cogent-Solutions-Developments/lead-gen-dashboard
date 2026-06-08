@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { type EventSummaryItem, type WorkflowStatusDefinitionItem } from "@/lib/apiRouter";
+import { type DashboardPeriod, type EventSummaryItem, type WorkflowStatusDefinitionItem } from "@/lib/apiRouter";
 
 type EventHeadsUpItem = {
   event: EventSummaryItem;
@@ -12,6 +12,7 @@ interface CampaignHeadsUpProps {
   items: EventHeadsUpItem[];
   statuses: WorkflowStatusDefinitionItem[];
   loading: boolean;
+  period?: DashboardPeriod;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; subtitle: string }> = {
@@ -27,9 +28,9 @@ const STATUS_CONFIG: Record<string, { label: string; subtitle: string }> = {
     label: "Followups",
     subtitle: "Leads awaiting your next touchpoint",
   },
-  pending: {
-    label: "Pending",
-    subtitle: "Awaiting delegate confirmation",
+  contacted: {
+    label: "Contacted",
+    subtitle: "Email and WhatsApp outreach completed",
   },
   confirmed: {
     label: "Confirmed",
@@ -120,10 +121,17 @@ function IsometricCardBackground({ statusKey }: { statusKey: string }) {
   );
 }
 
+function achievedHeading(period: DashboardPeriod = "daily") {
+  if (period === "monthly") return "Here's what you've achieved this month";
+  if (period === "yearly") return "Here's what you've achieved this year";
+  return "Here's what you've achieved today";
+}
+
 export function CampaignHeadsUp({
   items,
   statuses,
   loading,
+  period = "daily",
 }: CampaignHeadsUpProps) {
   if (loading) {
     return (
@@ -158,7 +166,7 @@ export function CampaignHeadsUp({
       <div className="mb-6 flex items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-normal tracking-tight text-zinc-950">
-            Your Perfromance Summary
+            {achievedHeading(period)}
           </h2>
         </div>
       </div>

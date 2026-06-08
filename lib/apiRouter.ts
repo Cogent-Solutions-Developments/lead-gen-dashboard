@@ -24,6 +24,7 @@ export type {
   DeleteBlocker,
   DeleteCampaignResponse,
   DashboardStats,
+  DashboardPeriod,
   DashboardKpiLeaderboard,
   DashboardKpiRunner,
   DashboardPersonalStatsItem,
@@ -132,6 +133,30 @@ export const validateLeadTemplateUpload: typeof sales.validateLeadTemplateUpload
 
 export const downloadLeadTemplateFile: typeof sales.downloadLeadTemplateFile = (...args) =>
   pickModule().downloadLeadTemplateFile(...args);
+
+export const createMyCampaignFromUpload: typeof sales.createMyCampaignFromUpload = (...args) =>
+  pickModule().createMyCampaignFromUpload(...args);
+
+export const validateMyLeadTemplateUpload: typeof sales.validateMyLeadTemplateUpload = (...args) =>
+  pickModule().validateMyLeadTemplateUpload(...args);
+
+export const downloadMyLeadTemplateFile: typeof sales.downloadMyLeadTemplateFile = (...args) =>
+  pickModule().downloadMyLeadTemplateFile(...args);
+
+export const listMyAllLeads: typeof sales.listMyAllLeads = (...args) =>
+  pickModule().listMyAllLeads(...args);
+
+export const searchMyLeads: typeof sales.searchMyLeads = (...args) =>
+  pickModule().searchMyLeads(...args);
+
+export const listMyEvents: typeof sales.listMyEvents = (...args) =>
+  pickModule().listMyEvents(...args);
+
+export const listMyEventLeads: typeof sales.listMyEventLeads = (...args) =>
+  pickModule().listMyEventLeads(...args);
+
+export const addMyEventLead: typeof sales.addMyEventLead = (...args) =>
+  pickModule().addMyEventLead(...args);
 
 export const getCampaign: typeof sales.getCampaign = (...args) =>
   pickModule().getCampaign(...args);

@@ -32,8 +32,14 @@ export type DashboardPersonalStatsItem = {
   statusCounts: Record<string, number>;
 };
 
+export type DashboardPeriod = "daily" | "monthly" | "yearly";
+
 export type DashboardPersonalSummary = {
   pipeline?: string;
+  period?: DashboardPeriod;
+  date?: string;
+  periodStart?: string | null;
+  periodEnd?: string | null;
   generatedAt?: string | null;
   statuses: WorkflowStatusDefinitionItem[];
   items: DashboardPersonalStatsItem[];
@@ -43,12 +49,19 @@ export type DashboardKpiRunner = {
   id: string;
   name: string;
   initials: string;
+  username?: string;
+  fullName?: string;
+  avatarUrl?: string | null;
+  avatarStorageObjectId?: string | null;
   proposalCount: number;
 };
 
 export type DashboardKpiLeaderboard = {
   pipeline?: string;
+  period?: DashboardPeriod;
   date?: string;
+  periodStart?: string | null;
+  periodEnd?: string | null;
   generatedAt?: string | null;
   runners: DashboardKpiRunner[];
 };
@@ -1038,8 +1051,10 @@ export async function getDashboardStats() {
   return data;
 }
 
-export async function getDashboardPersonalSummary() {
-  const { data } = await apiClient.get<DashboardPersonalSummary>("/api/dashboard/personal-summary");
+export async function getDashboardPersonalSummary(params?: { date?: string; period?: DashboardPeriod }) {
+  const { data } = await apiClient.get<DashboardPersonalSummary>("/api/dashboard/personal-summary", {
+    params: { date: params?.date, period: params?.period },
+  });
   return {
     ...data,
     statuses: Array.isArray(data.statuses) ? data.statuses : [],
@@ -1047,9 +1062,9 @@ export async function getDashboardPersonalSummary() {
   };
 }
 
-export async function getDashboardKpiLeaderboard(params?: { date?: string }) {
+export async function getDashboardKpiLeaderboard(params?: { date?: string; period?: DashboardPeriod }) {
   const { data } = await apiClient.get<DashboardKpiLeaderboard>("/api/dashboard/kpi-leaderboard", {
-    params: { date: params?.date },
+    params: { date: params?.date, period: params?.period },
   });
   return {
     ...data,
@@ -1134,6 +1149,113 @@ export async function downloadLeadTemplateFile(fileName = "lead-upload-template.
   anchor.click();
   anchor.remove();
   window.setTimeout(() => window.URL.revokeObjectURL(url), 500);
+}
+
+export async function createMyCampaignFromUpload(payload: UploadCampaignRequest) {
+  const formData = new FormData();
+  formData.append("name", payload.name.trim());
+  formData.append("location", payload.location?.trim() ?? "");
+  formData.append("category", payload.category?.trim() ?? "");
+  formData.append("date", payload.date?.trim() ?? "");
+  formData.append("eventRegistryId", payload.eventRegistryId?.trim() ?? "");
+  formData.append("icp", payload.icp?.trim() ?? "");
+
+  const leadSheetName =
+    typeof File !== "undefined" && payload.leadSheet instanceof File && payload.leadSheet.name
+      ? payload.leadSheet.name
+      : "lead-sheet.csv";
+
+  formData.append("leadSheet", payload.leadSheet, leadSheetName);
+
+  const { data } = await apiClient.post<UploadCampaignResponse>("/api/my-leads/campaigns", formData);
+  return data;
+}
+
+export async function validateMyLeadTemplateUpload(file: File | Blob) {
+  const formData = new FormData();
+  const fileName =
+    typeof File !== "undefined" && file instanceof File && file.name
+      ? file.name
+      : "lead-upload-template.xlsx";
+
+  formData.append("leadSheet", file, fileName);
+
+  const { data } = await apiClient.post<LeadTemplateValidationResponse>(
+    "/api/my-leads/lead-template/validate",
+    formData
+  );
+  return data;
+}
+
+export async function downloadMyLeadTemplateFile(fileName = "lead-upload-template.xlsx") {
+  const { data } = await apiClient.get<Blob>("/api/my-leads/lead-template", {
+    responseType: "blob",
+  });
+  const url = window.URL.createObjectURL(data);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName || "lead-upload-template.xlsx";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => window.URL.revokeObjectURL(url), 500);
+}
+
+export async function listMyAllLeads() {
+  const { data } = await apiClient.get<{ leads: LeadItem[]; total: number }>("/api/my-leads/all/leads");
+  return data;
+}
+
+export async function searchMyLeads(params?: GlobalLeadSearchParams) {
+  const { data } = await apiClient.get<GlobalLeadSearchResponse>("/api/my-leads/leads/search", {
+    params: {
+      limit: params?.limit,
+      offset: params?.offset,
+      search: params?.search,
+      approvalStatus: params?.approvalStatus,
+      workflowStatus: params?.workflowStatus,
+      canonicalEventKey: params?.canonicalEventKey,
+      campaignId: params?.campaignId,
+      hasEmail: params?.hasEmail,
+      hasPhone: params?.hasPhone,
+      hasLinkedin: params?.hasLinkedin,
+      hasWebsite: params?.hasWebsite,
+      sortBy: params?.sortBy,
+      sortDir: params?.sortDir,
+    },
+  });
+  return data;
+}
+
+export async function listMyEvents() {
+  const { data } = await apiClient.get<EventSummaryResponse>("/api/my-leads/events");
+  return data;
+}
+
+export async function listMyEventLeads(canonicalEventKey: string, params?: EventLeadListParams) {
+  const { data } = await apiClient.get<EventLeadListResponse>(
+    `/api/my-leads/events/${encodeURIComponent(canonicalEventKey)}/leads`,
+    {
+      params: {
+        limit: params?.limit,
+        offset: params?.offset,
+        search: params?.search,
+        workflowStatus: params?.workflowStatus,
+        category: params?.category,
+        includeManual: params?.includeManual,
+        sort: params?.sort,
+      },
+    }
+  );
+  return data;
+}
+
+export async function addMyEventLead(canonicalEventKey: string, payload: EventLeadCreateRequest) {
+  const { data } = await apiClient.post<EventLeadCreateResponse>(
+    `/api/my-leads/events/${encodeURIComponent(canonicalEventKey)}/leads`,
+    payload
+  );
+  return data;
 }
 
 export async function getCampaign(id: string) {

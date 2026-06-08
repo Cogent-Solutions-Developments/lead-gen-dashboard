@@ -38,7 +38,7 @@ import {
   type WorkflowStatusDefinitionItem,
   type WorkflowStatusHistoryItem,
 } from "@/lib/apiRouter";
-import { getCachedAuthUserDisplayName } from "@/lib/auth";
+import { createProtectedObjectUrl, getCachedAuthUserDisplayName, listActiveEventRegistry, type AdminEventItem } from "@/lib/auth";
 import { persistCampaignUploadSummary } from "@/lib/campaignUploadSummary";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
@@ -52,6 +52,7 @@ import {
   Clock3,
   Copy,
   Download,
+  Eye,
   FileSpreadsheet,
   Headset,
   History,
@@ -107,7 +108,6 @@ type AddLeadFormState = {
 type LeadFilterState = {
   status: string;
   contact: "all" | "email" | "phone" | "complete" | "missing-contact" | "linkedin" | "website";
-  source: "all" | "manual" | "imported";
   category: string;
 };
 
@@ -124,9 +124,9 @@ type PendingStatusChange = {
 
 type ContactChoiceLead = {
   name: string;
-  phone: string;
   email: string;
-  mailtoHref: string;
+  phone: string;
+  emailHref: string;
   telHref: string;
   whatsappHref: string;
 };
@@ -151,7 +151,7 @@ type TemplateUploadState = {
   validation: LeadTemplateValidationResponse | null;
   error: string;
   submitting: boolean;
-  selectedEventKey: string;
+  selectedEventId: string;
 };
 
 const LinkedInIcon = ({ className }: { className?: string }) => (
@@ -300,14 +300,6 @@ const FIXED_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
 
 const DELEGATE_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
   {
-    id: "workflow-delegate-new",
-    statusKey: "new",
-    label: "New",
-    isSystemDefault: true,
-    sortOrder: 0,
-    isActive: true,
-  },
-  {
     id: "workflow-delegate-first-call",
     statusKey: "first-call",
     label: "First Call",
@@ -316,19 +308,51 @@ const DELEGATE_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     isActive: true,
   },
   {
-    id: "workflow-delegate-follow-up",
-    statusKey: "follow-up",
-    label: "Followup",
+    id: "workflow-delegate-email-sent",
+    statusKey: "email-sent",
+    label: "Email Sent",
     isSystemDefault: true,
     sortOrder: 2,
     isActive: true,
   },
   {
-    id: "workflow-delegate-pending",
-    statusKey: "pending",
-    label: "Pending",
+    id: "workflow-delegate-whatsapp-sent",
+    statusKey: "whatsapp-sent",
+    label: "Whatsapp Sent",
     isSystemDefault: true,
     sortOrder: 3,
+    isActive: true,
+  },
+  {
+    id: "workflow-delegate-1st-follow-up",
+    statusKey: "1st-follow-up",
+    label: "1st Follow up",
+    isSystemDefault: true,
+    sortOrder: 4,
+    isActive: true,
+  },
+  {
+    id: "workflow-delegate-2nd-follow-up",
+    statusKey: "2nd-follow-up",
+    label: "2nd Follow up",
+    isSystemDefault: true,
+    sortOrder: 5,
+    isActive: true,
+  },
+  {
+    id: "workflow-delegate-3rd-follow-up",
+    statusKey: "3rd-follow-up",
+    label: "3rd Follow up",
+    isSystemDefault: true,
+    sortOrder: 6,
+    isActive: true,
+  },
+  {
+    id: "workflow-delegate-declined",
+    statusKey: "declined",
+    label: "Declined",
+    isSystemDefault: true,
+    sortOrder: 7,
     isActive: true,
   },
   {
@@ -336,7 +360,82 @@ const DELEGATE_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
     statusKey: "confirmed",
     label: "Confirmed",
     isSystemDefault: true,
+    sortOrder: 8,
+    isActive: true,
+  },
+];
+
+const PRODUCTION_WORKFLOW_STATUSES: WorkflowStatusDefinitionItem[] = [
+  {
+    id: "workflow-production-first-call",
+    statusKey: "first-call",
+    label: "First Call",
+    isSystemDefault: true,
+    sortOrder: 1,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-email-sent",
+    statusKey: "email-sent",
+    label: "Email Sent",
+    isSystemDefault: true,
+    sortOrder: 2,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-whatsapp-sent",
+    statusKey: "whatsapp-sent",
+    label: "Whatsapp Sent",
+    isSystemDefault: true,
+    sortOrder: 3,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-1st-follow-up",
+    statusKey: "1st-follow-up",
+    label: "1st Follow up",
+    isSystemDefault: true,
     sortOrder: 4,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-2nd-follow-up",
+    statusKey: "2nd-follow-up",
+    label: "2nd Follow up",
+    isSystemDefault: true,
+    sortOrder: 5,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-3rd-follow-up",
+    statusKey: "3rd-follow-up",
+    label: "3rd Follow up",
+    isSystemDefault: true,
+    sortOrder: 6,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-pending",
+    statusKey: "pending",
+    label: "Pending",
+    isSystemDefault: true,
+    sortOrder: 7,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-declined",
+    statusKey: "declined",
+    label: "Declined",
+    isSystemDefault: true,
+    sortOrder: 8,
+    isActive: true,
+  },
+  {
+    id: "workflow-production-confirmed",
+    statusKey: "confirmed",
+    label: "Confirmed",
+    isSystemDefault: true,
+    sortOrder: 9,
     isActive: true,
   },
 ];
@@ -348,7 +447,13 @@ const STATUS_DOT_CLASS: Record<string, string> = {
   "proposal-sent": "bg-[#a855f7] shadow-[0_0_0_3px_rgba(168,85,247,0.20)]",
   "deal-closed": "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
   "deal-dead": "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]",
+  "email-sent": "bg-[#2563eb] shadow-[0_0_0_3px_rgba(37,99,235,0.20)]",
+  "whatsapp-sent": "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.22)]",
+  "1st-follow-up": "bg-[#ff8700] shadow-[0_0_0_3px_rgba(255,135,0,0.20)]",
+  "2nd-follow-up": "bg-[#f59e0b] shadow-[0_0_0_3px_rgba(245,158,11,0.20)]",
+  "3rd-follow-up": "bg-[#f97316] shadow-[0_0_0_3px_rgba(249,115,22,0.20)]",
   pending: "bg-[#a855f7] shadow-[0_0_0_3px_rgba(168,85,247,0.20)]",
+  declined: "bg-[#ff0000] shadow-[0_0_0_3px_rgba(255,0,0,0.16)]",
   confirmed: "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.25)]",
 };
 const DEFAULT_PAGE_SIZE = 100;
@@ -367,7 +472,6 @@ const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
 const EMPTY_FILTERS: LeadFilterState = {
   status: "all",
   contact: "all",
-  source: "all",
   category: "all",
 };
 const EMPTY_TEMPLATE_UPLOAD: TemplateUploadState = {
@@ -376,10 +480,9 @@ const EMPTY_TEMPLATE_UPLOAD: TemplateUploadState = {
   validation: null,
   error: "",
   submitting: false,
-  selectedEventKey: "",
+  selectedEventId: "",
 };
 const LEAD_TEMPLATE_ACCEPT = ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const LEAD_TEMPLATE_HEADERS = "Company | Full Name | Job Title | Telephone Number | Mobile | Email | comments";
 const UNCATEGORIZED_CATEGORY_LABEL = "Competing Events";
 
 function getErrorMessage(error: unknown) {
@@ -485,9 +588,41 @@ function buildTelHref(value: string) {
   return phone ? `tel:${phone}` : "";
 }
 
+function buildEmailHref(value: string) {
+  const email = asText(value);
+  return email ? `mailto:${email}` : "";
+}
+
 function buildWhatsAppHref(value: string) {
   const digits = value.replace(/\D/g, "");
   return digits.length >= 8 ? `https://wa.me/${digits}` : "";
+}
+
+function getTemplateUploadErrorCopy(message: string) {
+  const text = asText(message);
+  const normalized = text.toLowerCase();
+
+  if (normalized.includes("header") || normalized.includes("sheet")) {
+    return {
+      title: "Template layout needs attention",
+      body: "This workbook does not match the upload template for this persona.",
+      hint: "Download the template again, keep the header row unchanged, and paste the leads into that file.",
+    };
+  }
+
+  if (normalized.includes(".xlsx") || normalized.includes("excel")) {
+    return {
+      title: "Use the Excel template",
+      body: "This upload accepts the official .xlsx template only.",
+      hint: "Download the template, fill it in, and upload that file.",
+    };
+  }
+
+  return {
+    title: "Template needs a quick check",
+    body: "We could not validate this file yet.",
+    hint: "Review the file format and try again.",
+  };
 }
 
 function getUserDisplayName(user: ReturnType<typeof useAuth>["user"]) {
@@ -683,6 +818,7 @@ export function NormalUserEventLeadSheet() {
   const uploadParam = searchParams.get("upload") || "";
 
   const [events, setEvents] = useState<EventSummaryItem[]>([]);
+  const [registryEvents, setRegistryEvents] = useState<AdminEventItem[]>([]);
   const [leadPage, setLeadPage] = useState<EventLeadListResponse | null>(null);
   const [workflowStatuses, setWorkflowStatuses] = useState<WorkflowStatusDefinitionItem[]>(
     FIXED_WORKFLOW_STATUSES
@@ -718,7 +854,8 @@ export function NormalUserEventLeadSheet() {
     agendas: EventAgendaItem[];
     error: string;
     downloadingId: string;
-  }>({ loading: false, agendas: [], error: "", downloadingId: "" });
+    viewingId: string;
+  }>({ loading: false, agendas: [], error: "", downloadingId: "", viewingId: "" });
   const [headerEventSelectOpen, setHeaderEventSelectOpen] = useState(false);
   const targetLeadRowRef = useRef<HTMLDivElement | null>(null);
   const emailGenerationRequestRef = useRef(0);
@@ -738,7 +875,12 @@ export function NormalUserEventLeadSheet() {
   }, [workflowStatuses]);
 
   const fixedWorkflowStatuses = useMemo(
-    () => persona === "delegates" || persona === "production" ? DELEGATE_WORKFLOW_STATUSES : FIXED_WORKFLOW_STATUSES,
+    () =>
+      persona === "production"
+        ? PRODUCTION_WORKFLOW_STATUSES
+        : persona === "delegates"
+          ? DELEGATE_WORKFLOW_STATUSES
+          : FIXED_WORKFLOW_STATUSES,
     [persona]
   );
 
@@ -755,6 +897,7 @@ export function NormalUserEventLeadSheet() {
         listEvents(),
         listWorkflowStatuses(),
       ]);
+      const registryRows = await listActiveEventRegistry();
       let finalStatuses = Array.isArray(initialStatusResponse.statuses)
         ? initialStatusResponse.statuses
         : [];
@@ -781,12 +924,14 @@ export function NormalUserEventLeadSheet() {
       }
 
       setEvents(eventsResponse.events || []);
+      setRegistryEvents(registryRows);
       setWorkflowStatuses(buildFixedWorkflowStatuses(finalStatuses, fixedWorkflowStatuses));
     } catch (error: unknown) {
       toast.error("Failed to load lead sheet", {
         description: getErrorMessage(error),
       });
       setEvents([]);
+      setRegistryEvents([]);
       setLeadPage(null);
       setWorkflowStatuses(fixedWorkflowStatuses);
     } finally {
@@ -808,7 +953,7 @@ export function NormalUserEventLeadSheet() {
 
   useEffect(() => {
     setPageOffset(0);
-  }, [filters.status, filters.contact, filters.source, filters.category]);
+  }, [filters.status, filters.contact, filters.category]);
 
   useEffect(() => {
     const nextSearch = searchParams.get("search") || "";
@@ -818,12 +963,21 @@ export function NormalUserEventLeadSheet() {
     setPageOffset(0);
   }, [searchInput, searchParams]);
 
+  const eventSummaryKeySet = useMemo(() => {
+    return new Set(events.map((item) => asText(item.canonicalEventKey)).filter(Boolean));
+  }, [events]);
+
+  const activeRegistryEvents = useMemo(
+    () => registryEvents.filter((event) => event.isActive),
+    [registryEvents]
+  );
+
   const selectedEventKey = useMemo(() => {
-    if (eventParam && events.some((item) => item.canonicalEventKey === eventParam)) {
+    if (eventParam && eventSummaryKeySet.has(eventParam)) {
       return eventParam;
     }
     return events[0]?.canonicalEventKey || "";
-  }, [eventParam, events]);
+  }, [eventParam, eventSummaryKeySet, events]);
 
   useEffect(() => {
     if (!events.length || !selectedEventKey || eventParam === selectedEventKey) return;
@@ -860,12 +1014,14 @@ export function NormalUserEventLeadSheet() {
 
   useEffect(() => {
     if (uploadParam !== "1" || !canUseTemplateUpload) return;
+    const selectedRegistryEvent =
+      activeRegistryEvents.find((event) => event.eventKey === selectedEventKey) ?? activeRegistryEvents[0] ?? null;
     setTemplateUploadOpen(true);
     setTemplateUpload((prev) => ({
       ...prev,
-      selectedEventKey: prev.selectedEventKey || selectedEventKey,
+      selectedEventId: prev.selectedEventId || selectedRegistryEvent?.id || "",
     }));
-  }, [canUseTemplateUpload, selectedEventKey, uploadParam]);
+  }, [activeRegistryEvents, canUseTemplateUpload, selectedEventKey, uploadParam]);
 
   const loadEventPage = useCallback(async (canonicalEventKey: string, nextOffset: number, query: string) => {
     setLoadingLeads(true);
@@ -916,9 +1072,20 @@ export function NormalUserEventLeadSheet() {
 
   const selectedTemplateUploadEvent = useMemo(
     () =>
-      events.find((item) => item.canonicalEventKey === templateUpload.selectedEventKey) ?? null,
-    [events, templateUpload.selectedEventKey]
+      registryEvents.find((item) => item.id === templateUpload.selectedEventId) ?? null,
+    [registryEvents, templateUpload.selectedEventId]
   );
+  const templateUploadEventId = selectedTemplateUploadEvent?.id || templateUpload.selectedEventId;
+
+  const templateUploadEventOptions = useMemo(() => {
+    if (!templateUploadEventId) return activeRegistryEvents;
+    const selectedUploadEvent = activeRegistryEvents.find((event) => event.id === templateUploadEventId);
+    if (!selectedUploadEvent) return activeRegistryEvents;
+    return [
+      selectedUploadEvent,
+      ...activeRegistryEvents.filter((event) => event.id !== templateUploadEventId),
+    ];
+  }, [activeRegistryEvents, templateUploadEventId]);
 
   const selectedAgendaEventId = asText(selectedEvent?.eventRegistryId);
   const selectedAgendaEventKey = asText(selectedEvent?.canonicalEventKey || selectedEventKey);
@@ -1010,9 +1177,6 @@ export function NormalUserEventLeadSheet() {
 
   const visibleEventLeads = useMemo(() => {
     return eventLeads.filter((item) => {
-      if (filters.source === "manual" && !item.isManualLead) return false;
-      if (filters.source === "imported" && item.isManualLead) return false;
-
       if (filters.contact === "email" && !item.email) return false;
       if (filters.contact === "phone" && !item.phone) return false;
       if (filters.contact === "complete" && (!item.email || !item.phone)) return false;
@@ -1022,13 +1186,12 @@ export function NormalUserEventLeadSheet() {
 
       return true;
     });
-  }, [eventLeads, filters.contact, filters.source]);
+  }, [eventLeads, filters.contact]);
 
   const activeFilterCount = useMemo(() => {
     return [
       filters.status !== EMPTY_FILTERS.status,
       filters.contact !== EMPTY_FILTERS.contact,
-      filters.source !== EMPTY_FILTERS.source,
       filters.category !== EMPTY_FILTERS.category,
     ].filter(Boolean).length;
   }, [filters]);
@@ -1069,8 +1232,16 @@ export function NormalUserEventLeadSheet() {
   }, [pathname, router, searchParams, uploadParam]);
 
   const openTemplateUploadDialog = () => {
+    const currentEventKey = selectedEvent?.canonicalEventKey || selectedEventKey || events[0]?.canonicalEventKey || "";
+    const selectedRegistryEvent =
+      activeRegistryEvents.find((event) => event.id === selectedEvent?.eventRegistryId) ??
+      activeRegistryEvents.find((event) => event.eventKey === currentEventKey) ??
+      activeRegistryEvents[0] ??
+      null;
+
     setTemplateUpload({
       ...EMPTY_TEMPLATE_UPLOAD,
+      selectedEventId: selectedRegistryEvent?.id || "",
     });
     setTemplateUploadOpen(true);
   };
@@ -1096,7 +1267,7 @@ export function NormalUserEventLeadSheet() {
   const handleTemplateFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     if (!file) return;
-    if (!templateUpload.selectedEventKey) {
+    if (!templateUpload.selectedEventId) {
       event.target.value = "";
       toast.error("Select the event before uploading the Excel file.");
       return;
@@ -1149,18 +1320,22 @@ export function NormalUserEventLeadSheet() {
     }
 
     const uploadEvent = selectedTemplateUploadEvent;
-    const eventRegistryId = asText(uploadEvent?.eventRegistryId);
+    const eventRegistryId = asText(uploadEvent?.id);
     if (!uploadEvent || !eventRegistryId) {
       toast.error("Select a registered event before submitting.");
+      return;
+    }
+    if (!uploadEvent.isActive) {
+      toast.error("This event is inactive. Activate it in Event Registry before uploading leads.");
       return;
     }
 
     setTemplateUpload((prev) => ({ ...prev, submitting: true, error: "" }));
     try {
       const response = await createCampaignFromUpload({
-        name: uploadEvent.canonicalEventName,
+        name: uploadEvent.eventName,
         eventRegistryId,
-        icp: `Template upload for ${uploadEvent.canonicalEventName}`,
+        icp: `Template upload for ${uploadEvent.eventName}`,
         leadSheet: templateUpload.file,
       });
       const createdCampaigns = response.createdCampaigns?.length ? response.createdCampaigns : [response];
@@ -1171,16 +1346,16 @@ export function NormalUserEventLeadSheet() {
         description:
           createdCampaigns.length > 1
             ? `${response.importSummary.importedLeads.toLocaleString()} leads created across ${createdCampaigns.length.toLocaleString()} category campaigns.`
-            : `${response.importSummary.importedLeads.toLocaleString()} leads added to ${uploadEvent.canonicalEventName}.`,
+            : `${response.importSummary.importedLeads.toLocaleString()} leads added to ${uploadEvent.eventName}.`,
       });
       setTemplateUploadOpen(false);
       setTemplateUpload({
         ...EMPTY_TEMPLATE_UPLOAD,
-        selectedEventKey: uploadEvent.canonicalEventKey,
+        selectedEventId: uploadEvent.id,
       });
 
       const nextParams = new URLSearchParams(searchParams.toString());
-      nextParams.set("event", uploadEvent.canonicalEventKey);
+      nextParams.set("event", response.canonicalEventKey || uploadEvent.eventKey);
       nextParams.delete("upload");
       nextParams.delete("search");
       const nextQuery = nextParams.toString();
@@ -1227,6 +1402,23 @@ export function NormalUserEventLeadSheet() {
       toast.error("Failed to download agenda", { description: getErrorMessage(error) });
     } finally {
       setAgendaState((current) => ({ ...current, downloadingId: "" }));
+    }
+  };
+
+  const handleAgendaView = async (agenda: EventAgendaItem) => {
+    if (!agenda.id) return;
+    setAgendaState((current) => ({ ...current, viewingId: agenda.id }));
+    try {
+      const endpoint = `/api/event-agendas/${encodeURIComponent(agenda.id)}/download`;
+      const objectUrl = await createProtectedObjectUrl(endpoint, `${endpoint}-url`);
+      window.open(objectUrl.url, "_blank", "noopener,noreferrer");
+      if (!objectUrl.direct) {
+        window.setTimeout(() => objectUrl.revoke(), 60_000);
+      }
+    } catch (error: unknown) {
+      toast.error("Failed to open agenda", { description: getErrorMessage(error) });
+    } finally {
+      setAgendaState((current) => ({ ...current, viewingId: "" }));
     }
   };
 
@@ -1604,9 +1796,11 @@ export function NormalUserEventLeadSheet() {
   };
 
   const templateValidation = templateUpload.validation;
-  const templateUploadEventKey =
-    selectedTemplateUploadEvent?.canonicalEventKey || templateUpload.selectedEventKey;
-  const templateUploadReady = Boolean(templateUpload.file && templateValidation && selectedTemplateUploadEvent);
+  const templateUploadReady = Boolean(templateUpload.file && templateValidation && selectedTemplateUploadEvent?.isActive);
+  const templateUploadErrorCopy = useMemo(
+    () => getTemplateUploadErrorCopy(templateUpload.error),
+    [templateUpload.error]
+  );
 
   return (
     <>
@@ -1716,19 +1910,34 @@ export function NormalUserEventLeadSheet() {
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => void handleAgendaDownload(latestAgenda)}
-                        disabled={agendaState.downloadingId === latestAgenda.id}
-                        className="inline-flex h-9 items-center gap-2 rounded-full bg-blue-600 px-4 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_0_26px_-12px_rgba(59,130,246,0.9)] transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {agendaState.downloadingId === latestAgenda.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Download className="h-4 w-4" />
-                        )}
-                        Download latest
-                      </button>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleAgendaView(latestAgenda)}
+                          disabled={agendaState.viewingId === latestAgenda.id}
+                          className="inline-flex h-9 items-center gap-2 rounded-full border border-white/28 bg-white/[0.06] px-4 text-sm font-semibold text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.16)] backdrop-blur-[24px] transition hover:border-white/45 hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {agendaState.viewingId === latestAgenda.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                          View
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleAgendaDownload(latestAgenda)}
+                          disabled={agendaState.downloadingId === latestAgenda.id}
+                          className="inline-flex h-9 items-center gap-2 rounded-full bg-blue-600 px-4 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_0_26px_-12px_rgba(59,130,246,0.9)] transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {agendaState.downloadingId === latestAgenda.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Download className="h-4 w-4" />
+                          )}
+                          Download latest
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div className="text-sm font-light leading-6 text-zinc-500">
@@ -1871,9 +2080,9 @@ export function NormalUserEventLeadSheet() {
                                       onClick={() =>
                                         setContactChoiceLead({
                                           name: item.employeeName,
-                                          phone: item.phone || "",
                                           email: item.email,
-                                          mailtoHref: `mailto:${item.email}`,
+                                          phone: item.phone || "",
+                                          emailHref: buildEmailHref(item.email),
                                           telHref,
                                           whatsappHref,
                                         })
@@ -1898,9 +2107,9 @@ export function NormalUserEventLeadSheet() {
                                         onClick={() =>
                                           setContactChoiceLead({
                                             name: item.employeeName,
-                                            phone: item.phone,
                                             email: item.email || "",
-                                            mailtoHref: item.email ? `mailto:${item.email}` : "",
+                                            phone: item.phone,
+                                            emailHref: buildEmailHref(item.email || ""),
                                             telHref,
                                             whatsappHref,
                                           })
@@ -2446,9 +2655,9 @@ export function NormalUserEventLeadSheet() {
               <Button
                 type="button"
                 variant="ghost"
-                disabled={!contactChoiceLead.mailtoHref}
+                disabled={!contactChoiceLead.emailHref}
                 onClick={() => {
-                  window.location.href = contactChoiceLead.mailtoHref;
+                  window.location.href = contactChoiceLead.emailHref;
                   setContactChoiceLead(null);
                 }}
                 className="h-10 gap-1.5 rounded-none border border-[#ef4444] bg-[#ef4444] px-4 text-sm text-white shadow-none hover:border-[#dc2626] hover:bg-[#dc2626] hover:text-white disabled:opacity-50"
@@ -2731,9 +2940,9 @@ export function NormalUserEventLeadSheet() {
           <div>
             <label className="mb-3 block text-xs font-medium text-zinc-400">Related event</label>
             <Select
-              value={templateUploadEventKey}
+              value={templateUpload.selectedEventId}
               onValueChange={(value) =>
-                setTemplateUpload((prev) => ({ ...prev, selectedEventKey: value }))
+                setTemplateUpload((prev) => ({ ...prev, selectedEventId: value }))
               }
             >
               <SelectTrigger className="!h-12 w-full rounded-none border-0 border-b border-zinc-300 !bg-transparent px-0 text-lg font-light shadow-none transition-colors hover:!bg-transparent dark:!bg-transparent dark:hover:!bg-transparent focus:border-blue-600 focus:ring-0">
@@ -2743,13 +2952,13 @@ export function NormalUserEventLeadSheet() {
                 position="popper"
                 className="z-[120] rounded-lg border border-white/18 bg-[#161b25] text-zinc-100 shadow-2xl"
               >
-                {events.map((item) => (
+                {templateUploadEventOptions.map((item) => (
                   <SelectItem
-                    key={item.canonicalEventKey}
-                    value={item.canonicalEventKey}
+                    key={item.id}
+                    value={item.id}
                     className="text-zinc-100 focus:bg-white/10 focus:text-white data-[state=checked]:bg-white/10 data-[state=checked]:text-white"
                   >
-                    {getEventDisplayTitle(item.canonicalEventName)}
+                    {getEventDisplayTitle(item.eventName)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -2833,12 +3042,12 @@ export function NormalUserEventLeadSheet() {
           </div>
 
           {templateUpload.error ? (
-            <div className="flex gap-3 border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            <div className="flex gap-3 rounded-2xl border border-red-400/35 bg-red-500/10 p-4 text-sm text-red-100">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <div>
-                <p className="font-semibold">Template check failed</p>
-                <p className="mt-1 font-light leading-6">{templateUpload.error}</p>
-                <p className="mt-2 text-xs font-medium text-red-500">Expected headers: {LEAD_TEMPLATE_HEADERS}</p>
+                <p className="font-semibold">{templateUploadErrorCopy.title}</p>
+                <p className="mt-1 font-light leading-6">{templateUploadErrorCopy.body}</p>
+                <p className="mt-2 text-xs font-medium text-red-200/80">{templateUploadErrorCopy.hint}</p>
               </div>
             </div>
           ) : null}
@@ -2846,21 +3055,21 @@ export function NormalUserEventLeadSheet() {
           {templateValidation ? (
             <div className="space-y-5">
               <div className="grid gap-3 sm:grid-cols-3">
-                <div className="border border-zinc-200 p-4">
+                <div className="rounded-2xl border border-zinc-700/70 bg-white/[0.03] p-4">
                   <p className="text-xs font-medium text-zinc-400">Sheets</p>
-                  <p className="mt-2 text-2xl font-light tabular-nums text-zinc-950">
+                  <p className="mt-2 text-2xl font-light tabular-nums text-zinc-100">
                     {templateValidation.sheetCount.toLocaleString()}
                   </p>
                 </div>
-                <div className="border border-zinc-200 p-4">
+                <div className="rounded-2xl border border-zinc-700/70 bg-white/[0.03] p-4">
                   <p className="text-xs font-medium text-zinc-400">Leads ready</p>
-                  <p className="mt-2 text-2xl font-light tabular-nums text-zinc-950">
+                  <p className="mt-2 text-2xl font-light tabular-nums text-zinc-100">
                     {templateValidation.importRows.toLocaleString()}
                   </p>
                 </div>
-                <div className="border border-zinc-200 p-4">
+                <div className="rounded-2xl border border-zinc-700/70 bg-white/[0.03] p-4">
                   <p className="text-xs font-medium text-zinc-400">Skipped rows</p>
-                  <p className="mt-2 text-2xl font-light tabular-nums text-zinc-950">
+                  <p className="mt-2 text-2xl font-light tabular-nums text-zinc-100">
                     {templateValidation.invalidRows.toLocaleString()}
                   </p>
                 </div>
@@ -2872,9 +3081,9 @@ export function NormalUserEventLeadSheet() {
                   {templateValidation.categories.map((category) => (
                     <div
                       key={category.name}
-                      className="flex items-center justify-between gap-4 border border-zinc-200 px-4 py-3"
+                      className="flex items-center justify-between gap-4 rounded-2xl border border-zinc-700/70 bg-white/[0.03] px-4 py-3"
                     >
-                      <span className="min-w-0 truncate text-sm font-semibold text-zinc-950">
+                      <span className="min-w-0 truncate text-sm font-semibold text-zinc-100">
                         {category.name}
                       </span>
                       <span className="shrink-0 text-xs font-medium text-zinc-400">

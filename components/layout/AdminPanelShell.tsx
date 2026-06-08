@@ -18,6 +18,7 @@ import {
   Sun,
   Tags,
   UserRound,
+  UsersRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import { FloatingDock, type FloatingDockItem } from "@/components/ui/floating-dock";
@@ -37,6 +38,12 @@ const adminTabs = [
     href: "/admin/users",
     icon: ShieldCheck,
     match: (pathname: string) => pathname === "/admin/users",
+  },
+  {
+    name: "Performance",
+    href: "/admin/user-performance",
+    icon: UsersRound,
+    match: (pathname: string) => pathname === "/admin/user-performance",
   },
   {
     name: "Events",
