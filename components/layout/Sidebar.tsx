@@ -17,7 +17,7 @@ import {
   Upload,
   UserRound,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { FloatingDock, type FloatingDockItem } from "@/components/ui/floating-dock";
 import { clearAuthSession } from "@/lib/auth";
@@ -28,6 +28,7 @@ import {
 import { clearPersona } from "@/lib/persona";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
+import { cn } from "@/lib/utils";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -52,9 +53,33 @@ export function Sidebar() {
   const { isSuperAdmin, user } = useAuth();
   const { theme, setTheme } = useTheme();
   const [ringingBell, setRingingBell] = useState(false);
+  const [tableDockOpen, setTableDockOpen] = useState(false);
+  const [tableDockArmed, setTableDockArmed] = useState(false);
   const isDark = theme === "dark";
   const isDenseTableRoute = pathname === "/leads" || pathname === "/my-leads";
   const personaLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
+
+  useEffect(() => {
+    setTableDockOpen(false);
+    setTableDockArmed(!isDenseTableRoute);
+
+    if (!isDenseTableRoute) return;
+
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLElement) activeElement.blur();
+
+    const armAfterPointerLeavesRevealZone = (event: PointerEvent) => {
+      if (event.clientY < window.innerHeight - 112) {
+        setTableDockArmed(true);
+      }
+    };
+
+    window.addEventListener("pointermove", armAfterPointerLeavesRevealZone, { passive: true });
+
+    return () => {
+      window.removeEventListener("pointermove", armAfterPointerLeavesRevealZone);
+    };
+  }, [isDenseTableRoute, pathname]);
 
   const navigateWithDashboardTransition = (href: string) => {
     if (pathname === "/dashboard" && !href.startsWith("/dashboard")) {
@@ -169,9 +194,32 @@ export function Sidebar() {
   if (isDenseTableRoute) {
     return (
       <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-4">
-        <div className="group/nav-dock relative h-28 w-[min(44rem,calc(100vw-2rem))]">
+        <div
+          className="relative h-28 w-[min(44rem,calc(100vw-2rem))]"
+          onMouseEnter={() => {
+            if (tableDockArmed) setTableDockOpen(true);
+          }}
+          onMouseMove={() => {
+            if (tableDockArmed) setTableDockOpen(true);
+          }}
+          onMouseLeave={() => {
+            setTableDockOpen(false);
+            setTableDockArmed(true);
+          }}
+          onFocus={() => setTableDockOpen(true)}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) {
+              setTableDockOpen(false);
+            }
+          }}
+        >
           <div className="absolute bottom-0 left-1/2 h-6 w-52 -translate-x-1/2 rounded-t-full bg-transparent" aria-hidden />
-          <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 translate-y-[5.75rem] opacity-0 transition duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover/nav-dock:pointer-events-auto group-hover/nav-dock:translate-y-0 group-hover/nav-dock:opacity-100 group-focus-within/nav-dock:pointer-events-auto group-focus-within/nav-dock:translate-y-0 group-focus-within/nav-dock:opacity-100 md:bottom-6">
+          <div
+            className={cn(
+              "absolute bottom-4 left-1/2 -translate-x-1/2 transition duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] md:bottom-6",
+              tableDockOpen ? "pointer-events-auto translate-y-0 opacity-100" : "pointer-events-none translate-y-[5.75rem] opacity-0"
+            )}
+          >
             {dock}
           </div>
         </div>
