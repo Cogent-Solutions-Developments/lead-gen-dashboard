@@ -293,6 +293,24 @@ export async function downloadLeadTemplateFile(fileName = "lead-upload-template.
   window.setTimeout(() => window.URL.revokeObjectURL(url), 500);
 }
 
+export async function getMyRecentCampaigns(limit?: number) {
+  const params = typeof limit === "number" ? { limit } : undefined;
+  const { data } = await apiClientDelegate.get<{ campaigns: RecentCampaign[] }>(
+    "/api/delegates/my-leads/campaigns/recent",
+    { params }
+  );
+  return data;
+}
+
+export async function listMyCampaigns(params: { status?: string; limit?: number; offset?: number }) {
+  const { data } = await apiClientDelegate.get<{
+    campaigns: CampaignListItem[];
+    total: number;
+    hasMore: boolean;
+  }>("/api/delegates/my-leads/campaigns", { params });
+  return data;
+}
+
 export async function createMyCampaignFromUpload(payload: UploadCampaignRequest) {
   const formData = new FormData();
   formData.append("name", payload.name.trim());
@@ -344,6 +362,25 @@ export async function downloadMyLeadTemplateFile(fileName = "lead-upload-templat
   anchor.click();
   anchor.remove();
   window.setTimeout(() => window.URL.revokeObjectURL(url), 500);
+}
+
+export async function getMyCampaign(id: string) {
+  const { data } = await apiClientDelegate.get<CampaignDetail>(
+    `/api/delegates/my-leads/campaigns/${id}`
+  );
+  return data;
+}
+
+export function exportMyCampaignCsvUrl(id: string) {
+  return `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/delegates/my-leads/campaigns/${id}/export`;
+}
+
+export async function getMyCampaignLeads(id: string, status: string = "all") {
+  const { data } = await apiClientDelegate.get<{ leads: LeadItem[]; total: number }>(
+    `/api/delegates/my-leads/campaigns/${id}/leads`,
+    { params: { status } }
+  );
+  return data;
 }
 
 export async function listMyAllLeads() {

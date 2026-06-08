@@ -134,6 +134,12 @@ export const validateLeadTemplateUpload: typeof sales.validateLeadTemplateUpload
 export const downloadLeadTemplateFile: typeof sales.downloadLeadTemplateFile = (...args) =>
   pickModule().downloadLeadTemplateFile(...args);
 
+export const getMyRecentCampaigns: typeof sales.getMyRecentCampaigns = (...args) =>
+  pickModule().getMyRecentCampaigns(...args);
+
+export const listMyCampaigns: typeof sales.listMyCampaigns = (...args) =>
+  pickModule().listMyCampaigns(...args);
+
 export const createMyCampaignFromUpload: typeof sales.createMyCampaignFromUpload = (...args) =>
   pickModule().createMyCampaignFromUpload(...args);
 
@@ -142,6 +148,15 @@ export const validateMyLeadTemplateUpload: typeof sales.validateMyLeadTemplateUp
 
 export const downloadMyLeadTemplateFile: typeof sales.downloadMyLeadTemplateFile = (...args) =>
   pickModule().downloadMyLeadTemplateFile(...args);
+
+export const getMyCampaign: typeof sales.getMyCampaign = (...args) =>
+  pickModule().getMyCampaign(...args);
+
+export const exportMyCampaignCsvUrl: typeof sales.exportMyCampaignCsvUrl = (...args) =>
+  pickModule().exportMyCampaignCsvUrl(...args);
+
+export const getMyCampaignLeads: typeof sales.getMyCampaignLeads = (...args) =>
+  pickModule().getMyCampaignLeads(...args);
 
 export const listMyAllLeads: typeof sales.listMyAllLeads = (...args) =>
   pickModule().listMyAllLeads(...args);
