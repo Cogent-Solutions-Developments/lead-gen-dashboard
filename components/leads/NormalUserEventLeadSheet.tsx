@@ -1883,8 +1883,8 @@ export function NormalUserEventLeadSheet() {
           </div>
         </header>
 
-        <div className="grid min-h-0 flex-1 gap-12 overflow-hidden pt-8 xl:grid-cols-[19rem_minmax(0,1fr)]">
-          <aside className="shrink-0 space-y-10 overflow-y-auto pr-2 scrollbar-hide">
+        <div className="grid min-h-0 flex-1 gap-5 overflow-hidden pt-8 xl:grid-cols-[20rem_minmax(0,1fr)]">
+          <aside className="min-h-0 shrink-0 space-y-10 overflow-y-auto overscroll-contain pr-0 scrollbar-modern [scrollbar-gutter:stable]">
             <div className="space-y-8">
               <div className="pt-1">
                 <label className="text-xs font-medium text-zinc-400">Event agenda</label>
@@ -2005,12 +2005,22 @@ export function NormalUserEventLeadSheet() {
                     <div className="flex items-center justify-between border-b border-zinc-100 py-4">
                       <span className="text-sm font-light text-zinc-500">Visible range</span>
                       <Select value={String(pageSize)} onValueChange={(value) => handlePageSizeChange(Number(value))}>
-                        <SelectTrigger className="h-9 w-16 justify-end gap-1 rounded-none border-0 border-b border-zinc-300 !bg-transparent px-0 text-xl font-light tabular-nums tracking-tight text-zinc-950 shadow-none transition-colors hover:!bg-transparent dark:!bg-transparent dark:hover:!bg-transparent data-[state=open]:!bg-transparent focus:border-blue-600 focus:ring-0 [&>svg]:ml-0">
+                        <SelectTrigger className="min-h-12 min-w-32 justify-end gap-3 rounded-none border-0 border-b border-zinc-300 !bg-transparent px-0 py-2 text-xl font-light tabular-nums tracking-tight text-zinc-950 shadow-none transition-colors hover:!bg-transparent dark:!bg-transparent dark:hover:!bg-transparent data-[state=open]:!bg-transparent focus:border-blue-600 focus:ring-0 [&>svg]:ml-0 [&>svg]:h-5 [&>svg]:w-5">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent align="end" className="rounded-none border-zinc-300 shadow-xl">
+                        <SelectContent
+                          align="end"
+                          position="popper"
+                          sideOffset={8}
+                          className="z-[120] min-w-[9rem] overflow-hidden rounded-2xl border border-white/45 bg-[linear-gradient(180deg,rgba(17,24,39,0.78)_0%,rgba(6,10,18,0.68)_100%)] p-1.5 text-zinc-100 ring-1 ring-white/18 shadow-[inset_0_1px_0_rgba(255,255,255,0.24),inset_0_-1px_0_rgba(255,255,255,0.06),0_22px_54px_-34px_rgba(0,0,0,0.9),0_0_34px_-26px_rgba(59,130,246,0.6)] backdrop-blur-[34px]"
+                          viewportClassName="p-0"
+                        >
                           {PAGE_SIZE_OPTIONS.map((option) => (
-                            <SelectItem key={option} value={String(option)} className="py-2.5 text-sm">
+                            <SelectItem
+                              key={option}
+                              value={String(option)}
+                              className="rounded-xl py-2.5 pl-4 pr-9 text-sm font-medium tabular-nums text-zinc-200 transition-colors focus:bg-white/10 focus:text-white data-[highlighted]:bg-white/10 data-[highlighted]:text-white data-[state=checked]:bg-white/14 data-[state=checked]:text-white data-[state=checked]:[&_svg]:!text-blue-300 [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]_svg]:h-4 [&_[data-slot=select-item-indicator]_svg]:w-4 [&_[data-slot=select-item-indicator]_svg]:stroke-[2.25]"
+                            >
                               {option}
                             </SelectItem>
                           ))}
@@ -2023,7 +2033,7 @@ export function NormalUserEventLeadSheet() {
             </div>
           </aside>
 
-          <main className="flex min-h-0 flex-col overflow-hidden xl:border-l xl:border-zinc-300 xl:pl-16">
+          <main className="flex min-h-0 flex-col overflow-hidden xl:border-l xl:border-zinc-300 xl:pl-8">
             <div className="min-h-0 flex-1 overflow-auto pr-4 scrollbar-modern">
               {isLoading ? (
                 <LeadSheetRowsSkeleton />
@@ -2806,10 +2816,10 @@ export function NormalUserEventLeadSheet() {
               <Button
                 type="button"
                 variant="ghost"
-                className="absolute right-3 top-3 h-10 w-10 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+                className="absolute right-3 top-3 h-10 w-10 rounded-full border border-white/50 bg-white/20 p-0 text-zinc-950 ring-1 ring-white/24 shadow-[inset_0_1px_0_rgba(255,255,255,0.42),inset_0_-1px_0_rgba(255,255,255,0.10),0_14px_30px_-22px_rgba(0,0,0,0.9)] backdrop-blur-[26px] hover:border-white/70 hover:bg-white/30 hover:text-zinc-950"
                 onClick={() => setFilterOpen(false)}
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4 text-zinc-950" />
               </Button>
 
               <div className="max-h-[calc(100dvh-12rem)] w-full space-y-10 overflow-y-auto pb-28 pr-0 scrollbar-modern">
@@ -2852,15 +2862,20 @@ export function NormalUserEventLeadSheet() {
                 </div>
 
                 <div className="space-y-4">
-                  <label className="block text-sm font-semibold text-zinc-950">By campaign category:</label>
-                  <div className="rounded-[2rem] border border-zinc-200 bg-white p-3">
+                  <div
+                    className="relative z-20 block text-sm font-semibold opacity-100"
+                    style={{ color: "#f8fafc", textShadow: "0 1px 12px rgba(0,0,0,0.75)" }}
+                  >
+                    By campaign category:
+                  </div>
+                  <div className="p-0">
                     <div className="relative">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                      <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" />
                       <Input
                         value={categorySearch}
                         onChange={(event) => setCategorySearch(event.target.value)}
                         placeholder="Search categories..."
-                        className="h-10 rounded-full border-zinc-300 bg-white pl-9 text-sm shadow-none focus-visible:ring-blue-600"
+                        className="h-11 rounded-full border-white/80 bg-white/62 pl-10 text-sm text-zinc-950 ring-1 ring-white/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.88),0_10px_24px_-22px_rgba(0,0,0,0.82)] placeholder:text-zinc-500 focus-visible:ring-white/55"
                       />
                     </div>
 
@@ -2871,13 +2886,13 @@ export function NormalUserEventLeadSheet() {
                           onClick={() => setFilters((prev) => ({ ...prev, category: "all" }))}
                           className={`inline-flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-all ${
                             filters.category === "all"
-                              ? "border-blue-600 bg-white text-blue-600 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.85)]"
-                              : "border-zinc-300 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
+                              ? "border-blue-400/70 bg-blue-600 text-zinc-950 ring-1 ring-blue-300/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),inset_0_-1px_0_rgba(15,23,42,0.18),0_0_26px_-10px_rgba(37,99,235,0.95),0_14px_24px_-18px_rgba(2,10,27,0.95)]"
+                              : "border-white/65 bg-white/46 text-zinc-950 ring-1 ring-white/42 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_10px_22px_-20px_rgba(0,0,0,0.82)] hover:border-white/80 hover:bg-white/60 hover:text-zinc-950"
                           }`}
                         >
                           <span>All categories</span>
                           {allCategoryCount > 0 ? (
-                            <span className="text-xs font-medium tabular-nums text-zinc-400">
+                            <span className={`text-xs font-medium tabular-nums ${filters.category === "all" ? "text-zinc-950" : "text-zinc-600"}`}>
                               {allCategoryCount.toLocaleString()}
                             </span>
                           ) : null}
@@ -2891,19 +2906,19 @@ export function NormalUserEventLeadSheet() {
                             onClick={() => setFilters((prev) => ({ ...prev, category: option.value }))}
                             className={`inline-flex h-10 max-w-full items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-all ${
                               filters.category === option.value
-                                ? "border-blue-600 bg-white text-blue-600 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.85)]"
-                                : "border-zinc-300 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
+                                ? "border-blue-400/70 bg-blue-600 text-zinc-950 ring-1 ring-blue-300/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),inset_0_-1px_0_rgba(15,23,42,0.18),0_0_26px_-10px_rgba(37,99,235,0.95),0_14px_24px_-18px_rgba(2,10,27,0.95)]"
+                                : "border-white/65 bg-white/46 text-zinc-950 ring-1 ring-white/42 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_10px_22px_-20px_rgba(0,0,0,0.82)] hover:border-white/80 hover:bg-white/60 hover:text-zinc-950"
                             }`}
                           >
                             <span className="max-w-[13rem] truncate">{option.label}</span>
-                            <span className="text-xs font-medium tabular-nums text-zinc-400">
+                            <span className={`text-xs font-medium tabular-nums ${filters.category === option.value ? "text-zinc-950" : "text-zinc-600"}`}>
                               {option.count.toLocaleString()}
                             </span>
                           </button>
                         ))}
 
                         {filteredCategoryOptions.length === 0 ? (
-                          <span className="inline-flex h-10 items-center rounded-full border border-dashed border-zinc-300 bg-white/45 px-4 text-sm font-medium text-zinc-400">
+                          <span className="inline-flex h-10 items-center rounded-full border border-dashed border-white/60 bg-white/40 px-4 text-sm font-medium text-zinc-600">
                             No matches
                           </span>
                         ) : null}
@@ -2923,7 +2938,7 @@ export function NormalUserEventLeadSheet() {
                 </button>
                 <Button
                   type="button"
-                  className="h-10 rounded-full bg-zinc-950 px-6 text-sm font-semibold text-white shadow-none hover:bg-blue-600"
+                  className="h-10 rounded-full border border-blue-400/70 bg-blue-600 px-6 text-sm font-semibold text-zinc-950 ring-1 ring-blue-300/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),inset_0_-1px_0_rgba(15,23,42,0.18),0_0_26px_-10px_rgba(37,99,235,0.95),0_14px_24px_-18px_rgba(2,10,27,0.95)] hover:border-blue-300 hover:bg-blue-500"
                   onClick={() => setFilterOpen(false)}
                 >
                   Apply filters
