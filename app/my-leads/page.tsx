@@ -8,7 +8,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Clock3,
   Copy,
   Download,
   FileUp,
@@ -620,6 +619,7 @@ function LeadSheetDialog({
   children,
   eyebrow = "Lead Sheet Updates",
   compactSize = "default",
+  variant = "default",
 }: {
   open: boolean;
   title: string;
@@ -628,8 +628,37 @@ function LeadSheetDialog({
   children: ReactNode;
   eyebrow?: string;
   compactSize?: "default" | "wide";
+  variant?: "default" | "panel";
 }) {
   if (!open) return null;
+
+  if (variant === "panel") {
+    return (
+      <div className="fixed inset-0 z-[80] flex items-center justify-center p-6">
+        <button
+          type="button"
+          aria-label="Close dialog"
+          className="absolute inset-0 bg-black/72 backdrop-blur-[6px] backdrop-brightness-75"
+          onClick={onClose}
+        />
+
+        <div className="relative z-[1] max-h-[calc(100dvh-3rem)] w-full max-w-lg overflow-hidden rounded-3xl border border-white/42 bg-[#151a22]/62 ring-1 ring-white/32 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14),0_32px_80px_-48px_rgba(2,10,27,0.82),0_12px_28px_-20px_rgba(2,10,27,0.72)] backdrop-blur-[38px]">
+          <div className="relative max-h-[calc(100dvh-3rem)] min-h-[16rem] overflow-y-auto p-7 pb-5 scrollbar-modern">
+            <Button
+              type="button"
+              variant="ghost"
+              className="absolute right-3 top-3 h-10 w-10 rounded-full border border-white/50 bg-black/35 p-0 text-white ring-1 ring-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.34),inset_0_-1px_0_rgba(255,255,255,0.10),0_14px_30px_-24px_rgba(0,0,0,0.95)] backdrop-blur-[28px] hover:border-white/70 hover:bg-black/45 hover:text-white"
+              onClick={onClose}
+            >
+              <X className="h-5 w-5 opacity-100" color="#ffffff" strokeWidth={3.25} />
+            </Button>
+
+            {children}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-6">
@@ -1414,7 +1443,7 @@ export default function MyLeadsPage() {
               </Select>
             </div>
 
-            <div className="ml-auto flex min-w-max flex-nowrap items-center justify-end gap-8">
+            <div className="ml-auto flex min-w-max flex-nowrap items-end justify-end gap-8">
               <div className="inline-flex h-11 min-w-0 flex-1 items-center rounded-full border border-white/85 bg-white/68 p-1 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px] lg:w-[22rem] lg:flex-none" aria-label="My leads actions">
                 <button
                   type="button"
@@ -1437,11 +1466,11 @@ export default function MyLeadsPage() {
                 </button>
               </div>
 
-              <div className="flex shrink-0 items-baseline gap-3">
-                <span className="text-sm font-medium text-zinc-400">Leads To Cover</span>
-                <span className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
+              <div className="shrink-0 space-y-1 border-l border-zinc-300 pl-10 text-right">
+                <p className="text-sm font-medium text-zinc-400">Leads To Cover</p>
+                <p className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
                   {pageTotal.toLocaleString()}
-                </span>
+                </p>
               </div>
             </div>
           </div>
@@ -1766,19 +1795,6 @@ export default function MyLeadsPage() {
                           </span>
                         ) : null}
                         <div className="mt-auto pt-3">
-                          {item.workflowComment ? (
-                            <button type="button" onClick={() => void openHistory(item)} className="mb-2 block w-full border-l border-zinc-300 pl-3 text-left transition-colors hover:border-zinc-900">
-                              <span className="line-clamp-2 text-xs font-light leading-relaxed text-zinc-500">
-                                {item.workflowComment}
-                              </span>
-                              {item.workflowCommentUpdatedAt ? (
-                                <span className="mt-1 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
-                                  <Clock3 className="h-3 w-3" />
-                                  {item.workflowCommentUpdatedAt}
-                                </span>
-                              ) : null}
-                            </button>
-                          ) : null}
                           <button type="button" onClick={() => void openHistory(item)} className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950">
                             <History className="h-3.5 w-3.5" />
                             {item.workflowCommentHistoryCount > 0
@@ -2257,41 +2273,42 @@ export default function MyLeadsPage() {
           description=""
           eyebrow=""
           onClose={closeHistory}
+          variant="panel"
         >
           <div className="space-y-6">
-            <div className="border-b border-zinc-100 pb-6">
-              <p className="text-xs font-medium normal-case tracking-normal text-zinc-400">Selected profile</p>
-              <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
+            <div className="border-b border-white/14 px-1 pb-6">
+              <p className="text-xs font-semibold tracking-[0.14em]" style={{ color: "#aeb8c7" }}>Selected profile</p>
+              <h3 className="mt-2 text-2xl font-light tracking-tight" style={{ color: "#f8fafc" }}>
                 {historyLead.employeeName || "-"}
               </h3>
-              <p className="mt-1 text-sm font-light text-zinc-500">{historyLead.company || "-"}</p>
+              <p className="mt-1 text-sm font-light" style={{ color: "#d1d5db" }}>{historyLead.company || "-"}</p>
             </div>
 
             {historyLoading ? (
-              <div className="flex h-32 items-center justify-center text-sm font-light text-zinc-400">
+              <div className="flex h-32 items-center justify-center rounded-[1.35rem] border border-white/16 bg-[rgba(255,255,255,0.035)] text-sm font-light ring-1 ring-white/8" style={{ color: "#d1d5db" }}>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Loading history...
               </div>
             ) : historyError ? (
-              <div className="border border-red-200 bg-red-50 p-4 text-sm font-light text-red-700">
+              <div className="rounded-[1.35rem] border border-red-400/35 bg-red-500/10 p-4 text-sm font-light text-red-100 ring-1 ring-red-300/10">
                 {historyError}
               </div>
             ) : historyItems.length === 0 ? (
-              <div className="border border-zinc-200 bg-zinc-50/70 p-6 text-sm font-light text-zinc-500">
+              <div className="rounded-[1.35rem] border border-white/18 bg-[rgba(255,255,255,0.045)] p-6 text-sm font-light ring-1 ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]" style={{ color: "#d1d5db" }}>
                 No comments have been recorded for this lead yet.
               </div>
             ) : (
-              <div className="border-y border-zinc-300">
-                <div className="flex items-center justify-between border-b border-zinc-200 py-3">
+              <div className="overflow-hidden">
+                <div className="flex items-center justify-between border-b border-white/14 px-1 py-4">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-zinc-400">Timeline</span>
+                    <span className="text-sm font-medium tracking-tight" style={{ color: "#cbd5e1" }}>Timeline</span>
                   </div>
-                  <span className="text-xs font-light text-zinc-400">
+                  <span className="rounded-full border border-white/16 bg-[rgba(255,255,255,0.055)] px-3 py-1 text-xs font-light ring-1 ring-white/8" style={{ color: "#d1d5db" }}>
                     {historyItems.length} update{historyItems.length === 1 ? "" : "s"}
                   </span>
                 </div>
 
-                <div className="max-h-[26rem] overflow-y-auto pr-1 scrollbar-modern">
+                <div>
                   {historyItems.map((entry) => {
                     const statusLabel = entry.workflowStatusLabel || humanizeStatusLabel(entry.workflowStatus);
                     const actorName =
@@ -2302,31 +2319,31 @@ export default function MyLeadsPage() {
                     return (
                       <article
                         key={entry.id}
-                        className="group grid grid-cols-[2.75rem_minmax(0,1fr)] border-b border-zinc-100 last:border-b-0"
+                        className="grid grid-cols-[2.75rem_minmax(0,1fr)] border-b border-white/10 last:border-b-0"
                       >
                         <div className="relative flex justify-center">
-                          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-blue-500/35" />
-                          <span className="relative mt-5 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-blue-500 bg-white shadow-[0_0_0_3px_rgba(37,99,235,0.08)]">
+                          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-blue-400/10 via-blue-400/55 to-blue-400/10" />
+                          <span className="relative mt-5 flex h-5 w-5 items-center justify-center rounded-full border border-blue-300/65 bg-blue-500/10 ring-4 ring-blue-500/10 shadow-[0_0_22px_-10px_rgba(59,130,246,0.95)] backdrop-blur-sm">
                             <span className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(entry.workflowStatus)}`} />
                           </span>
                         </div>
 
-                        <div className="min-w-0 py-5 transition-colors group-hover:bg-zinc-50/40">
+                        <div className="min-w-0 py-5 pr-4">
                           <div className="flex flex-wrap items-start justify-between gap-3 pr-1">
                             <div className="min-w-0">
                               <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                                <h4 className="text-base font-medium tracking-tight text-zinc-950">{statusLabel}</h4>
+                                <h4 className="text-base font-medium tracking-tight" style={{ color: "#f8fafc" }}>{statusLabel}</h4>
                               </div>
-                              <p className="mt-1 text-xs font-light text-zinc-400">Updated by {actorName}</p>
+                              <p className="mt-1 text-xs font-light" style={{ color: "#d1d5db" }}>Updated by {actorName}</p>
                             </div>
 
-                            <time className="shrink-0 text-right text-xs font-light leading-5 text-zinc-400">
+                            <time className="shrink-0 text-right text-xs font-light leading-5" style={{ color: "#d1d5db" }}>
                               {formatDateTime(entry.createdAt) || "Time unavailable"}
                             </time>
                           </div>
 
-                          <div className="mt-3 max-w-xl border-l border-zinc-200 pl-3">
-                            <p className="whitespace-pre-wrap text-sm font-light leading-6 text-zinc-600">
+                          <div className="mt-3 max-w-xl rounded-2xl bg-[rgba(255,255,255,0.025)] px-4 py-3">
+                            <p className="whitespace-pre-wrap text-sm font-light leading-6" style={{ color: "#e5e7eb" }}>
                               {entry.comment || "No comment added."}
                             </p>
                           </div>

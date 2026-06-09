@@ -49,7 +49,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
-  Clock3,
   Copy,
   Download,
   Eye,
@@ -1889,9 +1888,9 @@ export function NormalUserEventLeadSheet() {
               </div>
             </div>
 
-            <div className="w-full border-zinc-300 lg:w-auto lg:min-w-[23rem] lg:border-l lg:pl-10">
-              <div className="flex w-full items-end justify-between gap-6">
-                <div className="shrink-0 space-y-1">
+            <div className="w-full border-zinc-300 lg:w-auto lg:border-l lg:pl-10">
+              <div className="flex w-full items-end justify-end">
+                <div className="shrink-0 space-y-1 text-right">
                   <p className="text-sm font-medium text-zinc-400">Leads To Cover</p>
                   <p className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
                     {pageTotal.toLocaleString()}
@@ -2232,23 +2231,6 @@ export function NormalUserEventLeadSheet() {
                               {isUpdating && <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />}
                             </div>
                             <div className="mt-4 space-y-2">
-                              {item.workflowComment ? (
-                                <button
-                                  type="button"
-                                  onClick={() => void openHistory(item)}
-                                  className="block w-full border-l border-zinc-300 pl-3 text-left transition-colors hover:border-zinc-900"
-                                >
-                                  <span className="line-clamp-2 text-xs font-light leading-relaxed text-zinc-500">
-                                    {item.workflowComment}
-                                  </span>
-                                  {item.workflowCommentUpdatedAt ? (
-                                    <span className="mt-1 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
-                                      <Clock3 className="h-3 w-3" />
-                                      {formatDateTime(item.workflowCommentUpdatedAt)}
-                                    </span>
-                                  ) : null}
-                                </button>
-                              ) : null}
                               <button
                                 type="button"
                                 onClick={() => void openHistory(item)}
@@ -2796,7 +2778,7 @@ export function NormalUserEventLeadSheet() {
                     return (
                       <article
                         key={entry.id}
-                        className="group grid grid-cols-[2.75rem_minmax(0,1fr)] border-b border-white/10 last:border-b-0"
+                        className="grid grid-cols-[2.75rem_minmax(0,1fr)] border-b border-white/10 last:border-b-0"
                       >
                         <div className="relative flex justify-center">
                           <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-blue-400/10 via-blue-400/55 to-blue-400/10" />
@@ -2805,7 +2787,7 @@ export function NormalUserEventLeadSheet() {
                           </span>
                         </div>
 
-                        <div className="min-w-0 py-5 pr-4 transition-colors group-hover:bg-white/[0.035]">
+                        <div className="min-w-0 py-5 pr-4">
                           <div className="flex flex-wrap items-start justify-between gap-3 pr-1">
                             <div className="min-w-0">
                               <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
