@@ -793,10 +793,10 @@ function LeadSheetDialog({
             <Button
               type="button"
               variant="ghost"
-              className="absolute right-3 top-3 h-10 w-10 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+              className="absolute right-3 top-3 h-10 w-10 rounded-full border border-white/50 bg-black/35 p-0 text-white ring-1 ring-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.34),inset_0_-1px_0_rgba(255,255,255,0.10),0_14px_30px_-24px_rgba(0,0,0,0.95)] backdrop-blur-[28px] hover:border-white/70 hover:bg-black/45 hover:text-white"
               onClick={onClose}
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5 opacity-100" color="#ffffff" strokeWidth={3.25} />
             </Button>
 
             {children}
@@ -2773,8 +2773,8 @@ export function NormalUserEventLeadSheet() {
           variant="panel"
         >
           <div className="space-y-6">
-            <div className="border-b border-zinc-700/60 pb-6">
-              <p className="text-sm font-medium tracking-tight" style={{ color: "#cbd5e1" }}>Selected profile</p>
+            <div className="border-b border-white/14 px-1 pb-6">
+              <p className="text-xs font-semibold tracking-[0.14em]" style={{ color: "#aeb8c7" }}>Selected profile</p>
               <h3 className="mt-2 text-2xl font-light tracking-tight" style={{ color: "#f8fafc" }}>
                 {historyLead.employeeName || "-"}
               </h3>
@@ -2782,25 +2782,25 @@ export function NormalUserEventLeadSheet() {
             </div>
 
             {historyLoading ? (
-              <div className="flex h-32 items-center justify-center text-sm font-light" style={{ color: "#d1d5db" }}>
+              <div className="flex h-32 items-center justify-center rounded-[1.35rem] border border-white/16 bg-white/[0.035] text-sm font-light ring-1 ring-white/8" style={{ color: "#d1d5db" }}>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Loading history...
               </div>
             ) : historyError ? (
-              <div className="rounded-[1.15rem] border border-red-400/35 bg-red-500/10 p-4 text-sm font-light text-red-100">
+              <div className="rounded-[1.35rem] border border-red-400/35 bg-red-500/10 p-4 text-sm font-light text-red-100 ring-1 ring-red-300/10">
                 {historyError}
               </div>
             ) : historyItems.length === 0 ? (
-              <div className="rounded-[1.15rem] border border-white/18 bg-white/[0.04] p-6 text-sm font-light" style={{ color: "#d1d5db" }}>
+              <div className="rounded-[1.35rem] border border-white/18 bg-white/[0.045] p-6 text-sm font-light ring-1 ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]" style={{ color: "#d1d5db" }}>
                 No comments have been recorded for this lead yet.
               </div>
             ) : (
-              <div className="overflow-hidden rounded-[1.4rem] border border-white/18 bg-white/[0.03] ring-1 ring-white/8">
-                <div className="flex items-center justify-between border-b border-zinc-700/60 px-5 py-3">
+              <div className="overflow-hidden">
+                <div className="flex items-center justify-between border-b border-white/14 px-1 py-4">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium tracking-tight" style={{ color: "#cbd5e1" }}>Timeline</span>
                   </div>
-                  <span className="text-xs font-light" style={{ color: "#d1d5db" }}>
+                  <span className="rounded-full border border-white/16 bg-white/[0.055] px-3 py-1 text-xs font-light ring-1 ring-white/8" style={{ color: "#d1d5db" }}>
                     {historyItems.length} update{historyItems.length === 1 ? "" : "s"}
                   </span>
                 </div>
@@ -2816,16 +2816,16 @@ export function NormalUserEventLeadSheet() {
                     return (
                       <article
                         key={entry.id}
-                        className="group grid grid-cols-[2.75rem_minmax(0,1fr)] border-b border-zinc-800/70 last:border-b-0"
+                        className="group grid grid-cols-[2.75rem_minmax(0,1fr)] border-b border-white/10 last:border-b-0"
                       >
                         <div className="relative flex justify-center">
-                          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-blue-500/35" />
-                          <span className="relative mt-5 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-blue-400/70 bg-[#0f1623] shadow-[0_0_0_3px_rgba(37,99,235,0.12)]">
+                          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-blue-400/10 via-blue-400/55 to-blue-400/10" />
+                          <span className="relative mt-5 flex h-5 w-5 items-center justify-center rounded-full border border-blue-300/65 bg-blue-500/10 ring-4 ring-blue-500/10 shadow-[0_0_22px_-10px_rgba(59,130,246,0.95)] backdrop-blur-sm">
                             <span className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(entry.workflowStatus)}`} />
                           </span>
                         </div>
 
-                        <div className="min-w-0 py-5 pr-4 transition-colors group-hover:bg-white/[0.03]">
+                        <div className="min-w-0 py-5 pr-4 transition-colors group-hover:bg-white/[0.035]">
                           <div className="flex flex-wrap items-start justify-between gap-3 pr-1">
                             <div className="min-w-0">
                               <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
@@ -2839,7 +2839,7 @@ export function NormalUserEventLeadSheet() {
                             </time>
                           </div>
 
-                          <div className="mt-3 max-w-xl border-l border-zinc-700/70 pl-3">
+                          <div className="mt-3 max-w-xl rounded-2xl bg-white/[0.025] px-4 py-3">
                             <p className="whitespace-pre-wrap text-sm font-light leading-6" style={{ color: "#e5e7eb" }}>
                               {entry.comment || "No comment added."}
                             </p>
