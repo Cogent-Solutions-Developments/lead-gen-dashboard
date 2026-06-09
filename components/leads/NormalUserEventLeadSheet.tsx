@@ -2438,7 +2438,7 @@ export function NormalUserEventLeadSheet() {
               </div>
 
               <div>
-                <div className="flex flex-col gap-3 rounded-full border border-zinc-200 bg-white p-1.5 sm:flex-row">
+                <div className="flex flex-col gap-3 rounded-full border border-white/42 bg-[linear-gradient(180deg,rgba(255,255,255,0.14)_0%,rgba(255,255,255,0.055)_100%)] p-1.5 ring-1 ring-white/18 shadow-[inset_0_1px_0_rgba(255,255,255,0.32),inset_0_-1px_0_rgba(255,255,255,0.06),0_18px_42px_-30px_rgba(0,0,0,0.9),0_0_30px_-24px_rgba(59,130,246,0.55)] backdrop-blur-[30px] sm:flex-row">
                   <button
                     type="button"
                     onClick={() => void generateContentForPlatform(emailDialog.lead, "email")}
@@ -2684,72 +2684,84 @@ export function NormalUserEventLeadSheet() {
       ) : null}
 
       {contactChoiceLead ? (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center p-6">
-          <button
-            type="button"
-            aria-label="Close phone method chooser"
-            className="absolute inset-0 bg-zinc-950/20 backdrop-blur-[2px]"
-            onClick={() => setContactChoiceLead(null)}
-          />
-
-          <div className="relative z-[1] w-full max-w-md overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_90px_-54px_rgba(2,10,27,0.82)]">
-            <div className="border-b border-zinc-100 px-7 py-6">
-              <h3 className="text-3xl font-light leading-none tracking-[-0.04em] text-zinc-950">
-                Choose how to reach them
+        <LeadSheetDialog
+          open
+          title="Contact channel"
+          description=""
+          eyebrow=""
+          onClose={() => setContactChoiceLead(null)}
+          variant="workspace"
+        >
+          <div className="space-y-6">
+            <div className="border-b border-zinc-100 pb-5">
+              <h3 className="text-2xl font-light tracking-tight text-zinc-950">
+                {contactChoiceLead.name || "This lead"}
               </h3>
-              <p className="mt-2 max-w-sm text-sm font-light leading-6 text-zinc-500">
-                Contact {contactChoiceLead.name || "this lead"} through Email, Linkus, or WhatsApp.
-              </p>
-              {contactChoiceLead.phone ? (
-                <p className="mt-4 text-lg font-light tabular-nums text-zinc-950">{contactChoiceLead.phone}</p>
-              ) : null}
-              {contactChoiceLead.email ? (
-                <p className="mt-1 text-sm font-light text-zinc-600">{contactChoiceLead.email}</p>
-              ) : null}
             </div>
 
-            <div className="grid gap-3 bg-zinc-50/70 px-7 py-5 sm:grid-cols-3">
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={!contactChoiceLead.emailHref}
-                onClick={() => {
-                  window.location.href = contactChoiceLead.emailHref;
-                  setContactChoiceLead(null);
-                }}
-                className="h-10 gap-1.5 rounded-none border border-[#ef4444] bg-[#ef4444] px-4 text-sm text-white shadow-none hover:border-[#dc2626] hover:bg-[#dc2626] hover:text-white disabled:opacity-50"
-              >
-                <Mail className="h-3.5 w-3.5" />
-                Email
-              </Button>
-              <Button
-                type="button"
-                disabled={!contactChoiceLead.telHref}
-                onClick={() => {
-                  window.location.href = contactChoiceLead.telHref;
-                  setContactChoiceLead(null);
-                }}
-                className="h-10 gap-1.5 rounded-none bg-[#0098f0] px-4 text-sm text-white hover:bg-[#0086d4] disabled:opacity-50"
-              >
-                <Headset className="h-3.5 w-3.5" />
-                Linkus
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={!contactChoiceLead.whatsappHref}
-                onClick={() => {
-                  window.open(contactChoiceLead.whatsappHref, "_blank", "noopener,noreferrer");
-                  setContactChoiceLead(null);
-                }}
-                className="h-10 gap-1.5 rounded-none border border-[#22c55e] bg-[#22c55e] px-4 text-sm text-white shadow-none hover:border-[#16a34a] hover:bg-[#16a34a] hover:text-white disabled:opacity-50"
-              >
-                <WhatsAppIcon className="h-3.5 w-3.5" />
-                WhatsApp
-              </Button>
+            <div className="space-y-3">
+              {contactChoiceLead.email ? (
+                <div className="grid gap-3 border-b border-zinc-100 px-1 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-medium tracking-normal text-zinc-400">email 1</p>
+                    <p className="mt-1 truncate text-sm font-light text-zinc-700">{contactChoiceLead.email}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    disabled={!contactChoiceLead.emailHref}
+                    onClick={() => {
+                      window.location.href = contactChoiceLead.emailHref;
+                      setContactChoiceLead(null);
+                    }}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-red-500/20 bg-[#EF4444] px-4 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(239,68,68,0.95)] hover:bg-red-600 disabled:border-red-400/20 disabled:bg-red-500/55 disabled:text-white/80 disabled:opacity-100 disabled:shadow-none"
+                  >
+                    <Mail className="h-3.5 w-3.5 stroke-[2.4]" />
+                    Email
+                  </Button>
+                </div>
+              ) : null}
+
+              {contactChoiceLead.phone ? (
+                <div className="grid gap-3 border-b border-zinc-100 px-1 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-medium tracking-normal text-zinc-400">phone 1</p>
+                    <p className="mt-1 truncate text-sm font-light tabular-nums text-zinc-700">{contactChoiceLead.phone}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    disabled={!contactChoiceLead.telHref}
+                    onClick={() => {
+                      window.location.href = contactChoiceLead.telHref;
+                      setContactChoiceLead(null);
+                    }}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-sky-400/20 bg-sky-400 px-4 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(56,189,248,0.95)] hover:bg-sky-600 disabled:border-sky-400/20 disabled:bg-sky-500/55 disabled:text-white/80 disabled:opacity-100 disabled:shadow-none"
+                  >
+                    <Headset className="h-3.5 w-3.5" />
+                    Linkus
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={!contactChoiceLead.whatsappHref}
+                    onClick={() => {
+                      window.open(contactChoiceLead.whatsappHref, "_blank", "noopener,noreferrer");
+                      setContactChoiceLead(null);
+                    }}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-[#22c55e]/30 bg-[#22c55e] px-4 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-16px_rgba(34,197,94,0.85)] hover:bg-[#16a34a] disabled:border-[#22c55e]/20 disabled:bg-[#22c55e]/55 disabled:text-white/80 disabled:opacity-100 disabled:shadow-none"
+                  >
+                    <WhatsAppIcon className="h-3.5 w-3.5" />
+                    WhatsApp
+                  </Button>
+                </div>
+              ) : null}
+
+              {!contactChoiceLead.email && !contactChoiceLead.phone ? (
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-5 text-sm font-light text-zinc-500">
+                  No contact channels are available for this lead.
+                </div>
+              ) : null}
             </div>
           </div>
-        </div>
+        </LeadSheetDialog>
       ) : null}
 
       {historyLead ? (
