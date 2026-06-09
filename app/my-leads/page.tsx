@@ -2246,26 +2246,24 @@ export default function MyLeadsPage() {
                   </div>
                   <Button
                     type="button"
-                    variant="ghost"
                     disabled={!buildTelHref(phone)}
                     onClick={() => {
                       window.location.href = buildTelHref(phone);
                       setContactChoiceLead(null);
                     }}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-950 shadow-none transition-colors hover:border-blue-600 hover:bg-white hover:text-blue-600 disabled:opacity-50"
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-sky-400/20 bg-sky-400 px-4 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(56,189,248,0.95)] hover:bg-sky-600 disabled:border-sky-400/20 disabled:bg-sky-500/55 disabled:text-white/80 disabled:opacity-100 disabled:shadow-none"
                   >
                     <Headset className="h-3.5 w-3.5" />
                     Linkus
                   </Button>
                   <Button
                     type="button"
-                    variant="ghost"
                     disabled={!buildWhatsAppHref(phone)}
                     onClick={() => {
                       window.open(buildWhatsAppHref(phone), "_blank", "noopener,noreferrer");
                       setContactChoiceLead(null);
                     }}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-[#22c55e]/30 bg-[#22c55e] px-4 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-16px_rgba(34,197,94,0.85)] transition-colors hover:bg-[#16a34a] hover:text-white disabled:opacity-50"
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-[#22c55e]/30 bg-[#22c55e] px-4 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-16px_rgba(34,197,94,0.85)] hover:bg-[#16a34a] hover:text-white disabled:border-[#22c55e]/20 disabled:bg-[#22c55e]/55 disabled:text-white/80 disabled:opacity-100 disabled:shadow-none"
                   >
                     <WhatsAppIcon className="h-3.5 w-3.5" />
                     WhatsApp
