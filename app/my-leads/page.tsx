@@ -16,6 +16,7 @@ import {
   Loader2,
   Mail,
   MessageSquare,
+  MoveRight,
   Plus,
   RefreshCcw,
   Search,
@@ -2039,21 +2040,22 @@ export default function MyLeadsPage() {
               </div>
             ) : (
               <>
-                <div className="rounded-2xl border border-zinc-200 bg-white p-1.5">
-                  <div className="grid gap-1.5 sm:grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] sm:items-stretch">
-                    <div className="rounded-xl bg-zinc-50/80 px-4 py-3">
-                      <p className="truncate text-base font-light text-zinc-950">
-                        {pendingStatusChange.item.workflowStatusLabel || humanizeStatusLabel(pendingStatusChange.item.workflowStatus)}
-                      </p>
-                    </div>
-                    <div className="hidden items-center justify-center text-zinc-300 sm:flex">
-                      <ChevronRight className="h-4 w-4" />
-                    </div>
-                    <div className="rounded-xl border border-blue-500/20 bg-blue-600 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)]">
-                      <p className="truncate text-base font-semibold">
-                        {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
-                          humanizeStatusLabel(pendingStatusChange.nextStatus)}
-                      </p>
+                <div className="w-full">
+                  <div className="status-battery-track relative flex h-16 w-full items-center justify-center overflow-hidden rounded-2xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_8px_20px_-10px_rgba(0,0,0,0.5)]">
+                    <div className="status-battery-fill" />
+                    <div className="relative z-10 flex max-w-full select-none items-center justify-center px-4 text-center">
+                      <div className="flex max-w-full items-center gap-2 truncate text-base font-medium tracking-tight sm:gap-3 sm:text-xl">
+                        <span className="max-w-[6.5rem] truncate sm:max-w-none" style={{ color: "#f3f4f6" }}>
+                          {pendingStatusChange.item.workflowStatusLabel || humanizeStatusLabel(pendingStatusChange.item.workflowStatus)}
+                        </span>
+                        <span className="shrink-0 animate-[statusArrowDrift_1.8s_ease-in-out_infinite]">
+                          <MoveRight className="h-[18px] w-[24px]" style={{ color: "#f3f4f6", strokeWidth: 2 }} />
+                        </span>
+                        <span className="max-w-[6.5rem] truncate sm:max-w-none" style={{ color: "#f3f4f6" }}>
+                          {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
+                            humanizeStatusLabel(pendingStatusChange.nextStatus)}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
