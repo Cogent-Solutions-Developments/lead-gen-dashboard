@@ -2620,9 +2620,16 @@ export default function MyLeadsPage() {
             >
               <SelectTrigger
                 aria-label="Select upload event"
-                className="group !h-12 w-full justify-start gap-3 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-left text-lg font-light text-zinc-950 shadow-none transition-colors hover:border-blue-600 hover:text-blue-700 focus:ring-0 focus-visible:ring-0 [&>svg]:h-5 [&>svg]:w-5 [&>svg]:opacity-40"
+                className="group !h-12 w-full justify-start gap-3 rounded-none border-0 border-b border-white/22 !bg-transparent px-0 text-left text-lg font-light text-zinc-950 shadow-none transition-colors hover:!border-blue-500/70 hover:!bg-transparent hover:text-white data-[state=open]:!bg-transparent dark:!bg-transparent dark:hover:!bg-transparent focus:ring-0 focus-visible:ring-0 [&>svg]:hidden"
               >
                 <SelectValue placeholder={loadingRegistryEvents ? "Loading events..." : "Select event"} />
+                <span className="ml-auto flex h-5 w-5 shrink-0 items-center justify-center">
+                  <ChevronDown
+                    className="h-5 w-5 text-white opacity-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] transition-transform group-data-[state=open]:rotate-180"
+                    color="#ffffff"
+                    strokeWidth={3}
+                  />
+                </span>
               </SelectTrigger>
               <SelectContent
                 align="start"
@@ -2674,8 +2681,10 @@ export default function MyLeadsPage() {
                         : "Only .xlsx files are accepted"}
                 </span>
               </span>
-              <span className="inline-flex h-10 w-28 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-semibold text-zinc-700 transition-colors group-hover:border-zinc-400 group-hover:text-zinc-950">
-                Choose
+              <span className="relative isolate inline-flex h-10 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/28 bg-[rgba(8,13,22,0.82)] px-4 ring-1 ring-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.30),inset_0_-1px_0_rgba(255,255,255,0.08),0_12px_24px_-16px_rgba(2,10,27,0.88)] backdrop-blur-[22px] transition group-hover:border-white/45 group-hover:bg-[rgba(14,22,36,0.92)]">
+                <span className="relative z-10 text-sm font-semibold tracking-tight" style={{ color: "#f8fafc", textShadow: "0 1px 2px rgba(0,0,0,0.85)" }}>
+                  Choose
+                </span>
               </span>
               <input
                 id="my-lead-template-upload"
