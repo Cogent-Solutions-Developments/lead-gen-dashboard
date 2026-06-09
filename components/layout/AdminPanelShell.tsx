@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
 import {
   Activity,
   CalendarDays,
@@ -11,11 +10,9 @@ import {
   LayoutDashboard,
   LogOut,
   MessageSquare,
-  Moon,
   ServerCog,
   Settings,
   ShieldCheck,
-  Sun,
   Tags,
   UserRound,
   UsersRound,
@@ -109,8 +106,6 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
-  const { theme, setTheme } = useTheme();
-  const isDark = theme === "dark";
 
   const handleSignOut = async () => {
     try {
@@ -131,11 +126,6 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
   }));
 
   items.push(
-    {
-      title: isDark ? "Light mode" : "Dark mode",
-      icon: isDark ? dockIcon(Sun) : dockIcon(Moon),
-      onClick: () => setTheme(isDark ? "light" : "dark"),
-    },
     {
       title: user?.username || "Workspaces",
       href: "/choose-persona",

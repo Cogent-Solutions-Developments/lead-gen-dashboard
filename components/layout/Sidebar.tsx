@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useTheme } from "next-themes";
 import {
   ChartNoAxesColumn,
   BellRing,
@@ -9,11 +8,9 @@ import {
   Database,
   LayoutDashboard,
   LogOut,
-  Moon,
   Plus,
   Rocket,
   ShieldCheck,
-  Sun,
   Upload,
   UserRound,
 } from "lucide-react";
@@ -51,11 +48,9 @@ export function Sidebar() {
   const searchParams = useSearchParams();
   const { persona } = usePersona();
   const { isSuperAdmin, user } = useAuth();
-  const { theme, setTheme } = useTheme();
   const [ringingBell, setRingingBell] = useState(false);
   const [tableDockOpen, setTableDockOpen] = useState(false);
   const [tableDockArmed, setTableDockArmed] = useState(false);
-  const isDark = theme === "dark";
   const isDenseTableRoute = pathname === "/leads" || pathname === "/my-leads";
   const personaLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
 
@@ -162,12 +157,6 @@ export function Sidebar() {
       disabled: ringingBell,
     });
   }
-
-  items.push({
-    title: isDark ? "Light mode" : "Dark mode",
-    icon: isDark ? dockIcon(Sun) : dockIcon(Moon),
-    onClick: () => setTheme(isDark ? "light" : "dark"),
-  });
 
   if (isSuperAdmin) {
     items.push({

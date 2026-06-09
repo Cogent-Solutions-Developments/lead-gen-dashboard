@@ -10,7 +10,6 @@ import {
   ChevronRight,
   ImagePlus,
   Loader2,
-  Palette,
   Save,
   Trash2,
   X,
@@ -484,7 +483,6 @@ export default function ProfilePage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState("");
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
-  const [themeDialogOpen, setThemeDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
@@ -633,15 +631,6 @@ export default function ProfilePage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setThemeDialogOpen(true)}
-              className="h-12 rounded-full border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-600 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
-            >
-              <Palette className="mr-1 h-4 w-4" />
-              Theme
-            </Button>
             <Button
               type="button"
               onClick={() => void handleSaveProfile()}
@@ -889,54 +878,6 @@ export default function ProfilePage() {
         </div>
       ) : null}
 
-      {themeDialogOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/30 p-4 backdrop-blur-[3px]">
-          <button
-            type="button"
-            aria-label="Close theme selector dialog"
-            className="absolute inset-0 cursor-default"
-            onClick={() => setThemeDialogOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="theme-selector-dialog-title"
-            className="relative w-full max-w-xl overflow-hidden rounded-[2rem] border border-zinc-200 bg-white shadow-[0_28px_80px_-42px_rgba(2,10,27,0.72)]"
-          >
-            <button
-              type="button"
-              aria-label="Close theme selector dialog"
-              onClick={() => setThemeDialogOpen(false)}
-              className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-500 transition-colors hover:border-zinc-900 hover:text-zinc-950"
-            >
-              <X className="h-4 w-4" />
-            </button>
-
-            <div className="px-8 pb-8 pt-8">
-              <h2 id="theme-selector-dialog-title" className="text-4xl font-light tracking-tight text-zinc-950">
-                Theme selector
-              </h2>
-
-              <div className="mt-8 grid gap-3 sm:grid-cols-3">
-                {[0, 1, 2].map((item) => (
-                  <div key={item} className="rounded-2xl border border-zinc-200 bg-white p-3">
-                    <div className="h-20 animate-pulse rounded-xl bg-zinc-100" />
-                    <div className="mt-3 h-2.5 w-2/3 animate-pulse rounded-full bg-zinc-100" />
-                    <div className="mt-2 h-2.5 w-1/2 animate-pulse rounded-full bg-zinc-100" />
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-8 border-y border-zinc-100 py-5">
-                <p className="text-2xl font-light tracking-tight text-zinc-950">Coming soon</p>
-                <p className="mt-2 text-sm font-light leading-6 text-zinc-500">
-                  Theme controls are being prepared for this workspace.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

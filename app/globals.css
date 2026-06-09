@@ -60,83 +60,11 @@
   --radius: 0.75rem;
   --font-google-sans: "Google Sans", "Product Sans", Arial, sans-serif;
   
-  /* --- DECKO THEME: Light Mode --- */
-  --background: oklch(0.98 0.00 0);
-  --foreground: oklch(0.15 0.00 0);
-
-  /* Sidebar: Deep Black Background */
-  --sidebar: oklch(49.892% 0.18937 260.409); 
-  --sidebar-foreground: oklch(0.98 0.00 0);
-  
-  /* Sidebar PRIMARY: Neon Green (For Buttons, Progress Bars, Accents) */
-  --sidebar-primary: oklch(46.669% 0.2902 266.327); 
-  --sidebar-primary-foreground: oklch(0.10 0.00 0);
-
-  /* Sidebar SECONDARY: Pure White (For Active Chips, Logo) */
-  --sidebar-secondary: oklch(100% 0.00011 271.152);
-  --sidebar-secondary-foreground: oklch(0 0 0);
-  
-  /* Sidebar Utils */
-  --sidebar-accent: oklch(0.20 0.00 0);
-  --sidebar-accent-foreground: oklch(0.98 0.00 0);
-  --sidebar-border: oklch(0.20 0.00 0);
-  --sidebar-ring: oklch(0.88 0.20 138);
-
-  /* Shadcn (Zinc Palette) */
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-
-  /* Persona semantic surfaces */
-  --persona-canvas: oklch(0.975 0.004 258);
-  --persona-panel: oklch(0.995 0.002 258);
-  --persona-panel-muted: oklch(0.965 0.006 258);
-  --persona-border-soft: oklch(0.885 0.012 258);
-  --persona-text-strong: oklch(0.205 0.012 258);
-  --persona-text-body: oklch(0.315 0.013 258);
-  --persona-text-muted: oklch(0.48 0.013 258);
-  --persona-text-faint: oklch(0.6 0.012 258);
-  --persona-zinc-50: var(--persona-panel-muted);
-  --persona-zinc-100: oklch(0.94 0.008 258);
-  --persona-zinc-200: oklch(0.9 0.01 258);
-  --persona-zinc-300: var(--persona-border-soft);
-  --persona-zinc-400: var(--persona-text-faint);
-  --persona-zinc-500: var(--persona-text-muted);
-  --persona-zinc-600: var(--persona-text-body);
-  --persona-zinc-700: oklch(0.285 0.013 258);
-  --persona-zinc-800: oklch(0.24 0.013 258);
-  --persona-zinc-900: oklch(0.215 0.013 258);
-  --persona-zinc-950: var(--persona-text-strong);
-  --persona-white: var(--persona-panel);
-  --persona-black: oklch(0.12 0.01 258);
-  --dashboard-hero-glow: oklch(0.72 0.11 221);
-}
-
-.dark {
-  /* --- DECKO THEME: Dark Mode --- */
+  /* --- Supernizo Current Theme --- */
   --background: oklch(0.1194 0.0134 247.61);
   --foreground: oklch(0.96 0.006 255);
 
-  /* Sidebar: Consistent across Light/Dark modes */
+  /* Sidebar */
   --sidebar: oklch(0.10 0.00 0);
   --sidebar-foreground: oklch(0.98 0.00 0);
   
@@ -691,18 +619,10 @@
   }
 
   .dashboard-quote-encrypted {
-    color: oklch(0.46 0.01 258);
-  }
-
-  .dashboard-quote-revealed {
-    color: oklch(0.22 0.01 258);
-  }
-
-  .dark .dashboard-quote-encrypted {
     color: oklch(0.7 0.008 248);
   }
 
-  .dark .dashboard-quote-revealed {
+  .dashboard-quote-revealed {
     color: oklch(0.78 0.006 248);
   }
 
