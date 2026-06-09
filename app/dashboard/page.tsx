@@ -233,6 +233,7 @@ function SalesMarathon({
   subtitle,
   target,
   footnote,
+  period,
 }: {
   runners: SalesMarathonRunner[];
   loading: boolean;
@@ -240,101 +241,161 @@ function SalesMarathon({
   subtitle: string;
   target: number;
   footnote: string;
+  period: DashboardPeriod;
 }) {
-  const loadingBars = [68, 44, 82, 56, 72, 36, 62];
+  const loadingRows = [76, 52, 88, 64, 43];
   const barPalette = [
-    { bg: "bg-[#2977e7]", hex: "2977e7" },
-    { bg: "bg-emerald-500", hex: "10b981" },
-    { bg: "bg-amber-500", hex: "f59e0b" },
-    { bg: "bg-rose-500", hex: "f43f5e" },
-    { bg: "bg-indigo-500", hex: "6366f1" },
-    { bg: "bg-teal-500", hex: "14b8a6" },
-    { bg: "bg-orange-500", hex: "f97316" },
+    { bar: "bg-blue-500", hex: "2977e7" },
+    { bar: "bg-sky-400", hex: "38bdf8" },
+    { bar: "bg-blue-600", hex: "2563eb" },
+    { bar: "bg-cyan-400", hex: "22d3ee" },
+    { bar: "bg-slate-300", hex: "cbd5e1" },
   ];
+  const maxCount = Math.max(target, ...runners.map((runner) => runner.proposalCount), 1);
+  const totalCount = runners.reduce((sum, runner) => sum + runner.proposalCount, 0);
+  const totalTarget = Math.max(target * Math.max(runners.length, 1), target);
+  const totalProgress = Math.min(totalCount / totalTarget, 1);
+  const leader = runners[0];
 
   return (
-    <section className="relative min-h-[35rem] overflow-hidden border border-zinc-200 bg-white px-8 py-8 shadow-sm">
-      <div className="relative flex items-baseline justify-between gap-6 border-b border-zinc-100 pb-6">
-        <div>
-          <h2 className="text-4xl font-extralight tracking-tight text-zinc-950">
-            {title}
-          </h2>
-          <p className="mt-3 text-sm font-light text-zinc-500">
-            {subtitle}
-          </p>
-        </div>
-      </div>
+    <section className="relative overflow-hidden rounded-[2.25rem] border border-white/14 bg-[rgba(7,12,20,0.92)] p-5 ring-1 ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_34px_110px_-64px_rgba(0,0,0,0.95)] backdrop-blur-[30px] sm:p-6 lg:p-7">
+      <div className="pointer-events-none absolute inset-0 bg-[rgba(255,255,255,0.025)]" />
 
-      <div className="relative mt-12 flex h-80 items-end justify-between gap-4">
-        {loading ? (
-          loadingBars.map((height, index) => (
-            <div key={index} className="flex h-full flex-1 animate-pulse flex-col items-center justify-end">
-              <div className="mb-4 h-8 w-7 bg-zinc-100" />
-
-              <div className="relative h-full w-8 overflow-hidden bg-zinc-100">
-                <div
-                  className="absolute bottom-0 w-full bg-zinc-200"
-                  style={{ height: `${height}%` }}
-                />
-                <div className="pointer-events-none absolute inset-0 flex flex-col justify-between">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="h-[1px] w-full bg-white/60" />
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-6 flex flex-col items-center gap-3">
-                <div className="h-6 w-6 bg-zinc-100" />
-                <div className="h-2 w-12 bg-zinc-100" />
-              </div>
-            </div>
-          ))
-        ) : runners.length === 0 ? (
-          <div className="absolute inset-0 flex items-center justify-center text-sm font-light italic text-zinc-400">
-            No active records for the current period.
+      <div className="relative z-[1] flex flex-col gap-6">
+        <div className="flex flex-col gap-5 border-b border-white/10 pb-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[rgba(191,219,254,0.72)]">Performance Command</p>
+            <h2 className="mt-3 text-[clamp(2rem,4vw,4.25rem)] font-light leading-[0.92] tracking-[-0.06em] text-[rgb(248,250,252)]">
+              {title}
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm font-light leading-6 text-[rgba(203,213,225,0.82)]">
+              {subtitle}
+            </p>
           </div>
-        ) : (
-          runners.map((runner, index) => {
-            const progress = target > 0 ? Math.min(runner.proposalCount / target, 1) : 0;
-            const colorItem = barPalette[index % barPalette.length];
-            return (
-              <div key={runner.id} className="group relative flex h-full flex-1 flex-col items-center justify-end">
-                <div className="mb-4 flex flex-col items-center gap-1">
-                  <span className="text-2xl font-extralight text-zinc-950">
-                    {runner.proposalCount}
-                  </span>
-                </div>
 
-                <div className="relative h-full w-8 overflow-hidden bg-zinc-100">
-                  <motion.div
-                    initial={{ height: 0 }}
-                    animate={{ height: `${progress * 100}%` }}
-                    transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
-                    className={`absolute bottom-0 w-full ${colorItem.bg}`}
-                  />
-                  <div className="pointer-events-none absolute inset-0 flex flex-col justify-between">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div key={i} className="h-[1px] w-full bg-white/20" />
-                    ))}
+          <div className="grid min-w-[14rem] grid-cols-2 gap-2">
+            <div className="rounded-[1.25rem] border border-white/12 bg-white/[0.045] px-4 py-3 ring-1 ring-white/8">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[rgba(148,163,184,0.72)]">Target</p>
+              <p className="mt-2 text-2xl font-light tabular-nums text-[rgb(248,250,252)]">{target.toLocaleString()}</p>
+            </div>
+            <div className="rounded-[1.25rem] border border-white/12 bg-white/[0.045] px-4 py-3 ring-1 ring-white/8">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[rgba(148,163,184,0.72)]">Total</p>
+              <p className="mt-2 text-2xl font-light tabular-nums text-[rgb(248,250,252)]">{loading ? "..." : totalCount.toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="space-y-3">
+            {loading ? (
+              loadingRows.map((width, index) => (
+                <div
+                  key={index}
+                  className="relative overflow-hidden rounded-[1.4rem] border border-white/10 bg-white/[0.035] p-4"
+                >
+                  <div className="flex animate-pulse items-center gap-4">
+                    <div className="h-11 w-11 rounded-full bg-white/8" />
+                    <div className="min-w-0 flex-1">
+                      <div className="h-3 w-28 rounded-full bg-white/8" />
+                      <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/8">
+                        <div className="h-full rounded-full bg-white/16" style={{ width: `${width}%` }} />
+                      </div>
+                    </div>
+                    <div className="h-7 w-12 rounded-full bg-white/8" />
                   </div>
                 </div>
+              ))
+            ) : runners.length === 0 ? (
+              <div className="flex min-h-[18rem] items-center justify-center rounded-[1.5rem] border border-dashed border-white/16 bg-white/[0.025] text-sm font-light text-[rgba(148,163,184,0.78)]">
+                No active records for the current period.
+              </div>
+            ) : (
+              runners.map((runner, index) => {
+                const progress = Math.min(runner.proposalCount / maxCount, 1);
+                const colorItem = barPalette[index % barPalette.length];
+                return (
+                  <motion.div
+                    key={runner.id}
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.055, duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                    className="group relative overflow-hidden rounded-[1.45rem] border border-white/10 bg-[rgba(255,255,255,0.038)] p-4 ring-1 ring-white/8 transition-[border-color,background-color,transform] hover:-translate-y-0.5 hover:border-white/18 hover:bg-white/[0.06]"
+                  >
+                    <div className="pointer-events-none absolute inset-y-3 left-0 w-px bg-[rgba(148,163,184,0.38)] opacity-0 transition-opacity group-hover:opacity-100" />
+                    <div className="relative z-[1] flex items-center gap-4">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/20 text-xs font-semibold tabular-nums text-[rgba(203,213,225,0.82)]">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.045] ring-1 ring-white/8">
+                        <PixelAvatar colorHex={colorItem.hex} seed={runner.id} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-4">
+                          <h3 className="truncate text-base font-medium tracking-tight text-[rgb(226,232,240)]">
+                            {runner.name}
+                          </h3>
+                          <span className="text-2xl font-light tabular-nums tracking-tight text-[rgb(248,250,252)]">
+                            {runner.proposalCount.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="mt-3 h-2 overflow-hidden rounded-full border border-white/8 bg-black/30 shadow-[inset_0_1px_3px_rgba(0,0,0,0.75)]">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${progress * 100}%` }}
+                            transition={{ duration: 0.9, delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
+                            className={`h-full rounded-full ${colorItem.bar} shadow-[0_0_18px_-8px_rgba(59,130,246,0.85)]`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })
+            )}
+          </div>
 
-                <div className="mt-6 flex flex-col items-center gap-3">
-                  <PixelAvatar colorHex={colorItem.hex} seed={runner.id} />
-                  <h3 className="max-w-[4.5rem] truncate text-center text-[10px] font-medium tracking-wide text-zinc-950">
-                    {runner.name.split(" ")[0]}
-                  </h3>
+          <aside className="relative overflow-hidden rounded-[1.7rem] border border-white/12 bg-[rgba(3,7,14,0.56)] p-5 ring-1 ring-white/8">
+            <div className="pointer-events-none absolute inset-0 bg-[rgba(255,255,255,0.02)]" />
+            <div className="relative z-[1] flex h-full min-h-[18rem] flex-col justify-between gap-7">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[rgba(148,163,184,0.72)]">Current Leader</p>
+                <div className="mt-5 flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full border border-blue-300/24 bg-blue-500/12 ring-1 ring-blue-300/14">
+                    {leader ? <PixelAvatar colorHex="60a5fa" seed={leader.id} /> : <span className="h-2 w-2 rounded-full bg-[rgba(71,85,105,0.9)]" />}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-xl font-light tracking-tight text-[rgb(248,250,252)]">{leader?.name || "No leader yet"}</p>
+                    <p className="mt-1 text-xs font-light text-[rgba(148,163,184,0.72)]">{periodPhrase(period)}</p>
+                  </div>
                 </div>
               </div>
-            );
-          })
-        )}
-      </div>
 
-      <div className="mt-12 border-t border-zinc-100 pt-6">
-        <p className="text-[10px] leading-relaxed text-zinc-400">
-          {footnote}
-        </p>
+              <div>
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[rgba(148,163,184,0.72)]">Team Pressure</p>
+                    <p className="mt-2 text-4xl font-light tabular-nums tracking-[-0.04em] text-[rgb(248,250,252)]">{Math.round(totalProgress * 100)}%</p>
+                  </div>
+                  <p className="text-right text-xs font-light leading-5 text-[rgba(148,163,184,0.72)]">
+                    against {totalTarget.toLocaleString()} total target
+                  </p>
+                </div>
+                <div className="mt-4 h-2.5 overflow-hidden rounded-full border border-white/10 bg-black/35">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${totalProgress * 100}%` }}
+                    transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+                    className="h-full rounded-full bg-blue-500 shadow-[0_0_18px_-8px_rgba(59,130,246,0.85)]"
+                  />
+                </div>
+              </div>
+
+              <p className="border-t border-white/10 pt-5 text-xs font-light leading-6 text-[rgba(148,163,184,0.72)]">
+                {footnote}
+              </p>
+            </div>
+          </aside>
+        </div>
       </div>
     </section>
   );
@@ -550,24 +611,26 @@ export default function DashboardPage() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 16, scale: 0.99 }}
               transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-              className="relative z-10 h-[min(88dvh,58rem)] w-full max-w-[94rem] overflow-hidden rounded-3xl border border-white/18 bg-[oklch(0.17_0.02_246)] shadow-[0_36px_90px_-32px_rgba(0,0,0,0.9)]"
+              className="relative z-10 h-[min(90dvh,60rem)] w-full max-w-[96rem] overflow-hidden rounded-[2.5rem] border border-white/18 bg-[rgba(5,9,15,0.86)] ring-1 ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_42px_120px_-36px_rgba(0,0,0,0.95)] backdrop-blur-[34px]"
             >
+              <div className="pointer-events-none absolute inset-0 bg-[rgba(255,255,255,0.02)]" />
               <div className="flex h-full min-h-0 flex-col">
-                <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-6 py-4 sm:px-8">
+                <div className="relative z-[1] flex shrink-0 items-center justify-between border-b border-white/10 px-6 py-5 sm:px-8">
                   <div>
-                    <h2 className="text-xl font-medium tracking-[-0.02em] text-zinc-100">Stats</h2>
-                    <p className="mt-1 text-sm text-zinc-400">Daily KPI tracker and your performance summary</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[rgba(191,219,254,0.70)]">Stats cockpit</p>
+                    <h2 className="mt-2 text-3xl font-light tracking-[-0.045em] text-[rgb(248,250,252)]">Performance Intelligence</h2>
+                    <p className="mt-1 text-sm font-light text-[rgba(203,213,225,0.72)]">Daily KPI tracker and pipeline movement summary</p>
                   </div>
                   <button
                     type="button"
                     onClick={closeStatsModal}
-                    className="inline-flex h-10 items-center rounded-full border border-white/14 bg-white/5 px-4 text-sm font-medium text-zinc-200 transition hover:bg-white/10"
+                    className="inline-flex h-10 items-center rounded-full border border-white/18 bg-white/[0.055] px-4 text-sm font-medium text-[rgb(226,232,240)] ring-1 ring-white/8 shadow-[inset_0_1px_0_rgba(255,255,255,0.16)] transition hover:border-white/28 hover:bg-white/[0.09] hover:text-[rgb(248,250,252)]"
                   >
                     Close
                   </button>
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+                <div className="relative z-[1] min-h-0 flex-1 overflow-y-auto px-4 py-5 scrollbar-modern sm:px-6 sm:py-6 lg:px-8">
                   <div className="space-y-8">
                     <SalesMarathon
                       runners={salesRunners}
@@ -576,6 +639,7 @@ export default function DashboardPage() {
                       subtitle={kpiCopy.subtitle}
                       target={kpiCopy.target}
                       footnote={kpiCopy.footnote}
+                      period={period}
                     />
                     <CampaignHeadsUp
                       items={eventHeadsUp}

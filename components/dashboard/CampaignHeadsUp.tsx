@@ -58,7 +58,7 @@ function IsometricCardBackground({ statusKey }: { statusKey: string }) {
 
   return (
     <svg
-      className="pointer-events-none absolute inset-0 h-full w-full text-blue-600"
+      className="pointer-events-none absolute inset-0 h-full w-full text-[rgba(148,163,184,0.24)] opacity-45"
       viewBox="0 0 420 176"
       preserveAspectRatio="none"
       aria-hidden="true"
@@ -67,7 +67,7 @@ function IsometricCardBackground({ statusKey }: { statusKey: string }) {
         {grid}
         {statusKey === "follow-up" ? (
           <>
-            <g stroke="#d5dbe3" strokeOpacity="0.34" strokeWidth="1">
+            <g stroke="currentColor" strokeOpacity="0.24" strokeWidth="1">
               <path d="M276 34h86v54h-86z" />
               <path d="M276 39l43 30 43-30" />
               <path d="M276 88l31-26M362 88l-31-26" />
@@ -85,7 +85,7 @@ function IsometricCardBackground({ statusKey }: { statusKey: string }) {
           </>
         ) : statusKey === "proposal-sent" ? (
           <>
-            <g stroke="#d5dbe3" strokeOpacity="0.34" strokeWidth="1">
+            <g stroke="currentColor" strokeOpacity="0.24" strokeWidth="1">
               <path d="M282 16h70l22 22v90h-92V16z" />
               <path d="M352 16v22h22" />
               <path d="M302 64h52M302 84h42M302 104h50" />
@@ -100,7 +100,7 @@ function IsometricCardBackground({ statusKey }: { statusKey: string }) {
           </>
         ) : (
           <>
-            <g stroke="#d5dbe3" strokeOpacity="0.34" strokeWidth="1">
+            <g stroke="currentColor" strokeOpacity="0.24" strokeWidth="1">
               <path d="M284 52h92v78h-92z" />
               <path d="M304 78l12 12 24-29" />
               <path d="M352 75h12" />
@@ -122,9 +122,9 @@ function IsometricCardBackground({ statusKey }: { statusKey: string }) {
 }
 
 function achievedHeading(period: DashboardPeriod = "daily") {
-  if (period === "monthly") return "Here's what you've achieved this month";
-  if (period === "yearly") return "Here's what you've achieved this year";
-  return "Here's what you've achieved today";
+  if (period === "monthly") return "Monthly pipeline movement";
+  if (period === "yearly") return "Yearly pipeline movement";
+  return "Today's pipeline movement";
 }
 
 export function CampaignHeadsUp({
@@ -135,17 +135,19 @@ export function CampaignHeadsUp({
 }: CampaignHeadsUpProps) {
   if (loading) {
     return (
-      <section className="relative mt-10 flex flex-1 flex-col justify-end">
-        <div className="grid grid-cols-3 gap-4">
+      <section className="relative mt-8">
+        <div className="mb-5 h-7 w-72 animate-pulse rounded-full bg-white/8" />
+        <div className="grid gap-4 md:grid-cols-3">
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className="animate-pulse  border border-zinc-200 bg-white p-6"
+              className="animate-pulse rounded-[1.8rem] border border-white/10 bg-white/[0.035] p-6 ring-1 ring-white/8"
               style={{ minHeight: "11rem" }}
             >
-              <div className="h-3 w-16 rounded bg-zinc-100" />
-              <div className="mt-6 h-10 w-12 rounded bg-zinc-100" />
-              <div className="mt-4 h-2 w-24 rounded bg-zinc-100" />
+              <div className="h-3 w-16 rounded bg-white/8" />
+              <div className="mt-6 h-10 w-16 rounded bg-white/10" />
+              <div className="mt-5 h-2 w-full rounded bg-white/8" />
+              <div className="mt-4 h-2 w-24 rounded bg-white/8" />
             </div>
           ))}
         </div>
@@ -160,12 +162,14 @@ export function CampaignHeadsUp({
     acc[status.statusKey] = items.reduce((sum, item) => sum + (item.statusCounts[status.statusKey] || 0), 0);
     return acc;
   }, {} as Record<string, number>);
+  const maxTotal = Math.max(...statuses.map((status) => totals[status.statusKey] || 0), 1);
 
   return (
-    <section className="relative mt-10 flex flex-1 flex-col justify-end">
+    <section className="relative mt-8">
       <div className="mb-6 flex items-end justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-normal tracking-tight text-zinc-950">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[rgba(191,219,254,0.70)]">Status telemetry</p>
+          <h2 className="mt-2 text-3xl font-light tracking-[-0.04em] text-[rgb(248,250,252)]">
             {achievedHeading(period)}
           </h2>
         </div>
@@ -178,6 +182,7 @@ export function CampaignHeadsUp({
             label: status.label,
             subtitle: "Pipeline status",
           };
+          const progress = Math.min(count / maxTotal, 1);
 
           return (
             <motion.div
@@ -189,37 +194,53 @@ export function CampaignHeadsUp({
                 duration: 0.55,
                 ease: [0.22, 1, 0.36, 1],
               }}
-              className="group relative min-h-44 border border-zinc-200 bg-white p-6 shadow-[0_1px_2px_rgba(60,64,67,0.08),0_1px_3px_1px_rgba(60,64,67,0.06)] transition-all duration-200 hover:border-blue-200 hover:shadow-[0_1px_3px_rgba(60,64,67,0.16),0_4px_8px_3px_rgba(60,64,67,0.08)]"
+              className="group relative min-h-52 overflow-hidden rounded-[1.85rem] border border-white/12 bg-[rgba(7,12,20,0.76)] p-6 ring-1 ring-white/8 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_22px_70px_-50px_rgba(0,0,0,0.9)] transition-[border-color,background-color,transform] hover:-translate-y-1 hover:border-white/20 hover:bg-[rgba(11,18,29,0.82)]"
             >
+              <div className="pointer-events-none absolute inset-0 bg-[rgba(255,255,255,0.02)]" />
               <IsometricCardBackground statusKey={status.statusKey} />
 
-              <motion.p
-                className="relative z-10 text-6xl font-normal tabular-nums tracking-tight text-zinc-950"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{
-                  delay: index * 0.1 + 0.25,
-                  duration: 0.5,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-              >
-                {count.toLocaleString()}
-              </motion.p>
+              <div className="relative z-10 flex min-h-40 flex-col justify-between">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="inline-flex rounded-full border border-white/12 bg-black/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[rgba(203,213,225,0.76)]">
+                      {config.label}
+                    </p>
+                    <motion.p
+                      className="mt-6 text-6xl font-light tabular-nums tracking-[-0.07em] text-[rgb(248,250,252)]"
+                      initial={{ opacity: 0, scale: 0.86 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{
+                        delay: index * 0.1 + 0.2,
+                        duration: 0.5,
+                        ease: [0.22, 1, 0.36, 1],
+                      }}
+                    >
+                      {count.toLocaleString()}
+                    </motion.p>
+                  </div>
+                  <span className="text-xs font-light tabular-nums text-[rgba(148,163,184,0.72)]">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                </div>
 
-              <p className="relative z-10 mt-3">
-                <span className="inline-flex bg-blue-600 px-1.5 py-0.5 text-sm font-medium leading-5 text-white">
-                {config.label}
-                </span>
-              </p>
-              <p className="relative z-10 mt-1 text-xs font-normal leading-5 text-zinc-500">
-                {config.subtitle}
-              </p>
+                <div>
+                  <div className="h-2 overflow-hidden rounded-full border border-white/8 bg-black/30 shadow-[inset_0_1px_3px_rgba(0,0,0,0.75)]">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progress * 100}%` }}
+                      transition={{ delay: index * 0.08 + 0.18, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+                      className="h-full rounded-full bg-blue-500 shadow-[0_0_18px_-8px_rgba(59,130,246,0.85)]"
+                    />
+                  </div>
+                  <p className="mt-4 text-xs font-light leading-5 text-[rgba(203,213,225,0.72)]">
+                    {config.subtitle}
+                  </p>
+                </div>
+              </div>
             </motion.div>
           );
         })}
       </div>
-
-     
     </section>
   );
 }
