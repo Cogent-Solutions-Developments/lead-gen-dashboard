@@ -956,21 +956,28 @@
     transform-origin: left center;
     transform: scaleX(0);
     border-radius: 12px;
-    background: linear-gradient(90deg, 
-      #02040a 0%, 
-      #071126 20%, 
-      #0f1c3f 40%, 
-      #1c3570 60%, 
-      #0c1836 80%, 
-      #02040a 100%
+    background: linear-gradient(90deg,
+      var(--status-battery-start, #02040a) 0%,
+      var(--status-battery-dim, #071126) 20%,
+      var(--status-battery-mid, #0f1c3f) 40%,
+      var(--status-battery-core, #2563eb) 60%,
+      var(--status-battery-end, #0c1836) 80%,
+      var(--status-battery-start, #02040a) 100%
     ); /* Midnight blue spectrum (strictly blue tones) */
     background-size: 200% auto;
     animation: 
       battery-fill 3s cubic-bezier(0.25, 1, 0.5, 1) infinite,
       status-gradient-shift 8s linear infinite;
     box-shadow: 
-      0 0 16px rgba(29, 78, 216, 0.4), /* Royal blue shadow */
+      0 0 16px var(--status-battery-glow-soft, rgba(29, 78, 216, 0.4)), /* Status-colored shadow */
       inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .status-battery-track[data-active="false"] .status-battery-fill {
+    animation: none;
+    opacity: 0.34;
+    transform: scaleX(1);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
   /* Monochromatic Photoshop-style noise overlay for battery fill */
@@ -996,14 +1003,19 @@
     top: 0;
     bottom: 0;
     right: 0;
-    background: #2563eb; /* Royal blue glow core */
+    background: var(--status-battery-core, #2563eb); /* Status glow core */
     border-radius: 0 12px 12px 0;
     box-shadow: 
-      0 0 16px #2563eb, 
-      0 0 32px #1d4ed8,
-      0 0 48px #1e3b8a,
-      0 0 64px #172554;
+      0 0 16px var(--status-battery-core, #2563eb),
+      0 0 32px var(--status-battery-glow-mid, #1d4ed8),
+      0 0 48px var(--status-battery-glow-deep, #1e3b8a),
+      0 0 64px var(--status-battery-end, #172554);
     animation: battery-glow-fade 3s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+  }
+
+  .status-battery-track[data-active="false"] .status-battery-fill::after {
+    animation: none;
+    opacity: 0;
   }
 
   .my-leads-heavy,

@@ -43,6 +43,7 @@ import { persistCampaignUploadSummary } from "@/lib/campaignUploadSummary";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 import { cn } from "@/lib/utils";
+import { getStatusBatteryStyle } from "@/lib/statusBatteryTheme";
 import {
   AlertTriangle,
   BellRing,
@@ -2305,7 +2306,11 @@ export function NormalUserEventLeadSheet() {
             </div>
 
             <div className="w-full">
-              <div className="status-battery-track h-16 w-full rounded-2xl border border-white/10 overflow-hidden relative flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_8px_20px_-10px_rgba(0,0,0,0.5)]">
+              <div
+                className="status-battery-track h-16 w-full rounded-2xl border border-white/10 overflow-hidden relative flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_8px_20px_-10px_rgba(0,0,0,0.5)]"
+                data-active={Boolean(updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`]) || ringingDealBell}
+                style={getStatusBatteryStyle(pendingStatusChange.nextStatus)}
+              >
                 {/* The animated filling progress */}
                 <div className="status-battery-fill" />
                 

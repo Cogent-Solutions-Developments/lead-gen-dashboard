@@ -38,6 +38,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 import { getCachedAuthUserDisplayName, listActiveEventRegistry, personaForRole, type AdminEventItem } from "@/lib/auth";
+import { getStatusBatteryStyle } from "@/lib/statusBatteryTheme";
 import { cn } from "@/lib/utils";
 import {
   addMyEventLead,
@@ -1636,14 +1637,19 @@ export default function MyLeadsPage() {
                                     <button
                                       type="button"
                                       onClick={() => toggleContactDropdown("email")}
-                                      className="inline-flex h-6 w-7 items-center justify-center rounded-lg border border-white/10 bg-zinc-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_10px_18px_-15px_rgba(2,10,27,0.9)] transition-colors hover:bg-zinc-700"
+                                      className="inline-flex h-7 w-9 items-center justify-center rounded-xl border border-white/28 bg-[rgba(15,23,42,0.56)] text-white ring-1 ring-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.30),inset_0_-1px_0_rgba(255,255,255,0.08),0_12px_24px_-16px_rgba(2,10,27,0.88)] backdrop-blur-[22px] transition hover:border-white/45 hover:bg-[rgba(24,34,52,0.68)] hover:text-white"
                                       aria-label="Show all email addresses"
                                       aria-expanded={emailDropdownOpen}
                                     >
-                                      <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", emailDropdownOpen ? "rotate-180" : "")} />
+                                      <ChevronDown
+                                        className={cn("h-4 w-4 opacity-100 transition-transform", emailDropdownOpen ? "rotate-180" : "")}
+                                        color="#ffffff"
+                                        strokeWidth={3}
+                                        style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.85))" }}
+                                      />
                                     </button>
                                     {emailDropdownOpen ? (
-                                      <div className="absolute left-0 top-full z-50 mt-1.5 w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-white/16 bg-[#070b12]/95 shadow-[0_18px_42px_-28px_rgba(0,0,0,0.7)] backdrop-blur-[24px]">
+                                      <div className="absolute left-0 top-full z-50 mt-1.5 w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-white/20 bg-[rgba(7,11,18,0.82)] ring-1 ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_18px_42px_-28px_rgba(0,0,0,0.78)] backdrop-blur-[28px]">
                                         <div className="border-b border-white/10 px-2.5 py-1.5 text-[10px] font-semibold tracking-normal text-zinc-400">
                                           Emails
                                         </div>
@@ -1696,14 +1702,19 @@ export default function MyLeadsPage() {
                                     <button
                                       type="button"
                                       onClick={() => toggleContactDropdown("phone")}
-                                      className="inline-flex h-6 w-7 items-center justify-center rounded-lg border border-white/10 bg-zinc-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_10px_18px_-15px_rgba(2,10,27,0.9)] transition-colors hover:bg-zinc-700"
+                                      className="inline-flex h-7 w-9 items-center justify-center rounded-xl border border-white/28 bg-[rgba(15,23,42,0.56)] text-white ring-1 ring-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.30),inset_0_-1px_0_rgba(255,255,255,0.08),0_12px_24px_-16px_rgba(2,10,27,0.88)] backdrop-blur-[22px] transition hover:border-white/45 hover:bg-[rgba(24,34,52,0.68)] hover:text-white"
                                       aria-label="Show all phone numbers"
                                       aria-expanded={phoneDropdownOpen}
                                     >
-                                      <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", phoneDropdownOpen ? "rotate-180" : "")} />
+                                      <ChevronDown
+                                        className={cn("h-4 w-4 opacity-100 transition-transform", phoneDropdownOpen ? "rotate-180" : "")}
+                                        color="#ffffff"
+                                        strokeWidth={3}
+                                        style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.85))" }}
+                                      />
                                     </button>
                                     {phoneDropdownOpen ? (
-                                      <div className="absolute left-0 top-full z-50 mt-1.5 w-52 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-white/16 bg-[#070b12]/95 shadow-[0_18px_42px_-28px_rgba(0,0,0,0.7)] backdrop-blur-[24px]">
+                                      <div className="absolute left-0 top-full z-50 mt-1.5 w-52 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-white/20 bg-[rgba(7,11,18,0.82)] ring-1 ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_18px_42px_-28px_rgba(0,0,0,0.78)] backdrop-blur-[28px]">
                                         <div className="border-b border-white/10 px-2.5 py-1.5 text-[10px] font-semibold tracking-normal text-zinc-400">
                                           Phones
                                         </div>
@@ -2041,7 +2052,11 @@ export default function MyLeadsPage() {
             ) : (
               <>
                 <div className="w-full">
-                  <div className="status-battery-track relative flex h-16 w-full items-center justify-center overflow-hidden rounded-2xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_8px_20px_-10px_rgba(0,0,0,0.5)]">
+                  <div
+                    className="status-battery-track relative flex h-16 w-full items-center justify-center overflow-hidden rounded-2xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_8px_20px_-10px_rgba(0,0,0,0.5)]"
+                    data-active={Boolean(updatingLeadIds[pendingStatusChange.item.id])}
+                    style={getStatusBatteryStyle(pendingStatusChange.nextStatus)}
+                  >
                     <div className="status-battery-fill" />
                     <div className="relative z-10 flex max-w-full select-none items-center justify-center px-4 text-center">
                       <div className="flex max-w-full items-center gap-2 truncate text-base font-medium tracking-tight sm:gap-3 sm:text-xl">
