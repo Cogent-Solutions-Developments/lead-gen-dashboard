@@ -1415,12 +1415,12 @@ export default function MyLeadsPage() {
             </div>
 
             <div className="ml-auto flex min-w-max flex-nowrap items-center justify-end gap-8">
-              <div className="inline-flex h-12 shrink-0 items-center gap-1.5 rounded-full border border-white/18 bg-transparent p-1.5" aria-label="My leads actions">
+              <div className="inline-flex h-11 min-w-0 flex-1 items-center rounded-full border border-white/85 bg-white/68 p-1 ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_0_rgba(255,255,255,0.38),0_12px_28px_-18px_rgba(2,10,27,0.58),0_4px_12px_-8px_rgba(2,10,27,0.42)] backdrop-blur-[30px] lg:w-[22rem] lg:flex-none" aria-label="My leads actions">
                 <button
                   type="button"
                   onClick={openTemplateUploadDialog}
                   disabled={loadingRegistryEvents || !hasActiveRegistryEvents}
-                  className="inline-flex h-9 w-40 items-center justify-center gap-2.5 rounded-full text-sm font-semibold text-zinc-400 transition-colors hover:bg-[rgba(255,255,255,0.04)] hover:text-zinc-100 disabled:opacity-50"
+                  className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-full px-3 text-sm font-semibold text-zinc-700 transition hover:bg-white/55 hover:text-zinc-950 disabled:opacity-45"
                 >
                   <FileUp className="h-4 w-4" />
                   Upload leads
@@ -1430,7 +1430,7 @@ export default function MyLeadsPage() {
                   type="button"
                   onClick={() => setAddLeadOpen(true)}
                   disabled={!selectedEvent}
-                  className="inline-flex h-9 w-40 items-center justify-center gap-2.5 rounded-full border border-blue-500/20 bg-blue-600 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:opacity-50"
+                  className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-full bg-blue-600 px-3 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_0_26px_-12px_rgba(59,130,246,0.9)] transition hover:bg-blue-500 disabled:opacity-50"
                 >
                   <Plus className="h-4 w-4" />
                   Add a lead
