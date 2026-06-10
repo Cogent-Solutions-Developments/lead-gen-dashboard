@@ -611,43 +611,33 @@ export default function DashboardPage() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 16, scale: 0.99 }}
               transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-              className="relative z-10 h-[min(90dvh,60rem)] w-full max-w-[96rem] overflow-hidden rounded-[2.5rem] border border-white/18 bg-[rgba(5,9,15,0.86)] ring-1 ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_42px_120px_-36px_rgba(0,0,0,0.95)] backdrop-blur-[34px]"
+              className="relative z-10 h-[min(90dvh,60rem)] w-full max-w-[96rem] overflow-visible"
             >
-              <div className="pointer-events-none absolute inset-0 bg-[rgba(255,255,255,0.02)]" />
-              <div className="flex h-full min-h-0 flex-col">
-                <div className="relative z-[1] flex shrink-0 items-center justify-between border-b border-white/10 px-6 py-5 sm:px-8">
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[rgba(191,219,254,0.70)]">Stats cockpit</p>
-                    <h2 className="mt-2 text-3xl font-light tracking-[-0.045em] text-[rgb(248,250,252)]">Performance Intelligence</h2>
-                    <p className="mt-1 text-sm font-light text-[rgba(203,213,225,0.72)]">Daily KPI tracker and pipeline movement summary</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={closeStatsModal}
-                    className="inline-flex h-10 items-center rounded-full border border-white/18 bg-white/[0.055] px-4 text-sm font-medium text-[rgb(226,232,240)] ring-1 ring-white/8 shadow-[inset_0_1px_0_rgba(255,255,255,0.16)] transition hover:border-white/28 hover:bg-white/[0.09] hover:text-[rgb(248,250,252)]"
-                  >
-                    Close
-                  </button>
-                </div>
+              <button
+                type="button"
+                onClick={closeStatsModal}
+                className="absolute -top-12 right-0 z-20 inline-flex h-10 items-center rounded-full border border-white/18 bg-white/[0.055] px-4 text-sm font-medium text-[rgb(226,232,240)] ring-1 ring-white/8 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_16px_34px_-24px_rgba(0,0,0,0.95)] backdrop-blur-[26px] transition hover:border-white/28 hover:bg-white/[0.09] hover:text-[rgb(248,250,252)]"
+              >
+                Close
+              </button>
 
-                <div className="relative z-[1] min-h-0 flex-1 overflow-y-auto px-4 py-5 scrollbar-modern sm:px-6 sm:py-6 lg:px-8">
-                  <div className="space-y-8">
-                    <SalesMarathon
-                      runners={salesRunners}
-                      loading={loadingSalesMarathon}
-                      title={kpiCopy.title}
-                      subtitle={kpiCopy.subtitle}
-                      target={kpiCopy.target}
-                      footnote={kpiCopy.footnote}
-                      period={period}
-                    />
-                    <CampaignHeadsUp
-                      items={eventHeadsUp}
-                      statuses={workflowStatuses}
-                      loading={loadingEventHeadsUp}
-                      period={period}
-                    />
-                  </div>
+              <div className="h-full min-h-0 overflow-y-auto scrollbar-modern">
+                <div className="space-y-8">
+                  <SalesMarathon
+                    runners={salesRunners}
+                    loading={loadingSalesMarathon}
+                    title={kpiCopy.title}
+                    subtitle={kpiCopy.subtitle}
+                    target={kpiCopy.target}
+                    footnote={kpiCopy.footnote}
+                    period={period}
+                  />
+                  <CampaignHeadsUp
+                    items={eventHeadsUp}
+                    statuses={workflowStatuses}
+                    loading={loadingEventHeadsUp}
+                    period={period}
+                  />
                 </div>
               </div>
             </motion.div>
