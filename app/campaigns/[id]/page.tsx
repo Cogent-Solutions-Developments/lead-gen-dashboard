@@ -165,6 +165,7 @@ type LeadExportRow = {
   campaignTitle: string;
   name: string;
   title: string;
+  company: string;
   email: string;
   phone: string;
   linkedinUrl: string;
@@ -183,6 +184,7 @@ const EXPORT_HEADERS: Array<keyof LeadExportRow> = [
   "campaignTitle",
   "name",
   "title",
+  "company",
   "email",
   "phone",
   "linkedinUrl",
@@ -192,6 +194,7 @@ const EXPORT_HEADER_LABELS: Record<keyof LeadExportRow, string> = {
   campaignTitle: "Campaign Title",
   name: "Name",
   title: "Title",
+  company: "Company",
   email: "Email",
   phone: "Phone",
   linkedinUrl: "LinkedIn URL",
@@ -1087,6 +1090,7 @@ function SuperAdminCampaignDetailPage() {
           campaignTitle: campaign?.name || "",
           name: lead.employeeName || "",
           title: lead.title || "",
+          company: lead.company || "",
           email: lead.email || "",
           phone: lead.phone || "",
           linkedinUrl: lead.linkedinUrl || "",
