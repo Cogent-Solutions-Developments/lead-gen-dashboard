@@ -14,11 +14,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   fetchAdminUserPerformance,
+  fetchManagerUserPerformance,
+  isManagerRole,
   type AdminUserPerformanceCluster,
   type AdminUserPerformancePeriod,
   type AdminUserPerformanceResponse,
   type AdminUserPerformanceRunner,
 } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 
 const PERIOD_OPTIONS: Array<{ value: AdminUserPerformancePeriod; label: string }> = [
   { value: "daily", label: "Daily" },
@@ -108,15 +111,19 @@ function StatBlock({ label, value, note }: { label: string; value: string; note:
 }
 
 export default function AdminUserPerformancePage() {
+  const { user } = useAuth();
   const [period, setPeriod] = useState<AdminUserPerformancePeriod>("daily");
   const [date, setDate] = useState(todayValue);
   const [data, setData] = useState<AdminUserPerformanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const isManagerView = isManagerRole(user?.role);
 
   const loadPerformance = useCallback(async () => {
     setLoading(true);
     try {
-      const next = await fetchAdminUserPerformance({ period, date });
+      const next = isManagerView
+        ? await fetchManagerUserPerformance({ period, date, limit: 300 })
+        : await fetchAdminUserPerformance({ period, date });
       setData(next);
     } catch (error) {
       toast.error("User performance failed to load", { description: getErrorMessage(error) });
@@ -124,7 +131,7 @@ export default function AdminUserPerformancePage() {
     } finally {
       setLoading(false);
     }
-  }, [date, period]);
+  }, [date, isManagerView, period]);
 
   useEffect(() => {
     void loadPerformance();
@@ -132,6 +139,7 @@ export default function AdminUserPerformancePage() {
 
   const clusters = useMemo(() => data?.clusters || [], [data?.clusters]);
   const summary = data?.summary;
+  const activities = data?.activities || [];
   const maxClusterTotal = Math.max(1, ...clusters.map((cluster) => Number(cluster.total || 0)));
 
   const leaderboard = useMemo<LeaderboardRow[]>(() => {
@@ -159,10 +167,12 @@ export default function AdminUserPerformancePage() {
         className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between"
       >
         <div>
-          <p className="text-lg font-normal text-zinc-900">Admin Control</p>
+          <p className="text-lg font-normal text-zinc-900">{isManagerView ? "Manager Control" : "Admin Control"}</p>
           <h1 className="mt-0 text-2xl font-semibold tracking-tight text-zinc-900">User Performance</h1>
           <p className="mt-1 max-w-3xl text-sm text-zinc-500">
-            Super-admin KPI view for sales, delegate, and production pipelines.
+            {isManagerView
+              ? "Department KPI view with the lead-level activity behind each count."
+              : "Super-admin KPI view for sales, delegate, and production pipelines."}
           </p>
         </div>
 
@@ -314,7 +324,9 @@ export default function AdminUserPerformancePage() {
           <div className="flex items-center justify-between gap-4 border-b border-zinc-100 pb-4">
             <div>
               <h2 className="text-lg font-semibold tracking-tight text-zinc-950">Leaderboard</h2>
-              <p className="mt-1 text-sm font-light text-zinc-500">Top KPI contributors across all pipelines.</p>
+              <p className="mt-1 text-sm font-light text-zinc-500">
+                {isManagerView ? "Top KPI contributors in your department." : "Top KPI contributors across all pipelines."}
+              </p>
             </div>
             <UsersRound className="h-5 w-5 text-zinc-400" />
           </div>
@@ -351,6 +363,59 @@ export default function AdminUserPerformancePage() {
             )}
           </div>
         </section>
+
+        {isManagerView ? (
+          <section className="border border-zinc-200 bg-white/90 p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-4 border-b border-zinc-100 pb-4">
+              <div>
+                <h2 className="text-lg font-semibold tracking-tight text-zinc-950">Activity Details</h2>
+                <p className="mt-1 text-sm font-light text-zinc-500">
+                  {formatNumber(data?.activityTotal || activities.length)} matching actions in this window.
+                </p>
+              </div>
+              <Activity className="h-5 w-5 text-zinc-400" />
+            </div>
+
+            <div className="mt-4 max-h-[28rem] space-y-3 overflow-y-auto pr-1">
+              {activities.length ? (
+                activities.map((activity, index) => {
+                  const lead = activity.lead || {};
+                  const actor = activity.user || {};
+                  const event = activity.event || {};
+                  return (
+                    <div key={activity.id || `${activity.updatedAt || "activity"}-${index}`} className="border-b border-zinc-100 pb-3 last:border-b-0">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-zinc-950">
+                            {lead.name || lead.email || lead.phone || lead.linkedinUrl || "Lead details unavailable"}
+                          </p>
+                          <p className="mt-1 truncate text-xs font-light text-zinc-500">
+                            {[lead.designation, lead.company, lead.email, lead.phone].filter(Boolean).join(" | ") ||
+                              "Contact details unavailable"}
+                          </p>
+                        </div>
+                        <span className="shrink-0 rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-semibold text-zinc-600">
+                          {activity.workflowStatusLabel || activity.workflowStatus || "Updated"}
+                        </span>
+                      </div>
+                      <div className="mt-2 grid gap-2 text-xs font-light text-zinc-500 sm:grid-cols-2">
+                        <span className="truncate">By {actor.name || "Unknown user"}</span>
+                        <span className="truncate sm:text-right">{formatDateTime(activity.updatedAt)}</span>
+                        <span className="truncate sm:col-span-2">
+                          {event.canonicalEventName || event.canonicalEventKey || "No event name"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="py-10 text-center text-sm font-light text-zinc-500">
+                  No detailed activity for this window.
+                </div>
+              )}
+            </div>
+          </section>
+        ) : null}
 
         <section className="border border-zinc-200 bg-white/90 p-5 shadow-sm">
           <div className="flex items-center justify-between gap-4 border-b border-zinc-100 pb-4">

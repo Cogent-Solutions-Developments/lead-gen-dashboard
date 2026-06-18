@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   CalendarDays,
+  Globe2,
   ImagePlus,
   Loader2,
   PencilLine,
@@ -32,6 +33,7 @@ import {
 import {
   clearProtectedObjectUrlCache,
   createAdminEvent,
+  deleteAdminEvent,
   deleteAdminEventLogo,
   listAdminEvents,
   updateAdminEvent,
@@ -88,6 +90,7 @@ function EventLogoThumbnail({ event }: { event: AdminEventItem }) {
 }
 
 type EventStatusValue = "active" | "inactive";
+type EventTypeValue = "conference" | "boardroom";
 
 function sortEvents(rows: AdminEventItem[]) {
   return [...rows].sort((a, b) => a.eventName.localeCompare(b.eventName));
@@ -100,6 +103,10 @@ function eventStatusValue(isActive: boolean): EventStatusValue {
 type TableStatusTarget = {
   event: AdminEventItem;
   nextStatus: EventStatusValue;
+};
+
+type EventDeleteTarget = {
+  event: AdminEventItem;
 };
 
 function AdminEventDialog({
@@ -248,6 +255,84 @@ function StateChangeConfirmDialog({
   );
 }
 
+function DeleteEventConfirmDialog({
+  open,
+  eventName,
+  isBusy,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  eventName: string;
+  isBusy: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label="Close delete confirmation"
+        className="absolute inset-0 bg-zinc-950/35 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
+
+      <div className="relative z-[1] w-full max-w-md overflow-hidden rounded-2xl border border-zinc-300/85 bg-white/96 shadow-[0_0_0_1px_rgba(255,255,255,0.9),0_24px_40px_-24px_rgba(2,10,27,0.6),0_12px_22px_-16px_rgba(15,23,42,0.34)] backdrop-blur-[10px]">
+        <div className="relative space-y-5 p-6">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700">
+              <Trash2 className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                Delete Event
+              </p>
+              <h2 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900">
+                Delete {eventName}?
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                This removes the event registry record. Events linked to campaigns or agenda files must be cleaned up first.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={isBusy}
+              onClick={onClose}
+              className="h-9 rounded-md border border-zinc-300/80 bg-white/90 px-3 text-xs font-semibold text-zinc-700 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:opacity-60"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={isBusy}
+              onClick={onConfirm}
+              className="h-9 rounded-md bg-red-600 px-3.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-70"
+            >
+              {isBusy ? (
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                  Delete Event
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminEventsPage() {
   const logoInputRef = useRef<HTMLInputElement | null>(null);
   const [events, setEvents] = useState<AdminEventItem[]>([]);
@@ -255,15 +340,21 @@ export default function AdminEventsPage() {
   const [saving, setSaving] = useState(false);
   const [eventName, setEventName] = useState("");
   const [location, setLocation] = useState("");
+  const [eventType, setEventType] = useState<EventTypeValue>("conference");
+  const [websiteUrl, setWebsiteUrl] = useState("");
   const [date, setDate] = useState("");
   const [editingEvent, setEditingEvent] = useState<AdminEventItem | null>(null);
   const [editEventName, setEditEventName] = useState("");
   const [editLocation, setEditLocation] = useState("");
+  const [editEventType, setEditEventType] = useState<EventTypeValue>("conference");
+  const [editWebsiteUrl, setEditWebsiteUrl] = useState("");
   const [editDate, setEditDate] = useState("");
   const [editStatus, setEditStatus] = useState<EventStatusValue>("inactive");
   const [editSaving, setEditSaving] = useState(false);
   const [tableStatusTarget, setTableStatusTarget] = useState<TableStatusTarget | null>(null);
   const [tableStatusSavingId, setTableStatusSavingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<EventDeleteTarget | null>(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
   const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
   const [logoPreviewUrl, setLogoPreviewUrl] = useState("");
   const [logoBusy, setLogoBusy] = useState(false);
@@ -272,7 +363,7 @@ export default function AdminEventsPage() {
     () => slugifyEventKey(eventName, location, date),
     [eventName, location, date]
   );
-  const isBusy = saving || editSaving || logoBusy || Boolean(tableStatusSavingId);
+  const isBusy = saving || editSaving || logoBusy || deleteSaving || Boolean(tableStatusSavingId);
 
   const loadEvents = async () => {
     setLoading(true);
@@ -302,6 +393,8 @@ export default function AdminEventsPage() {
   const resetForm = () => {
     setEventName("");
     setLocation("");
+    setEventType("conference");
+    setWebsiteUrl("");
     setDate("");
   };
 
@@ -314,6 +407,8 @@ export default function AdminEventsPage() {
     setEditingEvent(item);
     setEditEventName(item.eventName);
     setEditLocation(item.location ?? "");
+    setEditEventType((item.eventType === "boardroom" ? "boardroom" : "conference") as EventTypeValue);
+    setEditWebsiteUrl(item.websiteUrl ?? "");
     setEditDate(item.date ?? "");
     setEditStatus(eventStatusValue(item.isActive));
     setSelectedLogoFile(null);
@@ -325,9 +420,11 @@ export default function AdminEventsPage() {
     return (
       editEventName.trim() !== editingEvent.eventName ||
       editLocation.trim() !== (editingEvent.location ?? "") ||
+      editEventType !== (editingEvent.eventType || "conference") ||
+      editWebsiteUrl.trim() !== (editingEvent.websiteUrl ?? "") ||
       editDate.trim() !== (editingEvent.date ?? "")
     );
-  }, [editDate, editEventName, editLocation, editingEvent]);
+  }, [editDate, editEventName, editEventType, editLocation, editWebsiteUrl, editingEvent]);
 
   const hasStatusChange = useMemo(() => {
     if (!editingEvent) return false;
@@ -339,6 +436,7 @@ export default function AdminEventsPage() {
 
     const nextEventName = editEventName.trim();
     const nextLocation = editLocation.trim();
+    const nextWebsiteUrl = editWebsiteUrl.trim();
     const nextDate = editDate.trim();
 
     if (!nextEventName) {
@@ -350,6 +448,8 @@ export default function AdminEventsPage() {
 
     if (nextEventName !== editingEvent.eventName) payload.eventName = nextEventName;
     if (nextLocation !== (editingEvent.location ?? "")) payload.location = nextLocation;
+    if (editEventType !== (editingEvent.eventType || "conference")) payload.eventType = editEventType;
+    if (nextWebsiteUrl !== (editingEvent.websiteUrl ?? "")) payload.websiteUrl = nextWebsiteUrl;
     if (nextDate !== (editingEvent.date ?? "")) payload.date = nextDate;
     if ((editStatus === "active") !== editingEvent.isActive) payload.isActive = editStatus === "active";
     if (hasDetailChanges) payload.syncLinkedCampaigns = true;
@@ -423,6 +523,25 @@ export default function AdminEventsPage() {
     }
   };
 
+  const confirmDeleteEvent = async () => {
+    if (!deleteTarget) return;
+    setDeleteSaving(true);
+    try {
+      const response = await deleteAdminEvent(deleteTarget.event.id);
+      setEvents((prev) => prev.filter((item) => item.id !== response.event.id));
+      toast.success("Event deleted", {
+        description: response.event.eventName,
+      });
+      setDeleteTarget(null);
+    } catch (error: unknown) {
+      toast.error("Failed to delete event", {
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setDeleteSaving(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!eventName.trim()) {
       toast.error("Event name is required");
@@ -447,6 +566,8 @@ export default function AdminEventsPage() {
         eventName: eventName.trim(),
         eventKey: generatedEventKey,
         location: location.trim(),
+        eventType,
+        websiteUrl: websiteUrl.trim(),
         date,
         isActive: false,
       });
@@ -612,13 +733,13 @@ export default function AdminEventsPage() {
             </div>
 
             <div className="min-w-0">
-              <div className="hidden border-b border-zinc-100 bg-zinc-50/70 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400 lg:grid lg:grid-cols-[minmax(0,2.2fr)_minmax(8rem,1fr)_7rem_8rem_minmax(8rem,1fr)_5rem] lg:gap-4">
+              <div className="hidden border-b border-zinc-100 bg-zinc-50/70 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400 lg:grid lg:grid-cols-[minmax(0,2.2fr)_minmax(8rem,1fr)_7rem_8rem_minmax(8rem,1fr)_9rem] lg:gap-4">
                 <div>Event</div>
                 <div>Location</div>
                 <div>Date</div>
                 <div>Status</div>
                 <div>Key</div>
-                <div className="text-right">Action</div>
+                <div className="text-right">Actions</div>
               </div>
 
               <div className="divide-y divide-zinc-100">
@@ -630,7 +751,7 @@ export default function AdminEventsPage() {
                   events.map((item) => (
                     <div
                       key={item.id}
-                      className="grid min-w-0 gap-4 px-5 py-4 transition-colors hover:bg-zinc-50/80 lg:grid-cols-[minmax(0,2.2fr)_minmax(8rem,1fr)_7rem_8rem_minmax(8rem,1fr)_5rem] lg:items-center"
+                      className="grid min-w-0 gap-4 px-5 py-4 transition-colors hover:bg-zinc-50/80 lg:grid-cols-[minmax(0,2.2fr)_minmax(8rem,1fr)_7rem_8rem_minmax(8rem,1fr)_9rem] lg:items-center"
                     >
                       <div className="min-w-0">
                         <div className="flex min-w-0 items-center gap-3">
@@ -639,7 +760,9 @@ export default function AdminEventsPage() {
                             <span className="block truncate font-semibold text-zinc-900" title={item.eventName}>
                               {item.eventName}
                             </span>
-                            <span className="block truncate text-xs text-zinc-500">{item.id}</span>
+                            <span className="block truncate text-xs text-zinc-500">
+                              {(item.eventType || "conference") === "boardroom" ? "Boardroom" : "Conference"} · {item.id}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -694,16 +817,26 @@ export default function AdminEventsPage() {
                         </span>
                       </div>
 
-                      <div className="flex justify-start lg:justify-end">
+                      <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
                         <Button
                           type="button"
                           variant="outline"
                           onClick={() => openEditDialog(item)}
                           disabled={isBusy}
-                          className="h-9 w-full border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 sm:w-auto lg:h-8"
+                          className="h-9 border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 lg:h-8"
                         >
                           <PencilLine className="mr-1.5 h-3.5 w-3.5" />
                           Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setDeleteTarget({ event: item })}
+                          disabled={isBusy}
+                          className="h-9 border-red-200 bg-white px-3 text-xs font-semibold text-red-600 hover:bg-red-50 lg:h-8"
+                        >
+                          <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                          Delete
                         </Button>
                       </div>
                     </div>
@@ -746,6 +879,32 @@ export default function AdminEventsPage() {
                 placeholder="Kuala Lumpur, Malaysia"
                 className="h-10 border-zinc-300 bg-white"
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Event Type</label>
+              <Select value={eventType} onValueChange={(value) => setEventType(value as EventTypeValue)}>
+                <SelectTrigger className="h-10 border-zinc-300 bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="border-zinc-300 bg-white">
+                  <SelectItem value="conference">Conference</SelectItem>
+                  <SelectItem value="boardroom">Boardroom</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Website Link</label>
+              <div className="relative">
+                <Globe2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                <Input
+                  value={websiteUrl}
+                  onChange={(event) => setWebsiteUrl(event.target.value)}
+                  placeholder="https://example.com/event"
+                  className="h-10 border-zinc-300 bg-white pl-9"
+                />
+              </div>
             </div>
 
             <div className="space-y-1.5">
@@ -830,6 +989,32 @@ export default function AdminEventsPage() {
                 onChange={(event) => setEditDate(event.target.value)}
                 className="h-10 border-zinc-300 bg-white"
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Event Type</label>
+              <Select value={editEventType} onValueChange={(value) => setEditEventType(value as EventTypeValue)}>
+                <SelectTrigger className="h-10 border-zinc-300 bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="border-zinc-300 bg-white">
+                  <SelectItem value="conference">Conference</SelectItem>
+                  <SelectItem value="boardroom">Boardroom</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5 sm:col-span-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Website Link</label>
+              <div className="relative">
+                <Globe2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                <Input
+                  value={editWebsiteUrl}
+                  onChange={(event) => setEditWebsiteUrl(event.target.value)}
+                  placeholder="https://example.com/event"
+                  className="h-10 border-zinc-300 bg-white pl-9"
+                />
+              </div>
             </div>
 
           </div>
@@ -962,6 +1147,16 @@ export default function AdminEventsPage() {
           if (!tableStatusSavingId) setTableStatusTarget(null);
         }}
         onConfirm={() => void confirmTableStatusChange()}
+      />
+
+      <DeleteEventConfirmDialog
+        open={Boolean(deleteTarget)}
+        eventName={deleteTarget?.event.eventName || "this event"}
+        isBusy={deleteSaving}
+        onClose={() => {
+          if (!deleteSaving) setDeleteTarget(null);
+        }}
+        onConfirm={() => void confirmDeleteEvent()}
       />
     </div>
   );

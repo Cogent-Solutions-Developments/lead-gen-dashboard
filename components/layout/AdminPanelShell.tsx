@@ -9,6 +9,7 @@ import {
   BrainCircuit,
   FileText,
   HardDrive,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   MessageSquare,
@@ -21,7 +22,7 @@ import {
   Webhook,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { clearAuthSession } from "@/lib/auth";
+import { clearAuthSession, isManagerRole } from "@/lib/auth";
 import { clearPersona } from "@/lib/persona";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -38,6 +39,12 @@ const adminTabs = [
     href: "/admin/users",
     icon: ShieldCheck,
     match: (pathname: string) => pathname === "/admin/users",
+  },
+  {
+    name: "Client Access",
+    href: "/admin/client-access",
+    icon: KeyRound,
+    match: (pathname: string) => pathname === "/admin/client-access",
   },
   {
     name: "User Performance",
@@ -105,6 +112,10 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
+  const isManager = isManagerRole(user?.role);
+  const visibleTabs = isManager
+    ? adminTabs.filter((item) => item.href === "/admin/user-performance")
+    : adminTabs;
 
   const handleSignOut = async () => {
     try {
@@ -131,12 +142,12 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
           </div>
           <div>
             <p className="text-xl font-medium tracking-wide text-sidebar-foreground drop-shadow-sm">supernizo</p>
-            <p className="text-xs text-sidebar-foreground/70">Admin Panel</p>
+            <p className="text-xs text-sidebar-foreground/70">{isManager ? "Manager Panel" : "Admin Panel"}</p>
           </div>
         </div>
 
         <nav className="flex-1 space-y-2 overflow-y-auto pr-1">
-          {adminTabs.map((item, index) => {
+          {visibleTabs.map((item, index) => {
             const isActive = item.match(pathname);
             return (
               <motion.div
@@ -192,7 +203,7 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
             </div>
             <div className="min-w-0">
               <p className="truncate text-lg font-medium tracking-wide text-sidebar-foreground">supernizo</p>
-              <p className="text-xs text-sidebar-foreground/70">Admin Panel</p>
+              <p className="text-xs text-sidebar-foreground/70">{isManager ? "Manager Panel" : "Admin Panel"}</p>
             </div>
           </div>
 
@@ -207,7 +218,7 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="mt-3 flex gap-2 overflow-x-auto pb-1">
-          {adminTabs.map((item) => {
+          {visibleTabs.map((item) => {
             const isActive = item.match(pathname);
             return (
               <Link key={item.name} href={item.href} className="shrink-0">

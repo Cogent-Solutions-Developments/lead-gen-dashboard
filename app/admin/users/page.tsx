@@ -67,8 +67,9 @@ function formatDateTime(value?: string | null) {
 
 function roleBadgeClass(role: AuthRole) {
   if (role === "super_admin_user") return "border-blue-200 bg-blue-50 text-blue-700";
-  if (role === "delegate_user") return "border-violet-200 bg-violet-50 text-violet-700";
-  if (role === "production_user") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (role === "delegate_user" || role === "delegate_manager_user") return "border-violet-200 bg-violet-50 text-violet-700";
+  if (role === "production_user" || role === "production_manager_user") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (role === "client_user") return "border-amber-200 bg-amber-50 text-amber-700";
   return "border-sky-200 bg-sky-50 text-sky-700";
 }
 
@@ -242,6 +243,17 @@ export default function AdminUsersPage() {
             >
               <CalendarDays className="mr-2 h-4 w-4" />
               Events
+            </Button>
+          </Link>
+
+          <Link href="/admin/client-access">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 border-zinc-300 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
+            >
+              <KeyRound className="mr-2 h-4 w-4" />
+              Client Access
             </Button>
           </Link>
 
@@ -469,7 +481,7 @@ export default function AdminUsersPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="border-zinc-300 bg-white">
-                  {AUTH_ROLES.map((role) => (
+                  {AUTH_ROLES.filter((role) => role !== "client_user" || form.role === "client_user").map((role) => (
                     <SelectItem key={role} value={role}>
                       {getRoleLabel(role)}
                     </SelectItem>
