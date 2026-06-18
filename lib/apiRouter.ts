@@ -336,30 +336,6 @@ export async function listMyLeadsAllLeads(persona?: Persona) {
   return data;
 }
 
-export async function searchMyLeads(params?: sales.GlobalLeadSearchParams, persona?: Persona) {
-  const { data } = await apiClient.get<sales.GlobalLeadSearchResponse>(
-    `${getMyLeadsPrefix(persona)}/leads/search`,
-    {
-      params: {
-        limit: params?.limit,
-        offset: params?.offset,
-        search: params?.search,
-        approvalStatus: params?.approvalStatus,
-        workflowStatus: params?.workflowStatus,
-        canonicalEventKey: params?.canonicalEventKey,
-        campaignId: params?.campaignId,
-        hasEmail: params?.hasEmail,
-        hasPhone: params?.hasPhone,
-        hasLinkedin: params?.hasLinkedin,
-        hasWebsite: params?.hasWebsite,
-        sortBy: params?.sortBy,
-        sortDir: params?.sortDir,
-      },
-    }
-  );
-  return data;
-}
-
 export async function listMyLeadsEvents(persona?: Persona) {
   const { data } = await apiClient.get<sales.EventSummaryResponse>(`${getMyLeadsPrefix(persona)}/events`);
   return data;

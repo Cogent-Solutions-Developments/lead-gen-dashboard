@@ -2,10 +2,20 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
+import { Building2, CalendarDays, Download, ExternalLink, FileText, Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
-import { getCachedAuthUserDisplayName } from "@/lib/auth";
+import {
+  clearAuthSession,
+  downloadProtectedFile,
+  getCachedAuthUserDisplayName,
+  getClientDashboard,
+  isClientRole,
+  type ClientDashboardEvent,
+} from "@/lib/auth";
+import { clearPersona } from "@/lib/persona";
 import {
   getDashboardKpiLeaderboard,
   getDashboardPersonalSummary,
@@ -121,10 +131,18 @@ function getDisplayName(user: ReturnType<typeof useAuth>["user"]) {
   const rolePlaceholders = new Set([
     "sales_user",
     "sales user",
+    "sales_manager_user",
+    "sales manager user",
     "delegate_user",
     "delegate user",
+    "delegate_manager_user",
+    "delegate manager user",
     "production_user",
     "production user",
+    "production_manager_user",
+    "production manager user",
+    "client_user",
+    "client user",
     "super_admin_user",
     "super admin user",
   ]);
@@ -385,6 +403,180 @@ function SalesMarathon({
   );
 }
 
+function ClientProgressList({
+  title,
+  progress,
+}: {
+  title: string;
+  progress: ClientDashboardEvent["delegateProgress"]["confirmed"];
+}) {
+  return (
+    <div className="min-w-0 border border-zinc-200 bg-white p-5 shadow-sm">
+      <div className="flex items-baseline justify-between gap-4 border-b border-zinc-100 pb-4">
+        <h3 className="text-sm font-semibold text-zinc-950">{title}</h3>
+        <span className="text-2xl font-light text-zinc-950">{progress.total}</span>
+      </div>
+      <div className="mt-4 space-y-3">
+        {progress.items.length === 0 ? (
+          <p className="text-sm font-light text-zinc-400">No delegate records in this category yet.</p>
+        ) : (
+          progress.items.slice(0, 8).map((item) => (
+            <div key={`${item.leadIdentityKey}-${item.updatedAt}`} className="min-w-0 border-b border-zinc-100 pb-3 last:border-0 last:pb-0">
+              <p className="truncate text-sm font-medium text-zinc-900">{item.name || "Unnamed delegate"}</p>
+              <p className="mt-1 truncate text-xs text-zinc-500">
+                {[item.designation, item.company].filter(Boolean).join(" · ") || "Details pending"}
+              </p>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ClientDashboard({ user }: { user: ReturnType<typeof useAuth>["user"] }) {
+  const router = useRouter();
+  const [events, setEvents] = useState<ClientDashboardEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const displayName = firstName(getDisplayName(user));
+
+  const loadDashboard = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getClientDashboard();
+      setEvents(data.events);
+    } catch (error) {
+      toast.error("Client dashboard sync failed", { description: getErrorMessage(error) });
+      setEvents([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadDashboard();
+  }, [loadDashboard]);
+
+  const handleSignOut = useCallback(() => {
+    try {
+      clearAuthSession();
+      clearPersona();
+      router.replace("/sign-in");
+    } catch (error) {
+      toast.error("Sign out failed", { description: getErrorMessage(error) });
+    }
+  }, [router]);
+
+  const handleAgendaDownload = async (event: ClientDashboardEvent) => {
+    const agenda = event.latestAgenda;
+    if (!agenda?.downloadUrl) return;
+    try {
+      await downloadProtectedFile(agenda.downloadUrl, agenda.name || "agenda.pdf");
+    } catch (error) {
+      toast.error("Agenda download failed", { description: getErrorMessage(error) });
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#f7f7f7] px-6 py-7 font-sans text-zinc-950 lg:px-10">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Client Dashboard</p>
+          <h1 className="mt-3 text-3xl font-light tracking-tight text-zinc-950 sm:text-4xl">Welcome, {displayName}.</h1>
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => void loadDashboard()}
+            disabled={loading}
+            className="inline-flex h-10 items-center border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-800 shadow-sm disabled:opacity-60"
+          >
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Refresh
+          </button>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="inline-flex h-10 items-center border border-zinc-950 bg-zinc-950 px-4 text-sm font-medium text-white shadow-sm hover:bg-zinc-800"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign out
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-8 space-y-6">
+        {loading ? (
+          <div className="border border-zinc-200 bg-white p-8 text-sm text-zinc-500">Loading event access...</div>
+        ) : events.length === 0 ? (
+          <div className="border border-zinc-200 bg-white p-8 text-sm text-zinc-500">No active event access is assigned to this account.</div>
+        ) : (
+          events.map((item) => (
+            <section key={item.credential.id} className="border border-zinc-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                    {item.credential.companyName} · {item.credential.eventType}
+                  </p>
+                  <h2 className="mt-2 truncate text-2xl font-light tracking-tight text-zinc-950">{item.event.eventName}</h2>
+                  <div className="mt-4 flex flex-wrap gap-3 text-sm text-zinc-500">
+                    {item.event.location ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Building2 className="h-4 w-4" />
+                        {item.event.location}
+                      </span>
+                    ) : null}
+                    {item.event.date ? (
+                      <span className="inline-flex items-center gap-2">
+                        <CalendarDays className="h-4 w-4" />
+                        {item.event.date}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {item.event.websiteUrl ? (
+                    <a
+                      href={item.event.websiteUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex h-10 items-center border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+                    >
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Website
+                    </a>
+                  ) : null}
+                  {item.latestAgenda?.downloadUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleAgendaDownload(item)}
+                      className="inline-flex h-10 items-center border border-zinc-200 bg-zinc-950 px-3 text-sm font-medium text-white hover:bg-zinc-800"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Latest Agenda
+                    </button>
+                  ) : (
+                    <span className="inline-flex h-10 items-center border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-500">
+                      <FileText className="mr-2 h-4 w-4" />
+                      No agenda
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                <ClientProgressList title="Confirmed Delegates" progress={item.delegateProgress.confirmed} />
+                <ClientProgressList title="In Review Delegates" progress={item.delegateProgress.inReview} />
+              </div>
+            </section>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const { persona } = usePersona();
@@ -395,6 +587,7 @@ export default function DashboardPage() {
   const [workflowStatuses, setWorkflowStatuses] = useState<WorkflowStatusDefinitionItem[]>(FALLBACK_WORKFLOW_STATUSES);
   const [loadingEventHeadsUp, setLoadingEventHeadsUp] = useState(true);
   const userId = user?.id;
+  const isClientDashboard = isClientRole(user?.role);
   const displayName = firstName(getDisplayName(user));
   const greeting = getTimeGreeting();
   const manifesto = getDailyManifesto(user?.id || "");
@@ -422,6 +615,10 @@ export default function DashboardPage() {
       };
 
   const loadSalesMarathon = useCallback(async (mode: "initial" | "refresh") => {
+    if (isClientDashboard) {
+      setLoadingSalesMarathon(false);
+      return;
+    }
     const cacheKey =
       persona === "delegates"
         ? `${DELEGATE_KPI_CACHE_KEY}:${period}`
@@ -448,9 +645,13 @@ export default function DashboardPage() {
       } finally {
         setLoadingSalesMarathon(false);
       }
-    }, [period, persona]);
+    }, [isClientDashboard, period, persona]);
 
   const loadPersonalStats = useCallback(async (mode: "initial" | "refresh") => {
+    if (isClientDashboard) {
+      setLoadingEventHeadsUp(false);
+      return;
+    }
     if (!userId) {
       setLoadingEventHeadsUp(false);
       return;
@@ -484,7 +685,7 @@ export default function DashboardPage() {
     } finally {
       setLoadingEventHeadsUp(false);
     }
-  }, [period, persona, userId]);
+  }, [isClientDashboard, period, persona, userId]);
 
   useEffect(() => {
     void loadSalesMarathon("initial");
@@ -515,6 +716,10 @@ export default function DashboardPage() {
       window.clearInterval(intervalId);
     };
   }, [loadPersonalStats, loadSalesMarathon]);
+
+  if (isClientDashboard) {
+    return <ClientDashboard user={user} />;
+  }
 
   return (
     <div className="flex h-screen flex-1 flex-col overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">

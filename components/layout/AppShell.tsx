@@ -11,6 +11,8 @@ import {
   fetchCurrentAuthUser,
   getAuthLandingPath,
   getStoredAuthSession,
+  isClientRole,
+  isManagerRole,
   isSuperAdminRole,
   onAuthSessionChange,
   personaForRole,
@@ -36,6 +38,10 @@ function isAdminAreaPath(pathname: string) {
   );
 }
 
+function isManagerOnlyPath(pathname: string) {
+  return pathname === "/manager" || pathname.startsWith("/manager/");
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -49,6 +55,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarHovered, setSidebarHovered] = useState(false);
   const role = session?.user.role ?? null;
   const isSuperAdmin = isSuperAdminRole(role);
+  const isClient = isClientRole(role);
+  const isManager = isManagerRole(role);
   const forcedPersona = personaForRole(role);
   const sidebarExpanded = sidebarHovered;
 
@@ -118,6 +126,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    if (isClient) {
+      if (pathname !== "/dashboard") {
+        router.replace("/dashboard");
+      }
+      return;
+    }
+
+    if (isManager && pathname === "/admin/user-performance") {
+      router.replace("/manager/user-performance");
+      return;
+    }
+
+    if (isManagerOnlyPath(pathname) && !isManager) {
+      router.replace(getAuthLandingPath(role));
+      return;
+    }
+
     if (forcedPersona) {
       if (getStoredPersona() !== forcedPersona) {
         setPersona(forcedPersona);
@@ -145,7 +170,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       clearPersona();
       router.replace(getAuthLandingPath(role));
     }
-  }, [authChecked, forcedPersona, isAdminAreaRoute, isAuthRoute, isChooser, isSuperAdmin, pathname, role, router, selected, session]);
+  }, [authChecked, forcedPersona, isAdminAreaRoute, isAuthRoute, isChooser, isClient, isManager, isSuperAdmin, pathname, role, router, selected, session]);
 
   if (!authChecked) return null;
 
@@ -154,9 +179,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <main className="min-h-screen bg-transparent">{children}</main>;
   }
 
+  if (isManagerOnlyPath(pathname) && !isManager) return null;
+
   if (forcedPersona) {
     if (getStoredPersona() !== forcedPersona) return null;
     if (isChooser || isSuperOnlyPath(pathname)) return null;
+  }
+
+  if (isClient) {
+    if (pathname !== "/dashboard") return null;
+    return <main className="min-h-screen bg-transparent">{children}</main>;
   }
 
   if (isAuthRoute || isChooser) {

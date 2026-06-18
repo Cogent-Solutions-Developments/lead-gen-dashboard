@@ -11,6 +11,7 @@ import {
   Plus,
   Upload,
   UserRound,
+  UsersRound,
   LogOut,
   ShieldCheck,
   BellRing,
@@ -20,7 +21,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { clearPersona } from "@/lib/persona";
 import { usePersona } from "@/hooks/usePersona";
-import { clearAuthSession } from "@/lib/auth";
+import { clearAuthSession, isManagerRole } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { UserAvatar } from "@/components/profile/UserAvatar";
 import { toast } from "sonner";
@@ -35,6 +36,7 @@ const navItems = [
   { name: "Nizo Finder", normalLabel: "Database", href: "/leads", icon: Database },
   { name: "My Leads", href: "/my-leads", icon: UserRound, normalOnly: true },
   { name: "Nizo AI", href: "/nizo-ai", icon: Brain, normalOnly: true },
+  { name: "User Performance", href: "/manager/user-performance", icon: UsersRound, managerOnly: true },
   { name: "Admin Panel", href: "/admin", icon: ShieldCheck, superOnly: true },
 ];
 const APP_VERSION_LABEL = "v0.3.0";
@@ -49,6 +51,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
   const router = useRouter();
   const { persona } = usePersona();
   const { isSuperAdmin, user } = useAuth();
+  const isManager = isManagerRole(user?.role);
   const [ringingBell, setRingingBell] = useState(false);
   const [ringBellModalOpen, setRingBellModalOpen] = useState(false);
   const personaLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
@@ -160,7 +163,12 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
       {/* 1. Navigation Items (Scrollable if needed) */}
       <nav className={`flex-1 overflow-y-auto pt-4 transition-[margin] duration-300 ${isExpanded ? "-mx-10" : "-mx-6"}`}>
         {navItems
-          .filter((item) => (isSuperAdmin ? !item.normalOnly : !item.superOnly))
+          .filter((item) => {
+            if (isSuperAdmin) return !item.normalOnly && !item.managerOnly;
+            if (item.superOnly) return false;
+            if (item.managerOnly) return isManager;
+            return true;
+          })
           .map((item, index) => {
           const isActive = pathname === item.href;
           return (

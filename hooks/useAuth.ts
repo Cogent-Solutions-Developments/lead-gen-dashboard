@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   getRoleLabel,
   getStoredAuthSession,
+  isClientRole,
   isSuperAdminRole,
   onAuthSessionChange,
   personaForRole,
@@ -23,6 +24,7 @@ export function useAuth() {
   return useMemo(() => {
     const role = session?.user.role ?? null;
     const isSuperAdmin = isSuperAdminRole(role);
+    const isClient = isClientRole(role);
 
     return {
       session,
@@ -31,7 +33,8 @@ export function useAuth() {
       roleLabel: getRoleLabel(role),
       isAuthenticated: Boolean(session),
       isSuperAdmin,
-      isPipelineUser: Boolean(role && !isSuperAdmin),
+      isClient,
+      isPipelineUser: Boolean(role && !isSuperAdmin && !isClient),
       forcedPersona: personaForRole(role),
       canManageUsers: isSuperAdmin,
       canManageCampaignActions: isSuperAdmin,
