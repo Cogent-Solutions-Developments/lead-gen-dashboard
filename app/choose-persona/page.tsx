@@ -237,7 +237,7 @@ export default function ChoosePersonaPage() {
                     Manage users, assign roles, rotate passwords, and keep admin access in one dedicated place without entering a pipeline workspace first.
                   </p>
 
-                  <Link href="/admin/users" className="mt-8">
+                  <Link href="/admin" className="mt-8">
                     <Button
                       variant="outline"
                       className="h-10 w-full rounded-md border-zinc-300 bg-white/80 text-zinc-700 hover:bg-zinc-50"
