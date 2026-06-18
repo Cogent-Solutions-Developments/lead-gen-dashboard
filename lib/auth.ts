@@ -545,6 +545,113 @@ export type AdminUserPerformanceResponse = {
   activityTotal?: number;
 };
 
+export type ManagerPerformancePeriod = "daily" | "weekly" | "monthly" | "yearly";
+
+export type ManagerPerformanceTeamUser = {
+  id: string;
+  username: string;
+  fullName: string;
+  role: "sales_user" | "delegate_user" | "production_user" | string;
+  designation?: string | null;
+  avatarUrl?: string | null;
+  isActive?: boolean;
+  lastLoginAt?: string | null;
+};
+
+export type ManagerPerformanceLeadSnapshot = {
+  employeeName: string;
+  title?: string | null;
+  company?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  linkedinUrl?: string | null;
+  companyUrl?: string | null;
+  category?: string | null;
+};
+
+export type ManagerPerformanceActivity = {
+  id: string;
+  userId: string;
+  username: string;
+  userDisplayName: string;
+  leadId: string;
+  leadIdentityKey: string;
+  canonicalEventKey: string;
+  canonicalEventName: string;
+  leadSnapshot: ManagerPerformanceLeadSnapshot;
+  type: "workflow-status" | "manual-lead" | "content-generation" | "contact-action" | string;
+  workflowStatus?: string | null;
+  workflowStatusLabel?: string | null;
+  comment?: string | null;
+  channel?: "email" | "whatsapp" | "phone" | "linkedin" | "website" | null;
+  createdAt: string;
+};
+
+export type ManagerTouchedLead = ManagerPerformanceLeadSnapshot & {
+  leadId: string;
+  canonicalEventKey: string;
+  canonicalEventName: string;
+  currentWorkflowStatus: string;
+  currentWorkflowStatusLabel?: string | null;
+  firstTouchedAt: string;
+  lastTouchedAt: string;
+  touchCount: number;
+  activities: ManagerPerformanceActivity[];
+};
+
+export type ManagerPerformanceTotals = {
+  activityCount: number;
+  touchedLeadCount: number;
+  manualLeadCount: number;
+  workflowUpdateCount: number;
+  contentGeneratedCount?: number;
+  contactActionCount?: number;
+  kpiCount: number;
+};
+
+export type ManagerUserPerformance = {
+  userId: string;
+  username: string;
+  fullName: string;
+  totals: ManagerPerformanceTotals;
+  statusCounts: Record<string, number>;
+  touchedLeads: ManagerTouchedLead[];
+};
+
+export type ManagerPerformanceResponse = {
+  period: {
+    key: ManagerPerformancePeriod;
+    start: string;
+    end: string;
+    timezone: string;
+  };
+  managerScope: {
+    persona: "sales" | "delegates" | "production" | string;
+    managerUserId: string;
+    managerName: string;
+  };
+  teamUsers: ManagerPerformanceTeamUser[];
+  summary: {
+    totalUsers: number;
+    activeUsers: number;
+    activityCount: number;
+    touchedLeadCount: number;
+    manualLeadCount: number;
+    workflowUpdateCount: number;
+    contentGeneratedCount?: number;
+    contactActionCount?: number;
+    kpiTotal: number;
+  };
+  perUserPerformance: ManagerUserPerformance[];
+  activities: ManagerPerformanceActivity[];
+  pagination?: {
+    limit: number;
+    offset: number;
+    activityTotal: number;
+    hasMore: boolean;
+  };
+};
+
 export type SystemOperationLogService = {
   service: string;
   source?: "file" | "docker" | string;
@@ -1669,6 +1776,29 @@ export async function fetchAdminUserPerformance(options: {
   return authRequest<AdminUserPerformanceResponse>(`/api/admin/user-performance${suffix}`);
 }
 
+function managerPerformancePipeline(persona?: string) {
+  const normalized = String(persona || "").trim().toLowerCase();
+  if (normalized === "delegates") return "delegate";
+  if (normalized === "production") return "production";
+  return "sales";
+}
+
+function managerPerformanceMetric(pipeline: string) {
+  if (pipeline === "sales") {
+    return { metricKey: "proposal-sent", metricLabel: "Proposals Sent", accent: "#2563eb", label: "Sales" };
+  }
+  if (pipeline === "production") {
+    return { metricKey: "confirmed", metricLabel: "Confirmed", accent: "#f97316", label: "Production" };
+  }
+  return { metricKey: "confirmed", metricLabel: "Confirmed", accent: "#14b8a6", label: "Delegate" };
+}
+
+function managerInitials(value: string) {
+  const words = String(value || "").trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "U";
+  return words.slice(0, 2).map((word) => word[0]?.toUpperCase()).join("");
+}
+
 export async function fetchManagerUserPerformance(options: {
   period?: AdminUserPerformancePeriod;
   date?: string;
@@ -1679,31 +1809,119 @@ export async function fetchManagerUserPerformance(options: {
   if (options.date) params.set("date", options.date);
   if (options.limit) params.set("limit", String(options.limit));
   const suffix = params.toString() ? `?${params.toString()}` : "";
-  const data = await authRequest<AdminUserPerformanceResponse & {
-    cluster?: AdminUserPerformanceCluster;
-    activities?: ManagerUserPerformanceActivity[];
-    activityTotal?: number;
-  }>(`/api/manager/user-performance${suffix}`);
-  const cluster = data.cluster;
-  const clusters = cluster ? [cluster] : [];
+  const data = await authRequest<ManagerPerformanceResponse>(`/api/manager/performance${suffix}`);
+  const pipeline = managerPerformancePipeline(data.managerScope?.persona);
+  const metric = managerPerformanceMetric(pipeline);
+  const runners = [...(data.perUserPerformance || [])]
+    .map((item) => ({
+      id: item.userId,
+      userId: item.userId,
+      username: item.username,
+      fullName: item.fullName,
+      name: item.fullName || item.username,
+      role: data.teamUsers.find((user) => user.id === item.userId)?.role || "",
+      kpiCount: Number(item.totals?.kpiCount || 0),
+      total: Number(item.totals?.kpiCount || 0),
+      rank: 0,
+    }))
+    .sort((a, b) => Number(b.kpiCount || 0) - Number(a.kpiCount || 0))
+    .map((item, index) => ({ ...item, rank: index + 1 }));
+  const total = Number(data.summary?.kpiTotal || 0);
+  const activeUsers = Number(data.summary?.totalUsers || data.teamUsers?.length || 0);
+  const contributors = Number(data.summary?.activeUsers || 0);
+  const topUser = runners[0] || null;
+  const cluster: AdminUserPerformanceCluster = {
+    pipeline,
+    label: metric.label,
+    role: data.teamUsers[0]?.role || "",
+    metricKey: metric.metricKey,
+    metricLabel: metric.metricLabel,
+    accent: metric.accent,
+    ownerUserId: data.managerScope?.managerUserId,
+    total,
+    activeUsers,
+    contributors,
+    averagePerUser: activeUsers ? Number((total / activeUsers).toFixed(2)) : 0,
+    topUser,
+    runners,
+  };
+  const activities: ManagerUserPerformanceActivity[] = (data.activities || []).map((activity) => {
+    const snapshot = activity.leadSnapshot || { employeeName: "" };
+    const displayName =
+      snapshot.employeeName?.trim() ||
+      snapshot.email?.trim() ||
+      snapshot.phone?.trim() ||
+      snapshot.linkedinUrl?.trim() ||
+      activity.leadIdentityKey ||
+      "Lead details unavailable";
+    const userDisplayName = activity.userDisplayName || activity.username || "Unknown user";
+    return {
+      id: activity.id,
+      pipeline,
+      workflowStatus: activity.workflowStatus,
+      workflowStatusLabel: activity.workflowStatusLabel,
+      updatedAt: activity.createdAt,
+      user: {
+        id: activity.userId,
+        name: userDisplayName,
+        initials: managerInitials(userDisplayName),
+      },
+      event: {
+        canonicalEventKey: activity.canonicalEventKey,
+        canonicalEventName: activity.canonicalEventName,
+      },
+      lead: {
+        id: activity.leadId,
+        name: displayName,
+        designation: snapshot.title || "",
+        company: snapshot.company || "",
+        email: snapshot.email || "",
+        phone: snapshot.phone || "",
+        linkedinUrl: snapshot.linkedinUrl || "",
+      },
+    };
+  });
   return {
-    period: data.period,
-    date: data.date,
-    periodStart: data.periodStart,
-    periodEnd: data.periodEnd,
-    generatedAt: data.generatedAt,
+    period: data.period?.key || options.period || "daily",
+    date: options.date || data.period?.start?.slice(0, 10) || "",
+    periodStart: data.period?.start,
+    periodEnd: data.period?.end,
+    generatedAt: new Date().toISOString(),
     summary: {
-      totalKpis: Number(cluster?.total || 0),
-      activeUsers: Number(cluster?.activeUsers || 0),
-      contributors: Number(cluster?.contributors || 0),
-      averagePerUser: Number(cluster?.averagePerUser || 0),
-      topPipeline: cluster || null,
-      topUser: cluster?.topUser || null,
+      totalKpis: total,
+      activeUsers,
+      contributors,
+      averagePerUser: cluster.averagePerUser,
+      topPipeline: cluster,
+      topUser,
     },
-    clusters,
-    activities: Array.isArray(data.activities) ? data.activities : [],
-    activityTotal: Number(data.activityTotal || data.activities?.length || 0),
+    clusters: [cluster],
+    activities,
+    activityTotal: Number(data.pagination?.activityTotal || data.summary?.activityCount || activities.length),
   } satisfies AdminUserPerformanceResponse;
+}
+
+export async function fetchManagerPerformance(options: {
+  period?: ManagerPerformancePeriod;
+  date?: string;
+  userId?: string;
+  search?: string;
+  workflowStatus?: string;
+  eventKey?: string;
+  limit?: number;
+  offset?: number;
+} = {}) {
+  const params = new URLSearchParams();
+  if (options.period) params.set("period", options.period);
+  if (options.date) params.set("date", options.date);
+  if (options.userId) params.set("userId", options.userId);
+  if (options.search) params.set("search", options.search);
+  if (options.workflowStatus) params.set("workflowStatus", options.workflowStatus);
+  if (options.eventKey) params.set("eventKey", options.eventKey);
+  if (typeof options.limit === "number") params.set("limit", String(options.limit));
+  if (typeof options.offset === "number") params.set("offset", String(options.offset));
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return authRequest<ManagerPerformanceResponse>(`/api/manager/performance${suffix}`);
 }
 
 export async function listSystemOperationLogServices() {
