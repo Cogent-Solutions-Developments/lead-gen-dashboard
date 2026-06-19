@@ -292,11 +292,11 @@ export default function AdminCategoriesPage() {
   };
 
   return (
-    <div className="font-sans">
+    <div className="admin-page">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
+        className="admin-page-header flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between"
       >
         <div>
           <Link
@@ -306,13 +306,14 @@ export default function AdminCategoriesPage() {
             <ArrowLeft className="mr-2 h-3.5 w-3.5" />
             Admin dashboard
           </Link>
-          <h1 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-900">Category Registry</h1>
-          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-zinc-500">
+          <p className="admin-eyebrow mt-3">Admin Control</p>
+          <h1 className="admin-title">Category Registry</h1>
+          <p className="admin-description">
             Keep raw campaign category variants intact while mapping them into one canonical lead-sheet filter model.
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="admin-actions">
           <Button
             type="button"
             variant="outline"
@@ -343,7 +344,7 @@ export default function AdminCategoriesPage() {
           { label: "Raw variants", value: summary?.rawCategoryCount ?? 0, icon: Tag },
           { label: "Needs mapping", value: summary?.unmappedRawCategoryCount ?? 0, icon: Link2 },
         ].map((item) => (
-          <div key={item.label} className="rounded-lg border border-zinc-300/85 bg-white/88 p-4 shadow-sm">
+          <div key={item.label} className="admin-card-soft p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{item.label}</p>
@@ -357,8 +358,8 @@ export default function AdminCategoriesPage() {
         ))}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)]">
-        <Card className="rounded-lg border border-zinc-300/85 bg-white/88 p-5 shadow-sm">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(22rem,0.95fr)]">
+        <Card className="admin-card p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Canonical model</p>
@@ -381,7 +382,7 @@ export default function AdminCategoriesPage() {
                 type="button"
                 onClick={() => void createCategory()}
                 disabled={creating}
-                className="h-10 rounded-md bg-sidebar px-4 text-sm font-semibold text-white hover:bg-zinc-800"
+                className="h-10 rounded-md bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
               >
                 {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
                 Add
@@ -399,7 +400,7 @@ export default function AdminCategoriesPage() {
             />
           </div>
 
-          <div className="mt-5 min-h-72 space-y-3">
+          <div className="admin-list-panel mt-5 min-h-72 space-y-3 pr-1">
             {loading ? (
               <div className="flex h-56 items-center justify-center text-sm text-zinc-500">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -480,7 +481,7 @@ export default function AdminCategoriesPage() {
                               type="button"
                               onClick={() => void saveCategory(category)}
                               disabled={isSaving}
-                              className="h-9 rounded-md bg-sidebar px-3 text-xs font-semibold text-white hover:bg-zinc-800"
+                              className="h-9 rounded-md bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700"
                             >
                               {isSaving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1.5 h-3.5 w-3.5" />}
                               Save
@@ -563,7 +564,7 @@ export default function AdminCategoriesPage() {
           </div>
         </Card>
 
-        <Card className="rounded-lg border border-zinc-300/85 bg-white/88 p-5 shadow-sm">
+        <Card className="admin-card p-5">
           <div className="flex flex-col gap-4">
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Raw category queue</p>
@@ -605,7 +606,7 @@ export default function AdminCategoriesPage() {
             </div>
           </div>
 
-          <div className="mt-5 max-h-[780px] space-y-3 overflow-y-auto pr-1">
+          <div className="admin-list-panel mt-5 space-y-3 pr-1">
             {loading ? (
               <div className="flex h-56 items-center justify-center text-sm text-zinc-500">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -701,7 +702,7 @@ export default function AdminCategoriesPage() {
                               type="button"
                               onClick={() => void mapRawCategory(row)}
                               disabled={!mapCategoryId || mappingRawKey === key}
-                              className="h-9 rounded-md bg-sidebar px-3 text-xs font-semibold text-white hover:bg-zinc-800"
+                              className="h-9 rounded-md bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700"
                             >
                               {mappingRawKey === key ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1.5 h-3.5 w-3.5" />}
                               Save mapping

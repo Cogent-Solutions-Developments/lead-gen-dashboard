@@ -95,7 +95,7 @@ function StatusBadge({ value }: { value?: string | null }) {
 
 function SectionCard({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
-    <Card className="overflow-hidden rounded-2xl border border-zinc-300/85 bg-white/84 py-0">
+    <Card className="admin-card overflow-hidden py-0">
       <div className="border-b border-zinc-100 px-5 py-4">
         <h2 className="text-base font-semibold text-zinc-900">{title}</h2>
         {description ? <p className="mt-1 text-sm text-zinc-500">{description}</p> : null}
@@ -392,8 +392,8 @@ export default function SystemOperationsPage() {
 
   if (!isSuperAdmin) {
     return (
-      <div className="flex min-h-[calc(100dvh-3rem)] items-center justify-center p-4">
-        <Card className="max-w-md rounded-2xl border border-zinc-300 bg-white/88 p-6 text-center">
+      <div className="admin-page flex min-h-[calc(100dvh-3rem)] items-center justify-center p-4">
+        <Card className="admin-card max-w-md p-6 text-center">
           <ShieldAlert className="mx-auto h-9 w-9 text-amber-600" />
           <h1 className="mt-3 text-lg font-semibold text-zinc-900">Super Admin Only</h1>
           <p className="mt-2 text-sm text-zinc-500">System Operations is restricted to super admin users.</p>
@@ -403,33 +403,35 @@ export default function SystemOperationsPage() {
   }
 
   return (
-    <div className="font-sans flex min-h-[calc(100dvh-3rem)] flex-col overflow-y-auto bg-transparent p-1">
+    <div className="admin-page flex min-h-[calc(100dvh-3rem)] flex-col bg-transparent">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
+        className="admin-page-header flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between"
       >
         <div>
-          <p className="text-lg font-normal text-zinc-900">Admin Control</p>
-          <h1 className="mt-0 text-2xl font-semibold tracking-tight text-zinc-900">System Operations</h1>
-          <p className="mt-1 max-w-3xl text-sm text-zinc-500">
+          <p className="admin-eyebrow">Admin Control</p>
+          <h1 className="admin-title">System Operations</h1>
+          <p className="admin-description">
             Read live service logs and run confirmed, campaign-scoped recovery actions. No SQL, Docker, restart, or delete controls are exposed here.
           </p>
         </div>
 
-        <Button
-          type="button"
-          onClick={() => {
-            void loadServices();
-            void loadIncidents();
-            void loadGuide();
-          }}
-          className="analytics-frost-btn h-10 px-4"
-          disabled={servicesLoading || incidentsLoading || guideLoading}
-        >
-          <RefreshCw className={`h-4 w-4 ${servicesLoading || incidentsLoading || guideLoading ? "animate-spin" : ""}`} />
-          Refresh All
-        </Button>
+        <div className="admin-actions">
+          <Button
+            type="button"
+            onClick={() => {
+              void loadServices();
+              void loadIncidents();
+              void loadGuide();
+            }}
+            className="analytics-frost-btn h-10 px-4"
+            disabled={servicesLoading || incidentsLoading || guideLoading}
+          >
+            <RefreshCw className={`h-4 w-4 ${servicesLoading || incidentsLoading || guideLoading ? "animate-spin" : ""}`} />
+            Refresh All
+          </Button>
+        </div>
       </motion.div>
 
       <div className="space-y-5">
@@ -453,7 +455,7 @@ export default function SystemOperationsPage() {
                     disabled={dockerLogsEnabled === false}
                     onClick={() => openService(service)}
                     className={`h-9 border-zinc-300 px-3 text-xs font-semibold ${
-                      isActive ? "bg-zinc-900 text-white hover:bg-zinc-800" : "bg-white text-zinc-700 hover:bg-zinc-50"
+                      isActive ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-white text-zinc-700 hover:bg-zinc-50"
                     }`}
                   >
                     {service}
@@ -548,18 +550,18 @@ export default function SystemOperationsPage() {
                   </div>
                 </div>
                 {logsError ? <div className="border-b border-red-500/30 bg-red-950/40 px-4 py-2 text-xs text-red-200">{logsError}</div> : null}
-                <pre ref={terminalRef} className="scrollbar-modern h-[28rem] overflow-auto whitespace-pre-wrap bg-[#0d1117] p-4 font-mono text-xs leading-relaxed text-zinc-200">
+                <pre ref={terminalRef} className="scrollbar-modern h-[min(34rem,56dvh)] overflow-auto whitespace-pre-wrap bg-[#0d1117] p-4 font-mono text-xs leading-relaxed text-zinc-200">
                   {logsLoading ? "Loading logs..." : logLines.length > 0 ? logLines.join("\n") : "No log lines loaded."}
                 </pre>
               </div>
             ) : (
-              <div className="rounded-2xl border border-zinc-300 bg-zinc-50/70 p-8 text-center text-sm text-zinc-500">
+              <div className="admin-card-soft p-8 text-center text-sm text-zinc-500">
                 Select a service tab to open the log window.
               </div>
             )}
 
             {services.length > 0 ? (
-              <div className="overflow-x-auto rounded-xl border border-zinc-300">
+              <div className="admin-table-wrap rounded-xl border border-zinc-300">
                 <table className="w-full min-w-[760px]">
                   <thead className="border-b border-zinc-100 bg-zinc-50/70 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
                     <tr>
@@ -589,7 +591,7 @@ export default function SystemOperationsPage() {
 
         <SectionCard title="Incident Recovery" description="Run only explicit, confirmed recovery actions for stale campaign progress.">
           <div className="space-y-4 p-5">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-zinc-500">
                 {incidentsLoading ? "Loading incidents..." : `${incidents.length} incident${incidents.length === 1 ? "" : "s"} found`}
               </p>
@@ -611,9 +613,9 @@ export default function SystemOperationsPage() {
               </div>
             ) : null}
 
-            <div className="grid gap-4">
+            <div className="admin-list-panel grid gap-4 pr-1">
               {incidents.map((incident) => (
-                <Card key={`${incident.campaignId}-${incident.code}`} className="rounded-2xl border border-zinc-300 bg-white/88 p-5">
+                <Card key={`${incident.campaignId}-${incident.code}`} className="admin-card-soft p-5">
                   <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                     <div className="min-w-0 space-y-3">
                       <div className="flex flex-wrap items-center gap-2">
@@ -697,17 +699,17 @@ export default function SystemOperationsPage() {
         <SectionCard title="Recovery Guide" description="Short operational guidance for common warnings and errors.">
           <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-3">
             {guideLoading ? (
-              <div className="col-span-full flex items-center gap-2 rounded-2xl border border-zinc-300 bg-white p-5 text-sm text-zinc-500">
+              <div className="admin-card-soft col-span-full flex items-center gap-2 p-5 text-sm text-zinc-500">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Loading recovery guide...
               </div>
             ) : guideItems.length === 0 ? (
-              <div className="col-span-full rounded-2xl border border-zinc-300 bg-zinc-50 p-5 text-sm text-zinc-500">
+              <div className="admin-card-soft col-span-full p-5 text-sm text-zinc-500">
                 No guide items found.
               </div>
             ) : (
               guideItems.map((item) => (
-                <div key={item.code} className="rounded-2xl border border-zinc-300 bg-white/88 p-4">
+                <div key={item.code} className="admin-card-soft p-4">
                   <div className="flex items-start gap-3">
                     <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700">
                       <FileText className="h-4 w-4" />
@@ -730,11 +732,11 @@ export default function SystemOperationsPage() {
           <button
             type="button"
             aria-label="Close recovery confirmation"
-            className="absolute inset-0 bg-zinc-950/45 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-blue-950/35 backdrop-blur-[2px]"
             onClick={closeActionConfirm}
           />
 
-          <Card className="relative z-[1] w-full max-w-lg overflow-hidden rounded-2xl border border-zinc-300 bg-white p-0 shadow-[0_24px_40px_-24px_rgba(2,10,27,0.6)]">
+          <Card className="admin-modal-panel relative z-[1] w-full max-w-lg overflow-hidden rounded-2xl border border-zinc-300 bg-white p-0">
             <div className="border-b border-zinc-100 px-5 py-4">
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700">

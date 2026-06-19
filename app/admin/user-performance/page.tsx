@@ -5,21 +5,27 @@ import { motion } from "framer-motion";
 import {
   Activity,
   CalendarDays,
+  Clock3,
+  Eye,
   Loader2,
   RefreshCw,
   TrendingUp,
   UsersRound,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   fetchAdminUserPerformance,
+  fetchManagerPerformance,
   fetchManagerUserPerformance,
   isManagerRole,
   type AdminUserPerformanceCluster,
   type AdminUserPerformancePeriod,
   type AdminUserPerformanceResponse,
   type AdminUserPerformanceRunner,
+  type ManagerPerformanceActivity,
+  type ManagerPerformanceResponse,
   type ManagerUserPerformanceActivity,
 } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
@@ -64,6 +70,18 @@ function formatDateTime(value?: string | null) {
   });
 }
 
+function formatCompactDateTime(value?: string | null) {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function formatNumber(value: unknown) {
   const number = Number(value || 0);
   if (!Number.isFinite(number)) return "0";
@@ -73,6 +91,19 @@ function formatNumber(value: unknown) {
 function numberValue(value: unknown) {
   const number = Number(value || 0);
   return Number.isFinite(number) ? number : 0;
+}
+
+function isDatabaseIdLike(value?: string | null) {
+  const text = String(value || "").trim();
+  return (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text) ||
+    /^[0-9a-f]{24,32}$/i.test(text)
+  );
+}
+
+function displayText(value?: string | null) {
+  const text = String(value || "").trim();
+  return text && !isDatabaseIdLike(text) ? text : "";
 }
 
 function runnerValue(runner: AdminUserPerformanceRunner) {
@@ -92,12 +123,20 @@ function runnerName(runner?: AdminUserPerformanceRunner | Record<string, unknown
   if (!runner || typeof runner !== "object") return "No user";
   const source = runner as AdminUserPerformanceRunner;
   return (
-    source.fullName?.trim() ||
-    source.full_name?.trim() ||
-    source.name?.trim() ||
-    source.username?.trim() ||
+    displayText(source.fullName) ||
+    displayText(source.full_name) ||
+    displayText(source.name) ||
+    displayText(source.username) ||
     "Unnamed user"
   );
+}
+
+function runnerUserId(runner?: AdminUserPerformanceRunner | null) {
+  return String(runner?.userId || runner?.id || "").trim();
+}
+
+function runnerUsername(runner?: AdminUserPerformanceRunner | null) {
+  return displayText(runner?.username);
 }
 
 function pipelineAccent(cluster: AdminUserPerformanceCluster) {
@@ -121,6 +160,68 @@ function polarPoint(center: number, radius: number, index: number, total: number
   };
 }
 
+const TEAM_CONTRIBUTION_COLORS = ["#2563eb", "#14b8a6", "#f97316", "#7c3aed", "#0284c7", "#16a34a"];
+
+type TeamContributionSegment = {
+  key: string;
+  label: string;
+  value: number;
+  color: string;
+  ratio: number;
+};
+
+function piePoint(center: number, radius: number, ratio: number) {
+  const angle = -Math.PI / 2 + Math.PI * 2 * ratio;
+  return {
+    x: center + radius * Math.cos(angle),
+    y: center + radius * Math.sin(angle),
+  };
+}
+
+function donutSlicePath(center: number, outerRadius: number, innerRadius: number, startRatio: number, endRatio: number) {
+  const start = clampRatio(startRatio);
+  const end = clampRatio(endRatio);
+  const largeArc = end - start > 0.5 ? 1 : 0;
+  const outerStart = piePoint(center, outerRadius, start);
+  const outerEnd = piePoint(center, outerRadius, end);
+  const innerEnd = piePoint(center, innerRadius, end);
+  const innerStart = piePoint(center, innerRadius, start);
+
+  return [
+    `M ${outerStart.x} ${outerStart.y}`,
+    `A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${outerEnd.x} ${outerEnd.y}`,
+    `L ${innerEnd.x} ${innerEnd.y}`,
+    `A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${innerStart.x} ${innerStart.y}`,
+    "Z",
+  ].join(" ");
+}
+
+function buildTeamContributionSegments(cluster: AdminUserPerformanceCluster) {
+  const activeRunners = sortedRunners(cluster).filter((runner) => runnerValue(runner) > 0);
+  const visibleRunners = activeRunners.slice(0, 5);
+  const remainingValue = activeRunners.slice(5).reduce((total, runner) => total + runnerValue(runner), 0);
+  const rawSegments = visibleRunners.map((runner, index) => ({
+    key: String(runner.userId || runner.id || runner.username || `${cluster.pipeline}-${index}`),
+    label: runnerName(runner),
+    value: runnerValue(runner),
+  }));
+
+  if (remainingValue > 0) {
+    rawSegments.push({
+      key: `${cluster.pipeline}-other-contributors`,
+      label: "Other contributors",
+      value: remainingValue,
+    });
+  }
+
+  const total = rawSegments.reduce((sum, segment) => sum + segment.value, 0);
+  return rawSegments.map<TeamContributionSegment>((segment, index) => ({
+    ...segment,
+    color: index === 0 ? pipelineAccent(cluster) : TEAM_CONTRIBUTION_COLORS[index % TEAM_CONTRIBUTION_COLORS.length],
+    ratio: total > 0 ? segment.value / total : 0,
+  }));
+}
+
 function StatBlock({ label, value, note }: { label: string; value: string; note: string }) {
   return (
     <div className="rounded-lg border border-zinc-200 bg-white/80 p-4">
@@ -132,50 +233,78 @@ function StatBlock({ label, value, note }: { label: string; value: string; note:
 }
 
 function PieKpiChart({ cluster }: { cluster: AdminUserPerformanceCluster }) {
-  const accent = pipelineAccent(cluster);
-  const activeUsers = numberValue(cluster.activeUsers);
-  const contributors = numberValue(cluster.contributors);
-  const percent = clampRatio(activeUsers > 0 ? contributors / activeUsers : 0);
-  const radius = 42;
-  const circumference = 2 * Math.PI * radius;
-  const filled = circumference * percent;
+  const center = 64;
+  const outerRadius = 48;
+  const innerRadius = 31;
+  const segments = buildTeamContributionSegments(cluster);
+  const total = segments.reduce((sum, segment) => sum + segment.value, 0);
+  const slices = segments.map((segment, index) => {
+    const start = segments.slice(0, index).reduce((sum, current) => sum + current.ratio, 0);
+    const end = start + segment.ratio;
+    return { ...segment, start, end };
+  });
 
   return (
-    <div className="grid gap-4 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-center">
-      <svg viewBox="0 0 128 128" className="h-36 w-36">
-        <circle cx="64" cy="64" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="16" />
-        <circle
-          cx="64"
-          cy="64"
-          r={radius}
-          fill="none"
-          stroke={accent}
-          strokeLinecap="round"
-          strokeWidth="16"
-          strokeDasharray={`${filled} ${circumference - filled}`}
-          transform="rotate(-90 64 64)"
-        />
-        <text x="64" y="60" textAnchor="middle" className="fill-slate-900 text-[22px] font-semibold">
-          {formatNumber(cluster.total)}
+    <div className="grid gap-5 sm:grid-cols-[9.5rem_minmax(0,1fr)] sm:items-center">
+      <svg viewBox="0 0 128 128" className="h-[9.5rem] w-[9.5rem] shrink-0" role="img" aria-label={`${cluster.label} team KPI contribution`}>
+        <circle cx={center} cy={center} r={(outerRadius + innerRadius) / 2} fill="none" stroke="#e5e7eb" strokeWidth={outerRadius - innerRadius} />
+        {slices.map((segment) =>
+          segment.ratio >= 0.999 ? (
+            <circle
+              key={segment.key}
+              cx={center}
+              cy={center}
+              r={(outerRadius + innerRadius) / 2}
+              fill="none"
+              stroke={segment.color}
+              strokeWidth={outerRadius - innerRadius}
+            />
+          ) : (
+            <path
+              key={segment.key}
+              d={donutSlicePath(center, outerRadius, innerRadius, segment.start, segment.end)}
+              fill={segment.color}
+              stroke="#ffffff"
+              strokeWidth="1.5"
+            />
+          ),
+        )}
+        <circle cx={center} cy={center} r={innerRadius - 1} fill="#ffffff" />
+        <text x={center} y="59" textAnchor="middle" fill="#0f172a" fontSize="21" fontWeight="700">
+          {formatNumber(total)}
         </text>
-        <text x="64" y="79" textAnchor="middle" className="fill-zinc-500 text-[10px] font-semibold">
-          KPI
+        <text x={center} y="78" textAnchor="middle" fill="#64748b" fontSize="10" fontWeight="700">
+          Team KPI
         </text>
       </svg>
 
-      <div className="space-y-3 text-sm">
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-zinc-500">Contributors</span>
-          <span className="font-semibold text-slate-900">{formatNumber(contributors)}</span>
+      <div className="min-w-0 space-y-3 text-sm">
+        <div>
+          <p className="text-xs font-semibold uppercase text-zinc-500">Team contribution</p>
+          <p className="mt-1 text-xs text-zinc-500">{cluster.metricLabel} split by contributor.</p>
         </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-zinc-500">Active users</span>
-          <span className="font-semibold text-slate-900">{formatNumber(activeUsers)}</span>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-zinc-500">Coverage</span>
-          <span className="font-semibold text-blue-700">{Math.round(percent * 100)}%</span>
-        </div>
+        {slices.length ? (
+          <div className="space-y-2.5">
+            {slices.map((segment) => (
+              <div key={segment.key} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: segment.color }} />
+                  <span className="truncate text-zinc-600" title={segment.label}>
+                    {segment.label}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="font-semibold text-slate-900">{formatNumber(segment.value)}</span>
+                  <span className="ml-2 text-xs font-semibold text-blue-700">{Math.round(segment.ratio * 100)}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-zinc-200 bg-white px-3 py-4 text-sm text-zinc-500">
+            No team contribution yet.
+          </div>
+        )}
       </div>
     </div>
   );
@@ -189,13 +318,29 @@ function SpiderKpiChart({
   maxValues: ChartMaxValues;
 }) {
   const accent = pipelineAccent(cluster);
-  const center = 76;
-  const radius = 54;
+  const center = 64;
+  const radius = 47;
   const metrics = [
-    { label: "KPI", ratio: clampRatio(numberValue(cluster.total) / maxValues.total) },
-    { label: "Active", ratio: clampRatio(numberValue(cluster.activeUsers) / maxValues.activeUsers) },
-    { label: "Contrib", ratio: clampRatio(numberValue(cluster.contributors) / maxValues.contributors) },
-    { label: "Avg", ratio: clampRatio(numberValue(cluster.averagePerUser) / maxValues.averagePerUser) },
+    {
+      label: "Total KPI",
+      value: numberValue(cluster.total),
+      ratio: clampRatio(numberValue(cluster.total) / maxValues.total),
+    },
+    {
+      label: "Active users",
+      value: numberValue(cluster.activeUsers),
+      ratio: clampRatio(numberValue(cluster.activeUsers) / maxValues.activeUsers),
+    },
+    {
+      label: "Contributors",
+      value: numberValue(cluster.contributors),
+      ratio: clampRatio(numberValue(cluster.contributors) / maxValues.contributors),
+    },
+    {
+      label: "Average per user",
+      value: numberValue(cluster.averagePerUser),
+      ratio: clampRatio(numberValue(cluster.averagePerUser) / maxValues.averagePerUser),
+    },
   ];
   const points = metrics
     .map((metric, index) => {
@@ -206,8 +351,8 @@ function SpiderKpiChart({
   const rings = [0.35, 0.68, 1];
 
   return (
-    <div className="flex justify-center">
-      <svg viewBox="0 0 152 152" className="h-40 w-40">
+    <div className="grid gap-5 sm:grid-cols-[9.5rem_minmax(0,1fr)] sm:items-center">
+      <svg viewBox="0 0 128 128" className="h-[9.5rem] w-[9.5rem] shrink-0" role="img" aria-label={`${cluster.label} KPI shape`}>
         {rings.map((ring) => (
           <polygon
             key={ring}
@@ -224,13 +369,9 @@ function SpiderKpiChart({
         ))}
         {metrics.map((metric, index) => {
           const end = polarPoint(center, radius, index, metrics.length);
-          const label = polarPoint(center, radius + 16, index, metrics.length);
           return (
             <g key={metric.label}>
               <line x1={center} y1={center} x2={end.x} y2={end.y} stroke="#e5e7eb" strokeWidth="1" />
-              <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="middle" className="fill-zinc-500 text-[9px] font-semibold">
-                {metric.label}
-              </text>
             </g>
           );
         })}
@@ -240,6 +381,28 @@ function SpiderKpiChart({
           return <circle key={metric.label} cx={point.x} cy={point.y} r="3" fill={accent} />;
         })}
       </svg>
+
+      <div className="min-w-0 space-y-3 text-sm">
+        <div>
+          <p className="text-xs font-semibold uppercase text-zinc-500">Department shape</p>
+          <p className="mt-1 text-xs text-zinc-500">Each axis is scaled against the strongest department.</p>
+        </div>
+        <div className="space-y-3">
+          {metrics.map((metric) => (
+            <div key={metric.label}>
+              <div className="flex items-center justify-between gap-3">
+                <span className="min-w-0 truncate text-zinc-600" title={metric.label}>
+                  {metric.label}
+                </span>
+                <span className="shrink-0 font-semibold text-slate-900">{formatNumber(metric.value)}</span>
+              </div>
+              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-zinc-200">
+                <div className="h-full rounded-full" style={{ width: `${Math.round(metric.ratio * 100)}%`, backgroundColor: accent }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -275,12 +438,156 @@ function ActivityList({ activities }: { activities: ManagerUserPerformanceActivi
               <span className="truncate">By {actor.name || "Unknown user"}</span>
               <span className="truncate sm:text-right">{formatDateTime(activity.updatedAt)}</span>
               <span className="truncate sm:col-span-2">
-                {event.canonicalEventName || event.canonicalEventKey || "No event name"}
+                {displayText(event.canonicalEventName) || "No event name"}
               </span>
             </div>
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function kpiActivityTitle(activity: ManagerPerformanceActivity) {
+  const lead = activity.leadSnapshot || {};
+  return (
+    displayText(lead.employeeName) ||
+    displayText(lead.email) ||
+    displayText(lead.phone) ||
+    displayText(lead.linkedinUrl) ||
+    "Lead details unavailable"
+  );
+}
+
+function kpiActivityMeta(activity: ManagerPerformanceActivity) {
+  const lead = activity.leadSnapshot || {};
+  return [lead.title, lead.company, lead.email, lead.phone].filter(Boolean).join(" | ");
+}
+
+function UserKpiDetailDialog({
+  runner,
+  cluster,
+  data,
+  loading,
+  error,
+  onClose,
+}: {
+  runner: AdminUserPerformanceRunner;
+  cluster: AdminUserPerformanceCluster;
+  data: ManagerPerformanceResponse | null;
+  loading: boolean;
+  error: string;
+  onClose: () => void;
+}) {
+  const activities = data?.activities || [];
+  const totalRecords = numberValue(data?.pagination?.activityTotal || activities.length);
+  const metricTotal = runnerValue(runner);
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-blue-950/35 p-4 backdrop-blur-[3px]">
+      <button type="button" aria-label="Close KPI details" className="absolute inset-0 cursor-default" onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        className="relative flex max-h-[88dvh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-2xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="user-kpi-detail-title"
+      >
+        <div className="shrink-0 border-b border-zinc-100 px-5 py-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase text-blue-700">{cluster.label} KPI Records</p>
+              <h2 id="user-kpi-detail-title" className="mt-1 truncate text-xl font-semibold text-slate-900">
+                {runnerName(runner)}
+              </h2>
+              <p className="mt-1 truncate text-sm text-zinc-500">
+                {[runnerUsername(runner), cluster.metricLabel].filter(Boolean).join(" | ")}
+              </p>
+            </div>
+            <Button type="button" variant="outline" size="icon-sm" className="shrink-0 rounded-lg" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="mt-4 grid gap-2 sm:grid-cols-4">
+            <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+              <p className="text-[11px] font-semibold uppercase text-blue-700">User KPI</p>
+              <p className="mt-1 text-lg font-semibold text-slate-900">{formatNumber(metricTotal)}</p>
+            </div>
+            <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2">
+              <p className="text-[11px] font-semibold uppercase text-zinc-500">Records</p>
+              <p className="mt-1 text-lg font-semibold text-slate-900">{loading ? "-" : formatNumber(totalRecords)}</p>
+            </div>
+            <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2">
+              <p className="text-[11px] font-semibold uppercase text-zinc-500">Period</p>
+              <p className="mt-1 text-sm font-semibold capitalize text-slate-900">{data?.period?.key || "-"}</p>
+            </div>
+            <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2">
+              <p className="text-[11px] font-semibold uppercase text-zinc-500">Window</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">{formatDateTime(data?.period?.start)}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {loading ? (
+            <div className="flex min-h-72 items-center justify-center text-sm text-zinc-500">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Loading user KPI details...
+            </div>
+          ) : error ? (
+            <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-6 text-sm text-red-700">{error}</div>
+          ) : activities.length ? (
+            <div className="space-y-3 border-l border-blue-100 pl-5">
+              {activities.map((activity, index) => {
+                const meta = kpiActivityMeta(activity);
+                return (
+                  <div key={activity.id || `${activity.userId}-${activity.createdAt}-${index}`} className="relative rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+                    <span className="absolute -left-[1.68rem] top-5 h-3 w-3 rounded-full border-2 border-white bg-blue-600 shadow-sm" />
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold uppercase text-blue-700">Record {String(index + 1).padStart(2, "0")}</p>
+                        <h3 className="mt-1 truncate text-sm font-semibold text-slate-900" title={kpiActivityTitle(activity)}>
+                          {kpiActivityTitle(activity)}
+                        </h3>
+                        <p className="mt-1 truncate text-xs text-zinc-500" title={meta || undefined}>
+                          {meta || "Contact details unavailable"}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-semibold text-slate-700">
+                        <Clock3 className="h-3.5 w-3.5 text-blue-600" />
+                        {formatDateTime(activity.createdAt)}
+                      </div>
+                    </div>
+                    <div className="mt-3 grid gap-2 text-xs text-zinc-500 sm:grid-cols-3">
+                      <div className="rounded-md bg-zinc-50 px-3 py-2">
+                        <p className="font-semibold uppercase text-zinc-400">Status</p>
+                        <p className="mt-1 font-semibold text-slate-800">{activity.workflowStatusLabel || activity.workflowStatus || cluster.metricLabel}</p>
+                      </div>
+                      <div className="rounded-md bg-zinc-50 px-3 py-2">
+                        <p className="font-semibold uppercase text-zinc-400">Event</p>
+                        <p className="mt-1 truncate font-semibold text-slate-800" title={displayText(activity.canonicalEventName) || undefined}>
+                          {displayText(activity.canonicalEventName) || "-"}
+                        </p>
+                      </div>
+                      <div className="rounded-md bg-zinc-50 px-3 py-2">
+                        <p className="font-semibold uppercase text-zinc-400">Type</p>
+                        <p className="mt-1 font-semibold capitalize text-slate-800">{activity.type || "workflow-status"}</p>
+                      </div>
+                    </div>
+                    {activity.comment ? <p className="mt-3 rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-800">{activity.comment}</p> : null}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-4 py-10 text-center text-sm text-zinc-500">
+              No KPI records returned for this user in the selected window.
+            </div>
+          )}
+        </div>
+      </motion.div>
     </div>
   );
 }
@@ -293,6 +600,11 @@ export default function AdminUserPerformancePage() {
   const [loading, setLoading] = useState(true);
   const [chartView, setChartView] = useState<ChartView>("pie");
   const [selectedPipeline, setSelectedPipeline] = useState("");
+  const [detailRunner, setDetailRunner] = useState<AdminUserPerformanceRunner | null>(null);
+  const [detailCluster, setDetailCluster] = useState<AdminUserPerformanceCluster | null>(null);
+  const [detailData, setDetailData] = useState<ManagerPerformanceResponse | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
   const isManagerView = isManagerRole(user?.role);
 
   const loadPerformance = useCallback(async () => {
@@ -350,8 +662,73 @@ export default function AdminUserPerformancePage() {
     [activities, selectedCluster?.pipeline],
   );
 
+  const openRunnerDetails = useCallback(
+    async (runner: AdminUserPerformanceRunner, cluster: AdminUserPerformanceCluster) => {
+      const userId = runnerUserId(runner);
+      if (!userId) {
+        toast.error("User details unavailable", { description: "This contributor does not include a user id." });
+        return;
+      }
+
+      setDetailRunner(runner);
+      setDetailCluster(cluster);
+      setDetailData(null);
+      setDetailError("");
+      setDetailLoading(true);
+
+      try {
+        const next = await fetchManagerPerformance({
+          period,
+          date,
+          userId,
+          workflowStatus: cluster.metricKey || undefined,
+          limit: 300,
+        });
+        setDetailData(next);
+      } catch (error) {
+        const message = getErrorMessage(error);
+        setDetailError(message);
+        toast.error("KPI details failed to load", { description: message });
+      } finally {
+        setDetailLoading(false);
+      }
+    },
+    [date, period],
+  );
+
+  const closeRunnerDetails = useCallback(() => {
+    setDetailRunner(null);
+    setDetailCluster(null);
+    setDetailData(null);
+    setDetailError("");
+    setDetailLoading(false);
+  }, []);
+
   const topRunner = selectedRunners[0];
   const topRunnerValue = topRunner ? runnerValue(topRunner) : 0;
+  const windowDetails = [
+    {
+      label: "Period",
+      value: data?.period || period,
+      note: "Selected KPI grouping",
+      capitalize: true,
+    },
+    {
+      label: "Date",
+      value: data?.date || date,
+      note: "Requested report date",
+    },
+    {
+      label: "Starts",
+      value: formatCompactDateTime(data?.periodStart),
+      note: "Window opening time",
+    },
+    {
+      label: "Ends",
+      value: formatCompactDateTime(data?.periodEnd),
+      note: "Window closing time",
+    },
+  ];
 
   return (
     <div className="admin-page flex min-h-[calc(100dvh-3rem)] flex-col bg-transparent">
@@ -515,9 +892,9 @@ export default function AdminUserPerformancePage() {
           <UsersRound className="h-5 w-5 text-blue-600" />
         </div>
 
-        <div className="grid h-[min(40rem,calc(100dvh-18rem))] min-h-[32rem] overflow-hidden lg:grid-cols-[16rem_minmax(0,1fr)]">
+        <div className="grid overflow-hidden lg:max-h-[42rem] lg:grid-cols-[16rem_minmax(0,1fr)]">
           {loading && !data ? (
-            <div className="flex items-center justify-center text-sm text-zinc-500 lg:col-span-2">
+            <div className="flex min-h-48 items-center justify-center text-sm text-zinc-500 lg:col-span-2">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Loading details...
             </div>
@@ -557,13 +934,33 @@ export default function AdminUserPerformancePage() {
               </aside>
 
               <section className="flex min-h-0 min-w-0 flex-col">
-                <div className="shrink-0 border-b border-zinc-100 px-5 py-4">
-                  <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-                    <div>
-                      <h3 className="text-base font-semibold text-slate-900">{selectedCluster?.label || "Department"}</h3>
-                      <p className="mt-1 text-sm text-zinc-500">{selectedCluster?.metricLabel || "KPI metric"}</p>
+                <div className="shrink-0 border-b border-zinc-100 px-4 py-3">
+                  <div className="grid gap-3 2xl:grid-cols-[minmax(0,1fr)_auto] 2xl:items-start">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                        <div className="flex items-center gap-2 font-semibold uppercase text-blue-700">
+                          <CalendarDays className="h-4 w-4" />
+                          <span>Window overview</span>
+                        </div>
+                        {windowDetails.map((item) => (
+                          <div
+                            key={item.label}
+                            className="inline-flex max-w-full items-baseline gap-1.5"
+                            title={`${item.note}: ${item.value}`}
+                          >
+                            <span className="shrink-0 text-[10px] font-semibold uppercase leading-4 text-zinc-400">{item.label}</span>
+                            <span className={`truncate font-semibold text-slate-900 ${item.capitalize ? "capitalize" : ""}`}>
+                              {item.value}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <h3 className="mt-1 text-base font-semibold text-slate-900">{selectedCluster?.label || "Department"}</h3>
+                      <p className="mt-1 text-sm text-zinc-500">
+                        {selectedCluster?.metricLabel || "KPI metric"} performance inside the selected {data?.period || period} KPI window.
+                      </p>
                     </div>
-                    <div className="grid grid-cols-4 gap-3 text-center text-xs lg:w-[32rem]">
+                    <div className="grid grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4 2xl:w-[30rem]">
                       <div className="rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-blue-700">
                         <p className="font-semibold">{formatNumber(selectedCluster?.total)}</p>
                         <p>KPI</p>
@@ -585,9 +982,9 @@ export default function AdminUserPerformancePage() {
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-y-auto p-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(19rem,0.72fr)]">
-                    <div className="rounded-lg border border-zinc-200 bg-white p-4">
-                      <div className="mb-4 flex items-center justify-between gap-3">
+                  <div className={isManagerView ? "grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(19rem,0.72fr)]" : "grid gap-4"}>
+                    <div className="flex min-h-0 max-h-[28rem] flex-col rounded-lg border border-zinc-200 bg-white p-4">
+                      <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
                         <div>
                           <h3 className="text-sm font-semibold text-slate-900">Top Contributors</h3>
                           <p className="mt-1 text-xs text-zinc-500">Managers and admins can compare the selected department here.</p>
@@ -595,14 +992,16 @@ export default function AdminUserPerformancePage() {
                         <TrendingUp className="h-4 w-4 text-blue-600" />
                       </div>
 
-                      <div className="space-y-3">
+                      <div className="min-h-0 flex-1 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        <div className="space-y-3 pb-1">
                         {selectedRunners.length ? (
-                          selectedRunners.slice(0, 12).map((runner, index) => {
+                          selectedRunners.map((runner, index) => {
                             const value = runnerValue(runner);
                             const progress = clampRatio(value / Math.max(1, topRunnerValue)) * 100;
+                            const canOpenDetails = Boolean(selectedCluster && runnerUserId(runner));
                             return (
                               <div key={`${runner.userId || runner.id || runner.username || index}`} className="border-b border-zinc-100 pb-3 last:border-b-0">
-                                <div className="grid gap-3 sm:grid-cols-[2.5rem_minmax(0,1fr)_6rem] sm:items-center">
+                                <div className="grid gap-3 sm:grid-cols-[2.5rem_minmax(0,1fr)_auto_5rem] sm:items-center">
                                   <span className="text-sm font-semibold tabular-nums text-zinc-400">
                                     {String(index + 1).padStart(2, "0")}
                                   </span>
@@ -610,6 +1009,19 @@ export default function AdminUserPerformancePage() {
                                     <p className="truncate text-sm font-semibold text-slate-900">{runnerName(runner)}</p>
                                     <p className="mt-1 text-xs text-zinc-500">{selectedCluster?.metricLabel || "KPI"}</p>
                                   </div>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={!canOpenDetails || detailLoading}
+                                    onClick={() => {
+                                      if (selectedCluster) void openRunnerDetails(runner, selectedCluster);
+                                    }}
+                                    className="h-8 rounded-md border-blue-100 px-3 text-xs font-semibold text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                                  >
+                                    <Eye className="h-3.5 w-3.5" />
+                                    Details
+                                  </Button>
                                   <p className="text-right text-lg font-semibold tabular-nums text-slate-900">{formatNumber(value)}</p>
                                 </div>
                                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-100">
@@ -624,50 +1036,21 @@ export default function AdminUserPerformancePage() {
                         ) : (
                           <div className="py-10 text-center text-sm text-zinc-500">No contributors for this department.</div>
                         )}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="space-y-4">
-                      {isManagerView ? (
-                        <div className="rounded-lg border border-zinc-200 bg-white p-4">
-                          <div className="mb-4">
-                            <h3 className="text-sm font-semibold text-slate-900">Activity Details</h3>
-                            <p className="mt-1 text-xs text-zinc-500">
-                              {formatNumber(selectedActivities.length)} matching actions in this department.
-                            </p>
-                          </div>
-                          <ActivityList activities={selectedActivities} />
-                        </div>
-                      ) : null}
-
+                    {isManagerView ? (
                       <div className="rounded-lg border border-zinc-200 bg-white p-4">
-                        <div className="mb-4 flex items-center justify-between gap-3">
-                          <div>
-                            <h3 className="text-sm font-semibold text-slate-900">Window</h3>
-                            <p className="mt-1 text-xs text-zinc-500">Backend KPI period metadata.</p>
-                          </div>
-                          <CalendarDays className="h-4 w-4 text-blue-600" />
+                        <div className="mb-4">
+                          <h3 className="text-sm font-semibold text-slate-900">Activity Details</h3>
+                          <p className="mt-1 text-xs text-zinc-500">
+                            {formatNumber(selectedActivities.length)} matching actions in this department.
+                          </p>
                         </div>
-                        <div className="space-y-3 text-sm">
-                          <div className="flex items-center justify-between gap-4 border-b border-zinc-100 pb-2">
-                            <span className="text-zinc-500">Period</span>
-                            <span className="font-semibold capitalize text-slate-900">{data?.period || period}</span>
-                          </div>
-                          <div className="flex items-center justify-between gap-4 border-b border-zinc-100 pb-2">
-                            <span className="text-zinc-500">Date</span>
-                            <span className="font-semibold text-slate-900">{data?.date || date}</span>
-                          </div>
-                          <div className="flex items-center justify-between gap-4 border-b border-zinc-100 pb-2">
-                            <span className="text-zinc-500">Starts</span>
-                            <span className="text-right font-semibold text-slate-900">{formatDateTime(data?.periodStart)}</span>
-                          </div>
-                          <div className="flex items-center justify-between gap-4">
-                            <span className="text-zinc-500">Ends</span>
-                            <span className="text-right font-semibold text-slate-900">{formatDateTime(data?.periodEnd)}</span>
-                          </div>
-                        </div>
+                        <ActivityList activities={selectedActivities} />
                       </div>
-                    </div>
+                    ) : null}
                   </div>
                 </div>
               </section>
@@ -679,6 +1062,17 @@ export default function AdminUserPerformancePage() {
           )}
         </div>
       </section>
+
+      {detailRunner && detailCluster ? (
+        <UserKpiDetailDialog
+          runner={detailRunner}
+          cluster={detailCluster}
+          data={detailData}
+          loading={detailLoading}
+          error={detailError}
+          onClose={closeRunnerDetails}
+        />
+      ) : null}
     </div>
   );
 }

@@ -7,8 +7,11 @@ import {
   AlertTriangle,
   ArrowLeft,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   Globe2,
   ImagePlus,
+  Info,
   Loader2,
   PencilLine,
   Plus,
@@ -89,8 +92,56 @@ function EventLogoThumbnail({ event }: { event: AdminEventItem }) {
   );
 }
 
+function EventLogoPreview({
+  event,
+  previewUrl,
+}: {
+  event: AdminEventItem | null;
+  previewUrl: string;
+}) {
+  if (previewUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={previewUrl} alt="" className="h-full w-full object-cover" />
+    );
+  }
+
+  if (event) {
+    return (
+      <ProtectedImage
+        src={event.logoUrl}
+        directUrlPath={event.logoUrl ? `${event.logoUrl}/download-url` : undefined}
+        alt=""
+        className="h-full w-full object-cover"
+        fallback={event.eventName.slice(0, 2).toUpperCase()}
+      />
+    );
+  }
+
+  return <span>LG</span>;
+}
+
+function InfoHint({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <span className="group relative inline-flex">
+      <button
+        type="button"
+        aria-label={label}
+        className="flex h-6 w-6 items-center justify-center rounded-full border border-blue-100 bg-blue-50 text-blue-700 transition-colors hover:border-blue-200 hover:bg-blue-100"
+      >
+        <Info className="h-3.5 w-3.5" />
+      </button>
+      <span className="pointer-events-none absolute right-0 top-8 z-30 w-72 translate-y-1 rounded-xl border border-blue-100 bg-white p-3 text-left text-xs leading-relaxed text-zinc-600 opacity-0 shadow-[0_18px_35px_-24px_rgba(15,23,42,0.45)] transition-all duration-150 group-focus-within:translate-y-0 group-focus-within:opacity-100 group-hover:translate-y-0 group-hover:opacity-100">
+        {children}
+      </span>
+    </span>
+  );
+}
+
 type EventStatusValue = "active" | "inactive";
 type EventTypeValue = "conference" | "boardroom";
+type EventRegistryTab = "registered" | "create";
+type EventPageSize = 10 | 25 | 50;
 
 function sortEvents(rows: AdminEventItem[]) {
   return [...rows].sort((a, b) => a.eventName.localeCompare(b.eventName));
@@ -129,15 +180,12 @@ function AdminEventDialog({
       <button
         type="button"
         aria-label="Close dialog"
-        className="absolute inset-0 bg-zinc-950/35 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-blue-950/35 backdrop-blur-[2px]"
         onClick={onClose}
       />
 
-      <div className="relative z-[1] w-full max-w-xl overflow-hidden rounded-2xl border border-zinc-300/85 bg-white/96 shadow-[0_0_0_1px_rgba(255,255,255,0.9),0_24px_40px_-24px_rgba(2,10,27,0.6),0_12px_22px_-16px_rgba(15,23,42,0.34)] backdrop-blur-[10px]">
-        <div className="pointer-events-none absolute -right-14 -top-16 h-44 w-44 rounded-full bg-gradient-to-br from-sky-200/50 via-blue-300/25 to-transparent blur-3xl" />
-        <div className="pointer-events-none absolute -left-14 bottom-0 h-32 w-32 rounded-full bg-gradient-to-tr from-zinc-100/70 to-transparent blur-2xl" />
-
-        <div className="relative space-y-5 p-6">
+      <div className="admin-modal-panel relative z-[1] flex max-h-[min(90dvh,calc(100dvh-2rem))] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-zinc-300/85 bg-white/96">
+        <div className="relative space-y-5 overflow-y-auto p-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
@@ -150,7 +198,7 @@ function AdminEventDialog({
             <Button
               type="button"
               variant="ghost"
-              className="h-9 w-9 shrink-0 rounded-full p-0 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+              className="h-9 w-9 shrink-0 rounded-full p-0 text-zinc-500 hover:bg-blue-50 hover:text-blue-700"
               onClick={onClose}
             >
               <X className="h-4 w-4" />
@@ -192,14 +240,11 @@ function StateChangeConfirmDialog({
       <button
         type="button"
         aria-label="Close confirmation"
-        className="absolute inset-0 bg-zinc-950/35 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-blue-950/35 backdrop-blur-[2px]"
         onClick={onClose}
       />
 
-      <div className="relative z-[1] w-full max-w-md overflow-hidden rounded-2xl border border-zinc-300/85 bg-white/96 shadow-[0_0_0_1px_rgba(255,255,255,0.9),0_24px_40px_-24px_rgba(2,10,27,0.6),0_12px_22px_-16px_rgba(15,23,42,0.34)] backdrop-blur-[10px]">
-        <div className="pointer-events-none absolute -right-14 -top-16 h-44 w-44 rounded-full bg-gradient-to-br from-sky-200/50 via-blue-300/25 to-transparent blur-3xl" />
-        <div className="pointer-events-none absolute -left-14 bottom-0 h-32 w-32 rounded-full bg-gradient-to-tr from-zinc-100/70 to-transparent blur-2xl" />
-
+      <div className="admin-modal-panel relative z-[1] w-full max-w-md overflow-hidden rounded-2xl border border-zinc-300/85 bg-white/96">
         <div className="relative space-y-5 p-6">
           <div className="flex items-start gap-3">
             <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-amber-200 bg-amber-50 text-amber-700">
@@ -237,7 +282,7 @@ function StateChangeConfirmDialog({
               type="button"
               disabled={isBusy}
               onClick={onConfirm}
-              className="h-9 rounded-md bg-sidebar px-3.5 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-70"
+              className="h-9 rounded-md bg-blue-600 px-3.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-70"
             >
               {isBusy ? (
                 <>
@@ -275,11 +320,11 @@ function DeleteEventConfirmDialog({
       <button
         type="button"
         aria-label="Close delete confirmation"
-        className="absolute inset-0 bg-zinc-950/35 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-blue-950/35 backdrop-blur-[2px]"
         onClick={onClose}
       />
 
-      <div className="relative z-[1] w-full max-w-md overflow-hidden rounded-2xl border border-zinc-300/85 bg-white/96 shadow-[0_0_0_1px_rgba(255,255,255,0.9),0_24px_40px_-24px_rgba(2,10,27,0.6),0_12px_22px_-16px_rgba(15,23,42,0.34)] backdrop-blur-[10px]">
+      <div className="admin-modal-panel relative z-[1] w-full max-w-md overflow-hidden rounded-2xl border border-zinc-300/85 bg-white/96">
         <div className="relative space-y-5 p-6">
           <div className="flex items-start gap-3">
             <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700">
@@ -344,6 +389,9 @@ export default function AdminEventsPage() {
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [date, setDate] = useState("");
   const [editingEvent, setEditingEvent] = useState<AdminEventItem | null>(null);
+  const [activeTab, setActiveTab] = useState<EventRegistryTab>("registered");
+  const [pageSize, setPageSize] = useState<EventPageSize>(10);
+  const [currentPage, setCurrentPage] = useState(1);
   const [editEventName, setEditEventName] = useState("");
   const [editLocation, setEditLocation] = useState("");
   const [editEventType, setEditEventType] = useState<EventTypeValue>("conference");
@@ -358,12 +406,15 @@ export default function AdminEventsPage() {
   const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
   const [logoPreviewUrl, setLogoPreviewUrl] = useState("");
   const [logoBusy, setLogoBusy] = useState(false);
+  const [logoUploadOpen, setLogoUploadOpen] = useState(false);
+  const [logoUploadEvent, setLogoUploadEvent] = useState<AdminEventItem | null>(null);
 
   const generatedEventKey = useMemo(
     () => slugifyEventKey(eventName, location, date),
     [eventName, location, date]
   );
   const isBusy = saving || editSaving || logoBusy || deleteSaving || Boolean(tableStatusSavingId);
+  const logoTargetEvent = logoUploadEvent ?? editingEvent;
 
   const loadEvents = async () => {
     setLoading(true);
@@ -390,6 +441,21 @@ export default function AdminEventsPage() {
     return { total: events.length, active, inactive };
   }, [events]);
 
+  const pageCount = useMemo(() => Math.max(1, Math.ceil(events.length / pageSize)), [events.length, pageSize]);
+  const paginatedEvents = useMemo(() => {
+    const pageStart = (currentPage - 1) * pageSize;
+    return events.slice(pageStart, pageStart + pageSize);
+  }, [currentPage, events, pageSize]);
+  const visiblePageNumbers = useMemo(() => {
+    const visibleCount = Math.min(pageCount, 5);
+    const start = Math.min(Math.max(currentPage - 2, 1), Math.max(pageCount - visibleCount + 1, 1));
+    return Array.from({ length: visibleCount }, (_, index) => start + index);
+  }, [currentPage, pageCount]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(Math.max(page, 1), pageCount));
+  }, [pageCount]);
+
   const resetForm = () => {
     setEventName("");
     setLocation("");
@@ -400,7 +466,19 @@ export default function AdminEventsPage() {
 
   const closeEditDialog = (force = false) => {
     if (editSaving && !force) return;
+    setLogoUploadOpen(false);
+    setLogoUploadEvent(null);
+    setSelectedLogoFile(null);
+    if (logoInputRef.current) logoInputRef.current.value = "";
     setEditingEvent(null);
+  };
+
+  const closeLogoUploadDialog = () => {
+    if (logoBusy) return;
+    setLogoUploadOpen(false);
+    setLogoUploadEvent(null);
+    setSelectedLogoFile(null);
+    if (logoInputRef.current) logoInputRef.current.value = "";
   };
 
   const openEditDialog = (item: AdminEventItem) => {
@@ -412,6 +490,8 @@ export default function AdminEventsPage() {
     setEditDate(item.date ?? "");
     setEditStatus(eventStatusValue(item.isActive));
     setSelectedLogoFile(null);
+    setLogoUploadOpen(false);
+    setLogoUploadEvent(null);
     if (logoInputRef.current) logoInputRef.current.value = "";
   };
 
@@ -576,6 +656,7 @@ export default function AdminEventsPage() {
         description: `${created.eventName} is saved and waiting for its first campaign.`,
       });
       resetForm();
+      setActiveTab("registered");
     } catch (error: unknown) {
       toast.error("Failed to create event", {
         description: getErrorMessage(error),
@@ -613,18 +694,20 @@ export default function AdminEventsPage() {
   };
 
   const handleLogoUpload = async () => {
-    if (!editingEvent || !selectedLogoFile) {
+    if (!logoTargetEvent || !selectedLogoFile) {
       toast.error("Choose a logo first");
       return;
     }
     setLogoBusy(true);
     try {
-      const response = await uploadAdminEventLogo(editingEvent.id, selectedLogoFile);
-      clearProtectedObjectUrlCache(`/api/events/${editingEvent.id}/logo`);
-      setEditingEvent(response.event);
+      const response = await uploadAdminEventLogo(logoTargetEvent.id, selectedLogoFile);
+      clearProtectedObjectUrlCache(`/api/events/${logoTargetEvent.id}/logo`);
+      setEditingEvent((current) => (current?.id === response.event.id ? response.event : current));
       setEvents((prev) => sortEvents(prev.map((item) => (item.id === response.event.id ? response.event : item))));
       setSelectedLogoFile(null);
       if (logoInputRef.current) logoInputRef.current.value = "";
+      setLogoUploadOpen(false);
+      setLogoUploadEvent(null);
       toast.success("Event logo updated", { description: response.event.eventName });
     } catch (error: unknown) {
       toast.error("Event logo upload failed", { description: getErrorMessage(error) });
@@ -634,15 +717,17 @@ export default function AdminEventsPage() {
   };
 
   const handleLogoDelete = async () => {
-    if (!editingEvent) return;
+    if (!logoTargetEvent) return;
     setLogoBusy(true);
     try {
-      const response = await deleteAdminEventLogo(editingEvent.id);
-      clearProtectedObjectUrlCache(`/api/events/${editingEvent.id}/logo`);
-      setEditingEvent(response.event);
+      const response = await deleteAdminEventLogo(logoTargetEvent.id);
+      clearProtectedObjectUrlCache(`/api/events/${logoTargetEvent.id}/logo`);
+      setEditingEvent((current) => (current?.id === response.event.id ? response.event : current));
       setEvents((prev) => sortEvents(prev.map((item) => (item.id === response.event.id ? response.event : item))));
       setSelectedLogoFile(null);
       if (logoInputRef.current) logoInputRef.current.value = "";
+      setLogoUploadOpen(false);
+      setLogoUploadEvent(null);
       toast.success("Event logo removed", { description: response.event.eventName });
     } catch (error: unknown) {
       toast.error("Event logo delete failed", { description: getErrorMessage(error) });
@@ -652,88 +737,107 @@ export default function AdminEventsPage() {
   };
 
   return (
-    <div className="flex min-h-[calc(100dvh-3rem)] w-full min-w-0 flex-col overflow-y-auto bg-transparent p-1 font-sans">
+    <div className="admin-page flex min-h-[calc(100dvh-3rem)] w-full min-w-0 flex-col bg-transparent">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-5 flex flex-col gap-4 min-[1180px]:flex-row min-[1180px]:items-end min-[1180px]:justify-between"
+        className="admin-card p-5"
       >
-        <div className="min-w-0">
-          <h1 className="text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">Event Registry</h1>
-          <p className="mt-4 max-w-xl text-lg font-light leading-relaxed text-zinc-500">
-            Create events once, keep their base details in the registry, and switch them to active when they are ready for campaign create or upload.
-          </p>
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
+          <div className="min-w-0">
+            <p className="admin-eyebrow">Admin Control</p>
+            <h1 className="admin-title">Event Registry</h1>
+          </div>
+
+          <div className="admin-actions">
+            <Link href="/admin/users">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 border-zinc-300 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
+              >
+                <UsersRound className="mr-2 h-4 w-4" />
+                Users
+              </Button>
+            </Link>
+
+            <Link href="/choose-persona">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 border-zinc-300 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Workspaces
+              </Button>
+            </Link>
+
+            <Button
+              type="button"
+              onClick={() => void loadEvents()}
+              disabled={loading || isBusy}
+              className="analytics-frost-btn h-10 px-4"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href="/admin/users">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-10 border-zinc-300 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
-            >
-              <UsersRound className="mr-2 h-4 w-4" />
-              Users
-            </Button>
-          </Link>
-
-          <Link href="/choose-persona">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-10 border-zinc-300 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Workspaces
-            </Button>
-          </Link>
-
-          <Button
-            type="button"
-            onClick={() => void loadEvents()}
-            disabled={loading || isBusy}
-            className="analytics-frost-btn h-10 px-4"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          {[
+            { label: "Total Events", value: stats.total, icon: Tags },
+            { label: "Active Events", value: stats.active, icon: ShieldCheck },
+            { label: "Inactive Events", value: stats.inactive, icon: CalendarDays },
+          ].map((item) => (
+            <div key={item.label} className="rounded-lg border border-zinc-200 bg-white/80 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{item.label}</p>
+                  <p className="mt-1 text-2xl font-semibold tracking-tight text-zinc-900">{item.value}</p>
+                </div>
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-700">
+                  <item.icon className="h-4 w-4" />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </motion.div>
 
-      <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <div className="min-w-0 space-y-5">
-          <div className="grid gap-3 sm:grid-cols-3">
-            {[
-              { label: "Total Events", value: stats.total, icon: Tags },
-              { label: "Active Events", value: stats.active, icon: ShieldCheck },
-              { label: "Inactive Events", value: stats.inactive, icon: CalendarDays },
-            ].map((item) => (
-              <Card key={item.label} className="rounded-2xl border border-zinc-300 bg-white/86 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{item.label}</p>
-                    <p className="mt-2 text-2xl font-semibold tracking-tight text-zinc-900">{item.value}</p>
-                  </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-300 bg-zinc-50 text-zinc-700">
-                    <item.icon className="h-5 w-5" />
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
+      <div className="mt-4 grid grid-cols-2 rounded-lg border border-zinc-200 bg-white p-1 shadow-sm">
+        {[
+          { value: "registered" as const, label: "Registered Events", icon: Tags },
+          { value: "create" as const, label: "Create Event", icon: Plus },
+        ].map((item) => (
+          <button
+            key={item.value}
+            type="button"
+            onClick={() => setActiveTab(item.value)}
+            className={`flex h-11 items-center justify-center gap-2 rounded-md text-sm font-semibold transition-colors ${
+              activeTab === item.value
+                ? "bg-blue-600 text-white shadow-sm shadow-blue-200"
+                : "text-zinc-600 hover:bg-blue-50 hover:text-blue-700"
+            }`}
+          >
+            <item.icon className="h-4 w-4" />
+            {item.label}
+          </button>
+        ))}
+      </div>
 
-          <Card className="overflow-hidden rounded-2xl border border-zinc-300/85 bg-white/82">
-            <div className="flex flex-col gap-3 border-b border-zinc-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      {activeTab === "registered" ? (
+        <div className="mt-4 min-w-0">
+          <Card className="admin-card overflow-hidden">
+            <div className="flex flex-col gap-2 border-b border-zinc-100 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-base font-semibold text-zinc-900">Registered Events</h2>
-                <p className="text-sm text-zinc-500">
-                  Only active events appear in campaign create and upload selectors. Keep inactive events hidden until they are ready to use.
-                </p>
+                <p className="text-sm text-zinc-500">Active events are available to campaign create and upload selectors.</p>
               </div>
             </div>
 
             <div className="min-w-0">
-              <div className="hidden border-b border-zinc-100 bg-zinc-50/70 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400 lg:grid lg:grid-cols-[minmax(0,2.2fr)_minmax(8rem,1fr)_7rem_8rem_minmax(8rem,1fr)_9rem] lg:gap-4">
+              <div className="hidden border-b border-zinc-100 bg-zinc-50/70 px-5 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400 lg:grid lg:grid-cols-[minmax(0,2.2fr)_minmax(8rem,1fr)_7rem_9.5rem_minmax(8rem,1fr)_12rem] lg:gap-5">
                 <div>Event</div>
                 <div>Location</div>
                 <div>Date</div>
@@ -742,26 +846,42 @@ export default function AdminEventsPage() {
                 <div className="text-right">Actions</div>
               </div>
 
-              <div className="divide-y divide-zinc-100">
+              <div className="admin-list-panel max-h-[min(34rem,calc(100dvh-22rem))] overflow-y-auto divide-y divide-zinc-100 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {loading ? (
                   <div className="px-5 py-10 text-center text-sm text-zinc-500">Loading events...</div>
                 ) : events.length === 0 ? (
                   <div className="px-5 py-10 text-center text-sm text-zinc-500">No events found.</div>
                 ) : (
-                  events.map((item) => (
+                  paginatedEvents.map((item) => (
                     <div
                       key={item.id}
-                      className="grid min-w-0 gap-4 px-5 py-4 transition-colors hover:bg-zinc-50/80 lg:grid-cols-[minmax(0,2.2fr)_minmax(8rem,1fr)_7rem_8rem_minmax(8rem,1fr)_9rem] lg:items-center"
+                      className="grid min-w-0 gap-3 px-5 py-3 transition-colors hover:bg-zinc-50/80 lg:grid-cols-[minmax(0,2.2fr)_minmax(8rem,1fr)_7rem_9.5rem_minmax(8rem,1fr)_12rem] lg:items-center lg:gap-5"
                     >
                       <div className="min-w-0">
                         <div className="flex min-w-0 items-center gap-3">
-                          <EventLogoThumbnail event={item} />
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => {
+                              setSelectedLogoFile(null);
+                              if (logoInputRef.current) logoInputRef.current.value = "";
+                              setLogoUploadEvent(item);
+                              setLogoUploadOpen(true);
+                            }}
+                            className="group relative h-10 w-10 shrink-0 overflow-hidden rounded-lg text-left disabled:cursor-not-allowed disabled:opacity-70"
+                            aria-label={`Update logo for ${item.eventName}`}
+                          >
+                            <EventLogoThumbnail event={item} />
+                            <span className="absolute inset-0 flex items-center justify-center bg-blue-950/45 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                              <PencilLine className="h-3.5 w-3.5" />
+                            </span>
+                          </button>
                           <div className="min-w-0">
                             <span className="block truncate font-semibold text-zinc-900" title={item.eventName}>
                               {item.eventName}
                             </span>
                             <span className="block truncate text-xs text-zinc-500">
-                              {(item.eventType || "conference") === "boardroom" ? "Boardroom" : "Conference"} · {item.id}
+                              {(item.eventType || "conference") === "boardroom" ? "Boardroom" : "Conference"}
                             </span>
                           </div>
                         </div>
@@ -817,13 +937,13 @@ export default function AdminEventsPage() {
                         </span>
                       </div>
 
-                      <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
+                      <div className="flex flex-nowrap justify-start gap-2 lg:justify-end">
                         <Button
                           type="button"
                           variant="outline"
                           onClick={() => openEditDialog(item)}
                           disabled={isBusy}
-                          className="h-9 border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 lg:h-8"
+                          className="h-8 whitespace-nowrap border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
                         >
                           <PencilLine className="mr-1.5 h-3.5 w-3.5" />
                           Edit
@@ -833,7 +953,7 @@ export default function AdminEventsPage() {
                           variant="outline"
                           onClick={() => setDeleteTarget({ event: item })}
                           disabled={isBusy}
-                          className="h-9 border-red-200 bg-white px-3 text-xs font-semibold text-red-600 hover:bg-red-50 lg:h-8"
+                          className="h-8 whitespace-nowrap border-red-200 bg-white px-2.5 text-xs font-semibold text-red-600 hover:bg-red-50"
                         >
                           <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                           Delete
@@ -843,12 +963,76 @@ export default function AdminEventsPage() {
                   ))
                 )}
               </div>
+              {events.length > 0 ? (
+                <div className="flex flex-wrap items-center justify-end gap-2 border-t border-zinc-100 px-5 py-3 text-sm text-zinc-500">
+                  <div className="flex h-11 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-2 shadow-sm">
+                    <span className="whitespace-nowrap text-xs font-medium text-zinc-600">Rows per page</span>
+                    <Select
+                      value={String(pageSize)}
+                      onValueChange={(value) => {
+                        setPageSize(Number(value) as EventPageSize);
+                        setCurrentPage(1);
+                      }}
+                    >
+                      <SelectTrigger className="h-8 w-[4.75rem] rounded-md border-zinc-200 bg-white text-sm font-semibold text-zinc-800 shadow-none">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="border-zinc-300 bg-white">
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <span className="mx-1 whitespace-nowrap text-xs font-medium text-zinc-500">
+                    Page {currentPage} / {pageCount}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={currentPage <= 1}
+                      onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                      aria-label="Previous page"
+                      className="h-9 w-9 rounded-lg border-zinc-200 bg-white p-0 text-zinc-500 shadow-none hover:bg-zinc-50 hover:text-zinc-800 disabled:bg-zinc-50 disabled:text-zinc-300 disabled:opacity-100"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    {visiblePageNumbers.map((pageNumber) => (
+                      <Button
+                        key={pageNumber}
+                        type="button"
+                        variant="outline"
+                        onClick={() => setCurrentPage(pageNumber)}
+                        aria-current={pageNumber === currentPage ? "page" : undefined}
+                        className={`h-9 w-9 rounded-lg p-0 text-sm font-semibold shadow-none ${
+                          pageNumber === currentPage
+                            ? "border-blue-600 bg-blue-600 text-white hover:bg-blue-700"
+                            : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
+                        }`}
+                      >
+                        {pageNumber}
+                      </Button>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={currentPage >= pageCount}
+                      onClick={() => setCurrentPage((page) => Math.min(pageCount, page + 1))}
+                      aria-label="Next page"
+                      className="h-9 w-9 rounded-lg border-zinc-200 bg-white p-0 text-zinc-500 shadow-none hover:bg-zinc-50 hover:text-zinc-800 disabled:bg-zinc-50 disabled:text-zinc-300 disabled:opacity-100"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </Card>
         </div>
-
-        <Card className="h-fit rounded-2xl border border-zinc-300 bg-white/88 p-5 2xl:sticky 2xl:top-6">
-          <div className="mb-5 flex items-start justify-between gap-3">
+      ) : (
+        <Card className="admin-card mt-4 p-5">
+          <div className="mb-4 flex items-start justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold text-zinc-900">Create Event</h2>
               <p className="mt-1 text-sm text-zinc-500">
@@ -860,7 +1044,7 @@ export default function AdminEventsPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Event Name</label>
               <Input
@@ -917,25 +1101,28 @@ export default function AdminEventsPage() {
               />
             </div>
 
-            <div className="rounded-xl border border-zinc-300 bg-zinc-50/70 p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Generated Event Key</p>
-              <p className="mt-2 break-all text-sm font-medium text-zinc-700">
-                {generatedEventKey || "Event key preview will appear here"}
-              </p>
-              <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-                This event will be created as inactive. Switch it to active from the table when you are ready to use it in campaign create or upload.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-zinc-300 bg-white/80 p-4 text-xs leading-relaxed text-zinc-500">
-              Event identity is stored here. Category stays campaign-specific and will be filled during campaign creation.
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Generated Event Key</label>
+                <InfoHint label="Generated event key details">
+                  <span className="block font-semibold text-zinc-800">Event key preview</span>
+                  <span className="mt-1 block">
+                    This event will be created as inactive. Switch it to active from the table when you are ready to use it in campaign create or upload.
+                  </span>
+                </InfoHint>
+              </div>
+              <div className="flex min-h-10 items-center rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm font-medium text-zinc-700">
+                <span className="break-all">
+                  {generatedEventKey || "Event key preview will appear here"}
+                </span>
+              </div>
             </div>
 
             <Button
               type="button"
               onClick={() => void handleSubmit()}
               disabled={isBusy}
-              className="h-10 w-full bg-sidebar text-white hover:bg-zinc-800 disabled:opacity-50"
+              className="h-10 w-full bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 md:col-span-2 xl:col-span-3"
             >
               {saving ? (
                 <>
@@ -951,7 +1138,7 @@ export default function AdminEventsPage() {
             </Button>
           </div>
         </Card>
-      </div>
+      )}
 
       <AdminEventDialog
         open={Boolean(editingEvent)}
@@ -1043,66 +1230,27 @@ export default function AdminEventsPage() {
             The event key stays stable here and is not edited from the UI, so event mapping remains consistent while details are updated.
           </div>
 
-          <div className="rounded-xl border border-zinc-300 bg-zinc-50/70 p-4">
-            <div className="flex items-start gap-4">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-zinc-300 bg-white text-sm font-semibold text-zinc-500">
-                {logoPreviewUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={logoPreviewUrl} alt="" className="h-full w-full object-cover" />
-                ) : editingEvent ? (
-                  <EventLogoThumbnail event={editingEvent} />
-                ) : (
-                  "LG"
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Event Logo</p>
-                <p className="mt-1 text-sm text-zinc-600">
-                  {selectedLogoFile?.name || (editingEvent?.logoStorageObjectId ? "Logo is set for this event." : "No logo selected.")}
-                </p>
-                <input
-                  ref={logoInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  className="hidden"
-                  onChange={(event) => handleLogoSelect(event.target.files?.[0] ?? null)}
-                />
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={logoBusy || editSaving}
-                    onClick={() => logoInputRef.current?.click()}
-                    className="h-9 border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
-                  >
-                    <ImagePlus className="mr-1.5 h-3.5 w-3.5" />
-                    Choose Logo
-                  </Button>
-                  <Button
-                    type="button"
-                    disabled={!selectedLogoFile || logoBusy || editSaving}
-                    onClick={() => void handleLogoUpload()}
-                    className="h-9 bg-sidebar px-3 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
-                  >
-                    {logoBusy && selectedLogoFile ? (
-                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <ImagePlus className="mr-1.5 h-3.5 w-3.5" />
-                    )}
-                    Upload
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={logoBusy || editSaving || (!editingEvent?.logoStorageObjectId && !selectedLogoFile)}
-                    onClick={() => void handleLogoDelete()}
-                    className="h-9 border-red-200 bg-white px-3 text-xs font-semibold text-red-600 hover:bg-red-50"
-                  >
-                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                    Remove
-                  </Button>
-                </div>
-              </div>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Event Logo</p>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                disabled={logoBusy || editSaving}
+                onClick={() => {
+                  setLogoUploadEvent(editingEvent);
+                  setLogoUploadOpen(true);
+                }}
+                className="group relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-zinc-300 bg-white text-sm font-semibold text-zinc-500 transition-colors hover:border-blue-300 disabled:cursor-not-allowed disabled:opacity-70"
+                aria-label="Update event logo"
+              >
+                <EventLogoPreview event={editingEvent} previewUrl={logoPreviewUrl} />
+                <span className="absolute inset-0 flex items-center justify-center bg-blue-950/45 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                  <PencilLine className="h-4 w-4" />
+                </span>
+              </button>
+              <p className="text-sm text-zinc-600">
+                {selectedLogoFile?.name || (editingEvent?.logoStorageObjectId ? "Logo is set for this event." : "No logo selected.")}
+              </p>
             </div>
           </div>
 
@@ -1120,7 +1268,7 @@ export default function AdminEventsPage() {
               type="button"
               onClick={() => void handleEditSubmit()}
               disabled={editSaving}
-              className="h-10 bg-sidebar px-4 text-white hover:bg-zinc-800 disabled:opacity-50"
+              className="h-10 bg-blue-600 px-4 text-white hover:bg-blue-700 disabled:opacity-50"
             >
               {editSaving ? (
                 <>
@@ -1133,6 +1281,76 @@ export default function AdminEventsPage() {
                   Save Changes
                 </>
               )}
+            </Button>
+          </div>
+        </div>
+      </AdminEventDialog>
+
+      <AdminEventDialog
+        open={logoUploadOpen && Boolean(logoTargetEvent)}
+        title="Update Event Logo"
+        description="Choose a JPG, PNG, or WebP logo. The uploaded logo will replace the current registry image."
+        onClose={closeLogoUploadDialog}
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border border-zinc-300 bg-zinc-50/70 p-4">
+            <div className="flex items-start gap-4">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-zinc-300 bg-white text-sm font-semibold text-zinc-500">
+                <EventLogoPreview event={logoTargetEvent} previewUrl={logoPreviewUrl} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Event Logo</p>
+                <p className="mt-1 text-sm font-medium text-zinc-800">
+                  {selectedLogoFile?.name || logoTargetEvent?.eventName || "Event logo"}
+                </p>
+                <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+                  Use a clear square mark when possible. Supported formats are JPG, PNG, and WebP up to 20MB.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <input
+            ref={logoInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={(event) => handleLogoSelect(event.target.files?.[0] ?? null)}
+          />
+
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={logoBusy || editSaving}
+              onClick={() => logoInputRef.current?.click()}
+              className="h-9 border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+            >
+              <ImagePlus className="mr-1.5 h-3.5 w-3.5" />
+              Choose Logo
+            </Button>
+            <Button
+              type="button"
+              disabled={!selectedLogoFile || logoBusy || editSaving}
+              onClick={() => void handleLogoUpload()}
+              className="h-9 bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {logoBusy && selectedLogoFile ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <ImagePlus className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              Upload
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={logoBusy || editSaving || (!logoTargetEvent?.logoStorageObjectId && !selectedLogoFile)}
+              onClick={() => void handleLogoDelete()}
+              className="h-9 border-red-200 bg-white px-3 text-xs font-semibold text-red-600 hover:bg-red-50"
+            >
+              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+              Remove
             </Button>
           </div>
         </div>
