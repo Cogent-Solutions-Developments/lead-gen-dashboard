@@ -48,7 +48,7 @@ import {
   type AdminEventItem,
   type AuthRole,
   type AuthUser,
-} from "@/lib/auth";
+} from "../admin-api";
 
 type AdminUsersTab = "users" | "add-user" | "client-access";
 type UserStatusValue = "active" | "inactive";

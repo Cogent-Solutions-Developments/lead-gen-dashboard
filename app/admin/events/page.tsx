@@ -35,6 +35,8 @@ import {
 } from "@/components/ui/select";
 import {
   clearProtectedObjectUrlCache,
+} from "@/lib/auth";
+import {
   createAdminEvent,
   deleteAdminEvent,
   deleteAdminEventLogo,
@@ -43,7 +45,7 @@ import {
   uploadAdminEventLogo,
   type AdminEventItem,
   type AdminEventUpdateInput,
-} from "@/lib/auth";
+} from "../admin-api";
 import { ProtectedImage } from "@/components/storage/ProtectedImage";
 
 const EVENT_LOGO_MAX_BYTES = 20 * 1024 * 1024;

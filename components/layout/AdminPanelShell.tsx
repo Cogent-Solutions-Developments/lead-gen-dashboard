@@ -21,7 +21,7 @@ import {
   Webhook,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { clearAuthSession, isManagerRole } from "@/lib/auth";
+import { clearAuthSession } from "@/lib/auth";
 import { clearPersona } from "@/lib/persona";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -105,10 +105,6 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
-  const isManager = isManagerRole(user?.role);
-  const visibleTabs = isManager
-    ? adminTabs.filter((item) => item.href === "/admin/user-performance")
-    : adminTabs;
 
   const handleSignOut = async () => {
     try {
@@ -135,12 +131,12 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
           </div>
           <div>
             <p className="text-xl font-medium tracking-wide text-sidebar-foreground drop-shadow-sm">supernizo</p>
-            <p className="text-xs text-sidebar-foreground/70">{isManager ? "Manager Panel" : "Admin Panel"}</p>
+            <p className="text-xs text-sidebar-foreground/70">Admin Panel</p>
           </div>
         </div>
 
         <nav className="flex-1 space-y-2 overflow-y-auto pr-1">
-          {visibleTabs.map((item, index) => {
+          {adminTabs.map((item, index) => {
             const isActive = item.match(pathname);
             return (
               <motion.div
@@ -196,7 +192,7 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
             </div>
             <div className="min-w-0">
               <p className="truncate text-lg font-medium tracking-wide text-sidebar-foreground">supernizo</p>
-              <p className="text-xs text-sidebar-foreground/70">{isManager ? "Manager Panel" : "Admin Panel"}</p>
+              <p className="text-xs text-sidebar-foreground/70">Admin Panel</p>
             </div>
           </div>
 
@@ -211,7 +207,7 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="mt-3 flex gap-2 overflow-x-auto pb-1">
-          {visibleTabs.map((item) => {
+          {adminTabs.map((item) => {
             const isActive = item.match(pathname);
             return (
               <Link key={item.name} href={item.href} className="shrink-0">

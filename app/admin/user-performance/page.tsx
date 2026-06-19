@@ -27,7 +27,7 @@ import {
   type ManagerPerformanceActivity,
   type ManagerPerformanceResponse,
   type ManagerUserPerformanceActivity,
-} from "@/lib/auth";
+} from "../admin-api";
 import { useAuth } from "@/hooks/useAuth";
 
 const PERIOD_OPTIONS: Array<{ value: AdminUserPerformancePeriod; label: string }> = [

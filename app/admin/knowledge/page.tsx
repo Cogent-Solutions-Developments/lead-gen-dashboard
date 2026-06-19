@@ -30,7 +30,7 @@ import {
   type NizoAiKnowledgeCollection,
   type NizoAiKnowledgeDocument,
 } from "@/lib/api";
-import { listAdminEvents, type AdminEventItem } from "@/lib/auth";
+import { listAdminEvents, type AdminEventItem } from "../admin-api";
 
 const MAX_KNOWLEDGE_BYTES = 20 * 1024 * 1024;
 const COLLECTION_FALLBACKS: NizoAiKnowledgeCollection[] = [
