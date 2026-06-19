@@ -91,7 +91,7 @@ export default function AdminAgendasPage() {
     try {
       const rows = sortEvents(await listAdminEvents(true));
       setEvents(rows);
-      setSelectedEventId((current) => current || rows.find((event) => event.isActive)?.id || rows[0]?.id || "");
+      setSelectedEventId((current) => (rows.some((event) => event.id === current) ? current : ""));
     } catch (error: unknown) {
       toast.error("Failed to load events", { description: getErrorMessage(error) });
       setEvents([]);
@@ -318,9 +318,13 @@ export default function AdminAgendasPage() {
               <h2 className="mt-1 truncate text-lg font-semibold tracking-tight text-zinc-900">
                 {selectedEvent?.eventName || "Select an event"}
               </h2>
-              <p className="mt-1 text-sm text-zinc-500">
+              {selectedEvent ? (
+                <p className="mt-1 text-sm text-zinc-500">
                 {selectedEvent?.location || "No location"} · {selectedEvent?.date || "No date"}
-              </p>
+                </p>
+              ) : (
+                <p className="mt-1 text-sm text-zinc-500">Choose an event to review agendas.</p>
+              )}
             </div>
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-300 bg-zinc-50 text-zinc-700">
               <CalendarDays className="h-5 w-5" />
@@ -390,8 +394,12 @@ export default function AdminAgendasPage() {
             ) : (
               <div className="flex h-36 flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50/80 text-center">
                 <FileText className="h-8 w-8 text-zinc-300" />
-                <p className="mt-3 text-sm font-semibold text-zinc-700">No agenda uploaded</p>
-                <p className="mt-1 text-xs text-zinc-500">Upload the first PDF for this event.</p>
+                <p className="mt-3 text-sm font-semibold text-zinc-700">
+                  {selectedEvent ? "No agenda uploaded" : "No event selected"}
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  {selectedEvent ? "Upload the first PDF for this event." : "Select an event to see agenda status."}
+                </p>
               </div>
             )}
           </div>
@@ -472,8 +480,12 @@ export default function AdminAgendasPage() {
             ) : (
               <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50/80 p-8 text-center">
                 <ShieldCheck className="mx-auto h-8 w-8 text-zinc-300" />
-                <p className="mt-3 text-sm font-semibold text-zinc-700">No upload history for this event</p>
-                <p className="mt-1 text-xs text-zinc-500">Every new PDF will appear here as a separate version.</p>
+                <p className="mt-3 text-sm font-semibold text-zinc-700">
+                  {selectedEvent ? "No upload history for this event" : "No event selected"}
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  {selectedEvent ? "Every new PDF will appear here as a separate version." : "Select an event to review versions."}
+                </p>
               </div>
             )}
           </div>

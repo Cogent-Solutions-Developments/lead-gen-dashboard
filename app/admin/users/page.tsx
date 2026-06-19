@@ -27,6 +27,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { EventRegistryPicker } from "@/components/events/EventRegistryPicker";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
@@ -278,7 +279,7 @@ export default function AdminUsersPage() {
   const loadEvents = useCallback(async () => {
     setLoadingEvents(true);
     try {
-      const rows = await listAdminEvents(false);
+      const rows = await listAdminEvents(true);
       setEvents(rows);
       setEventId((current) => (rows.some((event) => event.id === current) ? current : ""));
     } catch (error) {
@@ -884,22 +885,19 @@ export default function AdminUsersPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase text-zinc-500">Event</label>
-                <Select value={eventId} onValueChange={setEventId} disabled={loadingEvents || clientSaving}>
-                  <SelectTrigger className="h-10 border-zinc-300 bg-white">
-                    <SelectValue placeholder={loadingEvents ? "Loading active events..." : "Select active event"} />
-                  </SelectTrigger>
-                  <SelectContent className="border-zinc-300 bg-white">
-                    {events.map((event) => (
-                      <SelectItem key={event.id} value={event.id}>
-                        {event.eventName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <EventRegistryPicker
+                  events={events}
+                  value={eventId}
+                  onValueChange={setEventId}
+                  loading={loadingEvents}
+                  disabled={clientSaving}
+                  placeholder="Select event"
+                  loadingLabel="Loading events..."
+                />
                 <p className="text-xs text-zinc-500">
                   {selectedEvent
                     ? `${eventTypeLabel(selectedEvent.eventType)} | ${formatDate(selectedEvent.date)}`
-                    : "Choose an active event before entering client details."}
+                    : "Choose an event before entering client details."}
                 </p>
               </div>
 

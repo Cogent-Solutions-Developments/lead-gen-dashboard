@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { EventRegistryPicker } from "@/components/events/EventRegistryPicker";
 import { Input } from "@/components/ui/input";
 import {
   archiveNizoAiKnowledge,
@@ -29,6 +30,7 @@ import {
   type NizoAiKnowledgeCollection,
   type NizoAiKnowledgeDocument,
 } from "@/lib/api";
+import { listAdminEvents, type AdminEventItem } from "@/lib/auth";
 
 const MAX_KNOWLEDGE_BYTES = 20 * 1024 * 1024;
 const COLLECTION_FALLBACKS: NizoAiKnowledgeCollection[] = [
@@ -73,6 +75,10 @@ function readableCollection(value?: string | null) {
   return raw.replace(/^\d+_/, "").replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function sortEvents(events: AdminEventItem[]) {
+  return [...events].sort((a, b) => a.eventName.localeCompare(b.eventName));
+}
+
 function statusClass(status: string) {
   const normalized = status.toLowerCase();
   if (normalized === "indexed") return "border-emerald-200 bg-emerald-50 text-emerald-700";
@@ -93,6 +99,7 @@ export default function AdminKnowledgePage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [documents, setDocuments] = useState<NizoAiKnowledgeDocument[]>([]);
   const [collections, setCollections] = useState<NizoAiKnowledgeCollection[]>(COLLECTION_FALLBACKS);
+  const [events, setEvents] = useState<AdminEventItem[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [scope, setScope] = useState("global");
   const [documentType, setDocumentType] = useState("auto");
@@ -101,6 +108,7 @@ export default function AdminKnowledgePage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadingEvents, setLoadingEvents] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [downloadingId, setDownloadingId] = useState("");
   const [archivingId, setArchivingId] = useState("");
@@ -120,6 +128,10 @@ export default function AdminKnowledgePage() {
   );
 
   const collectionOptions = collections.length ? collections : COLLECTION_FALLBACKS;
+  const selectedEvent = useMemo(
+    () => events.find((event) => event.eventKey === eventKey) ?? null,
+    [eventKey, events]
+  );
 
   const loadKnowledge = useCallback(async () => {
     setLoading(true);
@@ -139,9 +151,28 @@ export default function AdminKnowledgePage() {
     }
   }, [search, statusFilter]);
 
+  const loadEvents = useCallback(async () => {
+    setLoadingEvents(true);
+    try {
+      const rows = sortEvents(await listAdminEvents(true));
+      setEvents(rows);
+      setEventKey((current) => (rows.some((event) => event.eventKey === current) ? current : ""));
+    } catch (error: unknown) {
+      toast.error("Failed to load events", { description: getErrorMessage(error) });
+      setEvents([]);
+      setEventKey("");
+    } finally {
+      setLoadingEvents(false);
+    }
+  }, []);
+
   useEffect(() => {
     void loadKnowledge();
   }, [loadKnowledge]);
+
+  useEffect(() => {
+    void loadEvents();
+  }, [loadEvents]);
 
   const handleFileChange = (file: File | null) => {
     if (!file) {
@@ -333,14 +364,20 @@ export default function AdminKnowledgePage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Event key</label>
-                <Input
+                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Event</label>
+                <EventRegistryPicker
+                  events={events}
                   value={eventKey}
-                  onChange={(event) => setEventKey(event.target.value)}
-                  placeholder="Optional event scope"
+                  onValueChange={setEventKey}
+                  loading={loadingEvents}
                   disabled={uploading}
-                  className="h-10 border-zinc-300 bg-white"
+                  placeholder="Select event"
+                  loadingLabel="Loading events..."
+                  getEventValue={(event) => event.eventKey}
                 />
+                <p className="text-xs text-zinc-500">
+                  {selectedEvent ? "Event scope selected." : "Optional event scope."}
+                </p>
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Category</label>
