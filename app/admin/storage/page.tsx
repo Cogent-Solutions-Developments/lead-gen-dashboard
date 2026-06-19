@@ -77,17 +77,17 @@ function DeleteStorageDialog({
       <button
         type="button"
         aria-label="Close confirmation"
-        className="absolute inset-0 bg-zinc-950/35 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-blue-950/35 backdrop-blur-[2px]"
         onClick={onClose}
       />
-      <div className="relative z-[1] w-full max-w-md rounded-2xl border border-zinc-300 bg-white p-6 shadow-2xl">
+      <div className="admin-modal-panel relative z-[1] w-full max-w-md rounded-2xl border border-zinc-300 bg-white p-6">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-red-100 bg-red-50 text-red-600">
             <Trash2 className="h-5 w-5" />
           </div>
           <div className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-wider text-red-600">Delete Storage Object</p>
-            <h2 className="mt-2 text-xl font-semibold text-zinc-950">Remove this file?</h2>
+            <h2 className="mt-2 text-xl font-semibold text-slate-900">Remove this file?</h2>
             <p className="mt-3 break-words text-sm leading-relaxed text-zinc-600">
               {target.originalFilename} will be removed from the active storage bucket. Metadata remains for audit history.
             </p>
@@ -191,17 +191,16 @@ export default function AdminStoragePage() {
   };
 
   return (
-    <div className="flex min-h-[calc(100dvh-3rem)] flex-col overflow-y-auto bg-transparent p-1 font-sans">
+    <div className="admin-page flex min-h-[calc(100dvh-3rem)] flex-col bg-transparent">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
+        className="admin-page-header flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between"
       >
         <div>
-          <h1 className="text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">
-            Storage Control
-          </h1>
-          <p className="mt-4 max-w-xl text-lg font-light leading-relaxed text-zinc-500">
+          <p className="admin-eyebrow">Admin Control</p>
+          <h1 className="admin-title">Storage Control</h1>
+          <p className="admin-description">
             Monitor stored files, download objects, and remove obsolete active files.
           </p>
         </div>
@@ -222,7 +221,7 @@ export default function AdminStoragePage() {
           { label: "Total Objects", value: summary?.totalObjects ?? 0, icon: Archive },
           { label: "Stored Size", value: formatBytes(summary?.totalBytes), icon: HardDrive },
         ].map((item) => (
-          <Card key={item.label} className="rounded-2xl border border-zinc-300 bg-white/86 p-4">
+          <Card key={item.label} className="admin-card-soft p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{item.label}</p>
@@ -236,7 +235,7 @@ export default function AdminStoragePage() {
         ))}
       </div>
 
-      <Card className="mt-5 overflow-hidden rounded-2xl border border-zinc-300/85 bg-white/82">
+      <Card className="admin-card mt-5 overflow-hidden">
         <div className="grid gap-3 border-b border-zinc-100 p-5 lg:grid-cols-[minmax(0,1fr)_9rem_9rem_11rem_auto]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
@@ -295,7 +294,7 @@ export default function AdminStoragePage() {
           </Button>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="admin-table-wrap">
           <table className="w-full min-w-[1100px]">
             <thead className="border-b border-zinc-100 bg-zinc-50/70 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
               <tr>

@@ -20,7 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 const adminTasks = [
   {
     title: "User & Role Management",
-    description: "Create users, rotate passwords, and assign pipeline access.",
+    description: "Create users, rotate passwords, assign pipeline roles, and manage client access.",
     href: "/admin/users",
     icon: UsersRound,
     metric: "Access",
@@ -87,16 +87,16 @@ export default function AdminDashboardPage() {
   const { user } = useAuth();
 
   return (
-    <div className="font-sans flex min-h-[calc(100dvh-3rem)] flex-col overflow-y-auto bg-transparent p-1">
+    <div className="admin-page flex min-h-[calc(100dvh-3rem)] flex-col bg-transparent">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
+        className="admin-page-header flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between"
       >
         <div>
-          <p className="text-lg font-normal text-zinc-900">Admin Control</p>
-          <h1 className="mt-0 text-2xl font-semibold tracking-tight text-zinc-900">Admin Dashboard</h1>
-          <p className="mt-1 max-w-2xl text-sm text-zinc-500">
+          <p className="admin-eyebrow">Admin Control</p>
+          <h1 className="admin-title">Admin Dashboard</h1>
+          <p className="admin-description">
             Summary of super-admin tasks for {user?.fullName || user?.username || "this workspace"}.
           </p>
         </div>
@@ -116,7 +116,7 @@ export default function AdminDashboardPage() {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         {adminTasks.map((task) => (
           <Link key={task.title} href={task.href}>
-            <div className="h-full rounded-2xl border border-zinc-300 bg-white/88 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:bg-white">
+            <div className="admin-card h-full p-4 transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:bg-white">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{task.metric}</p>
@@ -136,7 +136,7 @@ export default function AdminDashboardPage() {
         ))}
       </div>
 
-      <div className="mt-5 rounded-2xl border border-zinc-300/85 bg-white/84 p-5">
+      <div className="admin-card mt-5 p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-base font-semibold text-zinc-900">Admin Task Flow</h2>

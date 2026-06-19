@@ -7,16 +7,23 @@ import { Card } from "@/components/ui/card";
 
 export default function AdminContentPromptsPage() {
   return (
-    <div className="font-sans">
-      <Link
-        href="/admin"
-        className="inline-flex items-center text-xs font-semibold text-zinc-500 transition-colors hover:text-zinc-950"
-      >
-        <ArrowLeft className="mr-2 h-3.5 w-3.5" />
-        Admin dashboard
-      </Link>
+    <div className="admin-page">
+      <div className="admin-page-header">
+        <Link
+          href="/admin"
+          className="inline-flex items-center text-xs font-semibold text-zinc-500 transition-colors hover:text-zinc-950"
+        >
+          <ArrowLeft className="mr-2 h-3.5 w-3.5" />
+          Admin dashboard
+        </Link>
+        <p className="admin-eyebrow mt-4">Admin Control</p>
+        <h1 className="admin-title">Content Prompts</h1>
+        <p className="admin-description">
+          Placeholder surface for prompt operations until the backend exposes the supported prompt-management API.
+        </p>
+      </div>
 
-      <Card className="mt-5 max-w-3xl rounded-2xl border border-zinc-300 bg-white/88 p-6 shadow-sm">
+      <Card className="admin-card max-w-3xl p-6">
         <div className="flex items-start gap-4">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-300 bg-zinc-50 text-zinc-700">
             <FileText className="h-5 w-5" />

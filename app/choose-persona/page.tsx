@@ -1,9 +1,18 @@
-﻿"use client";
+"use client";
 
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Home, LogOut, ShieldCheck, Webhook } from "lucide-react";
+import {
+  ArrowRight,
+  BarChart3,
+  Factory,
+  Handshake,
+  Home,
+  LogOut,
+  ShieldCheck,
+  Webhook,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { usePersona } from "@/hooks/usePersona";
@@ -12,20 +21,47 @@ import { clearPersona, getStoredPersona } from "@/lib/persona";
 import { clearAuthSession } from "@/lib/auth";
 import { toast } from "sonner";
 
+type PersonaValue = "sales" | "delegates" | "production";
+
+const workspaceCards = [
+  {
+    id: "sales" as const,
+    title: "Sales",
+    icon: BarChart3,
+    accentBar: "bg-blue-600",
+    iconClassName: "bg-blue-600 text-white",
+    activeRing: "border-blue-300 bg-blue-50/70 shadow-[0_20px_55px_-38px_rgba(37,99,235,0.75)]",
+  },
+  {
+    id: "delegates" as const,
+    title: "Delegate",
+    icon: Handshake,
+    accentBar: "bg-sky-600",
+    iconClassName: "bg-sky-600 text-white",
+    activeRing: "border-cyan-300 bg-cyan-50/70 shadow-[0_20px_55px_-38px_rgba(8,145,178,0.75)]",
+  },
+  {
+    id: "production" as const,
+    title: "Production",
+    icon: Factory,
+    accentBar: "bg-indigo-600",
+    iconClassName: "bg-indigo-600 text-white",
+    activeRing: "border-indigo-300 bg-indigo-50/70 shadow-[0_20px_55px_-38px_rgba(79,70,229,0.75)]",
+  },
+];
+
 export default function ChoosePersonaPage() {
   const router = useRouter();
   const { persona, setPersona } = usePersona();
   const { isSuperAdmin } = useAuth();
   const stored = getStoredPersona();
-  const salesCurrent = stored === "sales" || !stored;
-  const delegatesCurrent = stored === "delegates";
-  const productionCurrent = stored === "production";
   const [rotation, setRotation] = useState(0);
-  const gridClassName = isSuperAdmin
-    ? "grid grid-cols-1 gap-7 md:grid-cols-2 xl:grid-cols-4"
-    : "grid grid-cols-1 gap-7 md:grid-cols-2 xl:grid-cols-3";
 
-  const selectPersona = (next: "sales" | "delegates" | "production") => {
+  const currentPersona: PersonaValue =
+    stored === "delegates" || stored === "production" || stored === "sales" ? stored : "sales";
+  const activePersona =
+    persona === "delegates" || persona === "production" || persona === "sales" ? persona : currentPersona;
+  const selectPersona = (next: PersonaValue) => {
     setPersona(next);
     router.push("/dashboard");
   };
@@ -57,30 +93,11 @@ export default function ChoosePersonaPage() {
   }, []);
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-white">
-      <div className="pointer-events-none absolute inset-0 z-0">
-        <div className="absolute -right-40 top-1/2 -translate-y-1/2 rotate-[26deg] opacity-[0.05]">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-[75rem] w-[75rem] text-blue-900"
-          >
-            <path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2" />
-            <path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06" />
-            <path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8" />
-          </svg>
-        </div>
-      </div>
+    <div className="relative min-h-screen w-full overflow-hidden bg-slate-50 text-slate-900">
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-[46%] bg-blue-600/5 [clip-path:polygon(18%_0,100%_0,100%_100%,0_100%)]" />
 
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col items-start justify-center px-6 py-16">
-        <div className="absolute left-6 top-6 z-30 flex items-center gap-3">
+      <header className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
+        <div className="flex items-center gap-3">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1, rotate: rotation }}
@@ -88,18 +105,21 @@ export default function ChoosePersonaPage() {
               scale: { type: "spring", stiffness: 260, damping: 20 },
               rotate: { duration: 2, ease: "easeInOut" },
             }}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-700 text-white"
+            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.9)]"
           >
             <Webhook className="h-5 w-5" />
           </motion.div>
-          <span className="text-xl font-medium tracking-wide text-zinc-900">supernizo campaigns</span>
+          <div>
+            <p className="text-base font-semibold text-blue-950">supernizo</p>
+            <p className="text-xs font-medium text-slate-500">campaigns</p>
+          </div>
         </div>
 
-        <div className="fixed right-6 top-6 z-30 flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <Link href="/dashboard">
             <Button
               variant="outline"
-              className="h-10 w-10 rounded-md border-zinc-300 bg-white/90 p-0 text-zinc-700 hover:bg-zinc-50"
+              className="h-10 w-10 rounded-xl border-slate-200 bg-white/90 p-0 text-slate-600 shadow-sm hover:bg-blue-50 hover:text-blue-700"
               aria-label="Go to dashboard"
             >
               <Home className="h-4 w-4" />
@@ -108,158 +128,91 @@ export default function ChoosePersonaPage() {
           <Button
             variant="outline"
             onClick={handleSignOut}
-            className="h-10 rounded-md border-zinc-300 bg-white/90 text-zinc-700 hover:bg-zinc-50"
+            className="h-10 rounded-xl border-slate-200 bg-white/90 px-3 text-slate-600 shadow-sm hover:bg-blue-50 hover:text-blue-700"
           >
             <LogOut className="mr-2 h-4 w-4" />
             Sign out
           </Button>
         </div>
+      </header>
 
-        <div className="-mt-6 w-full max-w-6xl">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-10 flex w-full flex-col items-start gap-4 text-left"
-          >
-            {/* <div className="flex items-center gap-3">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1, rotate: rotation }}
-                transition={{
-                  scale: { type: "spring", stiffness: 260, damping: 20 },
-                  rotate: { duration: 2, ease: "easeInOut" },
-                }}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-sidebar text-white shadow-sm"
+      <main className="relative z-10 mx-auto grid min-h-[calc(100dvh-5.25rem)] w-full max-w-7xl items-center gap-8 px-5 pb-8 sm:px-8 lg:grid-cols-[0.72fr_1.55fr]">
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-[2rem] border border-white/80 bg-white/75 p-6 shadow-[0_30px_80px_-58px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-8"
+        >
+          <h1 className="max-w-sm text-5xl font-semibold leading-[1.02] text-blue-950 sm:text-6xl">
+            Workspaces
+          </h1>
+
+          <div className="mt-8">
+            {isSuperAdmin ? (
+              <Link
+                href="/admin"
+                className="group block overflow-hidden rounded-3xl border border-blue-100 bg-blue-600 text-white shadow-[0_26px_64px_-44px_rgba(37,99,235,0.95)] transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-[0_34px_76px_-46px_rgba(37,99,235,0.95)]"
               >
-                <Webhook className="h-6 w-6 stroke-2" />
-              </motion.div>
-              <span className="text-2xl font-semibold tracking-wide text-zinc-800">
-                supernizo
-              </span>
-            </div> */}
-
-            <div className="mb-3">
-              {/* <p className="text-[14px] font-semibold text-zinc-700">
-                Lead Generation And Outreach
-              </p> */}
-              <h1 className="mt-8 text-6xl font-medium tracking-tight text-zinc-900 sm:text-6xl">
-                Select Your Role
-              </h1>
-              <p className="mt-3 text-sm text-zinc-500">
-                Choose the workspace that aligns with your role. You can switch later by returning here.
-              </p>
-            </div>
-          </motion.div>
-
-          <div className="w-full">
-            <div className={gridClassName}>
-              <div className="group relative flex h-full flex-col rounded-2xl border border-zinc-300/80 bg-white/72 p-6 shadow-[0_14px_26px_-28px_rgba(9,40,105,0.32)] transition-all duration-200 hover:border-zinc-300/90 hover:shadow-[0_20px_30px_-28px_rgba(9,40,105,0.4)]">
-                {salesCurrent && (
-                  <span className="absolute right-4 top-4 flex h-4 w-4 items-center justify-center rounded-full border border-blue-500/90 bg-white shadow-[0_0_0_3px_rgba(59,130,246,0.14)]">
-                    <span className="h-2 w-2 rounded-full bg-[radial-gradient(circle_at_35%_30%,#93c5fd_0%,#2563eb_55%,#1d4ed8_100%)]" />
-                  </span>
-                )}
-                <div className="space-y-1">
-                  <p className="text-lg font-semibold text-zinc-900">Sales Workspace</p>
-                </div>
-
-                <p className="mt-4 text-sm leading-6 text-zinc-600">
-                  Plan and launch sales campaigns, prioritize high-intent accounts, and move qualified conversations into pipeline.
-                </p>
-
-                <Button
-                  className="btn-sidebar-noise mt-8 h-10 w-full rounded-md"
-                  onClick={() => selectPersona("sales")}
-                >
-                  Continue as Sales
-                  <ArrowRight className="ml-1 h-4 w-4" />
-                </Button>
-              </div>
-
-              <div className="group relative flex h-full flex-col rounded-2xl border border-zinc-300/80 bg-white/72 p-6 shadow-[0_14px_26px_-28px_rgba(9,40,105,0.32)] transition-all duration-200 hover:border-zinc-300/90 hover:shadow-[0_20px_30px_-28px_rgba(9,40,105,0.4)]">
-                {delegatesCurrent && (
-                  <span className="absolute right-4 top-4 flex h-4 w-4 items-center justify-center rounded-full border border-blue-500/90 bg-white shadow-[0_0_0_3px_rgba(59,130,246,0.14)]">
-                    <span className="h-2 w-2 rounded-full bg-[radial-gradient(circle_at_35%_30%,#93c5fd_0%,#2563eb_55%,#1d4ed8_100%)]" />
-                  </span>
-                )}
-                <div className="space-y-1">
-                  <p className="text-lg font-semibold text-zinc-900">Delegate Workspace</p>
-                </div>
-
-                <p className="mt-4 text-sm leading-6 text-zinc-600">
-                  Coordinate event and partner outreach, follow up with priority prospects, and keep stakeholder engagement on track.
-                </p>
-
-                <Button
-                  variant="outline"
-                  className="mt-8 h-10 w-full rounded-md border-zinc-300 bg-white/80 text-zinc-700 hover:bg-zinc-50"
-                  onClick={() => selectPersona("delegates")}
-                >
-                  Continue as Delegates
-                  <ArrowRight className="ml-1 h-4 w-4" />
-                </Button>
-              </div>
-
-              <div className="group relative flex h-full flex-col rounded-2xl border border-zinc-300/80 bg-white/72 p-6 shadow-[0_14px_26px_-28px_rgba(9,40,105,0.32)] transition-all duration-200 hover:border-zinc-300/90 hover:shadow-[0_20px_30px_-28px_rgba(9,40,105,0.4)]">
-                {productionCurrent && (
-                  <span className="absolute right-4 top-4 flex h-4 w-4 items-center justify-center rounded-full border border-blue-500/90 bg-white shadow-[0_0_0_3px_rgba(59,130,246,0.14)]">
-                    <span className="h-2 w-2 rounded-full bg-[radial-gradient(circle_at_35%_30%,#93c5fd_0%,#2563eb_55%,#1d4ed8_100%)]" />
-                  </span>
-                )}
-                <div className="space-y-1">
-                  <p className="text-lg font-semibold text-zinc-900">Production Workspace</p>
-                </div>
-
-                <p className="mt-4 text-sm leading-6 text-zinc-600">
-                  Execute approved outreach at scale with controlled quality, consistent messaging, and delivery-ready operations.
-                </p>
-
-                <Button
-                  variant="outline"
-                  className="mt-8 h-10 w-full rounded-md border-zinc-300 bg-white/80 text-zinc-700 hover:bg-zinc-50"
-                  onClick={() => selectPersona("production")}
-                >
-                  Continue as Production
-                  <ArrowRight className="ml-1 h-4 w-4" />
-                </Button>
-              </div>
-
-              {isSuperAdmin ? (
-                <div className="group relative flex h-full flex-col rounded-2xl border border-zinc-300/80 bg-white/72 p-6 shadow-[0_14px_26px_-28px_rgba(9,40,105,0.32)] transition-all duration-200 hover:border-zinc-300/90 hover:shadow-[0_20px_30px_-28px_rgba(9,40,105,0.4)]">
-                  <div className="space-y-1">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-300/80 bg-zinc-50 text-zinc-700">
+                <span className="flex items-center justify-between gap-4 p-4">
+                  <span className="flex items-center gap-3">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 text-white ring-1 ring-white/20">
                       <ShieldCheck className="h-5 w-5" />
-                    </div>
-                    <p className="pt-3 text-lg font-semibold text-zinc-900">Admin Panel</p>
-                  </div>
-
-                  <p className="mt-4 text-sm leading-6 text-zinc-600">
-                    Manage users, assign roles, rotate passwords, and keep admin access in one dedicated place without entering a pipeline workspace first.
-                  </p>
-
-                  <Link href="/admin/users" className="mt-8">
-                    <Button
-                      variant="outline"
-                      className="h-10 w-full rounded-md border-zinc-300 bg-white/80 text-zinc-700 hover:bg-zinc-50"
-                    >
-                      Open Admin Panel
-                      <ArrowRight className="ml-1 h-4 w-4" />
-                    </Button>
-                  </Link>
-                </div>
-              ) : null}
-            </div>
+                    </span>
+                    <span>
+                      <span className="block text-base font-semibold">Admin Panel</span>
+                      <span className="mt-0.5 block text-xs font-medium text-blue-100">Users, roles, security</span>
+                    </span>
+                  </span>
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white transition-transform group-hover:translate-x-1">
+                    <ArrowRight className="h-4 w-4" />
+                  </span>
+                </span>
+              </Link>
+            ) : null}
           </div>
-        </div>
+        </motion.section>
 
-        <div className="absolute bottom-8 left-6 text-sm text-zinc-500">
-          Current selection:{" "}
-          <span className="font-semibold text-zinc-700">
-            {persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales"}
-          </span>
-        </div>
+        <section className="grid gap-4 md:grid-cols-3">
+          {workspaceCards.map((workspace, index) => {
+            const Icon = workspace.icon;
+            const isActive = activePersona === workspace.id;
 
-      </div>
+            return (
+              <motion.button
+                key={workspace.id}
+                type="button"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.06 * index }}
+                onClick={() => selectPersona(workspace.id)}
+                className={`group relative flex min-h-[15.5rem] flex-col justify-between overflow-hidden rounded-[1.75rem] border bg-white/90 p-5 text-left shadow-[0_24px_70px_-54px_rgba(15,23,42,0.65)] backdrop-blur-xl transition-all duration-200 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_34px_82px_-56px_rgba(37,99,235,0.55)] ${
+                  isActive ? workspace.activeRing : "border-white/80"
+                }`}
+              >
+                <span className={`absolute inset-x-0 top-0 h-1 ${workspace.accentBar}`} />
+                <span className="absolute right-5 top-5 flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white">
+                  {isActive ? <span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> : null}
+                </span>
+
+                <span>
+                  <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${workspace.iconClassName} shadow-[0_18px_36px_-26px_rgba(37,99,235,0.85)]`}>
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <span className="mt-7 block text-2xl font-semibold text-slate-900">{workspace.title}</span>
+                </span>
+
+                <span>
+                  <span className="flex items-center justify-between border-t border-slate-100 pt-4 text-sm font-semibold text-blue-700">
+                    Enter workspace
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 transition-transform group-hover:translate-x-1 group-hover:bg-blue-600 group-hover:text-white">
+                      <ArrowRight className="h-4 w-4" />
+                    </span>
+                  </span>
+                </span>
+              </motion.button>
+            );
+          })}
+        </section>
+      </main>
     </div>
   );
 }

@@ -26,7 +26,7 @@ import {
   uploadEventAgenda,
   type EventAgendaItem,
 } from "@/lib/api";
-import { listAdminEvents, type AdminEventItem } from "@/lib/auth";
+import { listAdminEvents, type AdminEventItem } from "../admin-api";
 
 const MAX_AGENDA_BYTES = 20 * 1024 * 1024;
 
@@ -91,7 +91,7 @@ export default function AdminAgendasPage() {
     try {
       const rows = sortEvents(await listAdminEvents(true));
       setEvents(rows);
-      setSelectedEventId((current) => current || rows.find((event) => event.isActive)?.id || rows[0]?.id || "");
+      setSelectedEventId((current) => (rows.some((event) => event.id === current) ? current : ""));
     } catch (error: unknown) {
       toast.error("Failed to load events", { description: getErrorMessage(error) });
       setEvents([]);
@@ -212,11 +212,11 @@ export default function AdminAgendasPage() {
   };
 
   return (
-    <div className="font-sans">
+    <div className="admin-page">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
+        className="admin-page-header flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between"
       >
         <div>
           <Link
@@ -226,8 +226,9 @@ export default function AdminAgendasPage() {
             <ArrowLeft className="mr-2 h-3.5 w-3.5" />
             Admin dashboard
           </Link>
-          <h1 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-900">Agenda Library</h1>
-          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-zinc-500">
+          <p className="admin-eyebrow mt-3">Admin Control</p>
+          <h1 className="admin-title">Agenda Library</h1>
+          <p className="admin-description">
             Upload event-scoped agenda PDFs and keep every previous version available for review.
           </p>
         </div>
@@ -244,7 +245,7 @@ export default function AdminAgendasPage() {
       </motion.div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <Card className="rounded-2xl border border-zinc-300/85 bg-white/88 p-5 shadow-sm">
+        <Card className="admin-card p-5">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-300 bg-zinc-50 text-zinc-700">
               <UploadCloud className="h-5 w-5" />
@@ -302,7 +303,7 @@ export default function AdminAgendasPage() {
               type="button"
               onClick={() => void handleUpload()}
               disabled={uploading || !selectedEventId || !selectedFile}
-              className="h-11 w-full rounded-md bg-sidebar text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60"
+              className="h-11 w-full rounded-md bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
             >
               {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
               Upload Latest Agenda
@@ -310,16 +311,20 @@ export default function AdminAgendasPage() {
           </div>
         </Card>
 
-        <Card className="rounded-2xl border border-zinc-300/85 bg-white/88 p-5 shadow-sm">
+        <Card className="admin-card p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Selected event</p>
               <h2 className="mt-1 truncate text-lg font-semibold tracking-tight text-zinc-900">
                 {selectedEvent?.eventName || "Select an event"}
               </h2>
-              <p className="mt-1 text-sm text-zinc-500">
+              {selectedEvent ? (
+                <p className="mt-1 text-sm text-zinc-500">
                 {selectedEvent?.location || "No location"} · {selectedEvent?.date || "No date"}
-              </p>
+                </p>
+              ) : (
+                <p className="mt-1 text-sm text-zinc-500">Choose an event to review agendas.</p>
+              )}
             </div>
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-300 bg-zinc-50 text-zinc-700">
               <CalendarDays className="h-5 w-5" />
@@ -389,14 +394,18 @@ export default function AdminAgendasPage() {
             ) : (
               <div className="flex h-36 flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50/80 text-center">
                 <FileText className="h-8 w-8 text-zinc-300" />
-                <p className="mt-3 text-sm font-semibold text-zinc-700">No agenda uploaded</p>
-                <p className="mt-1 text-xs text-zinc-500">Upload the first PDF for this event.</p>
+                <p className="mt-3 text-sm font-semibold text-zinc-700">
+                  {selectedEvent ? "No agenda uploaded" : "No event selected"}
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  {selectedEvent ? "Upload the first PDF for this event." : "Select an event to see agenda status."}
+                </p>
               </div>
             )}
           </div>
         </Card>
 
-        <Card className="rounded-2xl border border-zinc-300/85 bg-white/88 p-5 shadow-sm xl:col-span-2">
+        <Card className="admin-card p-5 xl:col-span-2">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">History tree</p>
@@ -415,7 +424,7 @@ export default function AdminAgendasPage() {
                 Loading history
               </div>
             ) : agendas.length > 0 ? (
-              <div className="space-y-0">
+              <div className="admin-list-panel space-y-0 pr-1">
                 {agendas.map((agenda, index) => (
                   <div key={agenda.id} className="relative border-l border-zinc-200 pb-6 pl-6 last:pb-1">
                     <span className="absolute -left-[7px] top-1.5 h-3.5 w-3.5 rounded-full border border-zinc-300 bg-white" />
@@ -471,8 +480,12 @@ export default function AdminAgendasPage() {
             ) : (
               <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50/80 p-8 text-center">
                 <ShieldCheck className="mx-auto h-8 w-8 text-zinc-300" />
-                <p className="mt-3 text-sm font-semibold text-zinc-700">No upload history for this event</p>
-                <p className="mt-1 text-xs text-zinc-500">Every new PDF will appear here as a separate version.</p>
+                <p className="mt-3 text-sm font-semibold text-zinc-700">
+                  {selectedEvent ? "No upload history for this event" : "No event selected"}
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  {selectedEvent ? "Every new PDF will appear here as a separate version." : "Select an event to review versions."}
+                </p>
               </div>
             )}
           </div>
@@ -480,12 +493,12 @@ export default function AdminAgendasPage() {
       </div>
 
       {deleteTarget ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-zinc-950/55 px-4 py-6">
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-blue-950/35 px-4 py-6">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="agenda-delete-title"
-            className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_28px_80px_-30px_rgba(2,10,27,0.6)]"
+            className="admin-modal-panel w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_28px_80px_-30px_rgba(2,10,27,0.6)]"
           >
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-600">
@@ -493,7 +506,7 @@ export default function AdminAgendasPage() {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold uppercase tracking-wider text-red-600">Delete agenda PDF</p>
-                <h2 id="agenda-delete-title" className="mt-1 text-lg font-semibold tracking-tight text-zinc-950">
+                <h2 id="agenda-delete-title" className="mt-1 text-lg font-semibold tracking-tight text-slate-900">
                   Remove this document?
                 </h2>
                 <p className="mt-2 break-words text-sm leading-6 text-zinc-500">

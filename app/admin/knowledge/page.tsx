@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { EventRegistryPicker } from "@/components/events/EventRegistryPicker";
 import { Input } from "@/components/ui/input";
 import {
   archiveNizoAiKnowledge,
@@ -29,6 +30,7 @@ import {
   type NizoAiKnowledgeCollection,
   type NizoAiKnowledgeDocument,
 } from "@/lib/api";
+import { listAdminEvents, type AdminEventItem } from "../admin-api";
 
 const MAX_KNOWLEDGE_BYTES = 20 * 1024 * 1024;
 const COLLECTION_FALLBACKS: NizoAiKnowledgeCollection[] = [
@@ -73,6 +75,10 @@ function readableCollection(value?: string | null) {
   return raw.replace(/^\d+_/, "").replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function sortEvents(events: AdminEventItem[]) {
+  return [...events].sort((a, b) => a.eventName.localeCompare(b.eventName));
+}
+
 function statusClass(status: string) {
   const normalized = status.toLowerCase();
   if (normalized === "indexed") return "border-emerald-200 bg-emerald-50 text-emerald-700";
@@ -93,6 +99,7 @@ export default function AdminKnowledgePage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [documents, setDocuments] = useState<NizoAiKnowledgeDocument[]>([]);
   const [collections, setCollections] = useState<NizoAiKnowledgeCollection[]>(COLLECTION_FALLBACKS);
+  const [events, setEvents] = useState<AdminEventItem[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [scope, setScope] = useState("global");
   const [documentType, setDocumentType] = useState("auto");
@@ -101,6 +108,7 @@ export default function AdminKnowledgePage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadingEvents, setLoadingEvents] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [downloadingId, setDownloadingId] = useState("");
   const [archivingId, setArchivingId] = useState("");
@@ -120,6 +128,10 @@ export default function AdminKnowledgePage() {
   );
 
   const collectionOptions = collections.length ? collections : COLLECTION_FALLBACKS;
+  const selectedEvent = useMemo(
+    () => events.find((event) => event.eventKey === eventKey) ?? null,
+    [eventKey, events]
+  );
 
   const loadKnowledge = useCallback(async () => {
     setLoading(true);
@@ -139,9 +151,28 @@ export default function AdminKnowledgePage() {
     }
   }, [search, statusFilter]);
 
+  const loadEvents = useCallback(async () => {
+    setLoadingEvents(true);
+    try {
+      const rows = sortEvents(await listAdminEvents(true));
+      setEvents(rows);
+      setEventKey((current) => (rows.some((event) => event.eventKey === current) ? current : ""));
+    } catch (error: unknown) {
+      toast.error("Failed to load events", { description: getErrorMessage(error) });
+      setEvents([]);
+      setEventKey("");
+    } finally {
+      setLoadingEvents(false);
+    }
+  }, []);
+
   useEffect(() => {
     void loadKnowledge();
   }, [loadKnowledge]);
+
+  useEffect(() => {
+    void loadEvents();
+  }, [loadEvents]);
 
   const handleFileChange = (file: File | null) => {
     if (!file) {
@@ -228,11 +259,11 @@ export default function AdminKnowledgePage() {
   };
 
   return (
-    <div className="font-sans">
+    <div className="admin-page">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
+        className="admin-page-header flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between"
       >
         <div>
           <Link
@@ -242,8 +273,9 @@ export default function AdminKnowledgePage() {
             <ArrowLeft className="mr-2 h-3.5 w-3.5" />
             Admin dashboard
           </Link>
-          <h1 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-900">Knowledge Library</h1>
-          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-zinc-500">
+          <p className="admin-eyebrow mt-3">Admin Control</p>
+          <h1 className="admin-title">Knowledge Library</h1>
+          <p className="admin-description">
             Upload approved sales knowledge for NizoAI content generation and keep every source visible to admins.
           </p>
         </div>
@@ -260,21 +292,21 @@ export default function AdminKnowledgePage() {
       </motion.div>
 
       <div className="mb-4 grid gap-3 md:grid-cols-3">
-        <Card className="rounded-2xl border border-zinc-300/85 bg-white/88 p-4 shadow-sm">
+        <Card className="admin-card-soft p-4">
           <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Indexed sources</p>
           <div className="mt-3 flex items-center justify-between">
             <span className="text-3xl font-semibold text-zinc-950">{activeCount}</span>
             <CheckCircle2 className="h-5 w-5 text-emerald-600" />
           </div>
         </Card>
-        <Card className="rounded-2xl border border-zinc-300/85 bg-white/88 p-4 shadow-sm">
+        <Card className="admin-card-soft p-4">
           <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Knowledge chunks</p>
           <div className="mt-3 flex items-center justify-between">
             <span className="text-3xl font-semibold text-zinc-950">{totalChunks}</span>
             <BrainCircuit className="h-5 w-5 text-blue-600" />
           </div>
         </Card>
-        <Card className="rounded-2xl border border-zinc-300/85 bg-white/88 p-4 shadow-sm">
+        <Card className="admin-card-soft p-4">
           <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Archived</p>
           <div className="mt-3 flex items-center justify-between">
             <span className="text-3xl font-semibold text-zinc-950">{archivedCount}</span>
@@ -284,7 +316,7 @@ export default function AdminKnowledgePage() {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <Card className="rounded-2xl border border-zinc-300/85 bg-white/88 p-5 shadow-sm">
+        <Card className="admin-card p-5">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-300 bg-zinc-50 text-zinc-700">
               <UploadCloud className="h-5 w-5" />
@@ -332,14 +364,20 @@ export default function AdminKnowledgePage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Event key</label>
-                <Input
+                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Event</label>
+                <EventRegistryPicker
+                  events={events}
                   value={eventKey}
-                  onChange={(event) => setEventKey(event.target.value)}
-                  placeholder="Optional event scope"
+                  onValueChange={setEventKey}
+                  loading={loadingEvents}
                   disabled={uploading}
-                  className="h-10 border-zinc-300 bg-white"
+                  placeholder="Select event"
+                  loadingLabel="Loading events..."
+                  getEventValue={(event) => event.eventKey}
                 />
+                <p className="text-xs text-zinc-500">
+                  {selectedEvent ? "Event scope selected." : "Optional event scope."}
+                </p>
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Category</label>
@@ -386,7 +424,7 @@ export default function AdminKnowledgePage() {
               type="button"
               onClick={() => void handleUpload()}
               disabled={uploading || !selectedFile}
-              className="h-11 w-full rounded-md bg-sidebar text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60"
+              className="h-11 w-full rounded-md bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
             >
               {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
               Upload and Index
@@ -394,7 +432,7 @@ export default function AdminKnowledgePage() {
           </div>
         </Card>
 
-        <Card className="rounded-2xl border border-zinc-300/85 bg-white/88 p-5 shadow-sm">
+        <Card className="admin-card p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Retrieval controls</p>
@@ -434,7 +472,7 @@ export default function AdminKnowledgePage() {
           </div>
         </Card>
 
-        <Card className="rounded-2xl border border-zinc-300/85 bg-white/88 p-5 shadow-sm xl:col-span-2">
+        <Card className="admin-card p-5 xl:col-span-2">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Knowledge sources</p>
@@ -470,7 +508,7 @@ export default function AdminKnowledgePage() {
                 Loading knowledge sources
               </div>
             ) : documents.length > 0 ? (
-              <div className="space-y-3">
+              <div className="admin-list-panel space-y-3 pr-1">
                 {documents.map((document) => {
                   const archived = document.status.toLowerCase() === "archived";
                   const meta = document.meta || {};
@@ -559,12 +597,12 @@ export default function AdminKnowledgePage() {
       </div>
 
       {archiveTarget ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-zinc-950/55 px-4 py-6">
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-blue-950/35 px-4 py-6">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="knowledge-archive-title"
-            className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_28px_80px_-30px_rgba(2,10,27,0.6)]"
+            className="admin-modal-panel w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_28px_80px_-30px_rgba(2,10,27,0.6)]"
           >
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-100 bg-amber-50 text-amber-700">
@@ -572,7 +610,7 @@ export default function AdminKnowledgePage() {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Archive knowledge</p>
-                <h2 id="knowledge-archive-title" className="mt-1 text-lg font-semibold tracking-tight text-zinc-950">
+                <h2 id="knowledge-archive-title" className="mt-1 text-lg font-semibold tracking-tight text-slate-900">
                   Remove from RAG retrieval?
                 </h2>
                 <p className="mt-2 break-words text-sm leading-6 text-zinc-500">
@@ -595,7 +633,7 @@ export default function AdminKnowledgePage() {
                 type="button"
                 onClick={() => void confirmArchive()}
                 disabled={archivingId === archiveTarget.id}
-                className="h-10 bg-zinc-950 px-4 text-white hover:bg-zinc-800 disabled:opacity-60"
+                className="h-10 bg-blue-600 px-4 text-white hover:bg-blue-700 disabled:opacity-60"
               >
                 {archivingId === archiveTarget.id ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
