@@ -17,6 +17,8 @@ export type {
   CampaignInfoResponse,
   CampaignDetail,
   CampaignListItem,
+  CampaignListParams,
+  CampaignListResponse,
   CampaignType,
   CreateCampaignRequest,
   CreateCampaignResponse,

@@ -12,6 +12,8 @@ import type {
   CampaignInfoResponse,
   CampaignDetail,
   CampaignListItem,
+  CampaignListParams,
+  CampaignListResponse,
   CreateCampaignRequest,
   CreateCampaignResponse,
   DeleteBlockedDetail,
@@ -81,6 +83,8 @@ export type {
   CampaignInfoResponse,
   CampaignDetail,
   CampaignListItem,
+  CampaignListParams,
+  CampaignListResponse,
   CreateCampaignRequest,
   CreateCampaignResponse,
   DeleteBlockedDetail,
@@ -221,12 +225,11 @@ export async function getRecentCampaigns(limit?: number) {
   return data;
 }
 
-export async function listCampaigns(params: { status?: string; limit?: number; offset?: number }) {
-  const { data } = await apiClientDelegate.get<{
-    campaigns: CampaignListItem[];
-    total: number;
-    hasMore: boolean;
-  }>("/api/delegates/campaigns", { params });
+export async function listCampaigns(params: CampaignListParams) {
+  const { data } = await apiClientDelegate.get<CampaignListResponse>(
+    "/api/delegates/campaigns",
+    { params }
+  );
   return data;
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -230,6 +230,8 @@ type CampaignDialogTarget = {
 
 function SuperAdminCampaignsPage() {
   const [items, setItems] = useState<CampaignListItem[]>([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [campaignInfoById, setCampaignInfoById] = useState<Record<string, CampaignInfo | null>>(
     {}
   );
@@ -250,7 +252,7 @@ function SuperAdminCampaignsPage() {
   const filterPanelRef = useRef<HTMLDivElement | null>(null);
   const listViewportRef = useRef<HTMLDivElement | null>(null);
 
-  const fetchData = async (options?: { silent?: boolean; showErrors?: boolean }) => {
+  const fetchData = useCallback(async (options?: { silent?: boolean; showErrors?: boolean }) => {
     const silent = Boolean(options?.silent);
     const showErrors = options?.showErrors !== false;
 
@@ -259,30 +261,17 @@ function SuperAdminCampaignsPage() {
     }
 
     try {
-      const batchSize = 100;
-      let offset = 0;
-      let hasMore = true;
-      const allCampaigns: CampaignListItem[] = [];
-
-      while (hasMore) {
-        const res = await listCampaigns({ status: "all", limit: batchSize, offset });
-        const rows = res.campaigns || [];
-        allCampaigns.push(...rows);
-        hasMore = Boolean(res.hasMore) && rows.length > 0;
-        offset += batchSize;
-
-        // Safety guard in case backend keeps hasMore true unexpectedly.
-        if (offset >= 5000) break;
-      }
-
-      const uniqueById = Array.from(new Map(allCampaigns.map((campaign) => [campaign.id, campaign])).values());
-      uniqueById.sort((a, b) => {
-        const aTime = parseDbTimestamp(a.createdAt)?.getTime() ?? 0;
-        const bTime = parseDbTimestamp(b.createdAt)?.getTime() ?? 0;
-        return bTime - aTime;
+      const res = await listCampaigns({
+        status: statusFilter,
+        limit: itemsPerPage,
+        offset: (currentPage - 1) * itemsPerPage,
+        search: searchQuery.trim() || undefined,
+        category: categoryFilter === "all" ? undefined : categoryFilter,
       });
 
-      setItems(uniqueById);
+      setItems(res.campaigns || []);
+      setTotalItems(Number(res.total || 0));
+      setCategoryOptions(res.categories || []);
     } catch (err: unknown) {
       if (showErrors) {
         toast.error("Failed to load campaigns", { description: getErrorMessage(err) });
@@ -292,7 +281,7 @@ function SuperAdminCampaignsPage() {
         setLoading(false);
       }
     }
-  };
+  }, [categoryFilter, currentPage, itemsPerPage, searchQuery, statusFilter]);
 
   useEffect(() => {
     let alive = true;
@@ -318,7 +307,7 @@ function SuperAdminCampaignsPage() {
       clearInterval(t);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [persona]);
+  }, [fetchData, persona]);
 
   useEffect(() => {
     setCampaignInfoById({});
@@ -351,6 +340,13 @@ function SuperAdminCampaignsPage() {
   const categoryFilters = useMemo(() => {
     const byKey = new Map<string, string>();
 
+    for (const raw of categoryOptions) {
+      const value = String(raw || "").trim();
+      if (!value) continue;
+      const key = value.toLowerCase();
+      if (!byKey.has(key)) byKey.set(key, value);
+    }
+
     for (const campaign of items) {
       const raw = String(campaign.category || campaignInfoById[campaign.id]?.category || "").trim();
       if (!raw) continue;
@@ -358,33 +354,17 @@ function SuperAdminCampaignsPage() {
       if (!byKey.has(key)) byKey.set(key, raw);
     }
 
+    if (categoryFilter !== "all") {
+      const selected = categoryFilter.trim();
+      if (selected && !byKey.has(selected.toLowerCase())) byKey.set(selected.toLowerCase(), selected);
+    }
+
     const values = Array.from(byKey.values()).sort((a, b) => a.localeCompare(b));
     return [{ value: "all", label: "All categories" }, ...values.map((value) => ({ value, label: value }))];
-  }, [items, campaignInfoById]);
-
-  const filteredItems = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    const asSearchText = (value: unknown) => String(value ?? "").toLowerCase();
-    const selectedCategory = categoryFilter.trim().toLowerCase();
-
-    return items.filter((campaign) => {
-      const displayStatus = getCampaignDisplayStatus(campaign);
-      const statusMatch = statusFilter === "all" || displayStatus === statusFilter;
-      const categoryValue = asSearchText(campaign.category || campaignInfoById[campaign.id]?.category).trim();
-      const categoryMatch = selectedCategory === "all" || (!!categoryValue && categoryValue === selectedCategory);
-      const searchMatch =
-        !query ||
-        asSearchText(campaign.name).includes(query) ||
-        asSearchText(campaign.icpPreview).includes(query) ||
-        asSearchText(campaign.category || campaignInfoById[campaign.id]?.category).includes(query) ||
-        asSearchText(campaign.id).includes(query);
-
-      return statusMatch && categoryMatch && searchMatch;
-    });
-  }, [items, statusFilter, categoryFilter, searchQuery, campaignInfoById]);
+  }, [categoryOptions, categoryFilter, items, campaignInfoById]);
 
   useEffect(() => {
-    if (loading || filteredItems.length === 0) return;
+    if (loading || items.length === 0) return;
     const viewport = listViewportRef.current;
     if (!viewport) return;
 
@@ -415,14 +395,13 @@ function SuperAdminCampaignsPage() {
       resizeObserver.disconnect();
       window.removeEventListener("resize", recompute);
     };
-  }, [filteredItems.length, loading]);
+  }, [items.length, loading]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredItems.length / itemsPerPage));
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const visibleItems = items;
 
-  const paginatedItems = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredItems.slice(start, start + itemsPerPage);
-  }, [filteredItems, currentPage, itemsPerPage]);
+  const rangeStart = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+  const rangeEnd = Math.min((currentPage - 1) * itemsPerPage + visibleItems.length, totalItems);
 
   const visiblePageNumbers = useMemo(() => {
     const windowSize = 5;
@@ -446,9 +425,9 @@ function SuperAdminCampaignsPage() {
   }, [currentPage, totalPages]);
 
   useEffect(() => {
-    if (loading || paginatedItems.length === 0) return;
+    if (loading || visibleItems.length === 0) return;
 
-    const missingIds = paginatedItems
+    const missingIds = visibleItems
       .map((campaign) => campaign.id)
       .filter((id) => !(id in campaignInfoById));
 
@@ -482,7 +461,7 @@ function SuperAdminCampaignsPage() {
     return () => {
       cancelled = true;
     };
-  }, [loading, paginatedItems, campaignInfoById]);
+  }, [loading, visibleItems, campaignInfoById]);
 
   const closeDialog = () => {
     if (isStopping || isDeleting || isForceDeleting) return;
@@ -612,7 +591,7 @@ function SuperAdminCampaignsPage() {
               Filter
               {activeFilters && (
                 <span className="rounded-full bg-zinc-900/12 px-2 py-0.5 text-[10px] font-semibold text-zinc-700">
-                  {filteredItems.length}
+                  {totalItems}
                 </span>
               )}
             </Button>
@@ -697,7 +676,7 @@ function SuperAdminCampaignsPage() {
                 </div>
 
                 <div className="mt-4 flex items-center justify-between border-t border-zinc-300/70 pt-3 text-xs text-zinc-500">
-                  <span>{filteredItems.length} campaigns match</span>
+                  <span>{totalItems} campaigns match</span>
                   <Button
                     type="button"
                     variant="ghost"
@@ -733,14 +712,14 @@ function SuperAdminCampaignsPage() {
           <div ref={listViewportRef} className="min-h-0 flex-1 overflow-hidden">
             {loading && <div className="px-5 py-8 text-sm text-zinc-500">Loading campaigns...</div>}
 
-            {!loading && filteredItems.length === 0 && (
+            {!loading && visibleItems.length === 0 && (
               <div className="px-5 py-8 text-sm text-zinc-500">
                 {activeFilters ? "No campaigns match the current filters." : "No campaigns found."}
               </div>
             )}
 
             {!loading &&
-              paginatedItems.map((campaign, index) => {
+              visibleItems.map((campaign, index) => {
                 const displayStatus = getCampaignDisplayStatus(campaign);
                 const s = statusUI(displayStatus);
                 const StatusIcon = s.icon;
@@ -902,11 +881,10 @@ function SuperAdminCampaignsPage() {
               })}
           </div>
 
-          {!loading && filteredItems.length > 0 && (
+          {!loading && visibleItems.length > 0 && (
             <div className="flex shrink-0 items-center justify-between border-t border-zinc-300/80 px-6 py-3">
               <span className="text-xs text-zinc-500">
-                Showing {(currentPage - 1) * itemsPerPage + 1}-
-                {Math.min(currentPage * itemsPerPage, filteredItems.length)} of {filteredItems.length}
+                Showing {rangeStart}-{rangeEnd} of {totalItems}
               </span>
 
               <div className="flex items-center gap-1.5">

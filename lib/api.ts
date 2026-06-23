@@ -107,6 +107,21 @@ export type CampaignListItem = {
   createdAt: string;
 };
 
+export type CampaignListParams = {
+  status?: string;
+  limit?: number;
+  offset?: number;
+  search?: string;
+  category?: string;
+};
+
+export type CampaignListResponse = {
+  campaigns: CampaignListItem[];
+  total: number;
+  hasMore: boolean;
+  categories?: string[];
+};
+
 export type CampaignDetail = {
   id: string;
   name: string;
@@ -1095,8 +1110,8 @@ export async function getRecentCampaigns(limit?: number) {
   return data;
 }
 
-export async function listCampaigns(params: { status?: string; limit?: number; offset?: number }) {
-  const { data } = await apiClient.get<{ campaigns: CampaignListItem[]; total: number; hasMore: boolean }>(
+export async function listCampaigns(params: CampaignListParams) {
+  const { data } = await apiClient.get<CampaignListResponse>(
     "/api/campaigns",
     { params }
   );
