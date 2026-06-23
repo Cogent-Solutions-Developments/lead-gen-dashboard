@@ -79,6 +79,7 @@ export type {
   ApproveSelectedLeadsResponse,
   SendSelectedLeadsRequest,
   SendSelectedLeadsResponse,
+  SendAdminLeadSmsResponse,
   CreateWhatsAppOptOutRequest,
   CreateWhatsAppOptOutResponse,
   ListWhatsAppOptOutsResponse,
@@ -286,6 +287,9 @@ export const createWhatsAppOptOut: typeof sales.createWhatsAppOptOut = (...args)
 
 export const disableLeadWhatsApp: typeof sales.disableLeadWhatsApp = (...args) =>
   pickModule().disableLeadWhatsApp(...args);
+
+export const sendAdminLeadSms: typeof sales.sendAdminLeadSms = (...args) =>
+  sales.sendAdminLeadSms(...args);
 
 export const listReplyNotifications: typeof sales.listReplyNotifications = (...args) =>
   pickModule().listReplyNotifications(...args);

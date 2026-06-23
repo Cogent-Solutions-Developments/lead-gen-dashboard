@@ -26,12 +26,14 @@ import {
   ChevronRight,
   RefreshCcw,
   PhoneOff,
+  MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   disableLeadWhatsApp,
   listEvents,
   searchLeads,
+  sendAdminLeadSms,
   type EventSummaryItem,
   type LeadItem,
 } from "@/lib/apiRouter";
@@ -623,6 +625,9 @@ function SuperAdminTotalLeads() {
   const [disableTargetLead, setDisableTargetLead] = useState<Lead | null>(null);
   const [disableReason, setDisableReason] = useState("");
   const [isDisablingLead, setIsDisablingLead] = useState(false);
+  const [smsTargetLead, setSmsTargetLead] = useState<Lead | null>(null);
+  const [smsMessage, setSmsMessage] = useState("");
+  const [isSendingSms, setIsSendingSms] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const requestSequenceRef = useRef(0);
   const targetLeadRowRef = useRef<HTMLTableRowElement | null>(null);
@@ -984,6 +989,59 @@ function SuperAdminTotalLeads() {
       });
     } finally {
       setIsDisablingLead(false);
+    }
+  };
+
+  const openSmsDialog = (lead: Lead) => {
+    if (!hasValue(lead.phone)) {
+      toast.error("Lead has no phone number");
+      return;
+    }
+    if (isLeadSuppressed(lead)) {
+      toast.info("Lead is opted out", {
+        description: "This lead is blocked for marketing messages.",
+      });
+      return;
+    }
+
+    setSmsTargetLead(lead);
+    setSmsMessage("");
+  };
+
+  const closeSmsDialog = () => {
+    if (isSendingSms) return;
+    setSmsTargetLead(null);
+    setSmsMessage("");
+  };
+
+  const handleSendAdminSms = async () => {
+    if (!smsTargetLead || isSendingSms) return;
+    const message = smsMessage.trim();
+    if (!message) {
+      toast.error("Enter a message");
+      return;
+    }
+
+    try {
+      setIsSendingSms(true);
+      const result = await sendAdminLeadSms(smsTargetLead.id, message);
+      toast.success("SMS sent", {
+        description: `${smsTargetLead.employeeName || "Lead"} received the message at ${result.to || smsTargetLead.phone}.`,
+      });
+      setSmsTargetLead(null);
+      setSmsMessage("");
+    } catch (error: unknown) {
+      const rawMessage = error instanceof Error ? error.message : "Please try again.";
+      let description = rawMessage;
+      try {
+        const parsed = JSON.parse(rawMessage) as { detail?: unknown };
+        if (typeof parsed.detail === "string") description = parsed.detail;
+      } catch {
+        // Keep the normalized API error string.
+      }
+      toast.error("Failed to send SMS", { description });
+    } finally {
+      setIsSendingSms(false);
     }
   };
 
@@ -1405,6 +1463,23 @@ function SuperAdminTotalLeads() {
                           type="button"
                           variant="ghost"
                           size="icon"
+                          onClick={() => openSmsDialog(item)}
+                          className="h-8 w-8 rounded-md border border-zinc-300/80 bg-white/82 text-zinc-400 shadow-none hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-45"
+                          title={
+                            !hasValue(item.phone)
+                              ? "Lead has no phone number"
+                              : isReadOnly
+                                ? "Suppressed lead is read-only"
+                                : "Send SMS"
+                          }
+                          disabled={!hasValue(item.phone) || isReadOnly}
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
                           onClick={() => openDisableLeadConfirm(item)}
                           className="h-8 w-8 rounded-md border border-zinc-300/80 bg-white/82 text-zinc-400 shadow-none hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 disabled:cursor-not-allowed disabled:opacity-45"
                           title={
@@ -1485,6 +1560,62 @@ function SuperAdminTotalLeads() {
           </div>
         )}
       </Card>
+
+      {smsTargetLead ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/60 p-4 backdrop-blur-sm"
+          onMouseDown={closeSmsDialog}
+        >
+          <div
+            className="w-full max-w-lg overflow-hidden rounded-xl border border-zinc-300 bg-white shadow-2xl"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="border-b border-zinc-100 bg-zinc-50/60 px-6 py-4">
+              <h3 className="text-lg font-semibold text-zinc-900">Send SMS</h3>
+              <p className="mt-1 text-xs text-zinc-500">
+                <span className="font-semibold text-zinc-900">{smsTargetLead.employeeName || "Lead"}</span>
+                {smsTargetLead.phone ? ` | ${smsTargetLead.phone}` : ""}
+              </p>
+            </div>
+
+            <div className="space-y-3 px-6 py-5">
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                Message
+              </label>
+              <textarea
+                value={smsMessage}
+                onChange={(event) => setSmsMessage(event.target.value.slice(0, 1600))}
+                rows={6}
+                className="w-full resize-none rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm leading-6 text-zinc-800 outline-none transition focus:border-zinc-400 focus:ring-1 focus:ring-zinc-300"
+                placeholder="Write the SMS message..."
+                disabled={isSendingSms}
+              />
+              <div className="flex justify-end text-[11px] text-zinc-400">
+                {smsMessage.trim().length}/1600
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-zinc-100 bg-zinc-50/50 px-6 py-4">
+              <Button
+                variant="outline"
+                className="border-zinc-300 text-zinc-700 hover:bg-zinc-50"
+                onClick={closeSmsDialog}
+                disabled={isSendingSms}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-zinc-900 text-white hover:bg-zinc-800"
+                onClick={() => void handleSendAdminSms()}
+                disabled={isSendingSms || smsMessage.trim().length === 0}
+              >
+                {isSendingSms ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Send
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {disableTargetLead ? (
         <div

@@ -494,6 +494,19 @@ export type DisableLeadWhatsAppResponse = {
   reason: string | null;
 };
 
+export type SendAdminLeadSmsResponse = {
+  ok: boolean;
+  leadId: string;
+  campaignId?: string | null;
+  draftId?: string | null;
+  to?: string | null;
+  provider: "twilio";
+  providerMessageId?: string | null;
+  providerStatus?: string | null;
+  statusCode?: number;
+  sentAt?: string | null;
+};
+
 export type CampaignInfo = {
   campaignId: string;
   name: string | null;
@@ -1843,6 +1856,14 @@ export async function disableLeadWhatsApp(leadId: string, reason?: string) {
     {
       params: reason?.trim() ? { reason: reason.trim() } : undefined,
     }
+  );
+  return data;
+}
+
+export async function sendAdminLeadSms(leadId: string, message: string) {
+  const { data } = await apiClient.post<SendAdminLeadSmsResponse>(
+    `/api/admin/leads/${encodeURIComponent(leadId)}/send-sms`,
+    { message }
   );
   return data;
 }
