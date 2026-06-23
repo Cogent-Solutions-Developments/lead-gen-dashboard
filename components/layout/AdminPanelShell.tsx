@@ -22,7 +22,7 @@ import {
   Webhook,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { clearAuthSession, isManagerRole } from "@/lib/auth";
+import { clearAuthSession, isCeoRole, isManagerRole } from "@/lib/auth";
 import { clearPersona } from "@/lib/persona";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -113,8 +113,13 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user } = useAuth();
   const isManager = isManagerRole(user?.role);
+  const isCeo = isCeoRole(user?.role);
   const visibleTabs = isManager
     ? adminTabs.filter((item) => item.href === "/admin/user-performance")
+    : isCeo
+      ? adminTabs.filter((item) =>
+          ["/admin/users", "/admin/user-performance", "/admin/knowledge", "/settings/system-monitor"].includes(item.href)
+        )
     : adminTabs;
 
   const handleSignOut = async () => {
@@ -142,7 +147,7 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
           </div>
           <div>
             <p className="text-xl font-medium tracking-wide text-sidebar-foreground drop-shadow-sm">supernizo</p>
-            <p className="text-xs text-sidebar-foreground/70">{isManager ? "Manager Panel" : "Admin Panel"}</p>
+            <p className="text-xs text-sidebar-foreground/70">{isManager ? "Manager Panel" : isCeo ? "CEO Panel" : "Admin Panel"}</p>
           </div>
         </div>
 
@@ -203,7 +208,7 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
             </div>
             <div className="min-w-0">
               <p className="truncate text-lg font-medium tracking-wide text-sidebar-foreground">supernizo</p>
-              <p className="text-xs text-sidebar-foreground/70">{isManager ? "Manager Panel" : "Admin Panel"}</p>
+              <p className="text-xs text-sidebar-foreground/70">{isManager ? "Manager Panel" : isCeo ? "CEO Panel" : "Admin Panel"}</p>
             </div>
           </div>
 

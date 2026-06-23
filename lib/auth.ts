@@ -4,6 +4,7 @@ import type { Persona } from "@/lib/persona";
 
 export type AuthRole =
   | "super_admin_user"
+  | "ceo_user"
   | "sales_user"
   | "delegate_user"
   | "production_user"
@@ -748,6 +749,10 @@ const ROLE_ALIASES: Record<string, AuthRole> = {
   super_admin: "super_admin_user",
   superadmin: "super_admin_user",
   admin: "super_admin_user",
+  ceo: "ceo_user",
+  ceo_user: "ceo_user",
+  chief_executive: "ceo_user",
+  chief_executive_officer: "ceo_user",
   sales_user: "sales_user",
   sales: "sales_user",
   sale_user: "sales_user",
@@ -774,6 +779,7 @@ const ROLE_ALIASES: Record<string, AuthRole> = {
 
 export const AUTH_ROLES: AuthRole[] = [
   "super_admin_user",
+  "ceo_user",
   "sales_user",
   "sales_manager_user",
   "delegate_user",
@@ -790,6 +796,7 @@ export function normalizeAuthRole(role: unknown): AuthRole {
 
 export function getRoleLabel(role: AuthRole | null | undefined) {
   if (role === "super_admin_user") return "Super Admin";
+  if (role === "ceo_user") return "CEO";
   if (role === "sales_manager_user") return "Sales Manager";
   if (role === "delegate_manager_user") return "Delegate Manager";
   if (role === "production_manager_user") return "Production Manager";
@@ -801,6 +808,14 @@ export function getRoleLabel(role: AuthRole | null | undefined) {
 
 export function isSuperAdminRole(role: AuthRole | null | undefined) {
   return role === "super_admin_user";
+}
+
+export function isCeoRole(role: AuthRole | null | undefined) {
+  return role === "ceo_user";
+}
+
+export function isAdminLikeRole(role: AuthRole | null | undefined) {
+  return isSuperAdminRole(role) || isCeoRole(role);
 }
 
 export function isClientRole(role: AuthRole | null | undefined) {
@@ -820,12 +835,12 @@ export function personaForRole(role: AuthRole | null | undefined): Persona | nul
 
 export function canRoleUsePersona(role: AuthRole | null | undefined, persona: Persona | null) {
   if (!role || !persona) return false;
-  if (isSuperAdminRole(role)) return true;
+  if (isAdminLikeRole(role)) return true;
   return personaForRole(role) === persona;
 }
 
 export function getAuthLandingPath(role: AuthRole | null | undefined) {
-  return isSuperAdminRole(role) ? "/choose-persona" : "/dashboard";
+  return isAdminLikeRole(role) ? "/choose-persona" : "/dashboard";
 }
 
 function getBaseUrl() {

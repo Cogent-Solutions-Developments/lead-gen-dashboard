@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  Activity,
   Brain,
   Database,
   LayoutDashboard,
@@ -16,9 +17,10 @@ import {
   ShieldCheck,
   BellRing,
   Loader2,
-  X
+  X,
+  type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { clearPersona } from "@/lib/persona";
 import { usePersona } from "@/hooks/usePersona";
 import { clearAuthSession, isManagerRole } from "@/lib/auth";
@@ -27,7 +29,18 @@ import { UserAvatar } from "@/components/profile/UserAvatar";
 import { toast } from "sonner";
 import { getDailyDealBellMedia } from "@/lib/dealBellMedia";
 
-const navItems = [
+type SidebarNavItem = {
+  name: string;
+  normalLabel?: string;
+  href: string;
+  icon: LucideIcon;
+  superOnly?: boolean;
+  normalOnly?: boolean;
+  managerOnly?: boolean;
+  ceoOnly?: boolean;
+};
+
+const navItems: SidebarNavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Campaigns", normalLabel: "Conferences", href: "/campaigns", icon: Rocket },
   { name: "New Campaign", href: "/campaigns/new", icon: Plus, superOnly: true },
@@ -37,6 +50,10 @@ const navItems = [
   { name: "My Leads", href: "/my-leads", icon: UserRound, normalOnly: true },
   { name: "Nizo AI", href: "/nizo-ai", icon: Brain, normalOnly: true },
   { name: "User Performance", href: "/manager/user-performance", icon: UsersRound, managerOnly: true },
+  { name: "User & Role Management", href: "/admin/users", icon: ShieldCheck, ceoOnly: true },
+  { name: "User Performance", href: "/admin/user-performance", icon: UsersRound, ceoOnly: true },
+  { name: "Knowledge Library", href: "/admin/knowledge", icon: Brain, ceoOnly: true },
+  { name: "System Monitor", href: "/settings/system-monitor", icon: Activity, ceoOnly: true },
   { name: "Admin Panel", href: "/admin", icon: ShieldCheck, superOnly: true },
 ];
 const APP_VERSION_LABEL = "v0.3.0";
@@ -50,7 +67,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { persona } = usePersona();
-  const { isSuperAdmin, user } = useAuth();
+  const { canUseRoleChooser, isCeo, isSuperAdmin, user } = useAuth();
   const isManager = isManagerRole(user?.role);
   const [ringingBell, setRingingBell] = useState(false);
   const [ringBellModalOpen, setRingBellModalOpen] = useState(false);
@@ -164,8 +181,10 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
       <nav className={`flex-1 overflow-y-auto pt-4 transition-[margin] duration-300 ${isExpanded ? "-mx-10" : "-mx-6"}`}>
         {navItems
           .filter((item) => {
-            if (isSuperAdmin) return !item.normalOnly && !item.managerOnly;
+            if (isSuperAdmin) return !item.normalOnly && !item.managerOnly && !item.ceoOnly;
+            if (isCeo) return !item.superOnly && !item.managerOnly;
             if (item.superOnly) return false;
+            if (item.ceoOnly) return false;
             if (item.managerOnly) return isManager;
             return true;
           })
@@ -203,7 +222,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
                     isActive ? "font-medium" : "font-light"
                   } ${isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"
                   }`}>
-                    {isSuperAdmin ? item.name : item.normalLabel ?? item.name}
+                    {isSuperAdmin || item.ceoOnly ? item.name : item.normalLabel ?? item.name}
                   </span>
                 </div>
               </Link>
@@ -212,7 +231,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
         })}
       </nav>
 
-      {!isSuperAdmin && persona === "sales" ? (
+      {!isSuperAdmin && !isCeo && persona === "sales" ? (
         <div className={`${isExpanded ? "-mx-2" : "mx-0"} pb-6 transition-all duration-300`}>
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -262,14 +281,14 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
 
       {/* 3. Bottom Section */}
       <div className="mt-auto pt-8 flex flex-col gap-4 border-t border-white/10">
-        {isSuperAdmin ? (
+        {canUseRoleChooser ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
             className={isExpanded ? "" : "flex justify-center"}
           >
-            <Link href="/">
+            <Link href="/choose-persona">
               <button
                 className={`flex items-center text-sm font-light tracking-tight text-white/40 transition-all hover:text-white group ${
                   isExpanded ? "gap-5 px-2" : "justify-center px-0"
@@ -279,7 +298,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
                   <UserRound className="h-4 w-4 opacity-50" />
                 </div>
                 <span className={`whitespace-nowrap transition-all duration-200 ${isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"}`}>
-                  {`Account - ${personaLabel}`}
+                  {isCeo ? `CEO - ${personaLabel}` : `Account - ${personaLabel}`}
                 </span>
               </button>
             </Link>

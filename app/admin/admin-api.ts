@@ -17,6 +17,7 @@ import {
 
 export type AuthRole =
   | BaseAuthRole
+  | "ceo_user"
   | "sales_manager_user"
   | "delegate_manager_user"
   | "production_manager_user"
@@ -251,6 +252,7 @@ export type {
 
 export const AUTH_ROLES: AuthRole[] = [
   "super_admin_user",
+  "ceo_user",
   "sales_user",
   "sales_manager_user",
   "delegate_user",
@@ -264,6 +266,10 @@ const ROLE_ALIASES: Record<string, AuthRole> = {
   super_admin_user: "super_admin_user",
   super_admin: "super_admin_user",
   admin: "super_admin_user",
+  ceo: "ceo_user",
+  ceo_user: "ceo_user",
+  chief_executive: "ceo_user",
+  chief_executive_officer: "ceo_user",
   sales_user: "sales_user",
   sales: "sales_user",
   sales_manager: "sales_manager_user",
@@ -428,6 +434,7 @@ function normalizeAdminClientCredential(raw: unknown): AdminClientCredential {
 
 export function getRoleLabel(role: AuthRole | null | undefined) {
   if (role === "super_admin_user") return "Super Admin";
+  if (role === "ceo_user") return "CEO";
   if (role === "sales_manager_user") return "Sales Manager";
   if (role === "delegate_manager_user") return "Delegate Manager";
   if (role === "production_manager_user") return "Production Manager";

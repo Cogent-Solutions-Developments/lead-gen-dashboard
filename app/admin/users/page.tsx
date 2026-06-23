@@ -82,7 +82,7 @@ const departmentDefinitions: DepartmentDefinition[] = [
     id: "administration",
     label: "Administration",
     description: "Protected platform operators and ownership roles.",
-    roles: ["super_admin_user"],
+    roles: ["super_admin_user", "ceo_user"],
     icon: Crown,
   },
   {
@@ -138,7 +138,7 @@ function eventTypeLabel(value?: string | null) {
 }
 
 function isManagerRole(role: AuthRole) {
-  return role === "super_admin_user" || role.includes("_manager_");
+  return role === "super_admin_user" || role === "ceo_user" || role.includes("_manager_");
 }
 
 function UserCard({
@@ -232,7 +232,7 @@ function UserCard({
 }
 
 export default function AdminUsersPage() {
-  const { user: currentUser } = useAuth();
+  const { isCeo, user: currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<AdminUsersTab>("users");
   const [activeDepartmentId, setActiveDepartmentId] = useState(departmentDefinitions[0]?.id || "");
   const [users, setUsers] = useState<AuthUser[]>([]);
@@ -328,6 +328,26 @@ export default function AdminUsersPage() {
     });
   }, [search, users]);
 
+  const visibleDepartments = useMemo(
+    () => departmentDefinitions.filter((department) => !(isCeo && department.id === "administration")),
+    [isCeo]
+  );
+
+  const roleOptions = useMemo(
+    () =>
+      AUTH_ROLES.filter((role) => {
+        if (isCeo && (role === "super_admin_user" || role === "ceo_user")) return false;
+        if (role === "client_user" && form.role !== "client_user") return false;
+        return true;
+      }),
+    [form.role, isCeo]
+  );
+
+  useEffect(() => {
+    if (visibleDepartments.some((department) => department.id === activeDepartmentId)) return;
+    setActiveDepartmentId(visibleDepartments[0]?.id || "");
+  }, [activeDepartmentId, visibleDepartments]);
+
   const stats = useMemo(() => {
     const active = users.filter((item) => item.isActive !== false).length;
     const superAdmins = users.filter((item) => item.role === "super_admin_user").length;
@@ -336,13 +356,13 @@ export default function AdminUsersPage() {
 
   const departmentGroups = useMemo(
     () =>
-      departmentDefinitions.map((department) => {
+      visibleDepartments.map((department) => {
         const rows = filteredUsers.filter((item) => department.roles.includes(item.role));
         const managers = rows.filter((item) => isManagerRole(item.role));
         const normalUsers = rows.filter((item) => !isManagerRole(item.role));
         return { ...department, rows, managers, normalUsers };
       }),
-    [filteredUsers]
+    [filteredUsers, visibleDepartments]
   );
 
   const selectedDepartment = useMemo(
@@ -816,7 +836,7 @@ export default function AdminUsersPage() {
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent className="border-zinc-300 bg-white">
-                    {AUTH_ROLES.filter((role) => role !== "client_user" || form.role === "client_user").map((role) => (
+                    {roleOptions.map((role) => (
                       <SelectItem key={role} value={role}>
                         {getRoleLabel(role)}
                       </SelectItem>
@@ -1122,7 +1142,7 @@ export default function AdminUsersPage() {
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent className="border-zinc-300 bg-white">
-                    {AUTH_ROLES.filter((role) => role !== "client_user" || form.role === "client_user").map((role) => (
+                    {roleOptions.map((role) => (
                       <SelectItem key={role} value={role}>
                         {getRoleLabel(role)}
                       </SelectItem>

@@ -40,6 +40,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { NormalUserEventLeadSheet } from "@/components/leads/NormalUserEventLeadSheet";
 
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
+const CEO_DEPARTMENT_TABS = [
+  { value: "sales", label: "Sales" },
+  { value: "delegates", label: "Delegate" },
+  { value: "production", label: "Production" },
+] as const;
 const POSITION_OPTIONS = [
   "CEO",
   "CTO",
@@ -583,7 +588,8 @@ function mapLeadItemToAdminLead(item: LeadItem): Lead {
 }
 
 function SuperAdminTotalLeads() {
-  const { persona } = usePersona();
+  const { persona, setPersona } = usePersona();
+  const { isCeo } = useAuth();
   const searchParams = useSearchParams();
   const targetLeadId = searchParams.get("lead") || "";
   const initialSearch = searchParams.get("search") || "";
@@ -627,6 +633,7 @@ function SuperAdminTotalLeads() {
   const requestSequenceRef = useRef(0);
   const targetLeadRowRef = useRef<HTMLTableRowElement | null>(null);
   const initialLeadLoadRef = useRef(true);
+  const ceoPersonaInitializedRef = useRef(false);
 
   const clearAdvancedFilters = useCallback(() => {
     setNameFilter("");
@@ -641,6 +648,12 @@ function SuperAdminTotalLeads() {
     setHasWebsiteFilter("all");
   }, []);
 
+  useEffect(() => {
+    if (!isCeo || ceoPersonaInitializedRef.current) return;
+    ceoPersonaInitializedRef.current = true;
+    if (persona !== "sales") setPersona("sales");
+  }, [isCeo, persona, setPersona]);
+
   const resetFilters = useCallback(() => {
     setQ("");
     setEventFilter("all");
@@ -648,6 +661,15 @@ function SuperAdminTotalLeads() {
     setSortBy("relevance");
     clearAdvancedFilters();
   }, [clearAdvancedFilters]);
+
+  const handleCeoDepartmentChange = useCallback(
+    (next: (typeof CEO_DEPARTMENT_TABS)[number]["value"]) => {
+      if (next !== persona) setPersona(next);
+      setEventFilter("all");
+      setCurrentPage(1);
+    },
+    [persona, setPersona]
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -1057,6 +1079,30 @@ function SuperAdminTotalLeads() {
           </div>
         </div>
       </div>
+      {isCeo ? (
+        <Card className="relative isolate mt-3 overflow-hidden rounded-2xl border border-white/80 bg-white/84 p-2 shadow-[0_0_12px_-9px_rgba(2,10,27,0.58)] backdrop-blur-[14px]">
+          <div className="flex flex-wrap gap-2">
+            {CEO_DEPARTMENT_TABS.map((tab) => {
+              const active = persona === tab.value;
+              return (
+                <Button
+                  key={tab.value}
+                  type="button"
+                  variant={active ? "default" : "outline"}
+                  onClick={() => handleCeoDepartmentChange(tab.value)}
+                  className={`h-9 rounded-lg px-4 text-sm font-semibold ${
+                    active
+                      ? "bg-zinc-950 text-white hover:bg-zinc-800"
+                      : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  {tab.label}
+                </Button>
+              );
+            })}
+          </div>
+        </Card>
+      ) : null}
 
       <Card className="relative isolate mt-3 overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.84)_0%,rgba(250,252,255,0.66)_56%,rgba(240,246,253,0.56)_100%)] backdrop-blur-[16px] [backdrop-filter:saturate(175%)_blur(16px)] shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74),inset_0_0_22px_rgba(255,255,255,0.2)]">
         <div className="pointer-events-none absolute -right-20 -top-20 h-52 w-52 rounded-full bg-gradient-to-br from-sky-300/30 via-blue-500/10 to-transparent blur-3xl" />
@@ -1659,6 +1705,6 @@ function SuperAdminTotalLeads() {
 }
 
 export default function LeadsPage() {
-  const { isSuperAdmin } = useAuth();
-  return isSuperAdmin ? <SuperAdminTotalLeads /> : <NormalUserEventLeadSheet />;
+  const { isCeo, isSuperAdmin } = useAuth();
+  return isSuperAdmin || isCeo ? <SuperAdminTotalLeads /> : <NormalUserEventLeadSheet />;
 }

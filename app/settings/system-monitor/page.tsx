@@ -25,7 +25,13 @@ import { Card } from "@/components/ui/card";
 import { AdminPanelShell } from "@/components/layout/AdminPanelShell";
 import { useAuth } from "@/hooks/useAuth";
 import {
+  fetchSystemOperationRecoveryGuide,
   fetchSystemMonitorSnapshot,
+  listSystemOperationIncidents,
+  listSystemOperationLogServices,
+  type SystemOperationIncident,
+  type SystemOperationLogService,
+  type SystemOperationRecoveryGuideItem,
   type SystemMonitorSnapshot,
   type SystemMonitorStatus,
 } from "@/lib/auth";
@@ -192,8 +198,11 @@ function ExternalDashboardButton({ label, href }: { label: string; href?: string
 }
 
 export default function SystemMonitorPage() {
-  const { isSuperAdmin } = useAuth();
+  const { isAdminLike, isSuperAdmin } = useAuth();
   const [snapshot, setSnapshot] = useState<SystemMonitorSnapshot | null>(null);
+  const [operationIncidents, setOperationIncidents] = useState<SystemOperationIncident[]>([]);
+  const [logServices, setLogServices] = useState<SystemOperationLogService[]>([]);
+  const [recoveryItems, setRecoveryItems] = useState<SystemOperationRecoveryGuideItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -201,14 +210,23 @@ export default function SystemMonitorPage() {
 
   const loadSnapshot = useCallback(
     async ({ silent = false }: { silent?: boolean } = {}) => {
-      if (!isSuperAdmin) return;
+      if (!isAdminLike) return;
 
       if (!silent) setLoading(true);
       setRefreshing(true);
       setError(null);
       try {
-        const data = await fetchSystemMonitorSnapshot();
-        setSnapshot(data);
+        const [snapshotResult, incidentsResult, logServicesResult, recoveryGuideResult] = await Promise.allSettled([
+          fetchSystemMonitorSnapshot(),
+          listSystemOperationIncidents(10),
+          listSystemOperationLogServices(),
+          fetchSystemOperationRecoveryGuide(),
+        ]);
+        if (snapshotResult.status === "rejected") throw snapshotResult.reason;
+        setSnapshot(snapshotResult.value);
+        setOperationIncidents(incidentsResult.status === "fulfilled" ? incidentsResult.value.incidents || [] : []);
+        setLogServices(logServicesResult.status === "fulfilled" ? logServicesResult.value.services || [] : []);
+        setRecoveryItems(recoveryGuideResult.status === "fulfilled" ? recoveryGuideResult.value.items || [] : []);
       } catch (err: unknown) {
         const message = getErrorMessage(err);
         setError(message);
@@ -218,20 +236,20 @@ export default function SystemMonitorPage() {
         setRefreshing(false);
       }
     },
-    [isSuperAdmin]
+    [isAdminLike]
   );
 
   useEffect(() => {
-    if (isSuperAdmin) void loadSnapshot();
-  }, [isSuperAdmin, loadSnapshot]);
+    if (isAdminLike) void loadSnapshot();
+  }, [isAdminLike, loadSnapshot]);
 
   useEffect(() => {
-    if (!autoRefresh || !isSuperAdmin) return;
+    if (!autoRefresh || !isAdminLike) return;
     const timer = window.setInterval(() => {
       void loadSnapshot({ silent: true });
     }, 30000);
     return () => window.clearInterval(timer);
-  }, [autoRefresh, isSuperAdmin, loadSnapshot]);
+  }, [autoRefresh, isAdminLike, loadSnapshot]);
 
   const checks = snapshot?.checks;
   const runtime = snapshot?.runtime;
@@ -288,14 +306,14 @@ export default function SystemMonitorPage() {
     [checks, snapshot, warnings.length]
   );
 
-  if (!isSuperAdmin) {
+  if (!isAdminLike) {
     return (
       <AdminPanelShell>
       <div className="flex min-h-[calc(100dvh-3rem)] items-center justify-center p-4">
         <Card className="max-w-md rounded-2xl border border-zinc-300 bg-white/88 p-6 text-center">
           <ShieldAlert className="mx-auto h-9 w-9 text-amber-600" />
-          <h1 className="mt-3 text-lg font-semibold text-zinc-900">Super Admin Only</h1>
-          <p className="mt-2 text-sm text-zinc-500">System Monitor is restricted to super admin users.</p>
+          <h1 className="mt-3 text-lg font-semibold text-zinc-900">Admin Access Required</h1>
+          <p className="mt-2 text-sm text-zinc-500">System Monitor is restricted to super admin and CEO users.</p>
         </Card>
       </div>
       </AdminPanelShell>
@@ -331,14 +349,14 @@ export default function SystemMonitorPage() {
             Auto 30s
           </label>
 
-          <Link href="/settings">
+          <Link href={isSuperAdmin ? "/settings" : "/choose-persona"}>
             <Button
               type="button"
               variant="outline"
               className="h-10 border-zinc-300 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Settings
+              {isSuperAdmin ? "Settings" : "Workspaces"}
             </Button>
           </Link>
 
@@ -389,6 +407,59 @@ export default function SystemMonitorPage() {
               />
             ))}
           </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <MetricCard
+              label="Operation Incidents"
+              value={operationIncidents.length}
+              status={operationIncidents.length > 0 ? "warning" : "ok"}
+              detail="System operations summary"
+              icon={AlertTriangle}
+            />
+            <MetricCard
+              label="Log Services"
+              value={logServices.length}
+              status={logServices.some((service) => !service.exists) ? "warning" : "ok"}
+              detail={`${logServices.filter((service) => service.exists).length} available`}
+              icon={Activity}
+            />
+            <MetricCard
+              label="Recovery Guide Items"
+              value={recoveryItems.length}
+              status="info"
+              detail="Read-only reference count"
+              icon={Workflow}
+            />
+          </div>
+
+          <SectionCard title="Operations Summary" description="Read-only incident view from system operations.">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px]">
+                <thead className="border-b border-zinc-100 bg-zinc-50/70 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                  <tr>
+                    <th className="px-5 py-3">Severity</th>
+                    <th className="px-5 py-3">Code</th>
+                    <th className="px-5 py-3">Campaign</th>
+                    <th className="px-5 py-3">Message</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {operationIncidents.length === 0 ? (
+                    <EmptyRow colSpan={4} label="No system operation incidents found." />
+                  ) : (
+                    operationIncidents.map((incident, index) => (
+                      <tr key={`${incident.code}-${incident.campaignId}-${index}`} className="hover:bg-zinc-50/80">
+                        <td className="px-5 py-3"><SeverityBadge value={incident.severity} /></td>
+                        <td className="px-5 py-3 font-mono text-xs text-zinc-700">{incident.code}</td>
+                        <td className="px-5 py-3 font-mono text-xs text-zinc-600">{incident.campaignId || "-"}</td>
+                        <td className="max-w-[28rem] truncate px-5 py-3 text-sm text-zinc-700" title={incident.message}>{incident.message}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </SectionCard>
 
           <div className="grid gap-5 xl:grid-cols-2">
             <SectionCard
