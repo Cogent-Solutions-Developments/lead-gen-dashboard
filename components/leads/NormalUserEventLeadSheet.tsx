@@ -897,6 +897,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
   );
 
   const [events, setEvents] = useState<EventSummaryItem[]>([]);
+  const [eventsPersona, setEventsPersona] = useState<LeadSheetDepartmentPersona | "">("");
   const [registryEvents, setRegistryEvents] = useState<AdminEventItem[]>([]);
   const [myLeadCampaigns, setMyLeadCampaigns] = useState<CampaignListItem[]>([]);
   const [loadingMyLeadCampaigns, setLoadingMyLeadCampaigns] = useState(false);
@@ -1010,11 +1011,15 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
   );
 
   const loadInitialData = useCallback(async () => {
+    const requestPersona = effectivePersona;
     setLoadingEvents(true);
+    setEventsPersona("");
+    setEvents([]);
+    setLeadPage(null);
     try {
       const [eventsResponse, initialStatusResponse] = await Promise.all([
         leadSheetApi.listEvents(),
-        listWorkflowStatusesForPersona(effectivePersona),
+        listWorkflowStatusesForPersona(requestPersona),
       ]);
       const registryRows = await listActiveEventRegistry();
       let finalStatuses = Array.isArray(initialStatusResponse.statuses)
@@ -1028,7 +1033,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
         await Promise.all(
           missingFixedStatuses.map(async (item) => {
             try {
-              await createWorkflowStatusForPersona(effectivePersona, item.label);
+              await createWorkflowStatusForPersona(requestPersona, item.label);
             } catch {
               return null;
             }
@@ -1036,13 +1041,14 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
           })
         );
 
-        const refreshedStatusResponse = await listWorkflowStatusesForPersona(effectivePersona);
+        const refreshedStatusResponse = await listWorkflowStatusesForPersona(requestPersona);
         finalStatuses = Array.isArray(refreshedStatusResponse.statuses)
           ? refreshedStatusResponse.statuses
           : [];
       }
 
       setEvents(eventsResponse.events || []);
+      setEventsPersona(requestPersona);
       setRegistryEvents(registryRows);
       setWorkflowStatuses(buildFixedWorkflowStatuses(finalStatuses, fixedWorkflowStatuses));
     } catch (error: unknown) {
@@ -1050,6 +1056,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
         description: getErrorMessage(error),
       });
       setEvents([]);
+      setEventsPersona(requestPersona);
       setRegistryEvents([]);
       setLeadPage(null);
       setWorkflowStatuses(fixedWorkflowStatuses);
@@ -1109,9 +1116,14 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
     setPageOffset(0);
   }, [searchInput, searchParams]);
 
+  const scopedEvents = useMemo(
+    () => (eventsPersona === effectivePersona ? events : []),
+    [effectivePersona, events, eventsPersona]
+  );
+
   const eventSummaryKeySet = useMemo(() => {
-    return new Set(events.map((item) => asText(item.canonicalEventKey)).filter(Boolean));
-  }, [events]);
+    return new Set(scopedEvents.map((item) => asText(item.canonicalEventKey)).filter(Boolean));
+  }, [scopedEvents]);
 
   const activeRegistryEvents = useMemo(
     () => registryEvents.filter((event) => event.isActive),
@@ -1123,15 +1135,15 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
     if (eventParam && eventSummaryKeySet.has(eventParam)) {
       return eventParam;
     }
-    return events[0]?.canonicalEventKey || "";
-  }, [eventParam, eventSummaryKeySet, events]);
+    return scopedEvents[0]?.canonicalEventKey || "";
+  }, [eventParam, eventSummaryKeySet, scopedEvents]);
 
   useEffect(() => {
-    if (!events.length || !selectedEventKey || eventParam === selectedEventKey) return;
+    if (!scopedEvents.length || !selectedEventKey || eventParam === selectedEventKey) return;
     router.replace(
       updateSearchParam(pathname, new URLSearchParams(searchParams.toString()), "event", selectedEventKey)
     );
-  }, [eventParam, events.length, pathname, router, searchParams, selectedEventKey]);
+  }, [eventParam, pathname, router, scopedEvents.length, searchParams, selectedEventKey]);
 
   useEffect(() => {
     if (!selectedEventKey) {
@@ -1201,20 +1213,20 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
   }, [filters.category, filters.status, leadSheetApi, pageSize]);
 
   useEffect(() => {
-    if (!selectedEventKey) {
+    if (!scopedEvents.length || !selectedEventKey) {
       setLeadPage(null);
       return;
     }
     setLeadPage((prev) => (prev?.event.canonicalEventKey === selectedEventKey ? prev : null));
     void loadEventPage(selectedEventKey, pageOffset, searchQuery);
-  }, [loadEventPage, pageOffset, searchQuery, selectedEventKey]);
+  }, [loadEventPage, pageOffset, scopedEvents.length, searchQuery, selectedEventKey]);
 
   const selectedEvent = useMemo(
     () =>
       leadPage?.event?.canonicalEventKey === selectedEventKey
         ? leadPage.event
-        : events.find((item) => item.canonicalEventKey === selectedEventKey) ?? null,
-    [events, leadPage, selectedEventKey]
+        : scopedEvents.find((item) => item.canonicalEventKey === selectedEventKey) ?? null,
+    [leadPage, scopedEvents, selectedEventKey]
   );
 
   const selectedTemplateUploadEvent = useMemo(
@@ -1385,7 +1397,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
   }, [pathname, router, searchParams, uploadParam]);
 
   const openTemplateUploadDialog = () => {
-    const currentEventKey = selectedEvent?.canonicalEventKey || selectedEventKey || events[0]?.canonicalEventKey || "";
+    const currentEventKey = selectedEvent?.canonicalEventKey || selectedEventKey || scopedEvents[0]?.canonicalEventKey || "";
     const selectedRegistryEvent =
       activeRegistryEvents.find((event) => event.id === selectedEvent?.eventRegistryId) ??
       activeRegistryEvents.find((event) => event.eventKey === currentEventKey) ??
@@ -1994,7 +2006,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                   position="popper"
                   className={EVENT_SELECT_CONTENT_CLASS}
                 >
-                  {events.map((item) => (
+                  {scopedEvents.map((item) => (
                     <SelectItem
                       key={item.canonicalEventKey}
                       value={item.canonicalEventKey}
