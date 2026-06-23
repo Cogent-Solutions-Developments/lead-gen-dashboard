@@ -44,7 +44,7 @@ export function useAuth() {
       forcedPersona: personaForRole(role),
       canManageUsers: isAdminLike,
       canManageCampaignActions: isSuperAdmin,
-      canUseRoleChooser: isAdminLike,
+      canUseRoleChooser: isSuperAdmin,
     };
   }, [session]);
 }

@@ -58,7 +58,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const isChooser = pathname === "/" || pathname === "/choose-persona";
   const isAuthRoute = pathname === "/sign-in";
-  const isAdminAreaRoute = isAdminAreaPath(pathname);
   const isFlushContentRoute = pathname === "/nizo-ai" || pathname === "/dashboard";
   const [selected, setSelected] = useState<boolean>(() => hasPersona());
   const [session, setSession] = useState<AuthSession | null>(() => getStoredAuthSession());
@@ -70,6 +69,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isClient = isClientRole(role);
   const isManager = isManagerRole(role);
   const forcedPersona = personaForRole(role);
+  const isCeoWorkspaceAdminRoute = isCeo && isCeoAllowedAdminPath(pathname);
+  const isAdminAreaRoute = isAdminAreaPath(pathname) && !isCeoWorkspaceAdminRoute;
   const sidebarExpanded = sidebarHovered;
 
   useEffect(() => {
@@ -155,6 +156,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    if (isCeo) {
+      if (getStoredPersona() !== "ceo") {
+        setPersona("ceo");
+        return;
+      }
+
+      if (isChooser) {
+        router.replace("/dashboard");
+        return;
+      }
+    }
+
     if (isManagerOnlyPath(pathname) && !isManager) {
       router.replace(getAuthLandingPath(role));
       return;
@@ -214,6 +227,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (pathname !== "/dashboard") return null;
     return <main className="min-h-screen bg-transparent">{children}</main>;
   }
+
+  if (isCeo && isChooser) return null;
 
   if (isAuthRoute || isChooser) {
     return (

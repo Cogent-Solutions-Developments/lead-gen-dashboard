@@ -582,14 +582,14 @@ export default function AdminUsersPage() {
             </div>
 
             <div className="admin-actions xl:justify-end">
-              <Link href="/choose-persona">
+              <Link href={isCeo ? "/dashboard" : "/choose-persona"}>
                 <Button
                   type="button"
                   variant="outline"
                   className="h-10 border-zinc-300 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
                 >
                   <ArrowLeft className="mr-2 h-4 w-4" />
-                  Workspaces
+                  {isCeo ? "Dashboard" : "Workspaces"}
                 </Button>
               </Link>
 

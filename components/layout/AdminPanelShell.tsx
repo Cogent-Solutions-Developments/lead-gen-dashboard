@@ -114,12 +114,13 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const isManager = isManagerRole(user?.role);
   const isCeo = isCeoRole(user?.role);
+
+  if (isCeo) {
+    return <>{children}</>;
+  }
+
   const visibleTabs = isManager
     ? adminTabs.filter((item) => item.href === "/admin/user-performance")
-    : isCeo
-      ? adminTabs.filter((item) =>
-          ["/admin/users", "/admin/user-performance", "/admin/knowledge", "/settings/system-monitor"].includes(item.href)
-        )
     : adminTabs;
 
   const handleSignOut = async () => {

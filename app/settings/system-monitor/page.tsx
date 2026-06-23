@@ -349,14 +349,14 @@ export default function SystemMonitorPage() {
             Auto 30s
           </label>
 
-          <Link href={isSuperAdmin ? "/settings" : "/choose-persona"}>
+          <Link href={isSuperAdmin ? "/settings" : "/dashboard"}>
             <Button
               type="button"
               variant="outline"
               className="h-10 border-zinc-300 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
-              {isSuperAdmin ? "Settings" : "Workspaces"}
+              {isSuperAdmin ? "Settings" : "Dashboard"}
             </Button>
           </Link>
 

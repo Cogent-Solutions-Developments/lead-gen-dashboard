@@ -4,6 +4,8 @@ import * as production from "@/lib/apiproduction";
 import { apiClient } from "@/lib/apiClient";
 import { getPersona, type Persona } from "@/lib/persona";
 
+type DepartmentPersona = Extract<Persona, "sales" | "delegates" | "production">;
+
 export type {
   CampaignImportSummary,
   CampaignEmailTemplate,
@@ -240,6 +242,39 @@ export const listEvents: typeof sales.listEvents = (...args) =>
 export const listEventLeads: typeof sales.listEventLeads = (...args) =>
   pickModule().listEventLeads(...args);
 
+export function listEventsForPersona(persona: DepartmentPersona): ReturnType<typeof sales.listEvents> {
+  return pickModule(persona).listEvents();
+}
+
+export function listEventLeadsForPersona(
+  persona: DepartmentPersona,
+  canonicalEventKey: string,
+  params?: sales.EventLeadListParams
+): ReturnType<typeof sales.listEventLeads> {
+  return pickModule(persona).listEventLeads(canonicalEventKey, params);
+}
+
+export function createCampaignFromUploadForPersona(
+  persona: DepartmentPersona,
+  payload: sales.UploadCampaignRequest
+): ReturnType<typeof sales.createCampaignFromUpload> {
+  return pickModule(persona).createCampaignFromUpload(payload);
+}
+
+export function validateLeadTemplateUploadForPersona(
+  persona: DepartmentPersona,
+  file: File | Blob
+): ReturnType<typeof sales.validateLeadTemplateUpload> {
+  return pickModule(persona).validateLeadTemplateUpload(file);
+}
+
+export function downloadLeadTemplateFileForPersona(
+  persona: DepartmentPersona,
+  fileName?: string
+): ReturnType<typeof sales.downloadLeadTemplateFile> {
+  return pickModule(persona).downloadLeadTemplateFile(fileName);
+}
+
 export async function getMyLeadsRecentCampaigns(limit?: number, persona?: Persona) {
   const params = typeof limit === "number" ? { limit } : undefined;
   const { data } = await apiClient.get<{ campaigns: sales.RecentCampaign[] }>(
@@ -416,6 +451,51 @@ export const updateLeadWorkflowStatus: typeof sales.updateLeadWorkflowStatus = (
 
 export const getLeadWorkflowStatusHistory: typeof sales.getLeadWorkflowStatusHistory = (...args) =>
   pickModule().getLeadWorkflowStatusHistory(...args);
+
+export function listWorkflowStatusesForPersona(
+  persona: DepartmentPersona
+): ReturnType<typeof sales.listWorkflowStatuses> {
+  return pickModule(persona).listWorkflowStatuses();
+}
+
+export function createWorkflowStatusForPersona(
+  persona: DepartmentPersona,
+  label: string
+): ReturnType<typeof sales.createWorkflowStatus> {
+  return pickModule(persona).createWorkflowStatus(label);
+}
+
+export function addEventLeadForPersona(
+  persona: DepartmentPersona,
+  canonicalEventKey: string,
+  payload: sales.EventLeadCreateRequest
+): ReturnType<typeof sales.addEventLead> {
+  return pickModule(persona).addEventLead(canonicalEventKey, payload);
+}
+
+export function generateLeadContentForPersona(
+  persona: DepartmentPersona,
+  id: string,
+  payload: sales.LeadContentGenerationRequest
+): ReturnType<typeof sales.generateLeadContent> {
+  return pickModule(persona).generateLeadContent(id, payload);
+}
+
+export function updateLeadWorkflowStatusForPersona(
+  persona: DepartmentPersona,
+  id: string,
+  workflowStatus: sales.WorkflowStatus,
+  comment?: string
+): ReturnType<typeof sales.updateLeadWorkflowStatus> {
+  return pickModule(persona).updateLeadWorkflowStatus(id, workflowStatus, comment);
+}
+
+export function getLeadWorkflowStatusHistoryForPersona(
+  persona: DepartmentPersona,
+  id: string
+): ReturnType<typeof sales.getLeadWorkflowStatusHistory> {
+  return pickModule(persona).getLeadWorkflowStatusHistory(id);
+}
 
 export const approveAllCampaign: typeof sales.approveAllCampaign = (...args) =>
   pickModule().approveAllCampaign(...args);

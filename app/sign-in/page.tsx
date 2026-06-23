@@ -7,7 +7,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { getAuthLandingPath, getStoredAuthSession, loginWithPassword, personaForRole } from "@/lib/auth";
+import { getAuthLandingPath, getStoredAuthSession, isCeoRole, loginWithPassword, personaForRole } from "@/lib/auth";
 import { setPersona } from "@/lib/persona";
 
 const LOGIN_REVEAL_DELAY_MS = 6000;
@@ -60,6 +60,8 @@ export default function SignInPage() {
       const forcedPersona = personaForRole(session.user.role);
       if (forcedPersona) {
         setPersona(forcedPersona);
+      } else if (isCeoRole(session.user.role)) {
+        setPersona("ceo");
       }
       router.replace(getAuthLandingPath(session.user.role));
     };
@@ -103,6 +105,8 @@ export default function SignInPage() {
       const forcedPersona = personaForRole(session.user.role);
       if (forcedPersona) {
         setPersona(forcedPersona);
+      } else if (isCeoRole(session.user.role)) {
+        setPersona("ceo");
       }
 
       toast.success("Signed in successfully.");

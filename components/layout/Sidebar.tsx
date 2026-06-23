@@ -71,7 +71,14 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
   const isManager = isManagerRole(user?.role);
   const [ringingBell, setRingingBell] = useState(false);
   const [ringBellModalOpen, setRingBellModalOpen] = useState(false);
-  const personaLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
+  const personaLabel =
+    persona === "ceo"
+      ? "CEO"
+      : persona === "delegates"
+        ? "Delegates"
+        : persona === "production"
+          ? "Production"
+          : "Sales";
   const dealBellMedia = useMemo(
     () => getDailyDealBellMedia(user?.id || user?.username),
     [user?.id, user?.username]

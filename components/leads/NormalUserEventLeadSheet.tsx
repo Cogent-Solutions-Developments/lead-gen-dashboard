@@ -13,26 +13,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  addEventLead,
+  addEventLeadForPersona,
   addMyLeadsEventLead,
-  createCampaignFromUpload as createSharedCampaignFromUpload,
+  createCampaignFromUploadForPersona,
   createMyLeadsCampaignFromUpload,
-  downloadLeadTemplateFile as downloadSharedLeadTemplateFile,
+  downloadLeadTemplateFileForPersona,
   downloadMyLeadsCampaignExport,
   downloadMyLeadsLeadTemplateFile,
-  createWorkflowStatus,
+  createWorkflowStatusForPersona,
   downloadEventAgendaFile,
-  generateLeadContent,
-  getLeadWorkflowStatusHistory,
+  generateLeadContentForPersona,
+  getLeadWorkflowStatusHistoryForPersona,
   listEventAgendas,
-  listEventLeads as listSharedEventLeads,
-  listEvents as listSharedEvents,
+  listEventLeadsForPersona,
+  listEventsForPersona,
   listMyLeadsCampaigns,
   listMyLeadsEventLeads,
   listMyLeadsEvents,
-  listWorkflowStatuses,
-  updateLeadWorkflowStatus,
-  validateLeadTemplateUpload as validateSharedLeadTemplateUpload,
+  listWorkflowStatusesForPersona,
+  updateLeadWorkflowStatusForPersona,
+  validateLeadTemplateUploadForPersona,
   validateMyLeadsLeadTemplateUpload,
   type CampaignListItem,
   type EventLeadCreateRequest,
@@ -53,6 +53,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 import { getDailyDealBellMedia } from "@/lib/dealBellMedia";
 import { cn } from "@/lib/utils";
+import type { Persona } from "@/lib/persona";
 import {
   AlertTriangle,
   BellRing,
@@ -724,9 +725,12 @@ function updateSearchParam(pathname: string, searchParams: URLSearchParams, key:
 }
 
 type LeadSheetDataMode = "shared" | "my-leads";
+type LeadSheetDepartmentPersona = Extract<Persona, "sales" | "delegates" | "production">;
 
 type NormalUserEventLeadSheetProps = {
   mode?: LeadSheetDataMode;
+  departmentTabs?: ReactNode;
+  dataPersona?: LeadSheetDepartmentPersona;
 };
 
 function humanizeCampaignStatus(value?: string | null) {
@@ -875,8 +879,10 @@ function LeadSheetDialog({
   );
 }
 
-export function NormalUserEventLeadSheet({ mode = "shared" }: NormalUserEventLeadSheetProps) {
+export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, dataPersona }: NormalUserEventLeadSheetProps) {
   const { persona } = usePersona();
+  const effectivePersona: LeadSheetDepartmentPersona =
+    dataPersona ?? (persona === "delegates" || persona === "production" ? persona : "sales");
   const { role, user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -939,28 +945,34 @@ export function NormalUserEventLeadSheet({ mode = "shared" }: NormalUserEventLea
     () =>
       isMyLeadsMode
         ? {
-            listEvents: () => listMyLeadsEvents(persona),
+            listEvents: () => listMyLeadsEvents(effectivePersona),
             listEventLeads: (
               canonicalEventKey: string,
               params: Parameters<typeof listMyLeadsEventLeads>[1]
-            ) => listMyLeadsEventLeads(canonicalEventKey, params, persona),
+            ) => listMyLeadsEventLeads(canonicalEventKey, params, effectivePersona),
             createCampaignFromUpload: (payload: Parameters<typeof createMyLeadsCampaignFromUpload>[0]) =>
-              createMyLeadsCampaignFromUpload(payload, persona),
+              createMyLeadsCampaignFromUpload(payload, effectivePersona),
             addEventLead: (canonicalEventKey: string, payload: EventLeadCreateRequest) =>
-              addMyLeadsEventLead(canonicalEventKey, payload, persona),
+              addMyLeadsEventLead(canonicalEventKey, payload, effectivePersona),
             validateLeadTemplateUpload: (file: File | Blob) =>
-              validateMyLeadsLeadTemplateUpload(file, persona),
-            downloadLeadTemplateFile: () => downloadMyLeadsLeadTemplateFile(undefined, persona),
+              validateMyLeadsLeadTemplateUpload(file, effectivePersona),
+            downloadLeadTemplateFile: () => downloadMyLeadsLeadTemplateFile(undefined, effectivePersona),
           }
         : {
-            listEvents: listSharedEvents,
-            listEventLeads: listSharedEventLeads,
-            createCampaignFromUpload: createSharedCampaignFromUpload,
-            addEventLead,
-            validateLeadTemplateUpload: validateSharedLeadTemplateUpload,
-            downloadLeadTemplateFile: downloadSharedLeadTemplateFile,
+            listEvents: () => listEventsForPersona(effectivePersona),
+            listEventLeads: (
+              canonicalEventKey: string,
+              params: Parameters<typeof listEventLeadsForPersona>[2]
+            ) => listEventLeadsForPersona(effectivePersona, canonicalEventKey, params),
+            createCampaignFromUpload: (payload: Parameters<typeof createCampaignFromUploadForPersona>[1]) =>
+              createCampaignFromUploadForPersona(effectivePersona, payload),
+            addEventLead: (canonicalEventKey: string, payload: EventLeadCreateRequest) =>
+              addEventLeadForPersona(effectivePersona, canonicalEventKey, payload),
+            validateLeadTemplateUpload: (file: File | Blob) =>
+              validateLeadTemplateUploadForPersona(effectivePersona, file),
+            downloadLeadTemplateFile: () => downloadLeadTemplateFileForPersona(effectivePersona),
           },
-    [isMyLeadsMode, persona]
+    [effectivePersona, isMyLeadsMode]
   );
 
   const resetFilters = useCallback(() => {
@@ -978,12 +990,12 @@ export function NormalUserEventLeadSheet({ mode = "shared" }: NormalUserEventLea
 
   const fixedWorkflowStatuses = useMemo(
     () =>
-      persona === "production"
+      effectivePersona === "production"
         ? PRODUCTION_WORKFLOW_STATUSES
-        : persona === "delegates"
+        : effectivePersona === "delegates"
           ? DELEGATE_WORKFLOW_STATUSES
           : FIXED_WORKFLOW_STATUSES,
-    [persona]
+    [effectivePersona]
   );
 
   const statusOptions = useMemo(() => {
@@ -1002,7 +1014,7 @@ export function NormalUserEventLeadSheet({ mode = "shared" }: NormalUserEventLea
     try {
       const [eventsResponse, initialStatusResponse] = await Promise.all([
         leadSheetApi.listEvents(),
-        listWorkflowStatuses(),
+        listWorkflowStatusesForPersona(effectivePersona),
       ]);
       const registryRows = await listActiveEventRegistry();
       let finalStatuses = Array.isArray(initialStatusResponse.statuses)
@@ -1016,7 +1028,7 @@ export function NormalUserEventLeadSheet({ mode = "shared" }: NormalUserEventLea
         await Promise.all(
           missingFixedStatuses.map(async (item) => {
             try {
-              await createWorkflowStatus(item.label);
+              await createWorkflowStatusForPersona(effectivePersona, item.label);
             } catch {
               return null;
             }
@@ -1024,7 +1036,7 @@ export function NormalUserEventLeadSheet({ mode = "shared" }: NormalUserEventLea
           })
         );
 
-        const refreshedStatusResponse = await listWorkflowStatuses();
+        const refreshedStatusResponse = await listWorkflowStatusesForPersona(effectivePersona);
         finalStatuses = Array.isArray(refreshedStatusResponse.statuses)
           ? refreshedStatusResponse.statuses
           : [];
@@ -1044,7 +1056,7 @@ export function NormalUserEventLeadSheet({ mode = "shared" }: NormalUserEventLea
     } finally {
       setLoadingEvents(false);
     }
-  }, [fixedWorkflowStatuses, leadSheetApi]);
+  }, [effectivePersona, fixedWorkflowStatuses, leadSheetApi]);
 
   const loadMyLeadCampaigns = useCallback(async () => {
     if (!isMyLeadsMode) {
@@ -1056,7 +1068,7 @@ export function NormalUserEventLeadSheet({ mode = "shared" }: NormalUserEventLea
     try {
       const response = await listMyLeadsCampaigns(
         { status: "all", limit: 20, offset: 0 },
-        persona
+        effectivePersona
       );
       setMyLeadCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
     } catch (error: unknown) {
@@ -1067,7 +1079,7 @@ export function NormalUserEventLeadSheet({ mode = "shared" }: NormalUserEventLea
     } finally {
       setLoadingMyLeadCampaigns(false);
     }
-  }, [isMyLeadsMode, persona]);
+  }, [effectivePersona, isMyLeadsMode]);
 
   useEffect(() => {
     void loadInitialData();
@@ -1520,7 +1532,7 @@ export function NormalUserEventLeadSheet({ mode = "shared" }: NormalUserEventLea
     if (!isMyLeadsMode || exportingCampaignId) return;
     setExportingCampaignId(campaign.id);
     try {
-      await downloadMyLeadsCampaignExport(campaign.id, buildCampaignExportFileName(campaign), persona);
+      await downloadMyLeadsCampaignExport(campaign.id, buildCampaignExportFileName(campaign), effectivePersona);
       toast.success("Campaign export started", {
         description: campaign.name,
       });
@@ -1588,7 +1600,7 @@ export function NormalUserEventLeadSheet({ mode = "shared" }: NormalUserEventLea
 
       setUpdatingKeys((prev) => ({ ...prev, [updateKey]: true }));
       try {
-        const response = await updateLeadWorkflowStatus(item.id, nextStatus, comment);
+        const response = await updateLeadWorkflowStatusForPersona(effectivePersona, item.id, nextStatus, comment);
 
         const nextLabel =
           asText(response.workflowStatusLabel) ||
@@ -1635,7 +1647,7 @@ export function NormalUserEventLeadSheet({ mode = "shared" }: NormalUserEventLea
         });
       }
     },
-    [workflowStatusLabelLookup]
+    [effectivePersona, workflowStatusLabelLookup]
   );
 
   const handleStatusSelection = (item: LeadSheetRow, value: string) => {
@@ -1724,7 +1736,7 @@ export function NormalUserEventLeadSheet({ mode = "shared" }: NormalUserEventLea
     setHistoryError(null);
     setHistoryLoading(true);
     try {
-      const response = await getLeadWorkflowStatusHistory(item.id);
+      const response = await getLeadWorkflowStatusHistoryForPersona(effectivePersona, item.id);
       setHistoryItems(Array.isArray(response.history) ? response.history : []);
     } catch (error: unknown) {
       const message = getErrorMessage(error);
@@ -1826,7 +1838,8 @@ export function NormalUserEventLeadSheet({ mode = "shared" }: NormalUserEventLea
     });
 
     try {
-      const response: LeadContentGenerationResponse = await generateLeadContent(
+      const response: LeadContentGenerationResponse = await generateLeadContentForPersona(
+        effectivePersona,
         item.id,
         {
           platform,
@@ -2004,6 +2017,8 @@ export function NormalUserEventLeadSheet({ mode = "shared" }: NormalUserEventLea
             </div>
           </div>
         </header>
+
+        {departmentTabs ? <div className="shrink-0 pt-5">{departmentTabs}</div> : null}
 
         <div className="grid min-h-0 flex-1 gap-12 overflow-hidden pt-10 xl:grid-cols-[19rem_minmax(0,1fr)]">
           <aside className="shrink-0 space-y-10 overflow-y-auto pr-2 scrollbar-hide">

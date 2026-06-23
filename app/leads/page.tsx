@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -81,6 +81,7 @@ type SortBy =
 type ContactState = "whatsapp" | "email" | "both" | "in_progress" | "not_contacted" | "unknown";
 type DeliverySignal = "sent" | "in_progress" | "not_contacted";
 type ApprovalStatus = "pending" | "approved" | "rejected" | "suppressed";
+type CeoDepartmentValue = (typeof CEO_DEPARTMENT_TABS)[number]["value"];
 
 type SuppressionInfo = {
   active?: boolean;
@@ -588,8 +589,7 @@ function mapLeadItemToAdminLead(item: LeadItem): Lead {
 }
 
 function SuperAdminTotalLeads() {
-  const { persona, setPersona } = usePersona();
-  const { isCeo } = useAuth();
+  const { persona } = usePersona();
   const searchParams = useSearchParams();
   const targetLeadId = searchParams.get("lead") || "";
   const initialSearch = searchParams.get("search") || "";
@@ -633,7 +633,6 @@ function SuperAdminTotalLeads() {
   const requestSequenceRef = useRef(0);
   const targetLeadRowRef = useRef<HTMLTableRowElement | null>(null);
   const initialLeadLoadRef = useRef(true);
-  const ceoPersonaInitializedRef = useRef(false);
 
   const clearAdvancedFilters = useCallback(() => {
     setNameFilter("");
@@ -648,12 +647,6 @@ function SuperAdminTotalLeads() {
     setHasWebsiteFilter("all");
   }, []);
 
-  useEffect(() => {
-    if (!isCeo || ceoPersonaInitializedRef.current) return;
-    ceoPersonaInitializedRef.current = true;
-    if (persona !== "sales") setPersona("sales");
-  }, [isCeo, persona, setPersona]);
-
   const resetFilters = useCallback(() => {
     setQ("");
     setEventFilter("all");
@@ -661,15 +654,6 @@ function SuperAdminTotalLeads() {
     setSortBy("relevance");
     clearAdvancedFilters();
   }, [clearAdvancedFilters]);
-
-  const handleCeoDepartmentChange = useCallback(
-    (next: (typeof CEO_DEPARTMENT_TABS)[number]["value"]) => {
-      if (next !== persona) setPersona(next);
-      setEventFilter("all");
-      setCurrentPage(1);
-    },
-    [persona, setPersona]
-  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -1079,31 +1063,6 @@ function SuperAdminTotalLeads() {
           </div>
         </div>
       </div>
-      {isCeo ? (
-        <Card className="relative isolate mt-3 overflow-hidden rounded-2xl border border-white/80 bg-white/84 p-2 shadow-[0_0_12px_-9px_rgba(2,10,27,0.58)] backdrop-blur-[14px]">
-          <div className="flex flex-wrap gap-2">
-            {CEO_DEPARTMENT_TABS.map((tab) => {
-              const active = persona === tab.value;
-              return (
-                <Button
-                  key={tab.value}
-                  type="button"
-                  variant={active ? "default" : "outline"}
-                  onClick={() => handleCeoDepartmentChange(tab.value)}
-                  className={`h-9 rounded-lg px-4 text-sm font-semibold ${
-                    active
-                      ? "bg-zinc-950 text-white hover:bg-zinc-800"
-                      : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
-                  }`}
-                >
-                  {tab.label}
-                </Button>
-              );
-            })}
-          </div>
-        </Card>
-      ) : null}
-
       <Card className="relative isolate mt-3 overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.84)_0%,rgba(250,252,255,0.66)_56%,rgba(240,246,253,0.56)_100%)] backdrop-blur-[16px] [backdrop-filter:saturate(175%)_blur(16px)] shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74),inset_0_0_22px_rgba(255,255,255,0.2)]">
         <div className="pointer-events-none absolute -right-20 -top-20 h-52 w-52 rounded-full bg-gradient-to-br from-sky-300/30 via-blue-500/10 to-transparent blur-3xl" />
         <div className="pointer-events-none absolute -left-20 -bottom-20 h-52 w-52 rounded-full bg-gradient-to-tr from-blue-300/16 via-sky-200/8 to-transparent blur-3xl" />
@@ -1704,7 +1663,59 @@ function SuperAdminTotalLeads() {
   );
 }
 
+function CeoDatabasePage() {
+  const [activeDepartment, setActiveDepartment] = useState<CeoDepartmentValue>("sales");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const switchDepartment = useCallback(
+    (next: CeoDepartmentValue) => {
+      if (next !== activeDepartment) {
+        setActiveDepartment(next);
+      }
+
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("event");
+      params.delete("lead");
+      params.delete("search");
+      params.delete("upload");
+      const nextQuery = params.toString();
+      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+    },
+    [activeDepartment, pathname, router, searchParams]
+  );
+
+  const departmentTabs = (
+    <Card className="rounded-2xl border border-white/80 bg-white/88 p-1.5 shadow-[0_12px_38px_-32px_rgba(15,23,42,0.65)] backdrop-blur-[12px]">
+      <div className="grid gap-1 md:grid-cols-3">
+        {CEO_DEPARTMENT_TABS.map((tab) => {
+          const active = activeDepartment === tab.value;
+          return (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => switchDepartment(tab.value)}
+              className={`h-11 rounded-xl px-4 text-sm font-semibold transition-all ${
+                active
+                  ? "bg-blue-600 text-white shadow-[0_14px_28px_-18px_rgba(37,99,235,0.9)]"
+                  : "bg-transparent text-zinc-600 hover:bg-zinc-50 hover:text-zinc-950"
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+    </Card>
+  );
+
+  return <NormalUserEventLeadSheet dataPersona={activeDepartment} departmentTabs={departmentTabs} />;
+}
+
 export default function LeadsPage() {
   const { isCeo, isSuperAdmin } = useAuth();
-  return isSuperAdmin || isCeo ? <SuperAdminTotalLeads /> : <NormalUserEventLeadSheet />;
+  if (isSuperAdmin) return <SuperAdminTotalLeads />;
+  if (isCeo) return <CeoDatabasePage />;
+  return <NormalUserEventLeadSheet />;
 }

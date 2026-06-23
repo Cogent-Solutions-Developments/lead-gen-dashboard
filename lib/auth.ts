@@ -835,12 +835,13 @@ export function personaForRole(role: AuthRole | null | undefined): Persona | nul
 
 export function canRoleUsePersona(role: AuthRole | null | undefined, persona: Persona | null) {
   if (!role || !persona) return false;
-  if (isAdminLikeRole(role)) return true;
+  if (isSuperAdminRole(role)) return persona !== "ceo";
+  if (isCeoRole(role)) return persona === "ceo";
   return personaForRole(role) === persona;
 }
 
 export function getAuthLandingPath(role: AuthRole | null | undefined) {
-  return isAdminLikeRole(role) ? "/choose-persona" : "/dashboard";
+  return isSuperAdminRole(role) ? "/choose-persona" : "/dashboard";
 }
 
 function getBaseUrl() {
