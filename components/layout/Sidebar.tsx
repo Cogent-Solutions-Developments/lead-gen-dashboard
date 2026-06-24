@@ -140,8 +140,8 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
       transition={{ duration: 0.3 }}
       onMouseEnter={() => onHoverChange(true)}
       onMouseLeave={() => onHoverChange(false)}
-      className={`sidebar-modern fixed left-0 top-0 z-40 flex h-screen flex-col font-sans text-white shadow-[22px_0_45px_-34px_rgba(2,10,27,0.65)] transition-[width,padding] duration-300 ease-out ${
-        isExpanded ? "w-72 p-10" : "w-24 p-6"
+      className={`sidebar-modern fixed left-0 top-0 z-40 flex h-screen min-w-0 flex-col overflow-hidden font-sans text-white shadow-[22px_0_45px_-34px_rgba(2,10,27,0.65)] transition-[width,padding] duration-300 ease-out ${
+        isExpanded ? "w-72 px-6 py-8" : "w-24 p-6"
       }`}
     >
       <div
@@ -167,8 +167,8 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
         </svg>
       </div>
 
-      <div className={`mb-10 min-h-8 px-1 transition-all duration-300 ${isExpanded ? "opacity-100" : "opacity-0"}`}>
-        <div className="flex items-baseline gap-2 whitespace-nowrap">
+      <div className={`mb-8 min-h-8 min-w-0 px-1 transition-all duration-300 ${isExpanded ? "opacity-100" : "opacity-0"}`}>
+        <div className="flex min-w-0 items-baseline gap-2 whitespace-nowrap">
           <span className="text-2xl font-normal tracking-wide text-white">
             supernizo
           </span>
@@ -185,7 +185,11 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
       </div>
 
       {/* 1. Navigation Items (Scrollable if needed) */}
-      <nav className={`flex-1 overflow-y-auto pt-4 transition-[margin] duration-300 ${isExpanded ? "-mx-10" : "-mx-6"}`}>
+      <nav
+        className={`scrollbar-hide min-w-0 flex-1 overflow-y-auto overflow-x-hidden pt-2 transition-[margin] duration-300 ${
+          isExpanded ? "-mx-4" : "-mx-6"
+        }`}
+      >
         {navItems
           .filter((item) => {
             if (isSuperAdmin) return !item.normalOnly && !item.managerOnly && !item.ceoOnly;
@@ -204,13 +208,13 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 * index }}
             >
-              <Link href={item.href} className="block group">
+              <Link href={item.href} className="group block min-w-0">
                 <div
-                  className={`relative flex items-center py-5 transition-all duration-300 ${
+                  className={`relative flex min-w-0 items-center py-3.5 transition-all duration-300 ${
                     isActive
                       ? "bg-white/10 text-white"
                       : "text-white/40 hover:bg-white/5 hover:text-white/80"
-                  } ${isExpanded ? "gap-8 px-10" : "justify-center px-0"}`}
+                  } ${isExpanded ? "gap-4 px-5" : "justify-center px-0"}`}
                 >
                   {/* Active Indicator Bar */}
                   {isActive && (
@@ -221,13 +225,17 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
                     />
                   )}
                   
-                  <item.icon className={`h-6 w-6 transition-all duration-300 ${
-                    isActive ? "text-white scale-110" : "text-white/30 group-hover:text-white/60"
-                  }`} />
+                  <span
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${
+                      isActive ? "bg-white/12 text-white" : "text-white/35 group-hover:bg-white/6 group-hover:text-white/70"
+                    }`}
+                  >
+                    <item.icon className="h-5 w-5" />
+                  </span>
                   
-                  <span className={`whitespace-nowrap text-xl tracking-tight transition-all duration-200 ${
+                  <span className={`min-w-0 truncate whitespace-nowrap text-base tracking-tight transition-all duration-200 ${
                     isActive ? "font-medium" : "font-light"
-                  } ${isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"
+                  } ${isExpanded ? "flex-1 opacity-100" : "w-0 overflow-hidden opacity-0"
                   }`}>
                     {isSuperAdmin || item.ceoOnly ? item.name : item.normalLabel ?? item.name}
                   </span>
@@ -287,7 +295,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
       ) : null}
 
       {/* 3. Bottom Section */}
-      <div className="mt-auto pt-8 flex flex-col gap-4 border-t border-white/10">
+      <div className="mt-auto flex min-w-0 flex-col gap-3 border-t border-white/10 pt-5">
         {canUseRoleChooser ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -297,14 +305,14 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
           >
             <Link href="/choose-persona">
               <button
-                className={`flex items-center text-sm font-light tracking-tight text-white/40 transition-all hover:text-white group ${
+                className={`group flex min-w-0 items-center text-sm font-light tracking-tight text-white/40 transition-all hover:text-white ${
                   isExpanded ? "gap-5 px-2" : "justify-center px-0"
                 }`}
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 group-hover:bg-white/10 transition-colors">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/5 transition-colors group-hover:bg-white/10">
                   <UserRound className="h-4 w-4 opacity-50" />
                 </div>
-                <span className={`whitespace-nowrap transition-all duration-200 ${isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"}`}>
+                <span className={`min-w-0 truncate whitespace-nowrap transition-all duration-200 ${isExpanded ? "flex-1 opacity-100" : "w-0 overflow-hidden opacity-0"}`}>
                   {isCeo ? `CEO - ${personaLabel}` : `Account - ${personaLabel}`}
                 </span>
               </button>
@@ -319,7 +327,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
           >
             <Link href="/profile">
               <button
-                className={`flex items-center text-sm font-light tracking-tight text-white/40 transition-all hover:text-white group ${
+                className={`group flex min-w-0 items-center text-sm font-light tracking-tight text-white/40 transition-all hover:text-white ${
                   isExpanded ? "gap-5 px-2" : "h-8 w-8 justify-center px-0"
                 }`}
               >
@@ -329,7 +337,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
                   className="border-white/10 bg-white/8 text-white/70 transition-colors group-hover:bg-white/12"
                   showIconFallback
                 />
-                <span className={`whitespace-nowrap transition-all duration-200 ${isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"}`}>
+                <span className={`min-w-0 truncate whitespace-nowrap transition-all duration-200 ${isExpanded ? "flex-1 opacity-100" : "w-0 overflow-hidden opacity-0"}`}>
                   {user?.fullName?.trim() || user?.username || "Profile"}
                 </span>
               </button>
@@ -345,14 +353,14 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
         >
           <button
             onClick={handleSignOut}
-            className={`flex items-center text-sm font-light tracking-tight text-white/40 transition-all hover:text-white group ${
+            className={`group flex min-w-0 items-center text-sm font-light tracking-tight text-white/40 transition-all hover:text-white ${
               isExpanded ? "gap-5 px-2" : "h-8 w-8 justify-center px-0"
             }`}
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 group-hover:bg-white/10 transition-colors">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/5 transition-colors group-hover:bg-white/10">
               <LogOut className="h-4 w-4 opacity-50" />
             </div>
-            <span className={`whitespace-nowrap transition-all duration-200 ${isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"}`}>
+            <span className={`min-w-0 truncate whitespace-nowrap transition-all duration-200 ${isExpanded ? "flex-1 opacity-100" : "w-0 overflow-hidden opacity-0"}`}>
               Sign out
             </span>
           </button>

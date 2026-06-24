@@ -847,6 +847,11 @@
     border-color: var(--border);
     outline-color: var(--ring);
   }
+  html,
+  body {
+    min-width: 0;
+    overflow-x: hidden;
+  }
   body {
     @apply text-foreground;
     background: transparent;
