@@ -40,6 +40,7 @@ import {
   listAdminClientCredentials,
   listAdminEvents,
   listAuthUsers,
+  recoverAuthUserAccount,
   revokeAdminClientCredential,
   resetAuthUserMfa,
   updateAuthUser,
@@ -148,6 +149,7 @@ function UserCard({
   onEdit,
   onPassword,
   onResetMfa,
+  onRecover,
   onDelete,
 }: {
   item: AuthUser;
@@ -155,6 +157,7 @@ function UserCard({
   onEdit: () => void;
   onPassword: () => void;
   onResetMfa: () => void;
+  onRecover: () => void;
   onDelete: () => void;
 }) {
   const manager = isManagerRole(item.role);
@@ -235,6 +238,15 @@ function UserCard({
             type="button"
             variant="ghost"
             disabled={isSelf}
+            onClick={onRecover}
+            className="h-8 rounded-md border border-blue-200 bg-white px-3 text-xs text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Recover
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={isSelf}
             onClick={onDelete}
             className="h-8 rounded-md border border-red-200 bg-white px-2 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label={`Delete ${item.username}`}
@@ -260,6 +272,8 @@ export default function AdminUsersPage() {
   const [passwordTarget, setPasswordTarget] = useState<AuthUser | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [mfaResetTarget, setMfaResetTarget] = useState<AuthUser | null>(null);
+  const [recoveryTarget, setRecoveryTarget] = useState<AuthUser | null>(null);
+  const [recoveryPassword, setRecoveryPassword] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<AuthUser | null>(null);
 
   const [events, setEvents] = useState<AdminEventItem[]>([]);
@@ -522,6 +536,29 @@ export default function AdminUsersPage() {
       setMfaResetTarget(null);
     } catch (error) {
       toast.error("MFA reset failed", { description: getErrorMessage(error) });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const submitAccountRecovery = async () => {
+    if (!recoveryTarget) return;
+    if (recoveryPassword.length < 8) {
+      toast.error("Recovery password must be at least 8 characters");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const result = await recoverAuthUserAccount(recoveryTarget.id, recoveryPassword);
+      setUsers((prev) => prev.map((item) => (item.id === result.user.id ? result.user : item)));
+      toast.success("Account recovered", {
+        description: `${recoveryTarget.username} can sign in with the new password. MFA was cleared.`,
+      });
+      setRecoveryTarget(null);
+      setRecoveryPassword("");
+    } catch (error) {
+      toast.error("Account recovery failed", { description: getErrorMessage(error) });
     } finally {
       setSaving(false);
     }
@@ -796,6 +833,10 @@ export default function AdminUsersPage() {
                             setNewPassword("");
                           }}
                           onResetMfa={() => setMfaResetTarget(item)}
+                          onRecover={() => {
+                            setRecoveryTarget(item);
+                            setRecoveryPassword("");
+                          }}
                           onDelete={() => setDeleteTarget(item)}
                         />
                       ))
@@ -1290,6 +1331,57 @@ export default function AdminUsersPage() {
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
                 Reset MFA
+              </Button>
+            </div>
+          </Card>
+        </div>
+      ) : null}
+
+      {recoveryTarget ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-blue-950/35 p-4 backdrop-blur-[3px]">
+          <Card className="admin-modal-panel w-full max-w-md overflow-hidden rounded-2xl border border-zinc-300 bg-white">
+            <div className="border-b border-zinc-100 px-5 py-4">
+              <h3 className="text-base font-semibold text-slate-900">Recover Account</h3>
+              <p className="mt-1 text-sm text-zinc-500">
+                Set a new password for {recoveryTarget.username} and remove MFA from the account.
+              </p>
+            </div>
+            <div className="space-y-2 px-5 py-4">
+              <label className="text-xs font-semibold uppercase text-zinc-500">New Recovery Password</label>
+              <Input
+                name="admin-account-recovery-password"
+                type="password"
+                value={recoveryPassword}
+                onChange={(event) => setRecoveryPassword(event.target.value)}
+                placeholder="Enter new password"
+                className="h-10 border-zinc-300 bg-white"
+                autoComplete="new-password"
+              />
+              <p className="text-xs text-zinc-500">
+                Existing sessions will be revoked. The user can set up MFA again from their profile.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-zinc-100 px-5 py-4">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={saving}
+                onClick={() => {
+                  setRecoveryTarget(null);
+                  setRecoveryPassword("");
+                }}
+                className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-700 hover:bg-zinc-50"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={saving}
+                onClick={submitAccountRecovery}
+                className="h-9 rounded-md bg-blue-600 px-3.5 text-white hover:bg-blue-700"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+                Recover Account
               </Button>
             </div>
           </Card>

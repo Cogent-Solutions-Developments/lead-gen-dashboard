@@ -31,6 +31,7 @@ import {
   getMfaStatus,
   confirmMfaTotpSetup,
   regenerateMfaRecoveryCodes,
+  disableMfaTotp,
   startMfaTotpSetup,
   updateMyProfile,
   uploadMyProfileAvatar,
@@ -500,6 +501,7 @@ export default function ProfilePage() {
   const [mfaConfirmCode, setMfaConfirmCode] = useState("");
   const [mfaRecoveryCodes, setMfaRecoveryCodes] = useState<string[]>([]);
   const [mfaRegenerateCode, setMfaRegenerateCode] = useState("");
+  const [mfaDisableCode, setMfaDisableCode] = useState("");
   const [mfaBusy, setMfaBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -669,6 +671,28 @@ export default function ProfilePage() {
       toast.success("Recovery codes regenerated");
     } catch (error: unknown) {
       toast.error("Recovery code regeneration failed", { description: getErrorMessage(error) });
+    } finally {
+      setMfaBusy(false);
+    }
+  };
+
+  const handleDisableMfa = async () => {
+    if (!mfaDisableCode.trim()) {
+      toast.error("Authenticator code is required.");
+      return;
+    }
+    setMfaBusy(true);
+    try {
+      const result = await disableMfaTotp(mfaDisableCode.trim());
+      setMfaStatus(result.status);
+      setMfaSetup(null);
+      setMfaRecoveryCodes([]);
+      setMfaRegenerateCode("");
+      setMfaDisableCode("");
+      setProfile((current) => (current ? { ...current, mfaEnabled: false } : current));
+      toast.success("MFA disabled");
+    } catch (error: unknown) {
+      toast.error("MFA disable failed", { description: getErrorMessage(error) });
     } finally {
       setMfaBusy(false);
     }
@@ -969,6 +993,35 @@ export default function ProfilePage() {
                           >
                             {mfaBusy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-1 h-4 w-4" />}
                             Enable MFA
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {mfaEnabled && !mfaSetup ? (
+                      <div className="mt-5 border-t border-zinc-100 pt-5">
+                        <p className="text-sm font-semibold text-zinc-950">Disable MFA</p>
+                        <p className="mt-1 text-sm font-light leading-6 text-zinc-500">
+                          Enter a current authenticator code to remove MFA from this account.
+                        </p>
+                        <div className="mt-4 flex gap-2">
+                          <Input
+                            value={mfaDisableCode}
+                            inputMode="numeric"
+                            maxLength={6}
+                            onChange={(event) => setMfaDisableCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                            placeholder="Authenticator code"
+                            disabled={mfaBusy}
+                            className="h-10 rounded-full border-zinc-200 bg-white px-4 text-sm"
+                          />
+                          <Button
+                            type="button"
+                            onClick={() => void handleDisableMfa()}
+                            disabled={mfaBusy || mfaDisableCode.length < 6}
+                            className="h-10 shrink-0 rounded-full border border-red-200 bg-white px-4 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                          >
+                            {mfaBusy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-1 h-4 w-4" />}
+                            Disable
                           </Button>
                         </div>
                       </div>

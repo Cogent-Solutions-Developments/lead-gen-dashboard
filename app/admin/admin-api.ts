@@ -491,6 +491,17 @@ export async function resetAuthUserMfa(userId: string) {
   return { ...data, user: normalizeAdminUser(data.user) };
 }
 
+export async function recoverAuthUserAccount(userId: string, password: string) {
+  const data = await adminAuthRequest<{ recovered: boolean; mfaRemovedMethods: number; user: AuthUser }>(
+    `/api/auth/users/${userId}/account-recovery`,
+    {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    }
+  );
+  return { ...data, user: normalizeAdminUser(data.user) };
+}
+
 export async function deleteAuthUser(userId: string) {
   await adminAuthRequest<{ deleted: boolean; user: AuthUser }>(`/api/auth/users/${userId}`, {
     method: "DELETE",

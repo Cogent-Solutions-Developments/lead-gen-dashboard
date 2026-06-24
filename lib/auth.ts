@@ -1394,6 +1394,13 @@ export async function regenerateMfaRecoveryCodes(code: string) {
   });
 }
 
+export async function disableMfaTotp(code: string) {
+  return authRequest<{ disabled: boolean; status: MfaStatus }>("/api/auth/mfa/totp/disable", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
 export async function resetAuthUserMfa(userId: string) {
   const data = await authRequest<{ reset: boolean; removedMethods: number; user: AuthUser }>(
     `/api/auth/users/${userId}/mfa/reset`,
