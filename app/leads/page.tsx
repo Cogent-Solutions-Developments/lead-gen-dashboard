@@ -1671,9 +1671,9 @@ function CeoDatabasePage() {
 
   const switchDepartment = useCallback(
     (next: CeoDepartmentValue) => {
-      if (next !== activeDepartment) {
-        setActiveDepartment(next);
-      }
+      if (next === activeDepartment) return;
+
+      setActiveDepartment(next);
 
       const params = new URLSearchParams(searchParams.toString());
       params.delete("event");
