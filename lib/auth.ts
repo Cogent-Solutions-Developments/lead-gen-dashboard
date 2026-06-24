@@ -17,6 +17,7 @@ export type AuthUser = {
   id: string;
   username: string;
   role: AuthRole;
+  email?: string;
   fullName?: string;
   designation?: string;
   dateOfBirth?: string | null;
@@ -31,6 +32,7 @@ export type AuthUser = {
   createdAt?: string;
   updatedAt?: string;
   lastLoginAt?: string | null;
+  mfaEnabled?: boolean;
 };
 
 export type AuthSession = {
@@ -39,6 +41,36 @@ export type AuthSession = {
   expiresIn: number;
   expiresAt: number;
   user: AuthUser;
+};
+
+export type MfaLoginChallenge = {
+  mfaRequired: true;
+  challengeId: string;
+  expiresIn: number;
+  method: "totp" | string;
+};
+
+export type LoginResult = AuthSession | MfaLoginChallenge;
+
+export type MfaStatus = {
+  enabled: boolean;
+  method?: "totp" | string | null;
+  verifiedAt?: string | null;
+  lastUsedAt?: string | null;
+  recoveryCodesRemaining: number;
+};
+
+export type MfaTotpSetup = {
+  methodId: string;
+  issuer: string;
+  accountLabel: string;
+  otpauthUri: string;
+  qrSvg: string;
+};
+
+export type MfaSetupConfirmResult = {
+  status: MfaStatus;
+  recoveryCodes: string[];
 };
 
 export type AuthUserCreateInput = {
@@ -866,11 +898,13 @@ function normalizeUser(raw: unknown): AuthUser {
   const createdAt = source.createdAt ?? source.created_at;
   const updatedAt = source.updatedAt ?? source.updated_at;
   const lastLoginAt = source.lastLoginAt ?? source.last_login_at;
+  const mfaEnabled = source.mfaEnabled ?? source.mfa_enabled;
 
   return {
     id: String(source.id || ""),
     username: String(source.username || ""),
     role: normalizeAuthRole(source.role),
+    email: source.email == null ? undefined : String(source.email),
     fullName: fullName == null ? "" : String(fullName),
     designation: designation == null ? "" : String(designation),
     dateOfBirth: dateOfBirth == null ? null : String(dateOfBirth),
@@ -885,6 +919,7 @@ function normalizeUser(raw: unknown): AuthUser {
     createdAt: createdAt == null ? undefined : String(createdAt),
     updatedAt: updatedAt == null ? undefined : String(updatedAt),
     lastLoginAt: lastLoginAt == null ? null : String(lastLoginAt),
+    mfaEnabled: typeof mfaEnabled === "boolean" ? mfaEnabled : undefined,
   };
 }
 
@@ -1248,27 +1283,123 @@ export async function deleteMyProfileAvatar() {
   return { ...data, profile };
 }
 
-export async function loginWithPassword(username: string, password: string) {
-  const data = await authRequest<{
-    accessToken: string;
-    tokenType: string;
-    expiresIn: number;
-    user: AuthUser;
-  }>("/api/auth/login", {
-    method: "POST",
-    auth: false,
-    body: JSON.stringify({ username, password }),
-  });
-
-  const session: AuthSession = {
+function normalizeAuthSession(data: {
+  accessToken: string;
+  tokenType: string;
+  expiresIn: number;
+  user: AuthUser;
+}): AuthSession {
+  return {
     accessToken: data.accessToken,
     tokenType: data.tokenType,
     expiresIn: Number(data.expiresIn || 0),
     expiresAt: Date.now() + Number(data.expiresIn || 0) * 1000,
     user: normalizeUser(data.user),
   };
+}
+
+export function isMfaLoginChallenge(value: LoginResult): value is MfaLoginChallenge {
+  return Boolean((value as MfaLoginChallenge)?.mfaRequired && (value as MfaLoginChallenge)?.challengeId);
+}
+
+export async function loginWithPassword(username: string, password: string): Promise<LoginResult> {
+  const data = await authRequest<
+    | {
+        accessToken: string;
+        tokenType: string;
+        expiresIn: number;
+        user: AuthUser;
+      }
+    | MfaLoginChallenge
+  >("/api/auth/login", {
+    method: "POST",
+    auth: false,
+    body: JSON.stringify({ username, password }),
+  });
+
+  if (Boolean((data as MfaLoginChallenge).mfaRequired)) {
+    return {
+      mfaRequired: true,
+      challengeId: String((data as MfaLoginChallenge).challengeId || ""),
+      expiresIn: Number((data as MfaLoginChallenge).expiresIn || 0),
+      method: String((data as MfaLoginChallenge).method || "totp"),
+    };
+  }
+
+  const session = normalizeAuthSession(
+    data as {
+      accessToken: string;
+      tokenType: string;
+      expiresIn: number;
+      user: AuthUser;
+    }
+  );
   setAuthSession(session);
   return session;
+}
+
+export async function verifyMfaLogin(challengeId: string, code: string) {
+  const data = await authRequest<{
+    accessToken: string;
+    tokenType: string;
+    expiresIn: number;
+    user: AuthUser;
+  }>("/api/auth/mfa/login/verify", {
+    method: "POST",
+    auth: false,
+    body: JSON.stringify({ challengeId, code }),
+  });
+  const session = normalizeAuthSession(data);
+  setAuthSession(session);
+  return session;
+}
+
+export async function verifyMfaRecoveryCode(challengeId: string, recoveryCode: string) {
+  const data = await authRequest<{
+    accessToken: string;
+    tokenType: string;
+    expiresIn: number;
+    user: AuthUser;
+  }>("/api/auth/mfa/login/recovery-code", {
+    method: "POST",
+    auth: false,
+    body: JSON.stringify({ challengeId, recoveryCode }),
+  });
+  const session = normalizeAuthSession(data);
+  setAuthSession(session);
+  return session;
+}
+
+export async function getMfaStatus() {
+  return authRequest<MfaStatus>("/api/auth/mfa/status");
+}
+
+export async function startMfaTotpSetup() {
+  return authRequest<MfaTotpSetup>("/api/auth/mfa/totp/setup/start", {
+    method: "POST",
+  });
+}
+
+export async function confirmMfaTotpSetup(methodId: string, code: string) {
+  return authRequest<MfaSetupConfirmResult>("/api/auth/mfa/totp/setup/confirm", {
+    method: "POST",
+    body: JSON.stringify({ methodId, code }),
+  });
+}
+
+export async function regenerateMfaRecoveryCodes(code: string) {
+  return authRequest<{ recoveryCodes: string[] }>("/api/auth/mfa/recovery-codes/regenerate", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
+export async function resetAuthUserMfa(userId: string) {
+  const data = await authRequest<{ reset: boolean; removedMethods: number; user: AuthUser }>(
+    `/api/auth/users/${userId}/mfa/reset`,
+    { method: "POST" }
+  );
+  return { ...data, user: normalizeUser(data.user) };
 }
 
 export async function fetchCurrentAuthUser() {

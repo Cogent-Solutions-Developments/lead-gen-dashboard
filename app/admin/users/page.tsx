@@ -41,6 +41,7 @@ import {
   listAdminEvents,
   listAuthUsers,
   revokeAdminClientCredential,
+  resetAuthUserMfa,
   updateAuthUser,
   updateAuthUserPassword,
   updateStoredAuthUser,
@@ -146,12 +147,14 @@ function UserCard({
   isSelf,
   onEdit,
   onPassword,
+  onResetMfa,
   onDelete,
 }: {
   item: AuthUser;
   isSelf: boolean;
   onEdit: () => void;
   onPassword: () => void;
+  onResetMfa: () => void;
   onDelete: () => void;
 }) {
   const manager = isManagerRole(item.role);
@@ -193,6 +196,10 @@ function UserCard({
             <span className={`font-semibold ${item.isActive === false ? "text-zinc-400" : "text-emerald-700"}`}>
               {item.isActive === false ? "Inactive" : "Active"}
             </span>
+            <span className="text-zinc-300">|</span>
+            <span className={`font-semibold ${item.mfaEnabled ? "text-emerald-700" : "text-zinc-400"}`}>
+              {item.mfaEnabled ? "MFA enabled" : "MFA off"}
+            </span>
           </div>
 
           <p className="mt-3 text-xs text-zinc-500">Last login: {formatDateTime(item.lastLoginAt)}</p>
@@ -214,6 +221,15 @@ function UserCard({
             className="h-8 rounded-md border border-zinc-300 bg-white px-3 text-xs text-zinc-700 hover:bg-zinc-50"
           >
             Password
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={!item.mfaEnabled}
+            onClick={onResetMfa}
+            className="h-8 rounded-md border border-zinc-300 bg-white px-3 text-xs text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            MFA Reset
           </Button>
           <Button
             type="button"
@@ -243,6 +259,7 @@ export default function AdminUsersPage() {
   const [form, setForm] = useState<UserFormState>(blankForm);
   const [passwordTarget, setPasswordTarget] = useState<AuthUser | null>(null);
   const [newPassword, setNewPassword] = useState("");
+  const [mfaResetTarget, setMfaResetTarget] = useState<AuthUser | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AuthUser | null>(null);
 
   const [events, setEvents] = useState<AdminEventItem[]>([]);
@@ -488,6 +505,23 @@ export default function AdminUsersPage() {
       setDeleteTarget(null);
     } catch (error) {
       toast.error("Delete failed", { description: getErrorMessage(error) });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmMfaReset = async () => {
+    if (!mfaResetTarget) return;
+    setSaving(true);
+    try {
+      const result = await resetAuthUserMfa(mfaResetTarget.id);
+      setUsers((prev) => prev.map((item) => (item.id === result.user.id ? result.user : item)));
+      toast.success("MFA reset", {
+        description: `${mfaResetTarget.username} must set up Microsoft Authenticator again.`,
+      });
+      setMfaResetTarget(null);
+    } catch (error) {
+      toast.error("MFA reset failed", { description: getErrorMessage(error) });
     } finally {
       setSaving(false);
     }
@@ -761,6 +795,7 @@ export default function AdminUsersPage() {
                             setPasswordTarget(item);
                             setNewPassword("");
                           }}
+                          onResetMfa={() => setMfaResetTarget(item)}
                           onDelete={() => setDeleteTarget(item)}
                         />
                       ))
@@ -1221,6 +1256,40 @@ export default function AdminUsersPage() {
               <Button type="button" disabled={saving} onClick={submitPassword} className="btn-sidebar-noise h-9 px-3.5">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
                 Update Password
+              </Button>
+            </div>
+          </Card>
+        </div>
+      ) : null}
+
+      {mfaResetTarget ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-blue-950/35 p-4 backdrop-blur-[3px]">
+          <Card className="admin-modal-panel w-full max-w-md overflow-hidden rounded-2xl border border-zinc-300 bg-white">
+            <div className="border-b border-zinc-100 px-5 py-4">
+              <h3 className="text-base font-semibold text-slate-900">Reset MFA</h3>
+              <p className="mt-1 text-sm text-zinc-500">
+                Remove Microsoft Authenticator from {mfaResetTarget.username}. Their next login will use password only
+                until they set up MFA again.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-4">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={saving}
+                onClick={() => setMfaResetTarget(null)}
+                className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-700 hover:bg-zinc-50"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={saving}
+                onClick={confirmMfaReset}
+                className="h-9 rounded-md bg-blue-600 px-3.5 text-white hover:bg-blue-700"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                Reset MFA
               </Button>
             </div>
           </Card>

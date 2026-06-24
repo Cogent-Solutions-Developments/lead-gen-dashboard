@@ -353,6 +353,7 @@ function normalizeAdminUser(raw: unknown): AuthUser {
   const createdAt = source.createdAt ?? source.created_at;
   const updatedAt = source.updatedAt ?? source.updated_at;
   const lastLoginAt = source.lastLoginAt ?? source.last_login_at;
+  const mfaEnabled = source.mfaEnabled ?? source.mfa_enabled;
 
   return {
     id: String(source.id || ""),
@@ -373,6 +374,7 @@ function normalizeAdminUser(raw: unknown): AuthUser {
     updatedAt: updatedAt == null ? "" : String(updatedAt),
     lastLoginAt: lastLoginAt == null ? null : String(lastLoginAt),
     email: source.email == null ? "" : String(source.email),
+    mfaEnabled: typeof mfaEnabled === "boolean" ? mfaEnabled : undefined,
   };
 }
 
@@ -479,6 +481,14 @@ export async function updateAuthUserPassword(userId: string, password: string) {
     body: JSON.stringify({ password }),
   });
   return normalizeAdminUser(data.user);
+}
+
+export async function resetAuthUserMfa(userId: string) {
+  const data = await adminAuthRequest<{ reset: boolean; removedMethods: number; user: AuthUser }>(
+    `/api/auth/users/${userId}/mfa/reset`,
+    { method: "POST" }
+  );
+  return { ...data, user: normalizeAdminUser(data.user) };
 }
 
 export async function deleteAuthUser(userId: string) {
