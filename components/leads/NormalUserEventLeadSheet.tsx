@@ -551,10 +551,13 @@ function getDisplayEventName(name?: string | null) {
 }
 
 const EVENT_SELECT_CONTENT_CLASS =
-  "z-[120] max-h-[18rem] w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-zinc-200 bg-white/98 p-2 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-[10px]";
+  "z-[120] max-h-[min(24rem,var(--radix-select-content-available-height))] w-[min(42rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-zinc-200 bg-white/98 p-0 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-[10px] [&_[data-slot=select-scroll-down-button]]:hidden [&_[data-slot=select-scroll-up-button]]:hidden";
+
+const EVENT_SELECT_VIEWPORT_CLASS =
+  "!h-auto max-h-[min(22rem,var(--radix-select-content-available-height))] overflow-y-auto p-1.5 scrollbar-modern";
 
 const EVENT_SELECT_ITEM_CLASS =
-  "rounded-xl py-2.5 pl-3 pr-9 text-sm font-medium text-zinc-800 transition-colors focus:bg-zinc-100/80 focus:text-zinc-950 focus:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] focus:[&_svg]:!text-zinc-500 data-[highlighted]:bg-zinc-100/80 data-[highlighted]:text-zinc-950 data-[highlighted]:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] data-[highlighted]:[&_svg]:!text-zinc-500 data-[state=checked]:border data-[state=checked]:border-blue-500/20 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]_svg]:h-4 [&_[data-slot=select-item-indicator]_svg]:w-4 [&_[data-slot=select-item-indicator]_svg]:stroke-[2.25]";
+  "min-h-11 items-start rounded-xl py-2.5 pl-3 pr-10 text-sm font-medium leading-snug text-zinc-800 transition-colors focus:bg-zinc-100/80 focus:text-zinc-950 focus:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] focus:[&_svg]:!text-zinc-500 data-[highlighted]:bg-zinc-100/80 data-[highlighted]:text-zinc-950 data-[highlighted]:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] data-[highlighted]:[&_svg]:!text-zinc-500 data-[state=checked]:border data-[state=checked]:border-blue-500/20 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]]:top-3.5 [&_[data-slot=select-item-indicator]_svg]:h-4 [&_[data-slot=select-item-indicator]_svg]:w-4 [&_[data-slot=select-item-indicator]_svg]:stroke-[2.25]";
 
 const UPLOAD_EVENT_SELECT_CONTENT_CLASS =
   "z-[120] max-h-[18rem] w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-5rem)] rounded-2xl border border-zinc-200 bg-white/98 p-0 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-[10px]";
@@ -2382,7 +2385,9 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                 <SelectContent
                   align="start"
                   position="popper"
+                  sideOffset={10}
                   className={EVENT_SELECT_CONTENT_CLASS}
+                  viewportClassName={EVENT_SELECT_VIEWPORT_CLASS}
                 >
                   {scopedEvents.map((item) => (
                     <SelectItem
@@ -2390,7 +2395,9 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                       value={item.canonicalEventKey}
                       className={EVENT_SELECT_ITEM_CLASS}
                     >
-                      {getDisplayEventName(item.canonicalEventName)}
+                      <span className="block min-w-0 line-clamp-2 text-left leading-snug">
+                        {getDisplayEventName(item.canonicalEventName)}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
