@@ -40,7 +40,9 @@ import {
   listAdminClientCredentials,
   listAdminEvents,
   listAuthUsers,
+  recoverAuthUserAccount,
   revokeAdminClientCredential,
+  resetAuthUserMfa,
   updateAuthUser,
   updateAuthUserPassword,
   updateStoredAuthUser,
@@ -82,7 +84,7 @@ const departmentDefinitions: DepartmentDefinition[] = [
     id: "administration",
     label: "Administration",
     description: "Protected platform operators and ownership roles.",
-    roles: ["super_admin_user"],
+    roles: ["super_admin_user", "ceo_user"],
     icon: Crown,
   },
   {
@@ -138,7 +140,7 @@ function eventTypeLabel(value?: string | null) {
 }
 
 function isManagerRole(role: AuthRole) {
-  return role === "super_admin_user" || role.includes("_manager_");
+  return role === "super_admin_user" || role === "ceo_user" || role.includes("_manager_");
 }
 
 function UserCard({
@@ -146,12 +148,16 @@ function UserCard({
   isSelf,
   onEdit,
   onPassword,
+  onResetMfa,
+  onRecover,
   onDelete,
 }: {
   item: AuthUser;
   isSelf: boolean;
   onEdit: () => void;
   onPassword: () => void;
+  onResetMfa: () => void;
+  onRecover: () => void;
   onDelete: () => void;
 }) {
   const manager = isManagerRole(item.role);
@@ -193,6 +199,10 @@ function UserCard({
             <span className={`font-semibold ${item.isActive === false ? "text-zinc-400" : "text-emerald-700"}`}>
               {item.isActive === false ? "Inactive" : "Active"}
             </span>
+            <span className="text-zinc-300">|</span>
+            <span className={`font-semibold ${item.mfaEnabled ? "text-emerald-700" : "text-zinc-400"}`}>
+              {item.mfaEnabled ? "MFA enabled" : "MFA off"}
+            </span>
           </div>
 
           <p className="mt-3 text-xs text-zinc-500">Last login: {formatDateTime(item.lastLoginAt)}</p>
@@ -218,6 +228,24 @@ function UserCard({
           <Button
             type="button"
             variant="ghost"
+            disabled={!item.mfaEnabled}
+            onClick={onResetMfa}
+            className="h-8 rounded-md border border-zinc-300 bg-white px-3 text-xs text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            MFA Reset
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={isSelf}
+            onClick={onRecover}
+            className="h-8 rounded-md border border-blue-200 bg-white px-3 text-xs text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Recover
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
             disabled={isSelf}
             onClick={onDelete}
             className="h-8 rounded-md border border-red-200 bg-white px-2 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
@@ -233,6 +261,7 @@ function UserCard({
 
 export default function AdminUsersPage() {
   const { user: currentUser } = useAuth();
+  const isCeo = String(currentUser?.role || "") === "ceo_user";
   const [activeTab, setActiveTab] = useState<AdminUsersTab>("users");
   const [activeDepartmentId, setActiveDepartmentId] = useState(departmentDefinitions[0]?.id || "");
   const [users, setUsers] = useState<AuthUser[]>([]);
@@ -243,6 +272,9 @@ export default function AdminUsersPage() {
   const [form, setForm] = useState<UserFormState>(blankForm);
   const [passwordTarget, setPasswordTarget] = useState<AuthUser | null>(null);
   const [newPassword, setNewPassword] = useState("");
+  const [mfaResetTarget, setMfaResetTarget] = useState<AuthUser | null>(null);
+  const [recoveryTarget, setRecoveryTarget] = useState<AuthUser | null>(null);
+  const [recoveryPassword, setRecoveryPassword] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<AuthUser | null>(null);
 
   const [events, setEvents] = useState<AdminEventItem[]>([]);
@@ -328,6 +360,26 @@ export default function AdminUsersPage() {
     });
   }, [search, users]);
 
+  const visibleDepartments = useMemo(
+    () => departmentDefinitions.filter((department) => !(isCeo && department.id === "administration")),
+    [isCeo]
+  );
+
+  const roleOptions = useMemo(
+    () =>
+      AUTH_ROLES.filter((role) => {
+        if (isCeo && (role === "super_admin_user" || role === "ceo_user")) return false;
+        if (role === "client_user" && form.role !== "client_user") return false;
+        return true;
+      }),
+    [form.role, isCeo]
+  );
+
+  useEffect(() => {
+    if (visibleDepartments.some((department) => department.id === activeDepartmentId)) return;
+    setActiveDepartmentId(visibleDepartments[0]?.id || "");
+  }, [activeDepartmentId, visibleDepartments]);
+
   const stats = useMemo(() => {
     const active = users.filter((item) => item.isActive !== false).length;
     const superAdmins = users.filter((item) => item.role === "super_admin_user").length;
@@ -336,13 +388,13 @@ export default function AdminUsersPage() {
 
   const departmentGroups = useMemo(
     () =>
-      departmentDefinitions.map((department) => {
+      visibleDepartments.map((department) => {
         const rows = filteredUsers.filter((item) => department.roles.includes(item.role));
         const managers = rows.filter((item) => isManagerRole(item.role));
         const normalUsers = rows.filter((item) => !isManagerRole(item.role));
         return { ...department, rows, managers, normalUsers };
       }),
-    [filteredUsers]
+    [filteredUsers, visibleDepartments]
   );
 
   const selectedDepartment = useMemo(
@@ -473,6 +525,46 @@ export default function AdminUsersPage() {
     }
   };
 
+  const confirmMfaReset = async () => {
+    if (!mfaResetTarget) return;
+    setSaving(true);
+    try {
+      const result = await resetAuthUserMfa(mfaResetTarget.id);
+      setUsers((prev) => prev.map((item) => (item.id === result.user.id ? result.user : item)));
+      toast.success("MFA reset", {
+        description: `${mfaResetTarget.username} must set up Microsoft Authenticator again.`,
+      });
+      setMfaResetTarget(null);
+    } catch (error) {
+      toast.error("MFA reset failed", { description: getErrorMessage(error) });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const submitAccountRecovery = async () => {
+    if (!recoveryTarget) return;
+    if (recoveryPassword.length < 8) {
+      toast.error("Recovery password must be at least 8 characters");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const result = await recoverAuthUserAccount(recoveryTarget.id, recoveryPassword);
+      setUsers((prev) => prev.map((item) => (item.id === result.user.id ? result.user : item)));
+      toast.success("Account recovered", {
+        description: `${recoveryTarget.username} can sign in with the new password. MFA was cleared.`,
+      });
+      setRecoveryTarget(null);
+      setRecoveryPassword("");
+    } catch (error) {
+      toast.error("Account recovery failed", { description: getErrorMessage(error) });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleCreateClientAccess = async () => {
     if (!selectedEvent) {
       toast.error("Select an event first");
@@ -562,14 +654,14 @@ export default function AdminUsersPage() {
             </div>
 
             <div className="admin-actions xl:justify-end">
-              <Link href="/choose-persona">
+              <Link href={isCeo ? "/dashboard" : "/choose-persona"}>
                 <Button
                   type="button"
                   variant="outline"
                   className="h-10 border-zinc-300 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
                 >
                   <ArrowLeft className="mr-2 h-4 w-4" />
-                  Workspaces
+                  {isCeo ? "Dashboard" : "Workspaces"}
                 </Button>
               </Link>
 
@@ -741,6 +833,11 @@ export default function AdminUsersPage() {
                             setPasswordTarget(item);
                             setNewPassword("");
                           }}
+                          onResetMfa={() => setMfaResetTarget(item)}
+                          onRecover={() => {
+                            setRecoveryTarget(item);
+                            setRecoveryPassword("");
+                          }}
                           onDelete={() => setDeleteTarget(item)}
                         />
                       ))
@@ -816,7 +913,7 @@ export default function AdminUsersPage() {
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent className="border-zinc-300 bg-white">
-                    {AUTH_ROLES.filter((role) => role !== "client_user" || form.role === "client_user").map((role) => (
+                    {roleOptions.map((role) => (
                       <SelectItem key={role} value={role}>
                         {getRoleLabel(role)}
                       </SelectItem>
@@ -1122,7 +1219,7 @@ export default function AdminUsersPage() {
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent className="border-zinc-300 bg-white">
-                    {AUTH_ROLES.filter((role) => role !== "client_user" || form.role === "client_user").map((role) => (
+                    {roleOptions.map((role) => (
                       <SelectItem key={role} value={role}>
                         {getRoleLabel(role)}
                       </SelectItem>
@@ -1201,6 +1298,91 @@ export default function AdminUsersPage() {
               <Button type="button" disabled={saving} onClick={submitPassword} className="btn-sidebar-noise h-9 px-3.5">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
                 Update Password
+              </Button>
+            </div>
+          </Card>
+        </div>
+      ) : null}
+
+      {mfaResetTarget ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-blue-950/35 p-4 backdrop-blur-[3px]">
+          <Card className="admin-modal-panel w-full max-w-md overflow-hidden rounded-2xl border border-zinc-300 bg-white">
+            <div className="border-b border-zinc-100 px-5 py-4">
+              <h3 className="text-base font-semibold text-slate-900">Reset MFA</h3>
+              <p className="mt-1 text-sm text-zinc-500">
+                Remove Microsoft Authenticator from {mfaResetTarget.username}. Their next login will use password only
+                until they set up MFA again.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-4">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={saving}
+                onClick={() => setMfaResetTarget(null)}
+                className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-700 hover:bg-zinc-50"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={saving}
+                onClick={confirmMfaReset}
+                className="h-9 rounded-md bg-blue-600 px-3.5 text-white hover:bg-blue-700"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                Reset MFA
+              </Button>
+            </div>
+          </Card>
+        </div>
+      ) : null}
+
+      {recoveryTarget ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-blue-950/35 p-4 backdrop-blur-[3px]">
+          <Card className="admin-modal-panel w-full max-w-md overflow-hidden rounded-2xl border border-zinc-300 bg-white">
+            <div className="border-b border-zinc-100 px-5 py-4">
+              <h3 className="text-base font-semibold text-slate-900">Recover Account</h3>
+              <p className="mt-1 text-sm text-zinc-500">
+                Set a new password for {recoveryTarget.username} and remove MFA from the account.
+              </p>
+            </div>
+            <div className="space-y-2 px-5 py-4">
+              <label className="text-xs font-semibold uppercase text-zinc-500">New Recovery Password</label>
+              <Input
+                name="admin-account-recovery-password"
+                type="password"
+                value={recoveryPassword}
+                onChange={(event) => setRecoveryPassword(event.target.value)}
+                placeholder="Enter new password"
+                className="h-10 border-zinc-300 bg-white"
+                autoComplete="new-password"
+              />
+              <p className="text-xs text-zinc-500">
+                Existing sessions will be revoked. The user can set up MFA again from their profile.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-zinc-100 px-5 py-4">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={saving}
+                onClick={() => {
+                  setRecoveryTarget(null);
+                  setRecoveryPassword("");
+                }}
+                className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-700 hover:bg-zinc-50"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={saving}
+                onClick={submitAccountRecovery}
+                className="h-9 rounded-md bg-blue-600 px-3.5 text-white hover:bg-blue-700"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+                Recover Account
               </Button>
             </div>
           </Card>

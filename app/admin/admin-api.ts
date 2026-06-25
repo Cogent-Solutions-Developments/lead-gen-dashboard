@@ -17,6 +17,7 @@ import {
 
 export type AuthRole =
   | BaseAuthRole
+  | "ceo_user"
   | "sales_manager_user"
   | "delegate_manager_user"
   | "production_manager_user"
@@ -25,6 +26,7 @@ export type AuthRole =
 export type AuthUser = Omit<BaseAuthUser, "role"> & {
   role: AuthRole;
   email?: string;
+  mfaEnabled?: boolean;
 };
 
 export type AuthUserCreateInput = {
@@ -251,6 +253,7 @@ export type {
 
 export const AUTH_ROLES: AuthRole[] = [
   "super_admin_user",
+  "ceo_user",
   "sales_user",
   "sales_manager_user",
   "delegate_user",
@@ -264,6 +267,10 @@ const ROLE_ALIASES: Record<string, AuthRole> = {
   super_admin_user: "super_admin_user",
   super_admin: "super_admin_user",
   admin: "super_admin_user",
+  ceo: "ceo_user",
+  ceo_user: "ceo_user",
+  chief_executive: "ceo_user",
+  chief_executive_officer: "ceo_user",
   sales_user: "sales_user",
   sales: "sales_user",
   sales_manager: "sales_manager_user",
@@ -347,6 +354,7 @@ function normalizeAdminUser(raw: unknown): AuthUser {
   const createdAt = source.createdAt ?? source.created_at;
   const updatedAt = source.updatedAt ?? source.updated_at;
   const lastLoginAt = source.lastLoginAt ?? source.last_login_at;
+  const mfaEnabled = source.mfaEnabled ?? source.mfa_enabled;
 
   return {
     id: String(source.id || ""),
@@ -367,6 +375,7 @@ function normalizeAdminUser(raw: unknown): AuthUser {
     updatedAt: updatedAt == null ? "" : String(updatedAt),
     lastLoginAt: lastLoginAt == null ? null : String(lastLoginAt),
     email: source.email == null ? "" : String(source.email),
+    mfaEnabled: typeof mfaEnabled === "boolean" ? mfaEnabled : undefined,
   };
 }
 
@@ -428,6 +437,7 @@ function normalizeAdminClientCredential(raw: unknown): AdminClientCredential {
 
 export function getRoleLabel(role: AuthRole | null | undefined) {
   if (role === "super_admin_user") return "Super Admin";
+  if (role === "ceo_user") return "CEO";
   if (role === "sales_manager_user") return "Sales Manager";
   if (role === "delegate_manager_user") return "Delegate Manager";
   if (role === "production_manager_user") return "Production Manager";
@@ -472,6 +482,25 @@ export async function updateAuthUserPassword(userId: string, password: string) {
     body: JSON.stringify({ password }),
   });
   return normalizeAdminUser(data.user);
+}
+
+export async function resetAuthUserMfa(userId: string) {
+  const data = await adminAuthRequest<{ reset: boolean; removedMethods: number; user: AuthUser }>(
+    `/api/auth/users/${userId}/mfa/reset`,
+    { method: "POST" }
+  );
+  return { ...data, user: normalizeAdminUser(data.user) };
+}
+
+export async function recoverAuthUserAccount(userId: string, password: string) {
+  const data = await adminAuthRequest<{ recovered: boolean; mfaRemovedMethods: number; user: AuthUser }>(
+    `/api/auth/users/${userId}/account-recovery`,
+    {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    }
+  );
+  return { ...data, user: normalizeAdminUser(data.user) };
 }
 
 export async function deleteAuthUser(userId: string) {
