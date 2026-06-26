@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   BriefcaseBusiness,
   Building2,
+  CalendarClock,
   Crown,
   Eye,
   EyeOff,
@@ -17,6 +18,7 @@ import {
   Save,
   Search,
   ShieldCheck,
+  Pencil,
   Trash2,
   UserCog,
   UserPlus,
@@ -43,6 +45,7 @@ import {
   recoverAuthUserAccount,
   revokeAdminClientCredential,
   resetAuthUserMfa,
+  updateAdminClientCredential,
   updateAuthUser,
   updateAuthUserPassword,
   updateStoredAuthUser,
@@ -135,6 +138,20 @@ function formatDate(value?: string | null) {
   return parsed.toLocaleDateString();
 }
 
+function toDateInputValue(value?: string | null) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value).slice(0, 10);
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function expiryDateToIso(value: string) {
+  return new Date(`${value}T23:59:59`).toISOString();
+}
+
 function eventTypeLabel(value?: string | null) {
   return value === "boardroom" ? "Boardroom" : "Conference";
 }
@@ -143,9 +160,27 @@ function isManagerRole(role: AuthRole) {
   return role === "super_admin_user" || role === "ceo_user" || role.includes("_manager_");
 }
 
+function selectPrimaryClientCredential(credentials: AdminClientCredential[]) {
+  return (
+    credentials.find((credential) => credential.isUsable) ||
+    credentials.find((credential) => credential.isActive) ||
+    credentials[0] ||
+    null
+  );
+}
+
+function upsertCredential(rows: AdminClientCredential[], credential: AdminClientCredential) {
+  if (rows.some((item) => item.id === credential.id)) {
+    return rows.map((item) => (item.id === credential.id ? credential : item));
+  }
+  return [credential, ...rows];
+}
+
 function UserCard({
   item,
   isSelf,
+  showClientAccess,
+  clientCredentials = [],
   onEdit,
   onPassword,
   onResetMfa,
@@ -154,6 +189,8 @@ function UserCard({
 }: {
   item: AuthUser;
   isSelf: boolean;
+  showClientAccess: boolean;
+  clientCredentials?: AdminClientCredential[];
   onEdit: () => void;
   onPassword: () => void;
   onResetMfa: () => void;
@@ -161,6 +198,8 @@ function UserCard({
   onDelete: () => void;
 }) {
   const manager = isManagerRole(item.role);
+  const clientCredential =
+    showClientAccess && item.role === "client_user" ? selectPrimaryClientCredential(clientCredentials) : null;
 
   return (
     <div
@@ -206,6 +245,26 @@ function UserCard({
           </div>
 
           <p className="mt-3 text-xs text-zinc-500">Last login: {formatDateTime(item.lastLoginAt)}</p>
+          {showClientAccess && item.role === "client_user" ? (
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-blue-100 bg-blue-50/70 px-3 py-2 text-xs text-blue-900">
+              <CalendarClock className="h-3.5 w-3.5 text-blue-700" />
+              <span className="font-semibold">Access expiry</span>
+              <span className="text-blue-300">|</span>
+              <span>{clientCredential ? formatDate(clientCredential.expiresAt) : "Not assigned"}</span>
+              {clientCredential ? (
+                <>
+                  <span className="text-blue-300">|</span>
+                  <span className={clientCredential.isUsable ? "font-semibold text-emerald-700" : "font-semibold text-red-600"}>
+                    {clientCredential.isUsable ? "Usable" : "Expired or revoked"}
+                  </span>
+                  <span className="text-blue-300">|</span>
+                  <span className="max-w-[18rem] truncate text-blue-800">
+                    {clientCredential.event?.eventName || clientCredential.companyName}
+                  </span>
+                </>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap gap-2 lg:justify-end">
@@ -215,6 +274,7 @@ function UserCard({
             onClick={onEdit}
             className="h-8 rounded-md border border-zinc-300 bg-white px-3 text-xs text-zinc-700 hover:bg-zinc-50"
           >
+            <Pencil className="mr-1.5 h-3.5 w-3.5" />
             Edit
           </Button>
           <Button
@@ -279,15 +339,19 @@ export default function AdminUsersPage() {
 
   const [events, setEvents] = useState<AdminEventItem[]>([]);
   const [credentials, setCredentials] = useState<AdminClientCredential[]>([]);
+  const [clientCredentials, setClientCredentials] = useState<AdminClientCredential[]>([]);
   const [eventId, setEventId] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [clientUsername, setClientUsername] = useState("");
   const [clientPassword, setClientPassword] = useState("");
   const [clientFullName, setClientFullName] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
+  const [editingCredentialId, setEditingCredentialId] = useState("");
+  const [editingCredentialExpiry, setEditingCredentialExpiry] = useState("");
   const [showClientPassword, setShowClientPassword] = useState(false);
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [loadingCredentials, setLoadingCredentials] = useState(false);
+  const [loadingClientCredentials, setLoadingClientCredentials] = useState(false);
   const [clientSaving, setClientSaving] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
 
@@ -339,10 +403,24 @@ export default function AdminUsersPage() {
     }
   }, [eventId]);
 
+  const loadClientCredentials = useCallback(async () => {
+    setLoadingClientCredentials(true);
+    try {
+      const rows = await listAdminClientCredentials({ includeInactive: true });
+      setClientCredentials(rows);
+    } catch (error) {
+      toast.error("Failed to load client access", { description: getErrorMessage(error) });
+      setClientCredentials([]);
+    } finally {
+      setLoadingClientCredentials(false);
+    }
+  }, []);
+
   useEffect(() => {
     void loadUsers();
     void loadEvents();
-  }, [loadEvents, loadUsers]);
+    void loadClientCredentials();
+  }, [loadClientCredentials, loadEvents, loadUsers]);
 
   useEffect(() => {
     void loadCredentials();
@@ -413,9 +491,31 @@ export default function AdminUsersPage() {
     [activeDepartmentId, departmentGroups]
   );
 
+  const clientCredentialsByUserId = useMemo(() => {
+    const grouped = new Map<string, AdminClientCredential[]>();
+    for (const credential of clientCredentials) {
+      const rows = grouped.get(credential.userId) || [];
+      rows.push(credential);
+      grouped.set(credential.userId, rows);
+    }
+    for (const [userId, rows] of grouped) {
+      grouped.set(
+        userId,
+        [...rows].sort((a, b) => {
+          if (a.isUsable !== b.isUsable) return a.isUsable ? -1 : 1;
+          if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+          return Date.parse(b.updatedAt || b.createdAt || "") - Date.parse(a.updatedAt || a.createdAt || "");
+        })
+      );
+    }
+    return grouped;
+  }, [clientCredentials]);
+
   const resetForm = () => {
     setEditingId(null);
     setForm(blankForm);
+    setEditingCredentialId("");
+    setEditingCredentialExpiry("");
   };
 
   const startCreate = () => {
@@ -424,6 +524,7 @@ export default function AdminUsersPage() {
   };
 
   const startEdit = (item: AuthUser) => {
+    const primaryCredential = selectPrimaryClientCredential(clientCredentialsByUserId.get(item.id) || []);
     setEditingId(item.id);
     setForm({
       username: item.username,
@@ -432,10 +533,16 @@ export default function AdminUsersPage() {
       password: "",
       status: item.isActive === false ? "inactive" : "active",
     });
+    setEditingCredentialId(primaryCredential?.id || "");
+    setEditingCredentialExpiry(toDateInputValue(primaryCredential?.expiresAt));
   };
 
   const submitForm = async () => {
     const username = form.username.trim();
+    const editingClientCredentials = editingId ? clientCredentialsByUserId.get(editingId) || [] : [];
+    const selectedEditingCredential =
+      editingClientCredentials.find((credential) => credential.id === editingCredentialId) || null;
+    const shouldUpdateClientExpiry = Boolean(editingId && form.role === "client_user" && selectedEditingCredential);
     if (!username) {
       toast.error("Username is required");
       return;
@@ -452,9 +559,14 @@ export default function AdminUsersPage() {
       toast.error("Password must be at least 8 characters");
       return;
     }
+    if (shouldUpdateClientExpiry && !editingCredentialExpiry) {
+      toast.error("Client access expiry date is required");
+      return;
+    }
 
     setSaving(true);
     try {
+      let updatedCredential: AdminClientCredential | null = null;
       if (editingId) {
         const isSelf = editingId === currentUser?.id;
         const updated = await updateAuthUser(editingId, {
@@ -465,7 +577,27 @@ export default function AdminUsersPage() {
         });
         setUsers((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
         if (isSelf) updateStoredAuthUser(updated);
-        toast.success("User updated", { description: updated.username });
+        if (
+          shouldUpdateClientExpiry &&
+          selectedEditingCredential &&
+          editingCredentialExpiry !== toDateInputValue(selectedEditingCredential.expiresAt)
+        ) {
+          const savedCredential = await updateAdminClientCredential(selectedEditingCredential.id, {
+            expiresAt: expiryDateToIso(editingCredentialExpiry),
+          });
+          updatedCredential = savedCredential;
+          setClientCredentials((prev) => upsertCredential(prev, savedCredential));
+          setCredentials((prev) =>
+            prev.some((credential) => credential.id === savedCredential.id)
+              ? prev.map((credential) => (credential.id === savedCredential.id ? savedCredential : credential))
+              : prev
+          );
+        }
+        toast.success("User updated", {
+          description: updatedCredential
+            ? `${updated.username} expires ${formatDate(updatedCredential.expiresAt)}.`
+            : updated.username,
+        });
       } else {
         const created = await createAuthUser({
           username,
@@ -607,6 +739,7 @@ export default function AdminUsersPage() {
       setClientFullName("");
       setExpiresAt("");
       await loadCredentials();
+      await loadClientCredentials();
       await loadUsers();
     } catch (error) {
       toast.error("Failed to create client access", { description: getErrorMessage(error) });
@@ -623,6 +756,7 @@ export default function AdminUsersPage() {
         description: credential.user?.username || credential.companyName,
       });
       await loadCredentials();
+      await loadClientCredentials();
       await loadUsers();
     } catch (error) {
       toast.error("Failed to revoke client access", { description: getErrorMessage(error) });
@@ -635,13 +769,18 @@ export default function AdminUsersPage() {
     if (activeTab === "client-access") {
       void loadEvents();
       void loadCredentials();
+      void loadClientCredentials();
       return;
     }
     void loadUsers();
+    void loadClientCredentials();
   };
 
   const editingSelf = Boolean(editingId && editingId === currentUser?.id);
   const clientFormDisabled = !selectedEvent || loadingEvents || clientSaving;
+  const editingClientCredentials = editingId ? clientCredentialsByUserId.get(editingId) || [] : [];
+  const selectedEditingCredential =
+    editingClientCredentials.find((credential) => credential.id === editingCredentialId) || null;
 
   return (
     <div className="admin-page flex min-h-[calc(100dvh-3rem)] flex-col bg-transparent">
@@ -668,10 +807,14 @@ export default function AdminUsersPage() {
               <Button
                 type="button"
                 onClick={refreshCurrentTab}
-                disabled={loading || saving || loadingEvents || loadingCredentials || clientSaving}
+                disabled={loading || saving || loadingEvents || loadingCredentials || loadingClientCredentials || clientSaving}
                 className="analytics-frost-btn h-10 px-4"
               >
-                <RefreshCw className={`h-4 w-4 ${loading || loadingEvents || loadingCredentials ? "animate-spin" : ""}`} />
+                <RefreshCw
+                  className={`h-4 w-4 ${
+                    loading || loadingEvents || loadingCredentials || loadingClientCredentials ? "animate-spin" : ""
+                  }`}
+                />
                 Refresh
               </Button>
             </div>
@@ -828,6 +971,8 @@ export default function AdminUsersPage() {
                           key={item.id}
                           item={item}
                           isSelf={item.id === currentUser?.id}
+                          showClientAccess
+                          clientCredentials={clientCredentialsByUserId.get(item.id) || []}
                           onEdit={() => startEdit(item)}
                           onPassword={() => {
                             setPasswordTarget(item);
@@ -939,6 +1084,7 @@ export default function AdminUsersPage() {
                   </SelectContent>
                 </Select>
               </div>
+
             </div>
 
             <div className="rounded-lg border border-zinc-200 bg-zinc-50/70 p-4">
@@ -1245,6 +1391,83 @@ export default function AdminUsersPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {form.role === "client_user" ? (
+                <div className="space-y-4 rounded-lg border border-blue-100 bg-blue-50/70 p-4 md:col-span-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-blue-700">Client Access</p>
+                      <h4 className="mt-1 text-sm font-semibold text-slate-900">Credential Expiry</h4>
+                    </div>
+                    <CalendarClock className="h-5 w-5 text-blue-700" />
+                  </div>
+
+                  {editingClientCredentials.length ? (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold uppercase text-zinc-500">Access Record</label>
+                        <Select
+                          value={editingCredentialId}
+                          onValueChange={(value) => {
+                            const nextCredential = editingClientCredentials.find((credential) => credential.id === value);
+                            setEditingCredentialId(value);
+                            setEditingCredentialExpiry(toDateInputValue(nextCredential?.expiresAt));
+                          }}
+                        >
+                          <SelectTrigger className="h-10 border-zinc-300 bg-white">
+                            <SelectValue placeholder="Select credential" />
+                          </SelectTrigger>
+                          <SelectContent className="border-zinc-300 bg-white">
+                            {editingClientCredentials.map((credential) => (
+                              <SelectItem key={credential.id} value={credential.id}>
+                                {credential.event?.eventName || credential.companyName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold uppercase text-zinc-500">Expiry Date</label>
+                        <Input
+                          name="admin-client-access-edit-expiry"
+                          type="date"
+                          value={editingCredentialExpiry}
+                          onChange={(event) => setEditingCredentialExpiry(event.target.value)}
+                          className="h-10 border-zinc-300 bg-white"
+                          autoComplete="off"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2 rounded-md border border-blue-100 bg-white px-3 py-2 text-xs text-zinc-600">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <span className="font-semibold text-zinc-800">
+                            {selectedEditingCredential?.companyName || "Client company"}
+                          </span>
+                          <span className="text-zinc-300">|</span>
+                          <span>
+                            Current expiry: {formatDate(selectedEditingCredential?.expiresAt)}
+                          </span>
+                          <span className="text-zinc-300">|</span>
+                          <span
+                            className={
+                              selectedEditingCredential?.isUsable
+                                ? "font-semibold text-emerald-700"
+                                : "font-semibold text-red-600"
+                            }
+                          >
+                            {selectedEditingCredential?.isUsable ? "Usable" : "Expired or revoked"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="rounded-md border border-blue-100 bg-white px-3 py-2 text-sm text-zinc-500">
+                      No event access credential assigned.
+                    </p>
+                  )}
+                </div>
+              ) : null}
             </div>
 
             <div className="flex flex-col-reverse gap-2 border-t border-zinc-100 px-5 py-4 sm:flex-row sm:justify-end">

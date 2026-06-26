@@ -3,13 +3,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
+  CalendarClock,
   Eye,
   EyeOff,
   KeyRound,
   Loader2,
+  Pencil,
   RefreshCw,
+  Save,
   Trash2,
   UserPlus,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -27,6 +31,7 @@ import {
   listAdminClientCredentials,
   listAdminEvents,
   revokeAdminClientCredential,
+  updateAdminClientCredential,
   type AdminClientCredential,
   type AdminEventItem,
 } from "../admin-api";
@@ -40,6 +45,20 @@ function formatDate(value?: string | null) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
   return parsed.toLocaleDateString();
+}
+
+function toDateInputValue(value?: string | null) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value).slice(0, 10);
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function expiryDateToIso(value: string) {
+  return new Date(`${value}T23:59:59`).toISOString();
 }
 
 function eventTypeLabel(value?: string | null) {
@@ -60,6 +79,9 @@ export default function AdminClientAccessPage() {
   const [loadingCredentials, setLoadingCredentials] = useState(false);
   const [saving, setSaving] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [editingCredential, setEditingCredential] = useState<AdminClientCredential | null>(null);
+  const [editExpiresAt, setEditExpiresAt] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
 
   const selectedEvent = useMemo(
     () => events.find((event) => event.id === eventId) || null,
@@ -173,6 +195,41 @@ export default function AdminClientAccessPage() {
     }
   };
 
+  const openEditDialog = (credential: AdminClientCredential) => {
+    setEditingCredential(credential);
+    setEditExpiresAt(toDateInputValue(credential.expiresAt));
+  };
+
+  const closeEditDialog = () => {
+    if (editSaving) return;
+    setEditingCredential(null);
+    setEditExpiresAt("");
+  };
+
+  const handleUpdateExpiry = async () => {
+    if (!editingCredential) return;
+    if (!editExpiresAt) {
+      toast.error("Expiry date is required");
+      return;
+    }
+
+    setEditSaving(true);
+    try {
+      const updated = await updateAdminClientCredential(editingCredential.id, {
+        expiresAt: expiryDateToIso(editExpiresAt),
+      });
+      setCredentials((prev) => prev.map((credential) => (credential.id === updated.id ? updated : credential)));
+      toast.success("Expiry updated", {
+        description: `${updated.user?.username || updated.companyName} expires ${formatDate(updated.expiresAt)}.`,
+      });
+      closeEditDialog();
+    } catch (error) {
+      toast.error("Failed to update expiry", { description: getErrorMessage(error) });
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   return (
     <div className="flex min-h-[calc(100dvh-3rem)] flex-col overflow-y-auto bg-transparent p-1 font-sans">
       <motion.div
@@ -229,7 +286,7 @@ export default function AdminClientAccessPage() {
                 </div>
               ) : credentials.length ? (
                 credentials.map((credential) => (
-                  <div key={credential.id} className="grid gap-4 px-5 py-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_7rem] lg:items-center">
+                  <div key={credential.id} className="grid gap-4 px-5 py-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto] lg:items-center">
                     <div className="min-w-0">
                       <p className="truncate font-semibold text-zinc-900">
                         {credential.user?.fullName || credential.user?.username || credential.userId}
@@ -242,20 +299,32 @@ export default function AdminClientAccessPage() {
                         {credential.isUsable ? "Active" : "Expired or revoked"} | Expires {formatDate(credential.expiresAt)}
                       </p>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={revokingId === credential.id || !credential.isActive}
-                      onClick={() => void handleRevoke(credential)}
-                      className="h-9 border-red-200 bg-white px-3 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
-                    >
-                      {revokingId === credential.id ? (
-                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                      )}
-                      Revoke
-                    </Button>
+                    <div className="flex flex-wrap gap-2 lg:justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={revokingId === credential.id}
+                        onClick={() => openEditDialog(credential)}
+                        className="h-9 border-blue-200 bg-white px-3 text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+                      >
+                        <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                        Edit
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={revokingId === credential.id || !credential.isActive}
+                        onClick={() => void handleRevoke(credential)}
+                        className="h-9 border-red-200 bg-white px-3 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        {revokingId === credential.id ? (
+                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                        )}
+                        Revoke
+                      </Button>
+                    </div>
                   </div>
                 ))
               ) : (
@@ -385,6 +454,76 @@ export default function AdminClientAccessPage() {
           </div>
         </Card>
       </div>
+
+      {editingCredential ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-blue-950/35 p-4 backdrop-blur-[3px]">
+          <Card className="admin-modal-panel w-full max-w-md overflow-hidden rounded-2xl border border-blue-100 bg-white">
+            <div className="flex items-start justify-between gap-4 border-b border-zinc-100 px-5 py-4">
+              <div>
+                <p className="text-xs font-semibold uppercase text-blue-700">Client Access</p>
+                <h3 className="mt-1 text-lg font-semibold text-slate-900">Edit Expiry Date</h3>
+                <p className="mt-1 text-sm text-zinc-500">
+                  {editingCredential.user?.username || editingCredential.userId}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={closeEditDialog}
+                disabled={editSaving}
+                className="h-8 w-8 rounded-md border border-zinc-300 bg-white p-0 text-zinc-500 hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50"
+                aria-label="Close edit form"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-4 px-5 py-5">
+              <div className="rounded-md border border-blue-100 bg-blue-50/70 px-3 py-2 text-xs text-blue-900">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <CalendarClock className="h-3.5 w-3.5 text-blue-700" />
+                  <span className="font-semibold">{editingCredential.companyName}</span>
+                  <span className="text-blue-300">|</span>
+                  <span>Current expiry: {formatDate(editingCredential.expiresAt)}</span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Expiry Date</label>
+                <Input
+                  type="date"
+                  value={editExpiresAt}
+                  onChange={(event) => setEditExpiresAt(event.target.value)}
+                  disabled={editSaving}
+                  className="h-10 border-zinc-300 bg-white"
+                  autoComplete="off"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col-reverse gap-2 border-t border-zinc-100 px-5 py-4 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={editSaving}
+                onClick={closeEditDialog}
+                className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-700 hover:bg-zinc-50"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={editSaving}
+                onClick={() => void handleUpdateExpiry()}
+                className="h-9 rounded-md bg-blue-600 px-4 text-white hover:bg-blue-700"
+              >
+                {editSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Save Expiry
+              </Button>
+            </div>
+          </Card>
+        </div>
+      ) : null}
     </div>
   );
 }
