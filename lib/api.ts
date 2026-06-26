@@ -391,6 +391,7 @@ export type GenerateSelectedLeadContentRequest = {
   campaignId: string;
   leadIds: string[];
   feedback?: string;
+  signal?: AbortSignal;
 };
 
 export type GenerateSelectedLeadContentResponse = {
@@ -411,6 +412,7 @@ export type SendSelectedLeadsRequest = {
   campaignId: string;
   leadIds: string[];
   attachmentId?: string;
+  channel?: OutreachRequestChannel;
 };
 
 export type SendSelectedLeadsResponse = {
@@ -1828,23 +1830,29 @@ export async function approveSelectedCampaignLeads(payload: ApproveSelectedLeads
 }
 
 export async function generateSelectedCampaignLeadContent(payload: GenerateSelectedLeadContentRequest) {
-  const { campaignId, leadIds, feedback } = payload;
+  const { campaignId, leadIds, feedback, signal } = payload;
   const { data } = await apiClient.post<GenerateSelectedLeadContentResponse>(
     `/api/campaigns/${campaignId}/content/generate-selected`,
     { leadIds, feedback },
-    { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS }
+    { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS, signal }
   );
   return data;
 }
 
 export async function sendSelectedCampaignLeads(payload: SendSelectedLeadsRequest) {
-  const { campaignId, leadIds, attachmentId } = payload;
+  const { campaignId, leadIds, attachmentId, channel } = payload;
   const query = new URLSearchParams();
   if (attachmentId) query.set("attachment_id", attachmentId);
   const queryText = query.toString();
+  const endpoint =
+    channel === "email"
+      ? "send-selected-email"
+      : channel === "whatsapp"
+        ? "send-selected-whatsapp"
+        : "send-selected-leads";
 
   const { data } = await apiClient.post<SendSelectedLeadsResponse>(
-    `/api/campaigns/${campaignId}/send-selected-leads${queryText ? `?${queryText}` : ""}`,
+    `/api/campaigns/${campaignId}/${endpoint}${queryText ? `?${queryText}` : ""}`,
     leadIds
   );
   return data;
