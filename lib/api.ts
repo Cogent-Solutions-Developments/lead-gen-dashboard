@@ -104,7 +104,21 @@ export type CampaignListItem = {
   progress: number;
   totalLeads: number;
   toApprove: number;
+  contentGenerationJob?: ContentGenerationJob | null;
   createdAt: string;
+};
+
+export type ContentGenerationJob = {
+  id: string;
+  type: string;
+  state: string;
+  pct: number;
+  step?: string | null;
+  message?: string | null;
+  cancelRequested?: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  finishedAt?: string | null;
 };
 
 export type CampaignListParams = {
@@ -394,6 +408,12 @@ export type GenerateSelectedLeadContentRequest = {
   signal?: AbortSignal;
 };
 
+export type GenerateCampaignLeadContentRequest = {
+  campaignId: string;
+  feedback?: string;
+  signal?: AbortSignal;
+};
+
 export type GenerateSelectedLeadContentResponse = {
   message: string;
   campaignId: string;
@@ -406,6 +426,18 @@ export type GenerateSelectedLeadContentResponse = {
   failedCount: number;
   failed?: Array<{ leadId: string; error: string }>;
   generationMode?: string | null;
+  queued?: boolean;
+  jobId?: string | null;
+  taskId?: string | null;
+  queue?: string | null;
+};
+
+export type CancelContentGenerationJobResponse = {
+  ok: boolean;
+  campaignId: string;
+  jobId: string;
+  status: string;
+  state?: string | null;
 };
 
 export type ResetSelectedLeadContentRequest = {
@@ -1744,6 +1776,13 @@ export async function stopCampaign(id: string) {
   return data as StopCampaignResponse;
 }
 
+export async function cancelCampaignContentGenerationJob(campaignId: string, jobId: string) {
+  const { data } = await apiClient.post<CancelContentGenerationJobResponse>(
+    `/api/campaigns/${campaignId}/content/jobs/${jobId}/cancel`
+  );
+  return data;
+}
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
 }
@@ -1876,6 +1915,16 @@ export async function generateSelectedCampaignLeadContent(payload: GenerateSelec
   const { data } = await apiClient.post<GenerateSelectedLeadContentResponse>(
     `/api/campaigns/${campaignId}/content/generate-selected`,
     { leadIds, feedback },
+    { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS, signal }
+  );
+  return data;
+}
+
+export async function generateCampaignLeadContent(payload: GenerateCampaignLeadContentRequest) {
+  const { campaignId, feedback, signal } = payload;
+  const { data } = await apiClient.post<GenerateSelectedLeadContentResponse>(
+    `/api/campaigns/${campaignId}/content/generate`,
+    { feedback },
     { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS, signal }
   );
   return data;

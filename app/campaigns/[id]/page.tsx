@@ -1914,6 +1914,7 @@ function SuperAdminCampaignDetailPage() {
       return;
     }
 
+    contentGenerationPauseRequestedRef.current = false;
     setContentGenerationQueue({
       status: "running",
       total,
@@ -1925,62 +1926,28 @@ function SuperAdminCampaignDetailPage() {
       remainingLeadIds: leadIds,
     });
 
-    for (let index = 0; index < leadIds.length; index += 1) {
-      if (contentGenerationPauseRequestedRef.current) {
-        setContentGenerationQueue({
-          status: "paused",
-          total,
-          completed,
-          generated,
-          failed,
-          suppressed,
-          currentLeadId: null,
-          remainingLeadIds: leadIds.slice(index),
-        });
-        toast.info("Content generation paused", {
-          description: `${completed}/${total} lead${total === 1 ? "" : "s"} processed.`,
+    const controller = new AbortController();
+    contentGenerationControllerRef.current = controller;
+    try {
+      const response = await generateSelectedCampaignLeadContent({
+        campaignId,
+        leadIds,
+        signal: controller.signal,
+      });
+      completed += leadIds.length;
+      if (response?.queued) {
+        resetContentGenerationQueue();
+        toast.success("Content generation queued", {
+          description: `${leadIds.length} lead${leadIds.length === 1 ? "" : "s"} sent to the content generation worker.`,
         });
         await fetchAll({ silent: true });
         return;
       }
-
-      const leadId = leadIds[index];
-      setContentGenerationQueue({
-        status: "running",
-        total,
-        completed,
-        generated,
-        failed,
-        suppressed,
-        currentLeadId: leadId,
-        remainingLeadIds: leadIds.slice(index + 1),
-      });
-
-      const controller = new AbortController();
-      contentGenerationControllerRef.current = controller;
-      let aborted = false;
-      try {
-        const response = await generateSelectedCampaignLeadContent({
-          campaignId,
-          leadIds: [leadId],
-          signal: controller.signal,
-        });
-        generated += Number(response?.generatedCount ?? 0);
-        failed += Number(response?.failedCount ?? 0);
-        suppressed += Number(response?.suppressedCount ?? 0);
-      } catch (error: any) {
-        if (isContentGenerationAbortError(error)) {
-          aborted = true;
-        } else {
-          failed += 1;
-        }
-      } finally {
-        if (contentGenerationControllerRef.current === controller) {
-          contentGenerationControllerRef.current = null;
-        }
-      }
-
-      if (aborted) {
+      generated += Number(response?.generatedCount ?? 0);
+      failed += Number(response?.failedCount ?? 0);
+      suppressed += Number(response?.suppressedCount ?? 0);
+    } catch (error: any) {
+      if (isContentGenerationAbortError(error)) {
         setContentGenerationQueue({
           status: "paused",
           total,
@@ -1989,7 +1956,7 @@ function SuperAdminCampaignDetailPage() {
           failed,
           suppressed,
           currentLeadId: null,
-          remainingLeadIds: leadIds.slice(index),
+          remainingLeadIds: leadIds,
         });
         toast.info("Content generation stopped", {
           description: `${completed}/${total} lead${total === 1 ? "" : "s"} processed.`,
@@ -1997,37 +1964,11 @@ function SuperAdminCampaignDetailPage() {
         await fetchAll({ silent: true });
         return;
       }
-
-      completed += 1;
-      const remainingLeadIds = leadIds.slice(index + 1);
-      if (contentGenerationPauseRequestedRef.current) {
-        setContentGenerationQueue({
-          status: "paused",
-          total,
-          completed,
-          generated,
-          failed,
-          suppressed,
-          currentLeadId: null,
-          remainingLeadIds,
-        });
-        toast.info("Content generation paused", {
-          description: `${completed}/${total} lead${total === 1 ? "" : "s"} processed.`,
-        });
-        await fetchAll({ silent: true });
-        return;
+      failed += leadIds.length;
+    } finally {
+      if (contentGenerationControllerRef.current === controller) {
+        contentGenerationControllerRef.current = null;
       }
-
-      setContentGenerationQueue({
-        status: "running",
-        total,
-        completed,
-        generated,
-        failed,
-        suppressed,
-        currentLeadId: null,
-        remainingLeadIds,
-      });
     }
 
     resetContentGenerationQueue();

@@ -268,6 +268,9 @@ export const exportCampaignCsvUrl: typeof sales.exportCampaignCsvUrl = (...args)
 export const stopCampaign: typeof sales.stopCampaign = (...args) =>
   pickModule().stopCampaign(...args);
 
+export const cancelCampaignContentGenerationJob: typeof sales.cancelCampaignContentGenerationJob = (...args) =>
+  pickModule().cancelCampaignContentGenerationJob(...args);
+
 export const deleteCampaign: typeof sales.deleteCampaign = (...args) =>
   pickModule().deleteCampaign(...args);
 
@@ -285,6 +288,9 @@ export const approveSelectedCampaignLeads: typeof sales.approveSelectedCampaignL
 
 export const generateSelectedCampaignLeadContent: typeof sales.generateSelectedCampaignLeadContent = (...args) =>
   pickModule().generateSelectedCampaignLeadContent(...args);
+
+export const generateCampaignLeadContent: typeof sales.generateCampaignLeadContent = (...args) =>
+  pickModule().generateCampaignLeadContent(...args);
 
 export const resetSelectedCampaignLeadContent: typeof sales.resetSelectedCampaignLeadContent = (...args) =>
   pickModule().resetSelectedCampaignLeadContent(...args);

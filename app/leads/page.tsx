@@ -1020,19 +1020,28 @@ function SuperAdminTotalLeads() {
 
     try {
       let generatedCount = 0;
+      let queuedCount = 0;
       let suppressedCount = 0;
       let failedCount = 0;
       const generatedIds: string[] = [];
 
       for (const [campaignId, leadIds] of grouped.entries()) {
         const response = await generateSelectedCampaignLeadContent({ campaignId, leadIds });
-        generatedCount += Number(response.generatedCount || 0);
-        suppressedCount += Number(response.suppressedCount || 0);
-        failedCount += Number(response.failedCount || 0);
-        generatedIds.push(...(response.generatedLeadIds || []));
+        if (response.queued) {
+          queuedCount += leadIds.length;
+        } else {
+          generatedCount += Number(response.generatedCount || 0);
+          suppressedCount += Number(response.suppressedCount || 0);
+          failedCount += Number(response.failedCount || 0);
+          generatedIds.push(...(response.generatedLeadIds || []));
+        }
       }
 
-      if (generatedCount > 0) {
+      if (queuedCount > 0) {
+        toast.success(source === "single" ? "Content generation queued" : "Selected content generation queued", {
+          description: `${queuedCount} lead${queuedCount === 1 ? "" : "s"} sent to the content generation worker.`,
+        });
+      } else if (generatedCount > 0) {
         toast.success(source === "single" ? "Content generated" : "Selected content generated", {
           description:
             failedCount || suppressedCount

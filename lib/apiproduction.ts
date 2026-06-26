@@ -54,6 +54,8 @@ import type {
   UploadCommonAttachmentResponse,
   ApproveSelectedLeadsRequest,
   ApproveSelectedLeadsResponse,
+  CancelContentGenerationJobResponse,
+  GenerateCampaignLeadContentRequest,
   GenerateSelectedLeadContentRequest,
   GenerateSelectedLeadContentResponse,
   ResetLeadContentResponse,
@@ -682,6 +684,13 @@ export async function stopCampaign(id: string) {
   return data as StopCampaignResponse;
 }
 
+export async function cancelCampaignContentGenerationJob(campaignId: string, jobId: string) {
+  const { data } = await apiClientProduction.post<CancelContentGenerationJobResponse>(
+    `/api/productions/campaigns/${campaignId}/content/jobs/${jobId}/cancel`
+  );
+  return data;
+}
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
 }
@@ -800,6 +809,16 @@ export async function generateSelectedCampaignLeadContent(payload: GenerateSelec
   const { data } = await apiClientProduction.post<GenerateSelectedLeadContentResponse>(
     `/api/productions/campaigns/${campaignId}/content/generate-selected`,
     { leadIds, feedback },
+    { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS, signal }
+  );
+  return data;
+}
+
+export async function generateCampaignLeadContent(payload: GenerateCampaignLeadContentRequest) {
+  const { campaignId, feedback, signal } = payload;
+  const { data } = await apiClientProduction.post<GenerateSelectedLeadContentResponse>(
+    `/api/productions/campaigns/${campaignId}/content/generate`,
+    { feedback },
     { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS, signal }
   );
   return data;

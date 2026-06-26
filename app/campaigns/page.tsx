@@ -24,17 +24,17 @@ import Link from "next/link";
 import { toast } from "sonner";
 
 import {
+  cancelCampaignContentGenerationJob,
   deleteCampaign,
   forceDeleteCampaign,
+  generateCampaignLeadContent,
   generateSelectedCampaignLeadContent,
   getCampaignInfo,
-  getCampaignLeads,
   listCampaigns,
   stopCampaign,
   type DeleteBlockedDetail,
   type CampaignInfo,
   type CampaignListItem,
-  type LeadItem,
 } from "@/lib/apiRouter";
 import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
@@ -91,6 +91,7 @@ const filterOnlyStatuses = [
 
 const CAMPAIGN_LIST_POLL_MS = 30000;
 const CAMPAIGN_CONTENT_GENERATION_BATCH_SIZE = 25;
+const CONTENT_JOB_ACTIVE_STATES = new Set(["PENDING", "STARTED", "PROGRESS", "RETRY"]);
 
 type CampaignContentGenerationStatus = "preparing" | "running" | "stopping" | "paused";
 
@@ -103,6 +104,7 @@ type CampaignContentGenerationState = {
   suppressed: number;
   currentLeadId: string | null;
   remainingLeadIds: string[];
+  jobId?: string | null;
 };
 
 function statusUI(status: string) {
@@ -122,6 +124,55 @@ function isManualUploadCampaign(
     campaignSource === "manual_csv_upload" ||
     campaignSource === "manual_template_upload"
   );
+}
+
+function stateFromContentGenerationJob(
+  job: CampaignListItem["contentGenerationJob"] | null | undefined,
+  campaign: CampaignListItem
+): CampaignContentGenerationState | null {
+  if (!job?.id) return null;
+  const state = String(job.state || "").trim().toUpperCase();
+  const pct = Math.max(0, Math.min(100, Number(job.pct || 0)));
+  if (CONTENT_JOB_ACTIVE_STATES.has(state)) {
+    return {
+      status: job.cancelRequested ? "stopping" : "running",
+      total: 100,
+      completed: pct,
+      generated: 0,
+      failed: 0,
+      suppressed: 0,
+      currentLeadId: null,
+      remainingLeadIds: [],
+      jobId: job.id,
+    };
+  }
+  if (state === "CANCELLED" || job.cancelRequested) {
+    return {
+      status: "paused",
+      total: 100,
+      completed: pct,
+      generated: 0,
+      failed: 0,
+      suppressed: 0,
+      currentLeadId: null,
+      remainingLeadIds: [],
+      jobId: job.id,
+    };
+  }
+  if ((campaign.toApprove || 0) > 0 && state === "FAILURE") {
+    return {
+      status: "paused",
+      total: 100,
+      completed: pct,
+      generated: 0,
+      failed: 0,
+      suppressed: 0,
+      currentLeadId: null,
+      remainingLeadIds: [],
+      jobId: job.id,
+    };
+  }
+  return null;
 }
 
 function getCampaignDisplayStatus(campaign: CampaignListItem) {
@@ -254,15 +305,6 @@ function isContentGenerationAbortError(error: unknown) {
   );
 }
 
-function canGenerateCampaignLeadContent(lead: LeadItem) {
-  if (!lead?.id) return false;
-  if (!lead.email || !String(lead.email).trim()) return false;
-  if (lead.isSuppressed || lead.suppression?.active) return false;
-
-  const approvalStatus = String(lead.approvalStatus || "pending").toLowerCase();
-  return approvalStatus === "pending";
-}
-
 type CampaignDialogTarget = {
   id: string;
   name: string;
@@ -364,7 +406,6 @@ function SuperAdminCampaignsPage() {
     const stopRequests = contentGenerationStopRequestedRef.current;
 
     return () => {
-      controllers.forEach((controller) => controller.abort());
       controllers.clear();
       stopRequests.clear();
     };
@@ -456,6 +497,35 @@ function SuperAdminCampaignsPage() {
 
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
   const visibleItems = items;
+
+  useEffect(() => {
+    if (items.length === 0) return;
+    setContentGenerationByCampaign((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const campaign of items) {
+        const serverState = stateFromContentGenerationJob(campaign.contentGenerationJob, campaign);
+        if (serverState) {
+          const current = next[campaign.id];
+          if (
+            !current ||
+            current.jobId !== serverState.jobId ||
+            current.status !== serverState.status ||
+            current.completed !== serverState.completed
+          ) {
+            next[campaign.id] = serverState;
+            changed = true;
+          }
+          continue;
+        }
+        if (next[campaign.id]?.jobId) {
+          delete next[campaign.id];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [items]);
 
   const rangeStart = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
   const rangeEnd = Math.min((currentPage - 1) * itemsPerPage + visibleItems.length, totalItems);
@@ -569,6 +639,7 @@ function SuperAdminCampaignsPage() {
     let generated = stats?.generated || 0;
     let failed = stats?.failed || 0;
     let suppressed = stats?.suppressed || 0;
+    let queued = 0;
 
     if (leadIds.length === 0) {
       clearCampaignContentGeneration(campaignId);
@@ -618,9 +689,13 @@ function SuperAdminCampaignsPage() {
           leadIds: batchLeadIds,
           signal: controller.signal,
         });
-        generated += Number(response?.generatedCount ?? 0);
-        failed += Number(response?.failedCount ?? 0);
-        suppressed += Number(response?.suppressedCount ?? 0);
+        if (response?.queued) {
+          queued += batchLeadIds.length;
+        } else {
+          generated += Number(response?.generatedCount ?? 0);
+          failed += Number(response?.failedCount ?? 0);
+          suppressed += Number(response?.suppressedCount ?? 0);
+        }
       } catch (error: unknown) {
         if (isContentGenerationAbortError(error)) {
           aborted = true;
@@ -666,18 +741,28 @@ function SuperAdminCampaignsPage() {
     }
 
     clearCampaignContentGeneration(campaignId);
-    toast.success("Content generation completed", {
-      description: `Generated ${generated} lead${generated === 1 ? "" : "s"}. ${
-        failed || suppressed ? `Skipped/failed ${failed + suppressed}.` : ""
-      }`,
-    });
+    if (queued > 0) {
+      toast.success("Content generation queued", {
+        description: `${queued} lead${queued === 1 ? "" : "s"} sent to the content generation worker.`,
+      });
+    } else {
+      toast.success("Content generation completed", {
+        description: `Generated ${generated} lead${generated === 1 ? "" : "s"}. ${
+          failed || suppressed ? `Skipped/failed ${failed + suppressed}.` : ""
+        }`,
+      });
+    }
     await fetchData({ silent: true, showErrors: false });
   };
 
-  const handleGenerateCampaignContent = async (campaign: CampaignListItem, event?: React.MouseEvent) => {
+  const handleGenerateCampaignContent = async (
+    campaign: CampaignListItem,
+    event?: React.MouseEvent,
+    options?: { force?: boolean }
+  ) => {
     event?.preventDefault();
     if (!isSuperAdmin) return;
-    if (contentGenerationByCampaign[campaign.id]) return;
+    if (!options?.force && contentGenerationByCampaign[campaign.id]) return;
 
     setCampaignContentGenerationState(campaign.id, {
       status: "preparing",
@@ -691,61 +776,123 @@ function SuperAdminCampaignsPage() {
     });
 
     try {
-      const response = await getCampaignLeads(campaign.id, "all");
-      const leadIds = (response.leads || []).filter(canGenerateCampaignLeadContent).map((lead) => lead.id);
+      const controller = new AbortController();
+      contentGenerationControllersRef.current.set(campaign.id, controller);
+      setCampaignContentGenerationState(campaign.id, {
+        status: "running",
+        total: Number(campaign.toApprove || campaign.totalLeads || 0),
+        completed: 0,
+        generated: 0,
+        failed: 0,
+        suppressed: 0,
+        currentLeadId: null,
+        remainingLeadIds: [],
+      });
+      const response = await generateCampaignLeadContent({
+        campaignId: campaign.id,
+        signal: controller.signal,
+      });
+      if (contentGenerationControllersRef.current.get(campaign.id) === controller) {
+        contentGenerationControllersRef.current.delete(campaign.id);
+      }
 
-      if (leadIds.length === 0) {
+      const requestedCount = Number(response.requestedCount || 0);
+      if (requestedCount === 0) {
         clearCampaignContentGeneration(campaign.id);
         toast.info("No leads need content", {
           description: "This campaign has no pending email leads available for content generation.",
         });
         return;
       }
-
-      if (contentGenerationStopRequestedRef.current.has(campaign.id)) {
+      setCampaignContentGenerationState(campaign.id, {
+        status: "running",
+        total: 100,
+        completed: 0,
+        generated: 0,
+        failed: 0,
+        suppressed: 0,
+        currentLeadId: null,
+        remainingLeadIds: [],
+        jobId: response.jobId || response.taskId || null,
+      });
+      toast.success("Content generation queued", {
+        description: `${requestedCount} eligible lead${requestedCount === 1 ? "" : "s"} sent to the content generation worker.`,
+      });
+      await fetchData({ silent: true, showErrors: false });
+    } catch (error: unknown) {
+      const controller = contentGenerationControllersRef.current.get(campaign.id);
+      if (controller) contentGenerationControllersRef.current.delete(campaign.id);
+      if (isContentGenerationAbortError(error)) {
         setCampaignContentGenerationState(campaign.id, {
           status: "paused",
-          total: leadIds.length,
+          total: 0,
           completed: 0,
           generated: 0,
           failed: 0,
           suppressed: 0,
           currentLeadId: null,
-          remainingLeadIds: leadIds,
+          remainingLeadIds: [],
         });
-        return;
+        toast.info("Content generation stopped", {
+          description: "The campaign generation request was stopped before it was queued.",
+        });
+      } else {
+        clearCampaignContentGeneration(campaign.id);
+        toast.error("Content generation failed", { description: getErrorMessage(error) });
       }
-
-      await runCampaignContentGenerationQueue(campaign.id, leadIds);
-    } catch (error: unknown) {
-      clearCampaignContentGeneration(campaign.id);
-      toast.error("Content generation failed", { description: getErrorMessage(error) });
     }
   };
 
-  const handleStopCampaignContentGeneration = (campaignId: string, event?: React.MouseEvent) => {
+  const handleStopCampaignContentGeneration = async (campaignId: string, event?: React.MouseEvent) => {
     event?.preventDefault();
     if (!isSuperAdmin) return;
-    const state = contentGenerationByCampaign[campaignId];
+    const campaign = items.find((item) => item.id === campaignId);
+    const state =
+      contentGenerationByCampaign[campaignId] ||
+      (campaign ? stateFromContentGenerationJob(campaign.contentGenerationJob, campaign) : null);
     if (!state || state.status === "paused" || state.status === "stopping") return;
 
     contentGenerationStopRequestedRef.current.add(campaignId);
     const controller = contentGenerationControllersRef.current.get(campaignId);
-    if (controller) controller.abort();
     setContentGenerationByCampaign((prev) => ({
       ...prev,
       [campaignId]: { ...state, status: "stopping" },
     }));
+    if (state.jobId) {
+      try {
+        await cancelCampaignContentGenerationJob(campaignId, state.jobId);
+        toast.info("Content generation stop requested", {
+          description: "The worker will stop after the current lead finishes.",
+        });
+        await fetchData({ silent: true, showErrors: false });
+      } catch (error: unknown) {
+        setContentGenerationByCampaign((prev) => ({
+          ...prev,
+          [campaignId]: state,
+        }));
+        toast.error("Stop content generation failed", { description: getErrorMessage(error) });
+      }
+      return;
+    }
+    if (controller) controller.abort();
   };
 
   const handleContinueCampaignContentGeneration = async (campaignId: string, event?: React.MouseEvent) => {
     event?.preventDefault();
     if (!isSuperAdmin) return;
-    const state = contentGenerationByCampaign[campaignId];
+    const campaign = items.find((item) => item.id === campaignId);
+    const state =
+      contentGenerationByCampaign[campaignId] ||
+      (campaign ? stateFromContentGenerationJob(campaign.contentGenerationJob, campaign) : null);
     if (!state || state.status !== "paused") return;
 
     const remainingLeadIds = [...state.remainingLeadIds];
     if (remainingLeadIds.length === 0) {
+      if (campaign) {
+        contentGenerationStopRequestedRef.current.delete(campaignId);
+        await handleGenerateCampaignContent(campaign, undefined, { force: true });
+        return;
+      }
       clearCampaignContentGeneration(campaignId);
       return;
     }
@@ -1009,7 +1156,9 @@ function SuperAdminCampaignsPage() {
                 const creatorText = creatorName
                   ? `${isManualUploadCampaign(campaign) ? "Uploaded" : "Created"} by ${creatorName}`
                   : "Creator not recorded";
-                const contentGenerationState = contentGenerationByCampaign[campaign.id];
+                const contentGenerationState =
+                  contentGenerationByCampaign[campaign.id] ||
+                  stateFromContentGenerationJob(campaign.contentGenerationJob, campaign);
                 const isPreparingContent = contentGenerationState?.status === "preparing";
                 const isRunningContent =
                   contentGenerationState?.status === "preparing" ||
@@ -1017,7 +1166,9 @@ function SuperAdminCampaignsPage() {
                   contentGenerationState?.status === "stopping";
                 const isContentPaused = contentGenerationState?.status === "paused";
                 const contentProgressLabel =
-                  contentGenerationState && contentGenerationState.total > 0
+                  contentGenerationState?.jobId
+                    ? `${contentGenerationState.completed}%`
+                    : contentGenerationState && contentGenerationState.total > 0
                     ? `${contentGenerationState.completed}/${contentGenerationState.total}`
                     : "";
 
@@ -1132,7 +1283,7 @@ function SuperAdminCampaignsPage() {
                           {isSuperAdmin && isRunningContent ? (
                             <Button
                               type="button"
-                              onClick={(e) => handleStopCampaignContentGeneration(campaign.id, e)}
+                              onClick={(e) => void handleStopCampaignContentGeneration(campaign.id, e)}
                               disabled={contentGenerationState?.status === "stopping"}
                               title={
                                 isPreparingContent
@@ -1156,10 +1307,14 @@ function SuperAdminCampaignsPage() {
                           ) : isSuperAdmin && isContentPaused ? (
                             <Button
                               type="button"
-                              onClick={(e) => handleContinueCampaignContentGeneration(campaign.id, e)}
-                              title={`Continue remaining ${contentGenerationState?.remainingLeadIds.length ?? 0} lead${
-                                (contentGenerationState?.remainingLeadIds.length ?? 0) === 1 ? "" : "s"
-                              }`}
+                              onClick={(e) => void handleContinueCampaignContentGeneration(campaign.id, e)}
+                              title={
+                                (contentGenerationState?.remainingLeadIds.length ?? 0) > 0
+                                  ? `Continue remaining ${contentGenerationState?.remainingLeadIds.length ?? 0} lead${
+                                      (contentGenerationState?.remainingLeadIds.length ?? 0) === 1 ? "" : "s"
+                                    }`
+                                  : "Continue campaign content generation"
+                              }
                               className="h-9 rounded-md border border-blue-200/85 bg-blue-50 px-3.5 text-xs font-semibold text-blue-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.35),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-blue-300 hover:bg-blue-100 hover:text-blue-800"
                             >
                               <Play className="mr-1.5 h-3.5 w-3.5 fill-current" />
