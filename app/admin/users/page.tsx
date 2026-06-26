@@ -403,10 +403,6 @@ export default function AdminUsersPage() {
   }, [eventId]);
 
   const loadClientCredentials = useCallback(async () => {
-    if (isCeo) {
-      setClientCredentials([]);
-      return;
-    }
     setLoadingClientCredentials(true);
     try {
       const rows = await listAdminClientCredentials({ includeInactive: true });
@@ -417,7 +413,7 @@ export default function AdminUsersPage() {
     } finally {
       setLoadingClientCredentials(false);
     }
-  }, [isCeo]);
+  }, []);
 
   useEffect(() => {
     void loadUsers();
@@ -974,7 +970,7 @@ export default function AdminUsersPage() {
                           key={item.id}
                           item={item}
                           isSelf={item.id === currentUser?.id}
-                          showClientAccess={!isCeo}
+                          showClientAccess
                           clientCredentials={clientCredentialsByUserId.get(item.id) || []}
                           onEdit={() => startEdit(item)}
                           onPassword={() => {
@@ -1395,7 +1391,7 @@ export default function AdminUsersPage() {
                 </Select>
               </div>
 
-              {!isCeo && form.role === "client_user" ? (
+              {form.role === "client_user" ? (
                 <div className="space-y-4 rounded-lg border border-blue-100 bg-blue-50/70 p-4 md:col-span-2">
                   <div className="flex items-start justify-between gap-3">
                     <div>
