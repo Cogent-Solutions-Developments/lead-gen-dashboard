@@ -27,6 +27,7 @@ import {
   Save,
   Loader2,
   Trash2,
+  RotateCcw,
   Paperclip,
   UploadCloud,
   PhoneOff,
@@ -43,6 +44,8 @@ import {
   deleteCampaignEmailTemplate,
   generateSelectedCampaignLeadContent,
   getCampaignEmailTemplate,
+  resetLeadContent,
+  resetSelectedCampaignLeadContent,
   type CampaignImportSummary,
   type CampaignEmailTemplateDeleteFallbackDrafts,
   type CampaignEmailTemplateFallbackDrafts,
@@ -775,8 +778,6 @@ function SuperAdminCampaignDetailPage() {
   const [contentGenerationQueue, setContentGenerationQueue] = useState<ContentGenerationQueueState>(
     EMPTY_CONTENT_GENERATION_QUEUE
   );
-  const [rowContentGenerationLoading, setRowContentGenerationLoading] = useState<Set<string>>(new Set());
-  const [rowContentGenerationPaused, setRowContentGenerationPaused] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(15);
   const [uploadImportSummary, setUploadImportSummary] = useState<CampaignImportSummary | null>(null);
@@ -800,6 +801,8 @@ function SuperAdminCampaignDetailPage() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [editForm, setEditForm] = useState<Partial<Lead>>({});
   const [saving, setSaving] = useState(false);
+  const [isResettingContent, setIsResettingContent] = useState(false);
+  const [isBulkResettingContent, setIsBulkResettingContent] = useState(false);
 
   // ✅ Separate pending queues
   const [pendingEmailUploads, setPendingEmailUploads] = useState<PendingUpload[]>([]);
@@ -812,7 +815,7 @@ function SuperAdminCampaignDetailPage() {
   const tableFilterRef = useRef<HTMLDivElement | null>(null);
   const universalAttachmentRef = useRef<HTMLInputElement | null>(null);
   const contentGenerationPauseRequestedRef = useRef(false);
-  const rowContentGenerationControllersRef = useRef<Map<string, AbortController>>(new Map());
+  const contentGenerationControllerRef = useRef<AbortController | null>(null);
 
   const pendingCount = useMemo(() => leads.filter((l) => l.approvalStatus === "pending").length, [leads]);
   const approvedCount = useMemo(() => leads.filter((l) => l.approvalStatus === "approved").length, [leads]);
@@ -951,8 +954,8 @@ function SuperAdminCampaignDetailPage() {
     if (lead.suppression?.active) return true;
     return Boolean(leadOptOutById.get(lead.id));
   }
-  function isLeadOutreachBlocked(lead: Lead) {
-    return isLeadMarketingOptedOut(lead) || lead.sendable === false;
+  function isLeadSelectionBlocked(lead: Lead) {
+    return isLeadMarketingOptedOut(lead);
   }
   function leadSupportsEmailAction(lead: Lead) {
     return hasText(lead.email);
@@ -1095,9 +1098,16 @@ function SuperAdminCampaignDetailPage() {
   }, [filteredLeads, currentPage, itemsPerPage]);
   const selectedBulkCount = Array.from(selectedBulkLeadIds).reduce((count, leadId) => {
     const lead = leadById.get(leadId);
-    if (!lead || isLeadOutreachBlocked(lead)) return count;
+    if (!lead || isLeadSelectionBlocked(lead)) return count;
     return count + 1;
   }, 0);
+  const selectedContentResetLeads = Array.from(selectedBulkLeadIds)
+    .map((leadId) => leadById.get(leadId))
+    .filter((lead): lead is Lead => {
+      if (!lead) return false;
+      return !isLeadSelectionBlocked(lead);
+    });
+  const selectedContentResetCount = selectedContentResetLeads.length;
   const selectedContentGenerationLeads = useMemo(
     () =>
       Array.from(selectedBulkLeadIds)
@@ -1105,7 +1115,6 @@ function SuperAdminCampaignDetailPage() {
         .filter((lead): lead is Lead => {
           if (!lead || !hasText(lead.email)) return false;
           const blocked =
-            lead.sendable === false ||
             lead.contactReadOnly ||
             lead.approvalStatus === "suppressed" ||
             lead.isSuppressed ||
@@ -1159,7 +1168,7 @@ function SuperAdminCampaignDetailPage() {
   const isContentGenerationPaused = contentGenerationQueue.status === "paused";
   const isContentGenerationActive = isBulkGeneratingContent || isContentGenerationPaused;
   const selectableCurrentPageLeads = canManageLeadActions
-    ? paginatedLeads.filter((lead) => !isLeadOutreachBlocked(lead))
+    ? paginatedLeads.filter((lead) => !isLeadSelectionBlocked(lead))
     : [];
   const isCurrentPageAllSelected =
     selectableCurrentPageLeads.length > 0 &&
@@ -1860,7 +1869,7 @@ function SuperAdminCampaignDetailPage() {
 
   const handleSelectBulkLead = (leadId: string, checked: boolean) => {
     const lead = leadById.get(leadId);
-    if (!lead || isLeadOutreachBlocked(lead)) return;
+    if (!lead || isLeadSelectionBlocked(lead)) return;
 
     setSelectedBulkLeadIds((prev) => {
       const next = new Set(prev);
@@ -1885,39 +1894,12 @@ function SuperAdminCampaignDetailPage() {
     setSelectedBulkLeadIds(new Set(selectableFilteredLeads.map((lead) => lead.id)));
   };
 
-  const setRowContentGenerationLoadingForLead = (leadId: string, value: boolean) => {
-    setRowContentGenerationLoading((prev) => {
-      const next = new Set(prev);
-      if (value) next.add(leadId);
-      else next.delete(leadId);
-      return next;
-    });
-  };
-
-  const setRowContentGenerationPausedForLead = (leadId: string, value: boolean) => {
-    setRowContentGenerationPaused((prev) => {
-      const next = new Set(prev);
-      if (value) next.add(leadId);
-      else next.delete(leadId);
-      return next;
-    });
-  };
-
   const isContentGenerationAbortError = (error: any) =>
     error?.code === "ERR_CANCELED" || error?.name === "CanceledError" || error?.name === "AbortError";
 
   const resetContentGenerationQueue = () => {
     contentGenerationPauseRequestedRef.current = false;
     setContentGenerationQueue({ ...EMPTY_CONTENT_GENERATION_QUEUE, remainingLeadIds: [] });
-  };
-
-  const getLeadContentGenerationDisabledReason = (lead: Lead, options?: { allowPaused?: boolean }) => {
-    if (isContentGenerationActive) return "Finish the selected content generation queue first.";
-    if (!hasText(lead.email)) return "Lead needs an email address for content generation.";
-    if (isLeadOutreachBlocked(lead)) return "Lead actions are blocked.";
-    if (rowContentGenerationLoading.has(lead.id)) return "Content generation is already running for this lead.";
-    if (!options?.allowPaused && rowContentGenerationPaused.has(lead.id)) return "Use Continue to resume this lead.";
-    return null;
   };
 
   const runContentGenerationQueue = async (leadIds: string[], stats?: ContentGenerationStats) => {
@@ -1973,23 +1955,50 @@ function SuperAdminCampaignDetailPage() {
         currentLeadId: leadId,
         remainingLeadIds: leadIds.slice(index + 1),
       });
-      setRowContentGenerationLoadingForLead(leadId, true);
 
+      const controller = new AbortController();
+      contentGenerationControllerRef.current = controller;
+      let aborted = false;
       try {
         const response = await generateSelectedCampaignLeadContent({
           campaignId,
           leadIds: [leadId],
+          signal: controller.signal,
         });
         generated += Number(response?.generatedCount ?? 0);
         failed += Number(response?.failedCount ?? 0);
         suppressed += Number(response?.suppressedCount ?? 0);
-      } catch {
-        failed += 1;
+      } catch (error: any) {
+        if (isContentGenerationAbortError(error)) {
+          aborted = true;
+        } else {
+          failed += 1;
+        }
       } finally {
-        completed += 1;
-        setRowContentGenerationLoadingForLead(leadId, false);
+        if (contentGenerationControllerRef.current === controller) {
+          contentGenerationControllerRef.current = null;
+        }
       }
 
+      if (aborted) {
+        setContentGenerationQueue({
+          status: "paused",
+          total,
+          completed,
+          generated,
+          failed,
+          suppressed,
+          currentLeadId: null,
+          remainingLeadIds: leadIds.slice(index),
+        });
+        toast.info("Content generation stopped", {
+          description: `${completed}/${total} lead${total === 1 ? "" : "s"} processed.`,
+        });
+        await fetchAll({ silent: true });
+        return;
+      }
+
+      completed += 1;
       const remainingLeadIds = leadIds.slice(index + 1);
       if (contentGenerationPauseRequestedRef.current) {
         setContentGenerationQueue({
@@ -2035,72 +2044,6 @@ function SuperAdminCampaignDetailPage() {
     await fetchAll({ silent: true });
   };
 
-  const handleGenerateLeadContent = async (lead: Lead, options?: { allowPaused?: boolean }) => {
-    if (!canManageLeadActions) return;
-    const disabledReason = getLeadContentGenerationDisabledReason(lead, options);
-    if (disabledReason) {
-      toast.warning("Content generation unavailable", { description: disabledReason });
-      return;
-    }
-
-    const controller = new AbortController();
-    rowContentGenerationControllersRef.current.set(lead.id, controller);
-    setRowContentGenerationPausedForLead(lead.id, false);
-    setRowContentGenerationLoadingForLead(lead.id, true);
-    try {
-      const response = await generateSelectedCampaignLeadContent({
-        campaignId,
-        leadIds: [lead.id],
-        signal: controller.signal,
-      });
-      const generatedCount = Number(response?.generatedCount ?? 0);
-      const failedCount = Number(response?.failedCount ?? 0);
-      const suppressedCount = Number(response?.suppressedCount ?? 0);
-      if (generatedCount > 0) {
-        toast.success("Content generated", {
-          description: "Lead content is ready for review.",
-        });
-      } else {
-        toast.warning("No content generated", {
-          description: `${suppressedCount} suppressed, ${failedCount} failed.`,
-        });
-      }
-      await fetchAll({ silent: true });
-    } catch (error: any) {
-      if (isContentGenerationAbortError(error)) {
-        setRowContentGenerationPausedForLead(lead.id, true);
-        toast.info("Content generation stopped", {
-          description: "Use Continue on this row to start it again.",
-        });
-        return;
-      }
-      toast.error("Content generation failed", {
-        description: error?.response?.data?.detail || error?.message || "Please try again.",
-      });
-    } finally {
-      if (rowContentGenerationControllersRef.current.get(lead.id) === controller) {
-        rowContentGenerationControllersRef.current.delete(lead.id);
-      }
-      setRowContentGenerationLoadingForLead(lead.id, false);
-    }
-  };
-
-  const handleStopLeadContentGeneration = (leadId: string) => {
-    const controller = rowContentGenerationControllersRef.current.get(leadId);
-    if (controller) {
-      controller.abort();
-      return;
-    }
-    if (contentGenerationQueue.currentLeadId === leadId) {
-      handleStopContentGeneration();
-    }
-  };
-
-  const handleContinueLeadContentGeneration = async (lead: Lead) => {
-    setRowContentGenerationPausedForLead(lead.id, false);
-    await handleGenerateLeadContent(lead, { allowPaused: true });
-  };
-
   const handleBulkGenerateContent = async () => {
     if (!canManageLeadActions || isContentGenerationActive) return;
     if (selectedContentGenerationCount === 0) {
@@ -2124,6 +2067,7 @@ function SuperAdminCampaignDetailPage() {
   const handleStopContentGeneration = () => {
     if (!canManageLeadActions || contentGenerationQueue.status !== "running") return;
     contentGenerationPauseRequestedRef.current = true;
+    contentGenerationControllerRef.current?.abort();
     setContentGenerationQueue((prev) => ({ ...prev, status: "stopping" }));
   };
 
@@ -2618,6 +2562,93 @@ function SuperAdminCampaignDetailPage() {
     }));
   };
 
+  const mergeLeadContentResponse = (lead: Lead, data: any): Lead => ({
+    ...lead,
+    draftId: data.draftId == null ? lead.draftId ?? null : String(data.draftId),
+    draftStatus: data.draftStatus == null ? lead.draftStatus ?? null : String(data.draftStatus),
+    contentEmailSubject: data.contentEmailSubject ?? "",
+    contentEmail: data.contentEmail ?? "",
+    contentLinkedin: data.contentLinkedin ?? "",
+    contentWhatsapp: data.contentWhatsapp ?? "",
+    contentSource: data.contentSource == null ? "empty" : normalizeContentSource(data.contentSource),
+    templateFallback: data.templateFallback == null ? false : parseBoolean(data.templateFallback),
+    approvalStatus: (data.approvalStatus ?? lead.approvalStatus ?? "pending") as ApprovalStatus,
+    reviewStatus: data.reviewStatus ?? data.approvalStatus ?? lead.reviewStatus ?? null,
+    isSuppressed: data.isSuppressed == null ? lead.isSuppressed : Boolean(data.isSuppressed),
+    suppression: data.suppression === undefined ? lead.suppression : data.suppression,
+    contactReadOnly: data.contactReadOnly == null ? lead.contactReadOnly : Boolean(data.contactReadOnly),
+    sendable: data.sendable == null ? lead.sendable : Boolean(data.sendable),
+    channelCapabilities: data.channelCapabilities ?? lead.channelCapabilities,
+  });
+
+  const applyLeadContentResponses = (items: any[]) => {
+    const byId = new Map(items.filter((item) => item?.id).map((item) => [String(item.id), item]));
+    if (byId.size === 0) return;
+
+    setLeads((prev) => prev.map((lead) => (byId.has(lead.id) ? mergeLeadContentResponse(lead, byId.get(lead.id)) : lead)));
+    setSelectedLead((prev) => (prev && byId.has(prev.id) ? mergeLeadContentResponse(prev, byId.get(prev.id)) : prev));
+
+    const activeLeadId = selectedLead?.id;
+    if (activeLeadId && byId.has(activeLeadId)) {
+      const data = byId.get(activeLeadId);
+      setEditForm((prev) => ({
+        ...prev,
+        contentEmailSubject: data.contentEmailSubject ?? "",
+        contentEmail: data.contentEmail ?? "",
+        contentLinkedin: data.contentLinkedin ?? "",
+        contentWhatsapp: data.contentWhatsapp ?? "",
+        contentSource: data.contentSource == null ? "empty" : normalizeContentSource(data.contentSource),
+        templateFallback: data.templateFallback == null ? false : parseBoolean(data.templateFallback),
+        approvalStatus: (data.approvalStatus ?? "pending") as ApprovalStatus,
+        reviewStatus: data.reviewStatus ?? data.approvalStatus ?? null,
+      }));
+    }
+  };
+
+  const handleResetContentPreview = async () => {
+    if (!canManageLeadActions || !selectedLead || isResettingContent) return;
+
+    setIsResettingContent(true);
+    try {
+      const result = await resetLeadContent(selectedLead.id);
+      applyLeadContentResponses([result]);
+      toast.success("Content reset", {
+        description: "This lead now has empty content and will stay empty after refresh.",
+      });
+      await fetchAll({ silent: true });
+    } catch (e: any) {
+      toast.error("Reset failed", { description: e?.response?.data?.detail || e?.message });
+    } finally {
+      setIsResettingContent(false);
+    }
+  };
+
+  const handleBulkResetContent = async () => {
+    if (!canManageLeadActions || isBulkResettingContent || selectedContentResetCount === 0) return;
+
+    setIsBulkResettingContent(true);
+    try {
+      const result = await resetSelectedCampaignLeadContent({
+        campaignId,
+        leadIds: selectedContentResetLeads.map((lead) => lead.id),
+      });
+      applyLeadContentResponses(result.leads || []);
+      toast.success("Selected content reset", {
+        description: `${result.resetCount} lead${result.resetCount === 1 ? "" : "s"} reset to empty content.`,
+      });
+      if (result.failedCount > 0) {
+        toast.warning("Some selected leads were not reset", {
+          description: `${result.failedCount} lead${result.failedCount === 1 ? "" : "s"} failed.`,
+        });
+      }
+      await fetchAll({ silent: true });
+    } catch (e: any) {
+      toast.error("Selected reset failed", { description: e?.response?.data?.detail || e?.message });
+    } finally {
+      setIsBulkResettingContent(false);
+    }
+  };
+
   // -----------------------------
   // Save only (content updates only)
   // -----------------------------
@@ -2975,7 +3006,7 @@ function SuperAdminCampaignDetailPage() {
                   type="button"
                   onClick={handleStopContentGeneration}
                   className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-red-600 transition-colors hover:text-red-700"
-                  title="Stop after the current lead finishes"
+                  title="Stop content generation"
                 >
                   <Square className="h-3 w-3" />
                   Stop
@@ -2985,7 +3016,7 @@ function SuperAdminCampaignDetailPage() {
                   type="button"
                   disabled
                   className="inline-flex cursor-not-allowed items-center gap-1 px-2 py-1 text-[11px] font-semibold text-zinc-400"
-                  title="Stopping after the current lead finishes"
+                  title="Stopping content generation"
                 >
                   <Loader2 className="h-3 w-3 animate-spin" />
                   Stopping
@@ -3003,6 +3034,27 @@ function SuperAdminCampaignDetailPage() {
                   Continue
                 </button>
               ) : null}
+
+              <button
+                type="button"
+                onClick={() => void handleBulkResetContent()}
+                disabled={selectedContentResetCount === 0 || isBulkResettingContent}
+                title={
+                  selectedContentResetCount === 0
+                    ? "Select leads to reset content"
+                    : `Reset content for ${selectedContentResetCount} selected lead${
+                        selectedContentResetCount === 1 ? "" : "s"
+                      }`
+                }
+                className="inline-flex items-center gap-1.5 px-2 py-1 text-[11px] font-semibold text-amber-700 transition-colors hover:text-amber-800 disabled:cursor-not-allowed disabled:text-zinc-300"
+              >
+                {isBulkResettingContent ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RotateCcw className="h-3.5 w-3.5" />
+                )}
+                {isBulkResettingContent ? "Resetting" : "Reset Content"}
+              </button>
 
               <span className="mx-1 h-4 w-px bg-zinc-300/80" aria-hidden="true" />
 
@@ -3290,7 +3342,6 @@ function SuperAdminCampaignDetailPage() {
                 const optOutEntry = leadOptOutById.get(item.id) ?? null;
                 const isOptedOut = Boolean(optOutEntry);
                 const isLeadReadOnly = isLeadMarketingOptedOut(item);
-                const isOutreachBlocked = isLeadOutreachBlocked(item);
                 const canSendEmail = leadSupportsEmailAction(item);
                 const canSendWhatsapp = leadSupportsWhatsappAction(item);
                 const showEmailAction = canSendEmail;
@@ -3303,9 +3354,6 @@ function SuperAdminCampaignDetailPage() {
                 const sendWhatsappDisabledReason = getLeadSendActionDisabledReason(item, "whatsapp");
                 const isSendingEmail = Boolean(leadSendLoading[item.id]?.email);
                 const isSendingWhatsapp = Boolean(leadSendLoading[item.id]?.whatsapp);
-                const isGeneratingLeadContent = rowContentGenerationLoading.has(item.id);
-                const isLeadContentGenerationPaused = rowContentGenerationPaused.has(item.id);
-                const contentGenerationDisabledReason = getLeadContentGenerationDisabledReason(item);
                 const disableWhatsappAction = (!hasText(item.phone) && !hasText(item.email)) || isOptedOut;
                 const smsDisabledReason = !hasText(item.phone)
                   ? "Lead has no phone number"
@@ -3335,7 +3383,7 @@ function SuperAdminCampaignDetailPage() {
                           checked={selectedBulkLeadIds.has(item.id)}
                           onChange={(e) => handleSelectBulkLead(item.id, e.target.checked)}
                           aria-label={`Select ${item.employeeName}`}
-                          disabled={isOutreachBlocked}
+                          disabled={isLeadSelectionBlocked(item)}
                           className="mt-0.5 h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
                         />
                       </td>
@@ -3400,50 +3448,6 @@ function SuperAdminCampaignDetailPage() {
                               </span>
                             ) : null}
                             <div className="flex flex-wrap items-center gap-1.5">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 rounded-md border border-violet-200/90 bg-white/82 text-violet-700 shadow-[0_8px_14px_-12px_rgba(76,29,149,0.42)] hover:border-violet-300 hover:bg-violet-50 hover:text-violet-800 disabled:cursor-not-allowed disabled:opacity-45"
-                                onClick={() => void handleGenerateLeadContent(item)}
-                                disabled={Boolean(contentGenerationDisabledReason)}
-                                title={
-                                  contentGenerationDisabledReason ||
-                                  (item.contentEmail && item.contentEmailSubject
-                                    ? "Regenerate personalized content"
-                                    : "Generate personalized content")
-                                }
-                              >
-                                {isGeneratingLeadContent ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <Sparkles className="h-3.5 w-3.5" />
-                                )}
-                              </Button>
-                              {isGeneratingLeadContent ? (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 rounded-md border border-red-200 bg-white/82 px-2 text-[11px] font-semibold text-red-600 shadow-none hover:border-red-300 hover:bg-red-50 hover:text-red-700"
-                                  onClick={() => handleStopLeadContentGeneration(item.id)}
-                                  title="Stop this content generation"
-                                >
-                                  <Square className="mr-1 h-3 w-3" />
-                                  Stop
-                                </Button>
-                              ) : isLeadContentGenerationPaused ? (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 rounded-md border border-emerald-200 bg-white/82 px-2 text-[11px] font-semibold text-emerald-700 shadow-none hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800"
-                                  onClick={() => void handleContinueLeadContentGeneration(item)}
-                                  title="Continue this content generation"
-                                >
-                                  <Play className="mr-1 h-3.5 w-3.5" />
-                                  Continue
-                                </Button>
-                              ) : null}
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -4022,8 +4026,23 @@ function SuperAdminCampaignDetailPage() {
                   <div className="flex justify-end gap-3">
                     <Button
                       variant="ghost"
+                      className="h-9 rounded-md border border-amber-300 bg-amber-50 px-3 text-amber-800 hover:border-amber-400 hover:bg-amber-100 hover:text-amber-900"
+                      disabled={saving || isResettingContent}
+                      onClick={() => void handleResetContentPreview()}
+                      title="Reset this lead to empty saved content"
+                    >
+                      {isResettingContent ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                      )}
+                      {isResettingContent ? "Resetting" : "Reset"}
+                    </Button>
+
+                    <Button
+                      variant="ghost"
                       className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-600 hover:border-zinc-400 hover:bg-zinc-50 hover:text-zinc-900"
-                      disabled={saving}
+                      disabled={saving || isResettingContent}
                       onClick={handleClearContentPreview}
                       title="Clear the subject and email body in this preview"
                     >
@@ -4034,7 +4053,7 @@ function SuperAdminCampaignDetailPage() {
                     <Button
                       variant="ghost"
                       className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                      disabled={isLeadMarketingOptedOut(selectedLead)}
+                      disabled={isLeadMarketingOptedOut(selectedLead) || isResettingContent}
                       onClick={async () => {
                         await handleReject(selectedLead.id);
                         closeModal();
@@ -4045,7 +4064,7 @@ function SuperAdminCampaignDetailPage() {
 
                     <Button
                       className="btn-sidebar-noise h-9 px-3.5"
-                      disabled={saving}
+                      disabled={saving || isResettingContent}
                       onClick={handleSave}
                     >
                       {saving ? (
@@ -4057,9 +4076,25 @@ function SuperAdminCampaignDetailPage() {
                     </Button>
                   </div>
                 ) : (
-                  <Button variant="outline" onClick={closeModal} className="analytics-frost-btn h-9 min-w-24 px-3">
-                    Close
-                  </Button>
+                  <div className="flex justify-end gap-3">
+                    <Button
+                      variant="ghost"
+                      className="h-9 rounded-md border border-amber-300 bg-amber-50 px-3 text-amber-800 hover:border-amber-400 hover:bg-amber-100 hover:text-amber-900"
+                      disabled={isResettingContent}
+                      onClick={() => void handleResetContentPreview()}
+                      title="Reset this lead to empty saved content"
+                    >
+                      {isResettingContent ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                      )}
+                      {isResettingContent ? "Resetting" : "Reset"}
+                    </Button>
+                    <Button variant="outline" onClick={closeModal} className="analytics-frost-btn h-9 min-w-24 px-3">
+                      Close
+                    </Button>
+                  </div>
                 )}
               </div>
             </motion.div>

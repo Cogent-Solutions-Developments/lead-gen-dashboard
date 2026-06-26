@@ -81,6 +81,9 @@ export type {
   ApproveSelectedLeadsResponse,
   GenerateSelectedLeadContentRequest,
   GenerateSelectedLeadContentResponse,
+  ResetLeadContentResponse,
+  ResetSelectedLeadContentRequest,
+  ResetSelectedLeadContentResponse,
   SendSelectedLeadsRequest,
   SendSelectedLeadsResponse,
   SendAdminLeadSmsResponse,
@@ -238,6 +241,9 @@ export const rejectLead: typeof sales.rejectLead = (...args) =>
 export const updateLeadContent: typeof sales.updateLeadContent = (...args) =>
   pickModule().updateLeadContent(...args);
 
+export const resetLeadContent: typeof sales.resetLeadContent = (...args) =>
+  pickModule().resetLeadContent(...args);
+
 export const generateLeadEmailContent: typeof sales.generateLeadEmailContent = (...args) =>
   pickModule().generateLeadEmailContent(...args);
 
@@ -279,6 +285,9 @@ export const approveSelectedCampaignLeads: typeof sales.approveSelectedCampaignL
 
 export const generateSelectedCampaignLeadContent: typeof sales.generateSelectedCampaignLeadContent = (...args) =>
   pickModule().generateSelectedCampaignLeadContent(...args);
+
+export const resetSelectedCampaignLeadContent: typeof sales.resetSelectedCampaignLeadContent = (...args) =>
+  pickModule().resetSelectedCampaignLeadContent(...args);
 
 export const sendSelectedCampaignLeads: typeof sales.sendSelectedCampaignLeads = (...args) =>
   pickModule().sendSelectedCampaignLeads(...args);

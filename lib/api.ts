@@ -408,6 +408,43 @@ export type GenerateSelectedLeadContentResponse = {
   generationMode?: string | null;
 };
 
+export type ResetSelectedLeadContentRequest = {
+  campaignId: string;
+  leadIds: string[];
+};
+
+export type ResetLeadContentResponse = {
+  id: string;
+  draftId?: string | null;
+  draftStatus?: string | null;
+  contentEmailSubject: string | null;
+  contentEmail: string | null;
+  contentLinkedin: string | null;
+  contentWhatsapp: string | null;
+  contentSource?: string | null;
+  templateFallback?: boolean | null;
+  approvalStatus?: string | null;
+  reviewStatus?: string | null;
+  isSuppressed?: boolean | null;
+  suppression?: SuppressionMeta | null;
+  contactReadOnly?: boolean | null;
+  sendable?: boolean | null;
+  channelCapabilities?: ChannelCapabilities | null;
+  updatedAt?: string | null;
+};
+
+export type ResetSelectedLeadContentResponse = {
+  message: string;
+  campaignId: string;
+  requestedCount: number;
+  resetCount: number;
+  resetLeadIds: string[];
+  leads: ResetLeadContentResponse[];
+  missingLeadIds?: string[];
+  failedCount: number;
+  failed?: Array<{ leadId: string; error: string }>;
+};
+
 export type SendSelectedLeadsRequest = {
   campaignId: string;
   leadIds: string[];
@@ -1650,6 +1687,11 @@ export async function updateLeadContent(id: string, payload: {
   return data;
 }
 
+export async function resetLeadContent(id: string) {
+  const { data } = await apiClient.post<ResetLeadContentResponse>(`/api/leads/${id}/content/reset`);
+  return data;
+}
+
 export async function generateLeadEmailContent(id: string, payload?: LeadEmailGenerationRequest) {
   const { data } = await apiClient.post<LeadEmailGenerationResponse>(
     `/api/leads/${id}/email-content/generate`,
@@ -1835,6 +1877,15 @@ export async function generateSelectedCampaignLeadContent(payload: GenerateSelec
     `/api/campaigns/${campaignId}/content/generate-selected`,
     { leadIds, feedback },
     { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS, signal }
+  );
+  return data;
+}
+
+export async function resetSelectedCampaignLeadContent(payload: ResetSelectedLeadContentRequest) {
+  const { campaignId, leadIds } = payload;
+  const { data } = await apiClient.post<ResetSelectedLeadContentResponse>(
+    `/api/campaigns/${campaignId}/content/reset-selected`,
+    { leadIds }
   );
   return data;
 }

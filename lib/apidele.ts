@@ -56,6 +56,9 @@ import type {
   ApproveSelectedLeadsResponse,
   GenerateSelectedLeadContentRequest,
   GenerateSelectedLeadContentResponse,
+  ResetLeadContentResponse,
+  ResetSelectedLeadContentRequest,
+  ResetSelectedLeadContentResponse,
   SendSelectedLeadsRequest,
   SendSelectedLeadsResponse,
   CreateWhatsAppOptOutRequest,
@@ -614,6 +617,13 @@ export async function updateLeadContent(
   return data;
 }
 
+export async function resetLeadContent(id: string) {
+  const { data } = await apiClientDelegate.post<ResetLeadContentResponse>(
+    `/api/delegates/leads/${id}/content/reset`
+  );
+  return data;
+}
+
 export async function generateLeadEmailContent(id: string, payload?: LeadEmailGenerationRequest) {
   const { data } = await apiClientDelegate.post<LeadEmailGenerationResponse>(
     `/api/delegates/leads/${id}/email-content/generate`,
@@ -791,6 +801,15 @@ export async function generateSelectedCampaignLeadContent(payload: GenerateSelec
     `/api/delegates/campaigns/${campaignId}/content/generate-selected`,
     { leadIds, feedback },
     { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS, signal }
+  );
+  return data;
+}
+
+export async function resetSelectedCampaignLeadContent(payload: ResetSelectedLeadContentRequest) {
+  const { campaignId, leadIds } = payload;
+  const { data } = await apiClientDelegate.post<ResetSelectedLeadContentResponse>(
+    `/api/delegates/campaigns/${campaignId}/content/reset-selected`,
+    { leadIds }
   );
   return data;
 }
