@@ -387,6 +387,26 @@ export type ApproveSelectedLeadsResponse = {
   suppressedCount?: number;
 };
 
+export type GenerateSelectedLeadContentRequest = {
+  campaignId: string;
+  leadIds: string[];
+  feedback?: string;
+};
+
+export type GenerateSelectedLeadContentResponse = {
+  message: string;
+  campaignId: string;
+  requestedCount: number;
+  generatedCount: number;
+  generatedLeadIds: string[];
+  suppressedCount: number;
+  suppressedLeadIds: string[];
+  missingLeadIds?: string[];
+  failedCount: number;
+  failed?: Array<{ leadId: string; error: string }>;
+  generationMode?: string | null;
+};
+
 export type SendSelectedLeadsRequest = {
   campaignId: string;
   leadIds: string[];
@@ -547,6 +567,7 @@ export type WorkflowStatus = string;
 
 export type LeadItem = {
   id: string;
+  campaignId?: string | null;
   batchId: string;
   employeeName: string;
   title: string;
@@ -1802,6 +1823,16 @@ export async function approveSelectedCampaignLeads(payload: ApproveSelectedLeads
   const { data } = await apiClient.post<ApproveSelectedLeadsResponse>(
     `/api/campaigns/${campaignId}/approve-selected-leads`,
     leadIds
+  );
+  return data;
+}
+
+export async function generateSelectedCampaignLeadContent(payload: GenerateSelectedLeadContentRequest) {
+  const { campaignId, leadIds, feedback } = payload;
+  const { data } = await apiClient.post<GenerateSelectedLeadContentResponse>(
+    `/api/campaigns/${campaignId}/content/generate-selected`,
+    { leadIds, feedback },
+    { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS }
   );
   return data;
 }

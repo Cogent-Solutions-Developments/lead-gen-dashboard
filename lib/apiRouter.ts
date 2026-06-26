@@ -79,6 +79,8 @@ export type {
   UploadCampaignResponse,
   ApproveSelectedLeadsRequest,
   ApproveSelectedLeadsResponse,
+  GenerateSelectedLeadContentRequest,
+  GenerateSelectedLeadContentResponse,
   SendSelectedLeadsRequest,
   SendSelectedLeadsResponse,
   SendAdminLeadSmsResponse,
@@ -274,6 +276,9 @@ export const uploadCampaignCommonAttachment: typeof sales.uploadCampaignCommonAt
 
 export const approveSelectedCampaignLeads: typeof sales.approveSelectedCampaignLeads = (...args) =>
   pickModule().approveSelectedCampaignLeads(...args);
+
+export const generateSelectedCampaignLeadContent: typeof sales.generateSelectedCampaignLeadContent = (...args) =>
+  pickModule().generateSelectedCampaignLeadContent(...args);
 
 export const sendSelectedCampaignLeads: typeof sales.sendSelectedCampaignLeads = (...args) =>
   pickModule().sendSelectedCampaignLeads(...args);

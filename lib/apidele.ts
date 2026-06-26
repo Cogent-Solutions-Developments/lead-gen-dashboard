@@ -54,6 +54,8 @@ import type {
   UploadCommonAttachmentResponse,
   ApproveSelectedLeadsRequest,
   ApproveSelectedLeadsResponse,
+  GenerateSelectedLeadContentRequest,
+  GenerateSelectedLeadContentResponse,
   SendSelectedLeadsRequest,
   SendSelectedLeadsResponse,
   CreateWhatsAppOptOutRequest,
@@ -125,6 +127,8 @@ export type {
   UploadCommonAttachmentResponse,
   ApproveSelectedLeadsRequest,
   ApproveSelectedLeadsResponse,
+  GenerateSelectedLeadContentRequest,
+  GenerateSelectedLeadContentResponse,
   SendSelectedLeadsRequest,
   SendSelectedLeadsResponse,
   CreateWhatsAppOptOutRequest,
@@ -777,6 +781,16 @@ export async function approveSelectedCampaignLeads(payload: ApproveSelectedLeads
   const { data } = await apiClientDelegate.post<ApproveSelectedLeadsResponse>(
     `/api/delegates/campaigns/${campaignId}/approve-selected-leads`,
     leadIds
+  );
+  return data;
+}
+
+export async function generateSelectedCampaignLeadContent(payload: GenerateSelectedLeadContentRequest) {
+  const { campaignId, leadIds, feedback } = payload;
+  const { data } = await apiClientDelegate.post<GenerateSelectedLeadContentResponse>(
+    `/api/delegates/campaigns/${campaignId}/content/generate-selected`,
+    { leadIds, feedback },
+    { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS }
   );
   return data;
 }

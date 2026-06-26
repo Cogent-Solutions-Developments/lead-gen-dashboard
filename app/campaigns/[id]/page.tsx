@@ -18,7 +18,6 @@ import {
   Clock,
   XCircle,
   Eye,
-  Check,
   X,
   Copy,
   Download,
@@ -31,7 +30,10 @@ import {
   Paperclip,
   UploadCloud,
   PhoneOff,
+  Play,
   MessageSquare,
+  Sparkles,
+  Square,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -39,6 +41,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   approveSelectedCampaignLeads,
   deleteCampaignEmailTemplate,
+  generateSelectedCampaignLeadContent,
   getCampaignEmailTemplate,
   type CampaignImportSummary,
   type CampaignEmailTemplateDeleteFallbackDrafts,
@@ -78,7 +81,23 @@ type OutreachState = "pending" | "queued" | "sending" | "sent" | "failed";
 type AttachmentChannel = "email" | "whatsapp" | "common";
 type LeadFilterKey = "new" | "sent" | "rejected" | "suppressed";
 type LeadSendAction = "both" | "email" | "whatsapp";
+type BulkSendChannel = "email" | "whatsapp";
 type LeadContentSource = "template" | "generated" | "manual" | "empty" | "unknown";
+type ContentGenerationQueueStatus = "idle" | "running" | "stopping" | "paused";
+
+type ContentGenerationStats = {
+  total: number;
+  completed: number;
+  generated: number;
+  failed: number;
+  suppressed: number;
+};
+
+type ContentGenerationQueueState = ContentGenerationStats & {
+  status: ContentGenerationQueueStatus;
+  currentLeadId: string | null;
+  remainingLeadIds: string[];
+};
 
 type Attachment = {
   id: string;
@@ -182,6 +201,17 @@ const approvalStyles = {
 };
 
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
+const SELECTED_CONTENT_GENERATION_LIMIT = 25;
+const EMPTY_CONTENT_GENERATION_QUEUE: ContentGenerationQueueState = {
+  status: "idle",
+  total: 0,
+  completed: 0,
+  generated: 0,
+  failed: 0,
+  suppressed: 0,
+  currentLeadId: null,
+  remainingLeadIds: [],
+};
 const EXPORT_HEADERS: Array<keyof LeadExportRow> = [
   "campaignTitle",
   "name",
@@ -740,7 +770,13 @@ function SuperAdminCampaignDetailPage() {
   const [commonAttachmentId, setCommonAttachmentId] = useState<string | null>(null);
   const [isCommonAttachmentUploading, setIsCommonAttachmentUploading] = useState(false);
   const [showBulkSendConfirm, setShowBulkSendConfirm] = useState(false);
+  const [bulkSendChannel, setBulkSendChannel] = useState<BulkSendChannel>("email");
   const [isBulkSending, setIsBulkSending] = useState(false);
+  const [contentGenerationQueue, setContentGenerationQueue] = useState<ContentGenerationQueueState>(
+    EMPTY_CONTENT_GENERATION_QUEUE
+  );
+  const [rowContentGenerationLoading, setRowContentGenerationLoading] = useState<Set<string>>(new Set());
+  const [rowContentGenerationPaused, setRowContentGenerationPaused] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(15);
   const [uploadImportSummary, setUploadImportSummary] = useState<CampaignImportSummary | null>(null);
@@ -775,6 +811,8 @@ function SuperAdminCampaignDetailPage() {
   const whatsappFileRef = useRef<HTMLInputElement | null>(null);
   const tableFilterRef = useRef<HTMLDivElement | null>(null);
   const universalAttachmentRef = useRef<HTMLInputElement | null>(null);
+  const contentGenerationPauseRequestedRef = useRef(false);
+  const rowContentGenerationControllersRef = useRef<Map<string, AbortController>>(new Map());
 
   const pendingCount = useMemo(() => leads.filter((l) => l.approvalStatus === "pending").length, [leads]);
   const approvedCount = useMemo(() => leads.filter((l) => l.approvalStatus === "approved").length, [leads]);
@@ -1060,6 +1098,66 @@ function SuperAdminCampaignDetailPage() {
     if (!lead || isLeadOutreachBlocked(lead)) return count;
     return count + 1;
   }, 0);
+  const selectedContentGenerationLeads = useMemo(
+    () =>
+      Array.from(selectedBulkLeadIds)
+        .map((leadId) => leadById.get(leadId))
+        .filter((lead): lead is Lead => {
+          if (!lead || !hasText(lead.email)) return false;
+          const blocked =
+            lead.sendable === false ||
+            lead.contactReadOnly ||
+            lead.approvalStatus === "suppressed" ||
+            lead.isSuppressed ||
+            Boolean(lead.suppression?.active) ||
+            Boolean(leadOptOutById.get(lead.id));
+          return !blocked;
+        }),
+    [leadById, leadOptOutById, selectedBulkLeadIds]
+  );
+  const selectedContentGenerationCount = selectedContentGenerationLeads.length;
+  const selectedContentGenerationOverLimit = selectedContentGenerationCount > SELECTED_CONTENT_GENERATION_LIMIT;
+  const selectedEmailSendLeads = useMemo(
+    () =>
+      Array.from(selectedBulkLeadIds)
+        .map((leadId) => leadById.get(leadId))
+        .filter((lead): lead is Lead => {
+          if (!lead) return false;
+          const blocked =
+            lead.sendable === false ||
+            lead.contactReadOnly ||
+            lead.approvalStatus === "suppressed" ||
+            lead.isSuppressed ||
+            Boolean(lead.suppression?.active) ||
+            Boolean(leadOptOutById.get(lead.id));
+          return !blocked && leadSupportsEmailAction(lead) && !isLeadEmailActionCompleted(lead);
+        }),
+    [leadById, leadOptOutById, selectedBulkLeadIds]
+  );
+  const selectedWhatsappSendLeads = useMemo(
+    () =>
+      Array.from(selectedBulkLeadIds)
+        .map((leadId) => leadById.get(leadId))
+        .filter((lead): lead is Lead => {
+          if (!lead) return false;
+          const blocked =
+            lead.sendable === false ||
+            lead.contactReadOnly ||
+            lead.approvalStatus === "suppressed" ||
+            lead.isSuppressed ||
+            Boolean(lead.suppression?.active) ||
+            Boolean(leadOptOutById.get(lead.id));
+          return !blocked && leadSupportsWhatsappAction(lead) && !isLeadWhatsappActionCompleted(lead);
+        }),
+    [leadById, leadOptOutById, selectedBulkLeadIds]
+  );
+  const selectedBulkEmailCount = selectedEmailSendLeads.length;
+  const selectedBulkWhatsappCount = selectedWhatsappSendLeads.length;
+  const selectedBulkChannelCount = bulkSendChannel === "email" ? selectedBulkEmailCount : selectedBulkWhatsappCount;
+  const isBulkGeneratingContent =
+    contentGenerationQueue.status === "running" || contentGenerationQueue.status === "stopping";
+  const isContentGenerationPaused = contentGenerationQueue.status === "paused";
+  const isContentGenerationActive = isBulkGeneratingContent || isContentGenerationPaused;
   const selectableCurrentPageLeads = canManageLeadActions
     ? paginatedLeads.filter((lead) => !isLeadOutreachBlocked(lead))
     : [];
@@ -1787,34 +1885,296 @@ function SuperAdminCampaignDetailPage() {
     setSelectedBulkLeadIds(new Set(selectableFilteredLeads.map((lead) => lead.id)));
   };
 
-  const handleBulkSendRequest = () => {
-    if (!canManageLeadActions) return;
-    if (selectedBulkCount === 0) {
-      toast.error("Select at least one lead");
+  const setRowContentGenerationLoadingForLead = (leadId: string, value: boolean) => {
+    setRowContentGenerationLoading((prev) => {
+      const next = new Set(prev);
+      if (value) next.add(leadId);
+      else next.delete(leadId);
+      return next;
+    });
+  };
+
+  const setRowContentGenerationPausedForLead = (leadId: string, value: boolean) => {
+    setRowContentGenerationPaused((prev) => {
+      const next = new Set(prev);
+      if (value) next.add(leadId);
+      else next.delete(leadId);
+      return next;
+    });
+  };
+
+  const isContentGenerationAbortError = (error: any) =>
+    error?.code === "ERR_CANCELED" || error?.name === "CanceledError" || error?.name === "AbortError";
+
+  const resetContentGenerationQueue = () => {
+    contentGenerationPauseRequestedRef.current = false;
+    setContentGenerationQueue({ ...EMPTY_CONTENT_GENERATION_QUEUE, remainingLeadIds: [] });
+  };
+
+  const getLeadContentGenerationDisabledReason = (lead: Lead, options?: { allowPaused?: boolean }) => {
+    if (isContentGenerationActive) return "Finish the selected content generation queue first.";
+    if (!hasText(lead.email)) return "Lead needs an email address for content generation.";
+    if (isLeadOutreachBlocked(lead)) return "Lead actions are blocked.";
+    if (rowContentGenerationLoading.has(lead.id)) return "Content generation is already running for this lead.";
+    if (!options?.allowPaused && rowContentGenerationPaused.has(lead.id)) return "Use Continue to resume this lead.";
+    return null;
+  };
+
+  const runContentGenerationQueue = async (leadIds: string[], stats?: ContentGenerationStats) => {
+    const total = stats?.total || leadIds.length;
+    let completed = stats?.completed || 0;
+    let generated = stats?.generated || 0;
+    let failed = stats?.failed || 0;
+    let suppressed = stats?.suppressed || 0;
+
+    if (leadIds.length === 0) {
+      resetContentGenerationQueue();
       return;
     }
-    if (isCommonAttachmentUploading) {
+
+    setContentGenerationQueue({
+      status: "running",
+      total,
+      completed,
+      generated,
+      failed,
+      suppressed,
+      currentLeadId: null,
+      remainingLeadIds: leadIds,
+    });
+
+    for (let index = 0; index < leadIds.length; index += 1) {
+      if (contentGenerationPauseRequestedRef.current) {
+        setContentGenerationQueue({
+          status: "paused",
+          total,
+          completed,
+          generated,
+          failed,
+          suppressed,
+          currentLeadId: null,
+          remainingLeadIds: leadIds.slice(index),
+        });
+        toast.info("Content generation paused", {
+          description: `${completed}/${total} lead${total === 1 ? "" : "s"} processed.`,
+        });
+        await fetchAll({ silent: true });
+        return;
+      }
+
+      const leadId = leadIds[index];
+      setContentGenerationQueue({
+        status: "running",
+        total,
+        completed,
+        generated,
+        failed,
+        suppressed,
+        currentLeadId: leadId,
+        remainingLeadIds: leadIds.slice(index + 1),
+      });
+      setRowContentGenerationLoadingForLead(leadId, true);
+
+      try {
+        const response = await generateSelectedCampaignLeadContent({
+          campaignId,
+          leadIds: [leadId],
+        });
+        generated += Number(response?.generatedCount ?? 0);
+        failed += Number(response?.failedCount ?? 0);
+        suppressed += Number(response?.suppressedCount ?? 0);
+      } catch {
+        failed += 1;
+      } finally {
+        completed += 1;
+        setRowContentGenerationLoadingForLead(leadId, false);
+      }
+
+      const remainingLeadIds = leadIds.slice(index + 1);
+      if (contentGenerationPauseRequestedRef.current) {
+        setContentGenerationQueue({
+          status: "paused",
+          total,
+          completed,
+          generated,
+          failed,
+          suppressed,
+          currentLeadId: null,
+          remainingLeadIds,
+        });
+        toast.info("Content generation paused", {
+          description: `${completed}/${total} lead${total === 1 ? "" : "s"} processed.`,
+        });
+        await fetchAll({ silent: true });
+        return;
+      }
+
+      setContentGenerationQueue({
+        status: "running",
+        total,
+        completed,
+        generated,
+        failed,
+        suppressed,
+        currentLeadId: null,
+        remainingLeadIds,
+      });
+    }
+
+    resetContentGenerationQueue();
+    toast.success("Content generation completed", {
+      description: `Generated ${generated} lead${generated === 1 ? "" : "s"}. ${
+        failed || suppressed ? `Skipped/failed ${failed + suppressed}.` : ""
+      }`,
+    });
+    if (failed > 0) {
+      toast.warning("Some content could not be generated", {
+        description: `${failed} lead${failed === 1 ? "" : "s"} failed during generation.`,
+      });
+    }
+    await fetchAll({ silent: true });
+  };
+
+  const handleGenerateLeadContent = async (lead: Lead, options?: { allowPaused?: boolean }) => {
+    if (!canManageLeadActions) return;
+    const disabledReason = getLeadContentGenerationDisabledReason(lead, options);
+    if (disabledReason) {
+      toast.warning("Content generation unavailable", { description: disabledReason });
+      return;
+    }
+
+    const controller = new AbortController();
+    rowContentGenerationControllersRef.current.set(lead.id, controller);
+    setRowContentGenerationPausedForLead(lead.id, false);
+    setRowContentGenerationLoadingForLead(lead.id, true);
+    try {
+      const response = await generateSelectedCampaignLeadContent({
+        campaignId,
+        leadIds: [lead.id],
+        signal: controller.signal,
+      });
+      const generatedCount = Number(response?.generatedCount ?? 0);
+      const failedCount = Number(response?.failedCount ?? 0);
+      const suppressedCount = Number(response?.suppressedCount ?? 0);
+      if (generatedCount > 0) {
+        toast.success("Content generated", {
+          description: "Lead content is ready for review.",
+        });
+      } else {
+        toast.warning("No content generated", {
+          description: `${suppressedCount} suppressed, ${failedCount} failed.`,
+        });
+      }
+      await fetchAll({ silent: true });
+    } catch (error: any) {
+      if (isContentGenerationAbortError(error)) {
+        setRowContentGenerationPausedForLead(lead.id, true);
+        toast.info("Content generation stopped", {
+          description: "Use Continue on this row to start it again.",
+        });
+        return;
+      }
+      toast.error("Content generation failed", {
+        description: error?.response?.data?.detail || error?.message || "Please try again.",
+      });
+    } finally {
+      if (rowContentGenerationControllersRef.current.get(lead.id) === controller) {
+        rowContentGenerationControllersRef.current.delete(lead.id);
+      }
+      setRowContentGenerationLoadingForLead(lead.id, false);
+    }
+  };
+
+  const handleStopLeadContentGeneration = (leadId: string) => {
+    const controller = rowContentGenerationControllersRef.current.get(leadId);
+    if (controller) {
+      controller.abort();
+      return;
+    }
+    if (contentGenerationQueue.currentLeadId === leadId) {
+      handleStopContentGeneration();
+    }
+  };
+
+  const handleContinueLeadContentGeneration = async (lead: Lead) => {
+    setRowContentGenerationPausedForLead(lead.id, false);
+    await handleGenerateLeadContent(lead, { allowPaused: true });
+  };
+
+  const handleBulkGenerateContent = async () => {
+    if (!canManageLeadActions || isContentGenerationActive) return;
+    if (selectedContentGenerationCount === 0) {
+      toast.error("Select leads for content generation", {
+        description: "Selected leads need an email address and must not be suppressed or blocked.",
+      });
+      return;
+    }
+    if (selectedContentGenerationOverLimit) {
+      toast.error("Select fewer leads", {
+        description: `Generate content for ${SELECTED_CONTENT_GENERATION_LIMIT} or fewer leads at a time.`,
+      });
+      return;
+    }
+
+    const leadIds = selectedContentGenerationLeads.map((lead) => lead.id);
+    contentGenerationPauseRequestedRef.current = false;
+    await runContentGenerationQueue(leadIds);
+  };
+
+  const handleStopContentGeneration = () => {
+    if (!canManageLeadActions || contentGenerationQueue.status !== "running") return;
+    contentGenerationPauseRequestedRef.current = true;
+    setContentGenerationQueue((prev) => ({ ...prev, status: "stopping" }));
+  };
+
+  const handleContinueContentGeneration = async () => {
+    if (!canManageLeadActions || contentGenerationQueue.status !== "paused") return;
+    const remainingLeadIds = [...contentGenerationQueue.remainingLeadIds];
+    if (remainingLeadIds.length === 0) {
+      resetContentGenerationQueue();
+      return;
+    }
+    contentGenerationPauseRequestedRef.current = false;
+    await runContentGenerationQueue(remainingLeadIds, {
+      total: contentGenerationQueue.total,
+      completed: contentGenerationQueue.completed,
+      generated: contentGenerationQueue.generated,
+      failed: contentGenerationQueue.failed,
+      suppressed: contentGenerationQueue.suppressed,
+    });
+  };
+
+  const handleBulkSendRequest = (channel: BulkSendChannel) => {
+    if (!canManageLeadActions) return;
+    const selectedChannelCount = channel === "email" ? selectedBulkEmailCount : selectedBulkWhatsappCount;
+    if (selectedChannelCount === 0) {
+      toast.error(`Select at least one ${channel === "email" ? "email" : "WhatsApp"} lead`);
+      return;
+    }
+    if (channel === "email" && isCommonAttachmentUploading) {
       toast.error("Attachment is still uploading");
       return;
     }
+    setBulkSendChannel(channel);
     setShowBulkSendConfirm(true);
   };
 
   const handleConfirmBulkSend = async () => {
-    if (!canManageLeadActions || selectedBulkCount === 0 || isBulkSending) return;
+    if (!canManageLeadActions || selectedBulkChannelCount === 0 || isBulkSending) return;
     setIsBulkSending(true);
 
     try {
       const selectedLeads = Array.from(selectedBulkLeadIds)
         .map((leadId) => leadById.get(leadId))
         .filter((lead): lead is Lead => Boolean(lead));
-      const eligibleLeads = selectedLeads.filter((lead) => !isLeadOutreachBlocked(lead));
+      const eligibleLeads = bulkSendChannel === "email" ? selectedEmailSendLeads : selectedWhatsappSendLeads;
       const leadIds = eligibleLeads.map((lead) => lead.id);
       const skippedCount = selectedLeads.length - eligibleLeads.length;
+      const channelLabel = bulkSendChannel === "email" ? "email" : "WhatsApp";
 
       if (leadIds.length === 0) {
         toast.error("Selected leads cannot be sent", {
-          description: "Selected leads are suppressed or not sendable.",
+          description: `Selected leads have no queueable ${channelLabel} channel.`,
         });
         setShowBulkSendConfirm(false);
         return;
@@ -1840,7 +2200,8 @@ function SuperAdminCampaignDetailPage() {
         const sendResult = await sendSelectedCampaignLeads({
           campaignId,
           leadIds: approvedLeadIds,
-          attachmentId: commonAttachmentId ?? undefined,
+          attachmentId: bulkSendChannel === "email" ? commonAttachmentId ?? undefined : undefined,
+          channel: bulkSendChannel,
         });
         queuedLeads = Number(sendResult?.queuedLeads ?? approvedLeadIds.length);
         queuedEmail = Number(sendResult?.queuedEmail ?? 0);
@@ -1852,19 +2213,19 @@ function SuperAdminCampaignDetailPage() {
           `Queued outreach for ${queuedLeads} lead(s).`;
       }
 
-      toast.success("Bulk outreach processed", {
+      toast.success(`Selected ${bulkSendChannel === "email" ? "email" : "WhatsApp"} processed`, {
         description: `Approved ${approvedLeadIds.length}, queued ${queuedLeads} lead(s) (${queuedEmail} email, ${queuedWhatsapp} WhatsApp). ${sendSummaryMessage}`,
       });
 
       const totalSuppressed = skippedCount + suppressedFromApprove + suppressedFromSend;
       if (totalSuppressed > 0) {
         toast.warning("Some leads were skipped", {
-          description: `${totalSuppressed} lead(s) were suppressed or blocked and were not sent.`,
+          description: `${totalSuppressed} lead(s) were blocked, already sent, or missing ${channelLabel} and were not queued.`,
         });
       }
       if (skippedNoChannel > 0) {
         toast.info("Some leads had no sendable channel", {
-          description: `${skippedNoChannel} lead(s) were approved but had no queueable email or WhatsApp channel.`,
+          description: `${skippedNoChannel} lead(s) were approved but had no queueable ${channelLabel} channel.`,
         });
       }
 
@@ -2249,6 +2610,14 @@ function SuperAdminCampaignDetailPage() {
     setPendingWhatsappUploads([]);
   };
 
+  const handleClearContentPreview = () => {
+    setEditForm((prev) => ({
+      ...prev,
+      contentEmailSubject: "",
+      contentEmail: "",
+    }));
+  };
+
   // -----------------------------
   // Save only (content updates only)
   // -----------------------------
@@ -2568,11 +2937,109 @@ function SuperAdminCampaignDetailPage() {
 
               <button
                 type="button"
-                onClick={handleBulkSendRequest}
-                disabled={selectedBulkCount === 0 || isCommonAttachmentUploading || isBulkSending}
-                className="px-2 py-1 text-[11px] font-semibold text-sidebar-primary transition-colors hover:text-sidebar-primary/85 disabled:cursor-not-allowed disabled:text-zinc-300"
+                onClick={handleBulkGenerateContent}
+                disabled={
+                  selectedContentGenerationCount === 0 ||
+                  selectedContentGenerationOverLimit ||
+                  isContentGenerationActive
+                }
+                title={
+                  isContentGenerationActive
+                    ? "Content generation is already running"
+                    : selectedContentGenerationOverLimit
+                    ? `Generate content for ${SELECTED_CONTENT_GENERATION_LIMIT} or fewer leads at a time`
+                    : selectedContentGenerationCount === 0
+                      ? "Select leads with email addresses to generate content"
+                      : `Generate content for ${selectedContentGenerationCount} selected lead${
+                          selectedContentGenerationCount === 1 ? "" : "s"
+                        }`
+                }
+                className="inline-flex items-center gap-1.5 px-2 py-1 text-[11px] font-semibold text-violet-700 transition-colors hover:text-violet-800 disabled:cursor-not-allowed disabled:text-zinc-300"
               >
-                Send Selected
+                {isBulkGeneratingContent ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
+                {isBulkGeneratingContent ? "Generating" : "Generate Content"}
+              </button>
+
+              {isContentGenerationActive ? (
+                <span className="rounded border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700">
+                  {contentGenerationQueue.completed}/{contentGenerationQueue.total}
+                </span>
+              ) : null}
+
+              {contentGenerationQueue.status === "running" ? (
+                <button
+                  type="button"
+                  onClick={handleStopContentGeneration}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-red-600 transition-colors hover:text-red-700"
+                  title="Stop after the current lead finishes"
+                >
+                  <Square className="h-3 w-3" />
+                  Stop
+                </button>
+              ) : contentGenerationQueue.status === "stopping" ? (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex cursor-not-allowed items-center gap-1 px-2 py-1 text-[11px] font-semibold text-zinc-400"
+                  title="Stopping after the current lead finishes"
+                >
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Stopping
+                </button>
+              ) : contentGenerationQueue.status === "paused" ? (
+                <button
+                  type="button"
+                  onClick={() => void handleContinueContentGeneration()}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-emerald-700 transition-colors hover:text-emerald-800"
+                  title={`Continue remaining ${contentGenerationQueue.remainingLeadIds.length} lead${
+                    contentGenerationQueue.remainingLeadIds.length === 1 ? "" : "s"
+                  }`}
+                >
+                  <Play className="h-3.5 w-3.5" />
+                  Continue
+                </button>
+              ) : null}
+
+              <span className="mx-1 h-4 w-px bg-zinc-300/80" aria-hidden="true" />
+
+              <button
+                type="button"
+                onClick={() => handleBulkSendRequest("email")}
+                disabled={selectedBulkEmailCount === 0 || isCommonAttachmentUploading || isBulkSending}
+                title={
+                  selectedBulkEmailCount === 0
+                    ? "Select leads with unsent email"
+                    : isCommonAttachmentUploading
+                      ? "Attachment is still uploading"
+                      : `Send email for ${selectedBulkEmailCount} selected lead${
+                          selectedBulkEmailCount === 1 ? "" : "s"
+                        }`
+                }
+                className="inline-flex items-center gap-1.5 px-2 py-1 text-[11px] font-semibold text-sidebar-primary transition-colors hover:text-sidebar-primary/85 disabled:cursor-not-allowed disabled:text-zinc-300"
+              >
+                <Mail className="h-3.5 w-3.5" />
+                Email Selected
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleBulkSendRequest("whatsapp")}
+                disabled={selectedBulkWhatsappCount === 0 || isBulkSending}
+                title={
+                  selectedBulkWhatsappCount === 0
+                    ? "Select leads with unsent WhatsApp"
+                    : `Send WhatsApp for ${selectedBulkWhatsappCount} selected lead${
+                        selectedBulkWhatsappCount === 1 ? "" : "s"
+                      }`
+                }
+                className="inline-flex items-center gap-1.5 px-2 py-1 text-[11px] font-semibold text-emerald-700 transition-colors hover:text-emerald-800 disabled:cursor-not-allowed disabled:text-zinc-300"
+              >
+                <WhatsAppIcon className="h-3.5 w-3.5" />
+                WhatsApp Selected
               </button>
             </div>
           ) : null}
@@ -2826,25 +3293,19 @@ function SuperAdminCampaignDetailPage() {
                 const isOutreachBlocked = isLeadOutreachBlocked(item);
                 const canSendEmail = leadSupportsEmailAction(item);
                 const canSendWhatsapp = leadSupportsWhatsappAction(item);
-                const emailActionCompleted = isLeadEmailActionCompleted(item);
-                const whatsappActionCompleted = isLeadWhatsappActionCompleted(item);
                 const showEmailAction = canSendEmail;
                 const showWhatsappAction = canSendWhatsapp;
-                const showBothAction =
-                  canSendEmail &&
-                  canSendWhatsapp &&
-                  !emailActionCompleted &&
-                  !whatsappActionCompleted;
                 const showSendActions =
                   item.approvalStatus !== "rejected" &&
                   item.approvalStatus !== "suppressed" &&
                   !isLeadFullyActioned(item);
-                const sendBothDisabledReason = getLeadSendActionDisabledReason(item, "both");
                 const sendEmailDisabledReason = getLeadSendActionDisabledReason(item, "email");
                 const sendWhatsappDisabledReason = getLeadSendActionDisabledReason(item, "whatsapp");
-                const isSendingBoth = Boolean(leadSendLoading[item.id]?.both);
                 const isSendingEmail = Boolean(leadSendLoading[item.id]?.email);
                 const isSendingWhatsapp = Boolean(leadSendLoading[item.id]?.whatsapp);
+                const isGeneratingLeadContent = rowContentGenerationLoading.has(item.id);
+                const isLeadContentGenerationPaused = rowContentGenerationPaused.has(item.id);
+                const contentGenerationDisabledReason = getLeadContentGenerationDisabledReason(item);
                 const disableWhatsappAction = (!hasText(item.phone) && !hasText(item.email)) || isOptedOut;
                 const smsDisabledReason = !hasText(item.phone)
                   ? "Lead has no phone number"
@@ -2938,23 +3399,69 @@ function SuperAdminCampaignDetailPage() {
                                 Template fallback
                               </span>
                             ) : null}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 rounded-md border border-zinc-300/80 bg-white/82 text-xs font-semibold text-zinc-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
-                              onClick={() => setSelectedLead(item)}
-                              disabled={reviewContentDisabled}
-                              title={
-                                !canSendEmail
-                                  ? "Email content review is available only for leads with email addresses."
-                                  : isLeadReadOnly
-                                    ? "Lead actions are blocked"
-                                    : "Review email content"
-                              }
-                            >
-                              <Eye className="mr-2 h-3.5 w-3.5 text-zinc-400" />
-                              Review Content
-                            </Button>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-md border border-violet-200/90 bg-white/82 text-violet-700 shadow-[0_8px_14px_-12px_rgba(76,29,149,0.42)] hover:border-violet-300 hover:bg-violet-50 hover:text-violet-800 disabled:cursor-not-allowed disabled:opacity-45"
+                                onClick={() => void handleGenerateLeadContent(item)}
+                                disabled={Boolean(contentGenerationDisabledReason)}
+                                title={
+                                  contentGenerationDisabledReason ||
+                                  (item.contentEmail && item.contentEmailSubject
+                                    ? "Regenerate personalized content"
+                                    : "Generate personalized content")
+                                }
+                              >
+                                {isGeneratingLeadContent ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Sparkles className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                              {isGeneratingLeadContent ? (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 rounded-md border border-red-200 bg-white/82 px-2 text-[11px] font-semibold text-red-600 shadow-none hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+                                  onClick={() => handleStopLeadContentGeneration(item.id)}
+                                  title="Stop this content generation"
+                                >
+                                  <Square className="mr-1 h-3 w-3" />
+                                  Stop
+                                </Button>
+                              ) : isLeadContentGenerationPaused ? (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 rounded-md border border-emerald-200 bg-white/82 px-2 text-[11px] font-semibold text-emerald-700 shadow-none hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800"
+                                  onClick={() => void handleContinueLeadContentGeneration(item)}
+                                  title="Continue this content generation"
+                                >
+                                  <Play className="mr-1 h-3.5 w-3.5" />
+                                  Continue
+                                </Button>
+                              ) : null}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 rounded-md border border-zinc-300/80 bg-white/82 text-xs font-semibold text-zinc-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+                                onClick={() => setSelectedLead(item)}
+                                disabled={reviewContentDisabled}
+                                title={
+                                  !canSendEmail
+                                    ? "Email content review is available only for leads with email addresses."
+                                    : isLeadReadOnly
+                                      ? "Lead actions are blocked"
+                                      : "Review email content"
+                                }
+                              >
+                                <Eye className="mr-2 h-3.5 w-3.5 text-zinc-400" />
+                                Review Content
+                              </Button>
+                            </div>
                           </div>
                         </td>
 
@@ -3079,28 +3586,6 @@ function SuperAdminCampaignDetailPage() {
                                 disabled={isLeadReadOnly}
                               >
                                 <X className="h-4 w-4" />
-                              </Button>
-                            ) : null}
-                            {showBothAction ? (
-                              <Button
-                                size="icon"
-                                className={`h-8 w-8 rounded-md border text-sidebar-foreground shadow-[0_8px_14px_-12px_rgba(17,46,98,0.62)] ${
-                                  Boolean(sendBothDisabledReason) || isSendingBoth
-                                    ? "cursor-not-allowed border-zinc-300 bg-zinc-200 text-zinc-400 shadow-none"
-                                    : "border-sidebar-primary/75 bg-sidebar-primary hover:bg-sidebar-primary/85"
-                                }`}
-                                onClick={() =>
-                                  void (item.approvalStatus === "pending"
-                                    ? handleApprove(item.id, "both")
-                                    : handleSendLeadAction(item, "both"))
-                                }
-                                disabled={Boolean(sendBothDisabledReason) || isSendingBoth}
-                                title={
-                                  sendBothDisabledReason ||
-                                  (item.approvalStatus === "pending" ? "Approve and send both" : "Send both")
-                                }
-                              >
-                                {isSendingBoth ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                               </Button>
                             ) : null}
                           </>
@@ -3240,11 +3725,15 @@ function SuperAdminCampaignDetailPage() {
               className="w-full max-w-md overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_24px_40px_-28px_rgba(2,10,27,0.68)]"
             >
               <div className="space-y-2 border-b border-zinc-100 px-5 py-4">
-                <h3 className="text-base font-semibold text-zinc-900">Confirm bulk outreach</h3>
+                <h3 className="text-base font-semibold text-zinc-900">
+                  Confirm selected {bulkSendChannel === "email" ? "email" : "WhatsApp"}
+                </h3>
                 <p className="text-sm text-zinc-600">
-                  Do you want to outreach <span className="font-semibold text-zinc-900">{selectedBulkCount}</span> selected leads?
+                  Queue {bulkSendChannel === "email" ? "email" : "WhatsApp"} for{" "}
+                  <span className="font-semibold text-zinc-900">{selectedBulkChannelCount}</span> selected lead
+                  {selectedBulkChannelCount === 1 ? "" : "s"}?
                 </p>
-                {universalAttachment && commonAttachmentId ? (
+                {bulkSendChannel === "email" && universalAttachment && commonAttachmentId ? (
                   <p className="text-xs text-zinc-500">Attachment: {universalAttachment.name}</p>
                 ) : null}
               </div>
@@ -3271,7 +3760,7 @@ function SuperAdminCampaignDetailPage() {
                       Sending...
                     </>
                   ) : (
-                    "Yes, Send All"
+                    `Send ${bulkSendChannel === "email" ? "Email" : "WhatsApp"}`
                   )}
                 </Button>
               </div>
@@ -3531,6 +4020,17 @@ function SuperAdminCampaignDetailPage() {
 
                 {selectedLead.approvalStatus === "pending" ? (
                   <div className="flex justify-end gap-3">
+                    <Button
+                      variant="ghost"
+                      className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-600 hover:border-zinc-400 hover:bg-zinc-50 hover:text-zinc-900"
+                      disabled={saving}
+                      onClick={handleClearContentPreview}
+                      title="Clear the subject and email body in this preview"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Clear
+                    </Button>
+
                     <Button
                       variant="ghost"
                       className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
