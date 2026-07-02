@@ -21,20 +21,22 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import {
   cancelCampaignContentGenerationJob,
   deleteCampaign,
   forceDeleteCampaign,
-  generateCampaignLeadContent,
   generateSelectedCampaignLeadContent,
+  getCampaignLeads,
   getCampaignInfo,
   listCampaigns,
   stopCampaign,
   type DeleteBlockedDetail,
   type CampaignInfo,
   type CampaignListItem,
+  type LeadItem,
 } from "@/lib/apiRouter";
 import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
@@ -90,8 +92,9 @@ const filterOnlyStatuses = [
 ] as const;
 
 const CAMPAIGN_LIST_POLL_MS = 30000;
-const CAMPAIGN_CONTENT_GENERATION_BATCH_SIZE = 25;
+const CAMPAIGN_CONTENT_GENERATION_BATCH_SIZE = 1;
 const CONTENT_JOB_ACTIVE_STATES = new Set(["PENDING", "STARTED", "PROGRESS", "RETRY"]);
+const CAMPAIGN_PAGE_QUERY_PARAM = "page";
 
 type CampaignContentGenerationStatus = "preparing" | "running" | "stopping" | "paused";
 
@@ -106,6 +109,65 @@ type CampaignContentGenerationState = {
   remainingLeadIds: string[];
   jobId?: string | null;
 };
+
+type CampaignContentSummary = {
+  loading: boolean;
+  total: number;
+  completed: number;
+  emptyLeadIds: string[];
+  error?: string | null;
+};
+
+function parseCampaignPageParam(value: string | null) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 1;
+  return Math.max(1, Math.floor(parsed));
+}
+
+function hasText(value: unknown) {
+  return String(value ?? "").trim().length > 0;
+}
+
+function isGeneratedLeadContentPresent(
+  lead: Pick<LeadItem, "contentEmailSubject" | "contentEmail" | "contentSource" | "templateFallback">
+) {
+  const source = String(lead.contentSource || "").toLowerCase();
+  return (
+    hasText(lead.contentEmailSubject) &&
+    hasText(lead.contentEmail) &&
+    source !== "template" &&
+    lead.templateFallback !== true
+  );
+}
+
+function isLeadEligibleForCampaignContentGeneration(
+  lead: Pick<
+    LeadItem,
+    "email" | "approvalStatus" | "isSuppressed" | "suppression" | "contactReadOnly"
+  >
+) {
+  return (
+    hasText(lead.email) &&
+    lead.contactReadOnly !== true &&
+    lead.approvalStatus !== "suppressed" &&
+    lead.isSuppressed !== true &&
+    !lead.suppression?.active
+  );
+}
+
+function summarizeCampaignContent(leads: LeadItem[]): CampaignContentSummary {
+  const eligibleLeads = leads.filter(isLeadEligibleForCampaignContentGeneration);
+  const emptyLeadIds = eligibleLeads
+    .filter((lead) => !isGeneratedLeadContentPresent(lead))
+    .map((lead) => lead.id);
+  return {
+    loading: false,
+    total: eligibleLeads.length,
+    completed: Math.max(0, eligibleLeads.length - emptyLeadIds.length),
+    emptyLeadIds,
+    error: null,
+  };
+}
 
 function statusUI(status: string) {
   return statusConfig[status] || {
@@ -312,6 +374,10 @@ type CampaignDialogTarget = {
 };
 
 function SuperAdminCampaignsPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const initialPage = parseCampaignPageParam(searchParams.get(CAMPAIGN_PAGE_QUERY_PARAM));
   const [items, setItems] = useState<CampaignListItem[]>([]);
   const [totalItems, setTotalItems] = useState(0);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
@@ -323,7 +389,7 @@ function SuperAdminCampaignsPage() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() => initialPage);
   const [itemsPerPage, setItemsPerPage] = useState(4);
   const [dialogTarget, setDialogTarget] = useState<CampaignDialogTarget | null>(null);
   const [deleteBlockedDetail, setDeleteBlockedDetail] = useState<DeleteBlockedDetail | null>(null);
@@ -333,12 +399,41 @@ function SuperAdminCampaignsPage() {
   const [contentGenerationByCampaign, setContentGenerationByCampaign] = useState<
     Record<string, CampaignContentGenerationState>
   >({});
+  const [contentSummaryByCampaign, setContentSummaryByCampaign] = useState<
+    Record<string, CampaignContentSummary>
+  >({});
   const { persona } = usePersona();
   const { isSuperAdmin } = useAuth();
   const filterPanelRef = useRef<HTMLDivElement | null>(null);
   const listViewportRef = useRef<HTMLDivElement | null>(null);
   const contentGenerationControllersRef = useRef<Map<string, AbortController>>(new Map());
   const contentGenerationStopRequestedRef = useRef<Set<string>>(new Set());
+  const didMountFilterResetRef = useRef(false);
+
+  const replaceCampaignPage = useCallback(
+    (page: number) => {
+      const nextPage = parseCampaignPageParam(String(page));
+      setCurrentPage((prev) => (prev === nextPage ? prev : nextPage));
+
+      const params = new URLSearchParams(
+        typeof window === "undefined" ? "" : window.location.search
+      );
+      if (nextPage <= 1) {
+        params.delete(CAMPAIGN_PAGE_QUERY_PARAM);
+      } else {
+        params.set(CAMPAIGN_PAGE_QUERY_PARAM, String(nextPage));
+      }
+
+      const nextQuery = params.toString();
+      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+    },
+    [pathname, router]
+  );
+
+  useEffect(() => {
+    const pageFromUrl = parseCampaignPageParam(searchParams.get(CAMPAIGN_PAGE_QUERY_PARAM));
+    setCurrentPage((prev) => (prev === pageFromUrl ? prev : pageFromUrl));
+  }, [searchParams]);
 
   const fetchData = useCallback(async (options?: { silent?: boolean; showErrors?: boolean }) => {
     const silent = Boolean(options?.silent);
@@ -399,6 +494,7 @@ function SuperAdminCampaignsPage() {
 
   useEffect(() => {
     setCampaignInfoById({});
+    setContentSummaryByCampaign({});
   }, [persona]);
 
   useEffect(() => {
@@ -542,14 +638,20 @@ function SuperAdminCampaignsPage() {
     statusFilter !== "all" || categoryFilter !== "all" || searchQuery.trim().length > 0;
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [statusFilter, categoryFilter, searchQuery, persona]);
+    if (!didMountFilterResetRef.current) {
+      didMountFilterResetRef.current = true;
+      return;
+    }
+
+    replaceCampaignPage(1);
+  }, [categoryFilter, replaceCampaignPage, searchQuery, statusFilter]);
 
   useEffect(() => {
+    if (loading) return;
     if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
+      replaceCampaignPage(totalPages);
     }
-  }, [currentPage, totalPages]);
+  }, [currentPage, loading, replaceCampaignPage, totalPages]);
 
   useEffect(() => {
     if (loading || visibleItems.length === 0) return;
@@ -590,6 +692,61 @@ function SuperAdminCampaignsPage() {
     };
   }, [loading, visibleItems, campaignInfoById]);
 
+  useEffect(() => {
+    if (loading || visibleItems.length === 0) return;
+
+    const ids = visibleItems.map((campaign) => campaign.id);
+    let cancelled = false;
+
+    setContentSummaryByCampaign((prev) => {
+      const next = { ...prev };
+      for (const id of ids) {
+        next[id] = {
+          ...(next[id] || { total: 0, completed: 0, emptyLeadIds: [] }),
+          loading: true,
+          error: null,
+        };
+      }
+      return next;
+    });
+
+    (async () => {
+      const pairs = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const response = await getCampaignLeads(id, "all");
+            return [id, summarizeCampaignContent(response.leads || [])] as const;
+          } catch (error: unknown) {
+            return [
+              id,
+              {
+                loading: false,
+                total: 0,
+                completed: 0,
+                emptyLeadIds: [],
+                error: getErrorMessage(error),
+              } satisfies CampaignContentSummary,
+            ] as const;
+          }
+        })
+      );
+
+      if (cancelled) return;
+
+      setContentSummaryByCampaign((prev) => {
+        const next = { ...prev };
+        for (const [id, summary] of pairs) {
+          next[id] = summary;
+        }
+        return next;
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, visibleItems]);
+
   const closeDialog = () => {
     if (isStopping || isDeleting || isForceDeleting) return;
     setDialogTarget(null);
@@ -629,16 +786,86 @@ function SuperAdminCampaignsPage() {
     setContentGenerationByCampaign((prev) => ({ ...prev, [campaignId]: state }));
   };
 
+  const loadCampaignContentSummary = useCallback(
+    async (campaignId: string, options?: { silent?: boolean; throwOnError?: boolean }) => {
+      if (!options?.silent) {
+        setContentSummaryByCampaign((prev) => ({
+          ...prev,
+          [campaignId]: {
+            ...(prev[campaignId] || { total: 0, completed: 0, emptyLeadIds: [] }),
+            loading: true,
+            error: null,
+          },
+        }));
+      }
+
+      try {
+        const response = await getCampaignLeads(campaignId, "all");
+        const summary = summarizeCampaignContent(response.leads || []);
+        setContentSummaryByCampaign((prev) => ({ ...prev, [campaignId]: summary }));
+        return summary;
+      } catch (error: unknown) {
+        const message = getErrorMessage(error);
+        setContentSummaryByCampaign((prev) => ({
+          ...prev,
+          [campaignId]: {
+            ...(prev[campaignId] || { total: 0, completed: 0, emptyLeadIds: [] }),
+            loading: false,
+            error: message,
+          },
+        }));
+        if (options?.throwOnError) throw error;
+        return null;
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (loading || visibleItems.length === 0) return;
+
+    const activeIds = visibleItems
+      .filter((campaign) => {
+        const state =
+          contentGenerationByCampaign[campaign.id] ||
+          stateFromContentGenerationJob(campaign.contentGenerationJob, campaign);
+        return (
+          state?.status === "preparing" ||
+          state?.status === "running" ||
+          state?.status === "stopping"
+        );
+      })
+      .map((campaign) => campaign.id);
+
+    if (activeIds.length === 0) return;
+
+    let cancelled = false;
+    const refresh = () => {
+      if (cancelled) return;
+      for (const id of activeIds) {
+        void loadCampaignContentSummary(id, { silent: true });
+      }
+    };
+
+    refresh();
+    const timer = window.setInterval(refresh, 3000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [contentGenerationByCampaign, loading, loadCampaignContentSummary, visibleItems]);
+
   const runCampaignContentGenerationQueue = async (
     campaignId: string,
     leadIds: string[],
     stats?: Pick<CampaignContentGenerationState, "total" | "completed" | "generated" | "failed" | "suppressed">
   ) => {
-    const total = stats?.total || leadIds.length;
-    let completed = stats?.completed || 0;
-    let generated = stats?.generated || 0;
-    let failed = stats?.failed || 0;
-    let suppressed = stats?.suppressed || 0;
+    const total = stats?.total ?? leadIds.length;
+    let completed = stats?.completed ?? 0;
+    let generated = stats?.generated ?? 0;
+    let failed = stats?.failed ?? 0;
+    let suppressed = stats?.suppressed ?? 0;
     let queued = 0;
 
     if (leadIds.length === 0) {
@@ -700,7 +927,7 @@ function SuperAdminCampaignsPage() {
         if (isContentGenerationAbortError(error)) {
           aborted = true;
         } else {
-          failed += 1;
+          failed += batchLeadIds.length;
         }
       } finally {
         if (contentGenerationControllersRef.current.get(campaignId) === controller) {
@@ -740,7 +967,6 @@ function SuperAdminCampaignsPage() {
       });
     }
 
-    clearCampaignContentGeneration(campaignId);
     if (queued > 0) {
       toast.success("Content generation queued", {
         description: `${queued} lead${queued === 1 ? "" : "s"} sent to the content generation worker.`,
@@ -753,6 +979,8 @@ function SuperAdminCampaignsPage() {
       });
     }
     await fetchData({ silent: true, showErrors: false });
+    await loadCampaignContentSummary(campaignId, { silent: true });
+    clearCampaignContentGeneration(campaignId);
   };
 
   const handleGenerateCampaignContent = async (
@@ -776,49 +1004,54 @@ function SuperAdminCampaignsPage() {
     });
 
     try {
-      const controller = new AbortController();
-      contentGenerationControllersRef.current.set(campaign.id, controller);
-      setCampaignContentGenerationState(campaign.id, {
-        status: "running",
-        total: Number(campaign.toApprove || campaign.totalLeads || 0),
-        completed: 0,
-        generated: 0,
-        failed: 0,
-        suppressed: 0,
-        currentLeadId: null,
-        remainingLeadIds: [],
-      });
-      const response = await generateCampaignLeadContent({
-        campaignId: campaign.id,
-        signal: controller.signal,
-      });
-      if (contentGenerationControllersRef.current.get(campaign.id) === controller) {
-        contentGenerationControllersRef.current.delete(campaign.id);
-      }
+      const summary = await loadCampaignContentSummary(campaign.id, { throwOnError: true });
+      const emptyLeadIds = [...(summary?.emptyLeadIds || [])];
+      const total = Number(summary?.total || 0);
+      const completed = Number(summary?.completed || 0);
 
-      const requestedCount = Number(response.requestedCount || 0);
-      if (requestedCount === 0) {
+      if (emptyLeadIds.length === 0) {
         clearCampaignContentGeneration(campaign.id);
         toast.info("No leads need content", {
-          description: "This campaign has no pending email leads available for content generation.",
+          description: "This campaign has no empty lead content left to generate.",
         });
         return;
       }
+
+      if (contentGenerationStopRequestedRef.current.has(campaign.id)) {
+        setCampaignContentGenerationState(campaign.id, {
+          status: "paused",
+          total,
+          completed,
+          generated: 0,
+          failed: 0,
+          suppressed: 0,
+          currentLeadId: null,
+          remainingLeadIds: emptyLeadIds,
+        });
+        toast.info("Content generation stopped", {
+          description: `${completed}/${total} lead${total === 1 ? "" : "s"} processed. Use Continue to resume.`,
+        });
+        return;
+      }
+
       setCampaignContentGenerationState(campaign.id, {
         status: "running",
-        total: 100,
-        completed: 0,
+        total,
+        completed,
         generated: 0,
         failed: 0,
         suppressed: 0,
         currentLeadId: null,
-        remainingLeadIds: [],
-        jobId: response.jobId || response.taskId || null,
+        remainingLeadIds: emptyLeadIds,
       });
-      toast.success("Content generation queued", {
-        description: `${requestedCount} eligible lead${requestedCount === 1 ? "" : "s"} sent to the content generation worker.`,
+
+      await runCampaignContentGenerationQueue(campaign.id, emptyLeadIds, {
+        total,
+        completed,
+        generated: 0,
+        failed: 0,
+        suppressed: 0,
       });
-      await fetchData({ silent: true, showErrors: false });
     } catch (error: unknown) {
       const controller = contentGenerationControllersRef.current.get(campaign.id);
       if (controller) contentGenerationControllersRef.current.delete(campaign.id);
@@ -834,7 +1067,7 @@ function SuperAdminCampaignsPage() {
           remainingLeadIds: [],
         });
         toast.info("Content generation stopped", {
-          description: "The campaign generation request was stopped before it was queued.",
+          description: "The campaign generation request was stopped before leads were selected.",
         });
       } else {
         clearCampaignContentGeneration(campaign.id);
@@ -1159,18 +1392,47 @@ function SuperAdminCampaignsPage() {
                 const contentGenerationState =
                   contentGenerationByCampaign[campaign.id] ||
                   stateFromContentGenerationJob(campaign.contentGenerationJob, campaign);
+                const contentSummary = contentSummaryByCampaign[campaign.id];
+                const emptyContentLeadIds = contentSummary?.emptyLeadIds || [];
+                const emptyContentCount = emptyContentLeadIds.length;
+                const contentSummaryTotal = Number(contentSummary?.total || 0);
+                const contentSummaryCompleted = Number(contentSummary?.completed || 0);
                 const isPreparingContent = contentGenerationState?.status === "preparing";
                 const isRunningContent =
                   contentGenerationState?.status === "preparing" ||
                   contentGenerationState?.status === "running" ||
                   contentGenerationState?.status === "stopping";
                 const isContentPaused = contentGenerationState?.status === "paused";
+                const isJobBackedContentState = Boolean(contentGenerationState?.jobId);
+                const activeContentCompleted =
+                  isJobBackedContentState && contentSummaryTotal > 0
+                    ? contentSummaryCompleted
+                    : contentGenerationState?.completed ?? contentSummaryCompleted;
+                const activeContentTotal =
+                  isJobBackedContentState && contentSummaryTotal > 0
+                    ? contentSummaryTotal
+                    : contentGenerationState?.total || contentSummaryTotal;
                 const contentProgressLabel =
-                  contentGenerationState?.jobId
-                    ? `${contentGenerationState.completed}%`
-                    : contentGenerationState && contentGenerationState.total > 0
-                    ? `${contentGenerationState.completed}/${contentGenerationState.total}`
+                  activeContentTotal > 0
+                    ? `${activeContentCompleted}/${activeContentTotal}`
                     : "";
+                const contentSummaryProgressLabel =
+                  contentSummaryTotal > 0 ? `${contentSummaryCompleted}/${contentSummaryTotal}` : "";
+                const shouldShowGenerateContent =
+                  isSuperAdmin &&
+                  !isRunningContent &&
+                  !isContentPaused &&
+                  !contentSummary?.loading &&
+                  contentSummaryTotal > 0 &&
+                  emptyContentCount === contentSummaryTotal;
+                const shouldShowContinueContent =
+                  isSuperAdmin &&
+                  !isRunningContent &&
+                  !isContentPaused &&
+                  !contentSummary?.loading &&
+                  contentSummaryTotal > 0 &&
+                  emptyContentCount > 0 &&
+                  emptyContentCount < contentSummaryTotal;
 
                 return (
                   <motion.div
@@ -1325,20 +1587,34 @@ function SuperAdminCampaignsPage() {
                                 </span>
                               ) : null}
                             </Button>
-                          ) : isSuperAdmin ? (
+                          ) : shouldShowGenerateContent ? (
                             <Button
                               type="button"
                               onClick={(e) => handleGenerateCampaignContent(campaign, e)}
-                              disabled={campaign.toApprove <= 0}
-                              title={
-                                campaign.toApprove <= 0
-                                  ? "No pending leads need content generation"
-                                  : "Generate personalized content for pending leads in this campaign"
-                              }
+                              title={`Generate personalized content for ${emptyContentCount} empty lead${
+                                emptyContentCount === 1 ? "" : "s"
+                              }`}
                               className="h-9 rounded-md border border-violet-200/85 bg-white/82 px-3.5 text-xs font-semibold text-violet-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-violet-300 hover:bg-violet-50 hover:text-violet-800 disabled:cursor-not-allowed disabled:text-zinc-300 disabled:hover:bg-white/82"
                             >
                               <Sparkles className="mr-1.5 h-3.5 w-3.5" />
                               Generate Content
+                            </Button>
+                          ) : shouldShowContinueContent ? (
+                            <Button
+                              type="button"
+                              onClick={(e) => handleGenerateCampaignContent(campaign, e)}
+                              title={`Continue generating content for ${emptyContentCount} empty lead${
+                                emptyContentCount === 1 ? "" : "s"
+                              }`}
+                              className="h-9 rounded-md border border-blue-200/85 bg-blue-50 px-3.5 text-xs font-semibold text-blue-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.35),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-blue-300 hover:bg-blue-100 hover:text-blue-800"
+                            >
+                              <Play className="mr-1.5 h-3.5 w-3.5 fill-current" />
+                              Continue
+                              {contentSummaryProgressLabel ? (
+                                <span className="ml-1.5 rounded-full bg-white/70 px-1.5 py-0.5 text-[10px]">
+                                  {contentSummaryProgressLabel}
+                                </span>
+                              ) : null}
                             </Button>
                           ) : null}
 
@@ -1393,7 +1669,7 @@ function SuperAdminCampaignsPage() {
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  onClick={() => replaceCampaignPage(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
                   className="h-8 rounded-md border border-zinc-300/80 bg-white/82 px-2 text-zinc-600 disabled:opacity-40"
                 >
@@ -1404,7 +1680,7 @@ function SuperAdminCampaignsPage() {
                   <button
                     key={pageNum}
                     type="button"
-                    onClick={() => setCurrentPage(pageNum)}
+                    onClick={() => replaceCampaignPage(pageNum)}
                     className={`h-8 min-w-8 rounded-md border px-2 text-xs font-semibold transition-colors ${
                       pageNum === currentPage
                         ? "border-zinc-300 bg-zinc-900 text-white"
@@ -1418,7 +1694,7 @@ function SuperAdminCampaignsPage() {
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  onClick={() => replaceCampaignPage(Math.min(totalPages, currentPage + 1))}
                   disabled={currentPage === totalPages}
                   className="h-8 rounded-md border border-zinc-300/80 bg-white/82 px-2 text-zinc-600 disabled:opacity-40"
                 >
