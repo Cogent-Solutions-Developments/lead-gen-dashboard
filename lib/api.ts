@@ -424,7 +424,7 @@ export type GenerateSelectedLeadContentResponse = {
   suppressedLeadIds: string[];
   missingLeadIds?: string[];
   failedCount: number;
-  failed?: Array<{ leadId: string; error: string }>;
+  failed?: Array<{ leadId: string; error: string; stage?: string; status?: string }>;
   generationMode?: string | null;
   queued?: boolean;
   jobId?: string | null;
@@ -449,6 +449,7 @@ export type ResetLeadContentResponse = {
   id: string;
   draftId?: string | null;
   draftStatus?: string | null;
+  draftMeta?: Record<string, unknown> | null;
   contentEmailSubject: string | null;
   contentEmail: string | null;
   contentLinkedin: string | null;
@@ -474,7 +475,7 @@ export type ResetSelectedLeadContentResponse = {
   leads: ResetLeadContentResponse[];
   missingLeadIds?: string[];
   failedCount: number;
-  failed?: Array<{ leadId: string; error: string }>;
+  failed?: Array<{ leadId: string; error: string; stage?: string; status?: string }>;
 };
 
 export type SendSelectedLeadsRequest = {
@@ -651,6 +652,9 @@ export type LeadItem = {
   contentEmail: string | null;
   contentLinkedin: string | null;
   contentWhatsapp: string | null;
+  draftId?: string | null;
+  draftStatus?: string | null;
+  draftMeta?: Record<string, unknown> | null;
   eventName?: string | null;
   canonicalEventKey?: string | null;
   canonicalEventName?: string | null;

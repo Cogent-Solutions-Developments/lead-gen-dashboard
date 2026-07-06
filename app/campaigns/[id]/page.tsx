@@ -87,6 +87,15 @@ type LeadSendAction = "both" | "email" | "whatsapp";
 type BulkSendChannel = "email" | "whatsapp";
 type LeadContentSource = "template" | "generated" | "manual" | "empty" | "unknown";
 type ContentGenerationQueueStatus = "idle" | "running" | "stopping" | "paused";
+type GenerationFailureStatus = "validator_rejected" | "qa_failed" | "generation_failed";
+
+type GenerationFailureInfo = {
+  status: GenerationFailureStatus;
+  stage: string;
+  title: string;
+  reason: string;
+  guidance: string;
+};
 
 type ContentGenerationStats = {
   total: number;
@@ -125,6 +134,8 @@ interface Lead {
   id: string;
   draftId?: string | null;
   draftStatus?: string | null;
+  draftMeta?: Record<string, unknown> | null;
+  generationFailure?: GenerationFailureInfo | null;
 
   batchId?: string;
   employeeName: string;
@@ -252,6 +263,21 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
 }
 
+function asCleanText(value: unknown): string {
+  return String(value ?? "").trim();
+}
+
+function getRecordValue(source: Record<string, unknown> | null | undefined, key: string): Record<string, unknown> | null {
+  return asRecord(source?.[key]);
+}
+
+function textFromList(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.map((item) => asCleanText(item)).filter(Boolean).join("; ");
+  }
+  return asCleanText(value);
+}
+
 function hasText(value: unknown): boolean {
   return String(value ?? "").trim().length > 0;
 }
@@ -274,6 +300,55 @@ function normalizeContentSource(value: unknown): LeadContentSource {
 
 function shouldShowTemplateFallback(lead: Pick<Lead, "contentSource" | "templateFallback">): boolean {
   return Boolean(lead.templateFallback) && normalizeContentSource(lead.contentSource) !== "generated";
+}
+
+function deriveGenerationFailure(draftStatus: unknown, draftMeta: Record<string, unknown> | null): GenerationFailureInfo | null {
+  const status = asCleanText(draftStatus).toLowerCase();
+  const failureMeta = getRecordValue(draftMeta, "generationFailure");
+  const agenticV2 = getRecordValue(draftMeta, "agenticV2");
+  const agentic = getRecordValue(draftMeta, "agentic");
+  const source = failureMeta || agenticV2 || agentic;
+  const stage = asCleanText(source?.stage || source?.failureStage || failureMeta?.status || status);
+  const reason =
+    asCleanText(source?.reason || source?.failureReason || failureMeta?.reason) ||
+    textFromList(source?.rejectReasons || source?.rewriteFeedback || source?.localQualityIssues);
+  const failed =
+    status === "validator_rejected" ||
+    status === "qa_failed" ||
+    status === "generation_failed" ||
+    Boolean(failureMeta) ||
+    source?.approved === false;
+
+  if (!failed) return null;
+
+  const normalizedStatus: GenerationFailureStatus =
+    status === "validator_rejected" || stage === "validator"
+      ? "validator_rejected"
+      : status === "qa_failed" || stage === "qa"
+        ? "qa_failed"
+        : "generation_failed";
+  const title =
+    normalizedStatus === "validator_rejected"
+      ? "Lead did not pass validation"
+      : normalizedStatus === "qa_failed"
+        ? "Generated content did not pass QA"
+        : "Content generation failed";
+  const fallbackReason =
+    normalizedStatus === "validator_rejected"
+      ? "This lead is not relevant enough for this event based on the validator check."
+      : normalizedStatus === "qa_failed"
+        ? "The generated content was not released because it did not meet the QA checks."
+        : "The system could not release generated content for this lead.";
+
+  return {
+    status: normalizedStatus,
+    stage: stage || normalizedStatus,
+    title,
+    reason: reason || fallbackReason,
+    guidance:
+      asCleanText(failureMeta?.regenerationGuidance || source?.regenerationGuidance) ||
+      "Generate again after reviewing the failure reason. The next run will receive this metadata as feedback.",
+  };
 }
 
 function normalizeSuppressionMeta(value: unknown): SuppressionMeta | null {
@@ -1237,7 +1312,7 @@ function SuperAdminCampaignDetailPage() {
     setCommonAttachmentId(mapped.id);
   };
 
-  const fetchAll = async (options?: { silent?: boolean }) => {
+  const fetchAll = async (options?: { silent?: boolean; syncSelectedLeadId?: string }) => {
     if (!options?.silent) {
       setLoading(true);
     }
@@ -1288,6 +1363,8 @@ function SuperAdminCampaignDetailPage() {
 
         draftId: x.draftId ?? null,
         draftStatus: x.draftStatus ?? null,
+        draftMeta: asRecord(x.draftMeta),
+        generationFailure: deriveGenerationFailure(x.draftStatus ?? null, asRecord(x.draftMeta)),
         outreachStatus: extractOutreachStatus(x),
 
         // ✅ expect backend arrays; fallback to empty
@@ -1300,6 +1377,13 @@ function SuperAdminCampaignDetailPage() {
       }));
 
       setLeads(stabilizeLeadOrder(mapped));
+      if (options?.syncSelectedLeadId) {
+        const refreshedLead = mapped.find((item) => item.id === options.syncSelectedLeadId) || null;
+        if (refreshedLead) {
+          setSelectedLead(refreshedLead);
+          setEditForm(refreshedLead);
+        }
+      }
       applyLatestCommonAttachment(commonRes?.data ?? null);
       setOptOutItems(Array.isArray(optOutRes?.items) ? optOutRes.items : []);
     } catch (e: any) {
@@ -1361,6 +1445,11 @@ function SuperAdminCampaignDetailPage() {
                 templateFallback:
                   latest.templateFallback == null ? l.templateFallback : parseBoolean(latest.templateFallback),
                 draftStatus: latest.draftStatus ?? l.draftStatus,
+                draftMeta: latest.draftMeta === undefined ? l.draftMeta ?? null : asRecord(latest.draftMeta),
+                generationFailure:
+                  latest.draftMeta === undefined && latest.draftStatus === undefined
+                    ? l.generationFailure ?? null
+                    : deriveGenerationFailure(latest.draftStatus ?? l.draftStatus, asRecord(latest.draftMeta) ?? l.draftMeta ?? null),
                 outreachStatus: latestOutreachStatus ?? l.outreachStatus,
                 emailAttachments: Array.isArray(latest.emailAttachments)
                   ? normalizeAttachments(latest.emailAttachments)
@@ -1902,7 +1991,11 @@ function SuperAdminCampaignDetailPage() {
     setContentGenerationQueue({ ...EMPTY_CONTENT_GENERATION_QUEUE, remainingLeadIds: [] });
   };
 
-  const runContentGenerationQueue = async (leadIds: string[], stats?: ContentGenerationStats) => {
+  const runContentGenerationQueue = async (
+    leadIds: string[],
+    stats?: ContentGenerationStats,
+    options?: { syncSelectedLeadId?: string }
+  ) => {
     const total = stats?.total || leadIds.length;
     let completed = stats?.completed || 0;
     let generated = stats?.generated || 0;
@@ -1940,7 +2033,7 @@ function SuperAdminCampaignDetailPage() {
         toast.success("Content generation queued", {
           description: `${leadIds.length} lead${leadIds.length === 1 ? "" : "s"} sent to the content generation worker.`,
         });
-        await fetchAll({ silent: true });
+        await fetchAll({ silent: true, syncSelectedLeadId: options?.syncSelectedLeadId });
         return;
       }
       generated += Number(response?.generatedCount ?? 0);
@@ -1961,7 +2054,7 @@ function SuperAdminCampaignDetailPage() {
         toast.info("Content generation stopped", {
           description: `${completed}/${total} lead${total === 1 ? "" : "s"} processed.`,
         });
-        await fetchAll({ silent: true });
+        await fetchAll({ silent: true, syncSelectedLeadId: options?.syncSelectedLeadId });
         return;
       }
       failed += leadIds.length;
@@ -1982,7 +2075,7 @@ function SuperAdminCampaignDetailPage() {
         description: `${failed} lead${failed === 1 ? "" : "s"} failed during generation.`,
       });
     }
-    await fetchAll({ silent: true });
+    await fetchAll({ silent: true, syncSelectedLeadId: options?.syncSelectedLeadId });
   };
 
   const handleBulkGenerateContent = async () => {
@@ -2003,6 +2096,24 @@ function SuperAdminCampaignDetailPage() {
     const leadIds = selectedContentGenerationLeads.map((lead) => lead.id);
     contentGenerationPauseRequestedRef.current = false;
     await runContentGenerationQueue(leadIds);
+  };
+
+  const handleGenerateSelectedLeadAgain = async () => {
+    if (!canManageLeadActions || !selectedLead || isContentGenerationActive) return;
+    if (!hasText(selectedLead.email)) {
+      toast.error("Email address required", {
+        description: "This lead needs an email address before content can be generated.",
+      });
+      return;
+    }
+    if (isLeadSelectionBlocked(selectedLead)) {
+      toast.warning("Generation blocked", {
+        description: "This lead is suppressed or blocked for outreach.",
+      });
+      return;
+    }
+
+    await runContentGenerationQueue([selectedLead.id], undefined, { syncSelectedLeadId: selectedLead.id });
   };
 
   const handleStopContentGeneration = () => {
@@ -2507,6 +2618,11 @@ function SuperAdminCampaignDetailPage() {
     ...lead,
     draftId: data.draftId == null ? lead.draftId ?? null : String(data.draftId),
     draftStatus: data.draftStatus == null ? lead.draftStatus ?? null : String(data.draftStatus),
+    draftMeta: data.draftMeta === undefined ? lead.draftMeta ?? null : asRecord(data.draftMeta),
+    generationFailure:
+      data.draftMeta === undefined && data.draftStatus === undefined
+        ? lead.generationFailure ?? null
+        : deriveGenerationFailure(data.draftStatus ?? lead.draftStatus, asRecord(data.draftMeta) ?? lead.draftMeta ?? null),
     contentEmailSubject: data.contentEmailSubject ?? "",
     contentEmail: data.contentEmail ?? "",
     contentLinkedin: data.contentLinkedin ?? "",
@@ -2542,6 +2658,12 @@ function SuperAdminCampaignDetailPage() {
         templateFallback: data.templateFallback == null ? false : parseBoolean(data.templateFallback),
         approvalStatus: (data.approvalStatus ?? "pending") as ApprovalStatus,
         reviewStatus: data.reviewStatus ?? data.approvalStatus ?? null,
+        draftStatus: data.draftStatus ?? prev.draftStatus ?? null,
+        draftMeta: data.draftMeta === undefined ? (prev.draftMeta as Record<string, unknown> | null) ?? null : asRecord(data.draftMeta),
+        generationFailure: deriveGenerationFailure(
+          data.draftStatus ?? prev.draftStatus ?? null,
+          data.draftMeta === undefined ? (prev.draftMeta as Record<string, unknown> | null) ?? null : asRecord(data.draftMeta)
+        ),
       }));
     }
   };
@@ -2625,6 +2747,12 @@ function SuperAdminCampaignDetailPage() {
               contentSource: res.data.contentSource == null ? "manual" : normalizeContentSource(res.data.contentSource),
               templateFallback:
                 res.data.templateFallback == null ? false : parseBoolean(res.data.templateFallback),
+              draftStatus: res.data.draftStatus ?? l.draftStatus,
+              draftMeta: res.data.draftMeta === undefined ? l.draftMeta ?? null : asRecord(res.data.draftMeta),
+              generationFailure:
+                res.data.draftMeta === undefined && res.data.draftStatus === undefined
+                  ? l.generationFailure ?? null
+                  : deriveGenerationFailure(res.data.draftStatus ?? l.draftStatus, asRecord(res.data.draftMeta) ?? l.draftMeta ?? null),
               reviewStatus: res.data.reviewStatus ?? l.reviewStatus ?? null,
             }
             : l
@@ -2648,6 +2776,27 @@ function SuperAdminCampaignDetailPage() {
       setSaving(false);
     }
   };
+
+  const selectedGenerationFailure =
+    selectedLead?.generationFailure ?? (editForm.generationFailure as GenerationFailureInfo | null | undefined) ?? null;
+  const selectedContentEmpty =
+    Boolean(selectedLead) && !hasText(editForm.contentEmailSubject) && !hasText(editForm.contentEmail);
+  const selectedEmptyContentNotice = selectedContentEmpty
+    ? {
+        title: selectedGenerationFailure?.title || "No generated content available",
+        reason:
+          selectedGenerationFailure?.reason ||
+          "This lead has empty saved content. Generate again to create personalized content for review.",
+        guidance:
+          selectedGenerationFailure?.guidance ||
+          "The next run will use the latest lead, event, website, and validation context.",
+        status: selectedGenerationFailure?.status || "generation_failed",
+      }
+    : null;
+  const isGeneratingSelectedLeadAgain =
+    Boolean(selectedLead) &&
+    isContentGenerationActive &&
+    contentGenerationQueue.remainingLeadIds.includes(selectedLead?.id || "");
 
   if (loading) {
     return (
@@ -3903,6 +4052,58 @@ function SuperAdminCampaignDetailPage() {
                     </div>
 
                     <div className="flex h-full min-h-0 flex-col space-y-3">
+                      {selectedEmptyContentNotice ? (
+                        <div
+                          className={`rounded-lg border px-3 py-3 text-sm ${
+                            selectedEmptyContentNotice.status === "validator_rejected"
+                              ? "border-rose-200 bg-rose-50 text-rose-900"
+                              : selectedEmptyContentNotice.status === "qa_failed"
+                                ? "border-amber-200 bg-amber-50 text-amber-900"
+                                : "border-zinc-300 bg-zinc-50 text-zinc-800"
+                          }`}
+                        >
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0 space-y-1">
+                              <div className="flex items-center gap-2">
+                                <XCircle className="h-4 w-4 shrink-0" />
+                                <p className="font-semibold">{selectedEmptyContentNotice.title}</p>
+                              </div>
+                              <p className="text-xs leading-relaxed">{selectedEmptyContentNotice.reason}</p>
+                              <p className="text-[11px] leading-relaxed opacity-75">{selectedEmptyContentNotice.guidance}</p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="h-8 shrink-0 rounded-md border-white/70 bg-white px-3 text-xs text-zinc-800 hover:bg-white/90"
+                              disabled={
+                                saving ||
+                                isResettingContent ||
+                                isContentGenerationActive ||
+                                !canManageLeadActions ||
+                                !selectedLead ||
+                                !hasText(selectedLead.email) ||
+                                isLeadSelectionBlocked(selectedLead)
+                              }
+                              onClick={() => void handleGenerateSelectedLeadAgain()}
+                              title={
+                                isContentGenerationActive
+                                  ? "Content generation is already running"
+                                  : !selectedLead || !hasText(selectedLead.email)
+                                    ? "Lead needs an email address before generation"
+                                    : "Generate content again for this lead"
+                              }
+                            >
+                              {isGeneratingSelectedLeadAgain ? (
+                                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Sparkles className="mr-2 h-3.5 w-3.5" />
+                              )}
+                              {isGeneratingSelectedLeadAgain ? "Generating" : "Generate again"}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : null}
+
                       <div>
                         <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">Subject Line</label>
                         <input

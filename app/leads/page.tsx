@@ -107,6 +107,9 @@ interface Lead {
   contentEmailSubject: string;
   contentEmail: string;
   contentSource: string;
+  draftStatus: string;
+  draftMeta: Record<string, unknown> | null;
+  generationFailure: GenerationFailureInfo | null;
   contactState: ContactState;
   approvalStatus: ApprovalStatus;
   isSuppressed: boolean;
@@ -116,6 +119,13 @@ interface Lead {
   manualLeadAddedByUsername: string;
   manualLeadAddedAt: string;
 }
+
+type GenerationFailureInfo = {
+  status: "validator_rejected" | "qa_failed" | "generation_failed";
+  stage: string;
+  reason: string;
+  guidance: string;
+};
 
 const LinkedInIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -236,6 +246,53 @@ function isLeadSuppressed(lead: Lead): boolean {
 
 function hasGeneratedEmailContent(lead: Lead): boolean {
   return hasValue(lead.contentEmailSubject) && hasValue(lead.contentEmail) && lead.contentSource !== "template";
+}
+
+function getRecordValue(source: Record<string, unknown> | null, key: string): Record<string, unknown> | null {
+  return asRecord(source?.[key]);
+}
+
+function textFromList(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.map((item) => asText(item)).filter(Boolean).join("; ");
+  }
+  return asText(value);
+}
+
+function deriveGenerationFailure(draftStatus: string, draftMeta: Record<string, unknown> | null): GenerationFailureInfo | null {
+  const status = draftStatus.trim().toLowerCase();
+  const failureMeta = getRecordValue(draftMeta, "generationFailure");
+  const agenticV2 = getRecordValue(draftMeta, "agenticV2");
+  const agentic = getRecordValue(draftMeta, "agentic");
+  const source = failureMeta || agenticV2 || agentic;
+  const stage = asText(source?.stage || source?.failureStage || failureMeta?.status || status);
+  const reason =
+    asText(source?.reason || source?.failureReason || failureMeta?.reason) ||
+    textFromList(source?.rejectReasons || source?.rewriteFeedback || source?.localQualityIssues);
+  const failed =
+    status === "validator_rejected" ||
+    status === "qa_failed" ||
+    status === "generation_failed" ||
+    Boolean(failureMeta) ||
+    source?.approved === false;
+
+  if (!failed) return null;
+
+  const normalizedStatus =
+    status === "validator_rejected" || stage === "validator"
+      ? "validator_rejected"
+      : status === "qa_failed" || stage === "qa"
+        ? "qa_failed"
+        : "generation_failed";
+
+  return {
+    status: normalizedStatus,
+    stage: stage || normalizedStatus,
+    reason: reason || "Generation did not pass validation or QA.",
+    guidance:
+      asText(failureMeta?.regenerationGuidance || source?.regenerationGuidance) ||
+      "Regenerate after reviewing the failure reason.",
+  };
 }
 
 function isLeadSelectableForGeneration(lead: Lead): boolean {
@@ -592,6 +649,9 @@ function mapLeadItemToAdminLead(item: LeadItem): Lead {
     contentEmailSubject: asText(item.contentEmailSubject),
     contentEmail: asText(item.contentEmail),
     contentSource: asText(item.contentSource),
+    draftStatus: asText(item.draftStatus),
+    draftMeta: asRecord(item.draftMeta),
+    generationFailure: deriveGenerationFailure(asText(item.draftStatus), asRecord(item.draftMeta)),
     contactState: deriveContactState(item as Record<string, unknown>),
     approvalStatus: normalizeApprovalStatus(item.approvalStatus),
     isSuppressed: parseBoolean(item.isSuppressed),
@@ -1024,6 +1084,7 @@ function SuperAdminTotalLeads() {
       let suppressedCount = 0;
       let failedCount = 0;
       const generatedIds: string[] = [];
+      const failureMessages: string[] = [];
 
       for (const [campaignId, leadIds] of grouped.entries()) {
         const response = await generateSelectedCampaignLeadContent({ campaignId, leadIds });
@@ -1034,6 +1095,11 @@ function SuperAdminTotalLeads() {
           suppressedCount += Number(response.suppressedCount || 0);
           failedCount += Number(response.failedCount || 0);
           generatedIds.push(...(response.generatedLeadIds || []));
+          failureMessages.push(
+            ...(response.failed || [])
+              .map((item) => item.error)
+              .filter((message): message is string => Boolean(message?.trim()))
+          );
         }
       }
 
@@ -1050,7 +1116,7 @@ function SuperAdminTotalLeads() {
         });
       } else {
         toast.warning("No content generated", {
-          description: `${suppressedCount} suppressed, ${failedCount} failed.`,
+          description: failureMessages[0] || `${suppressedCount} suppressed, ${failedCount} failed.`,
         });
       }
 
@@ -1545,6 +1611,7 @@ function SuperAdminTotalLeads() {
                   const isSelected = selectedLeadIds.has(item.id);
                   const isGeneratingContent = generatingLeadIds.has(item.id);
                   const contentReady = hasGeneratedEmailContent(item);
+                  const generationFailure = item.generationFailure;
                   const canGenerateContent = contentGenerationEnabled && isLeadSelectableForGeneration(item);
                   const sentChannels = isReadOnly
                     ? { whatsapp: false, email: false }
@@ -1640,13 +1707,31 @@ function SuperAdminTotalLeads() {
                     <td className="px-3 py-3 align-top">
                       <span
                         className={`inline-flex rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${
-                          contentReady
+                          generationFailure
+                            ? generationFailure.status === "validator_rejected"
+                              ? "border-rose-200 bg-rose-50 text-rose-700"
+                              : "border-amber-200 bg-amber-50 text-amber-700"
+                            : contentReady
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                             : "border-zinc-300/80 bg-white text-zinc-500"
                         }`}
+                        title={generationFailure?.guidance}
                       >
-                        {contentReady ? "Ready" : "Needed"}
+                        {generationFailure
+                          ? generationFailure.status === "validator_rejected"
+                            ? "Rejected"
+                            : generationFailure.status === "qa_failed"
+                              ? "QA failed"
+                              : "Failed"
+                          : contentReady
+                            ? "Ready"
+                            : "Needed"}
                       </span>
+                      {generationFailure ? (
+                        <span className="mt-1 block max-w-[12rem] text-[10px] leading-snug text-zinc-500" title={generationFailure.reason}>
+                          {generationFailure.reason}
+                        </span>
+                      ) : null}
                       {item.contentSource ? (
                         <span className="mt-1 block max-w-[8rem] truncate text-[10px] text-zinc-400" title={item.contentSource}>
                           {item.contentSource}
