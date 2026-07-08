@@ -259,16 +259,98 @@ function textFromList(value: unknown): string {
   return asText(value);
 }
 
+function textArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    const text = asText(value).trim();
+    return text ? [text] : [];
+  }
+  return value
+    .map((item) => {
+      const source = asRecord(item);
+      return source
+        ? asText(source.summary || source.reason || source.claim || source.text).trim()
+        : asText(item).trim();
+    })
+    .filter(Boolean);
+}
+
+function isGenericFailureReason(value: unknown): boolean {
+  const text = asText(value).trim().toLowerCase().replace(/\s+/g, " ");
+  if (!text) return true;
+  return [
+    "did not meet the qa checks",
+    "did not pass validation or qa",
+    "generation did not pass validation",
+    "not relevant enough for this event based on the validator check",
+    "could not release generated content",
+  ].some((fragment) => text.includes(fragment));
+}
+
+function dedupeText(items: string[]): string[] {
+  return items.filter((item, index, arr) => item && arr.indexOf(item) === index);
+}
+
 function deriveGenerationFailure(draftStatus: string, draftMeta: Record<string, unknown> | null): GenerationFailureInfo | null {
   const status = draftStatus.trim().toLowerCase();
   const failureMeta = getRecordValue(draftMeta, "generationFailure");
   const agenticV2 = getRecordValue(draftMeta, "agenticV2");
   const agentic = getRecordValue(draftMeta, "agentic");
   const source = failureMeta || agenticV2 || agentic;
+  const display =
+    getRecordValue(failureMeta, "display") ||
+    getRecordValue(failureMeta, "failureDisplay") ||
+    getRecordValue(source, "failureDisplay");
+  const agenticDisplay = getRecordValue(agenticV2, "failureDisplay") || getRecordValue(agentic, "failureDisplay");
+  const qa = getRecordValue(agenticV2, "qa") || getRecordValue(agentic, "qa") || getRecordValue(source, "qa");
   const stage = asText(source?.stage || source?.failureStage || failureMeta?.status || status);
+  const details = dedupeText([
+    ...textArray(display?.details),
+    ...textArray(agenticDisplay?.details),
+    ...textArray(failureMeta?.details),
+    ...textArray(source?.details),
+    ...textArray(agenticV2?.details),
+    ...textArray(agentic?.details),
+    ...textArray(source?.rejectReasons),
+    ...textArray(source?.rewriteFeedback),
+    ...textArray(source?.localQualityIssues),
+    ...textArray(agenticV2?.rejectReasons),
+    ...textArray(agenticV2?.rewriteFeedback),
+    ...textArray(agenticV2?.localQualityIssues),
+    ...textArray(agentic?.rejectReasons),
+    ...textArray(agentic?.rewriteFeedback),
+    ...textArray(agentic?.localQualityIssues),
+    ...textArray(qa?.failureDetails),
+    ...textArray(qa?.rewrite_instructions),
+    ...textArray(qa?.quality_notes),
+  ]);
+  const displaySummary = asText(display?.summary || agenticDisplay?.summary).trim();
+  const explicitReason = asText(
+    failureMeta?.reason ||
+      source?.reason ||
+      source?.failureReason ||
+      agenticV2?.reason ||
+      agenticV2?.failureReason ||
+      agentic?.reason ||
+      agentic?.failureReason,
+  ).trim();
+  const qaReason = asText(qa?.displayReason).trim();
   const reason =
-    asText(source?.reason || source?.failureReason || failureMeta?.reason) ||
-    textFromList(source?.rejectReasons || source?.rewriteFeedback || source?.localQualityIssues);
+    (!isGenericFailureReason(displaySummary) ? displaySummary : "") ||
+    (!isGenericFailureReason(explicitReason) ? explicitReason : "") ||
+    details.find((item) => !isGenericFailureReason(item)) ||
+    (!isGenericFailureReason(qaReason) ? qaReason : "") ||
+    displaySummary ||
+    explicitReason ||
+    details[0] ||
+    textFromList(source?.rejectReasons) ||
+    textFromList(source?.rewriteFeedback) ||
+    textFromList(source?.localQualityIssues) ||
+    textFromList(agenticV2?.rejectReasons) ||
+    textFromList(agenticV2?.rewriteFeedback) ||
+    textFromList(agenticV2?.localQualityIssues) ||
+    textFromList(agentic?.rejectReasons) ||
+    textFromList(agentic?.rewriteFeedback) ||
+    textFromList(agentic?.localQualityIssues);
   const failed =
     status === "validator_rejected" ||
     status === "qa_failed" ||

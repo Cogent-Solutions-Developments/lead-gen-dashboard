@@ -410,6 +410,7 @@ export type GenerateSelectedLeadContentRequest = {
 
 export type GenerateCampaignLeadContentRequest = {
   campaignId: string;
+  leadIds?: string[];
   feedback?: string;
   signal?: AbortSignal;
 };
@@ -424,7 +425,14 @@ export type GenerateSelectedLeadContentResponse = {
   suppressedLeadIds: string[];
   missingLeadIds?: string[];
   failedCount: number;
-  failed?: Array<{ leadId: string; error: string; stage?: string; status?: string }>;
+  failed?: Array<{
+    leadId: string;
+    error: string;
+    stage?: string;
+    status?: string;
+    details?: string[];
+    metrics?: Array<{ label: string; actual: string; expected: string; status?: string }>;
+  }>;
   generationMode?: string | null;
   queued?: boolean;
   jobId?: string | null;
@@ -475,7 +483,14 @@ export type ResetSelectedLeadContentResponse = {
   leads: ResetLeadContentResponse[];
   missingLeadIds?: string[];
   failedCount: number;
-  failed?: Array<{ leadId: string; error: string; stage?: string; status?: string }>;
+  failed?: Array<{
+    leadId: string;
+    error: string;
+    stage?: string;
+    status?: string;
+    details?: string[];
+    metrics?: Array<{ label: string; actual: string; expected: string; status?: string }>;
+  }>;
 };
 
 export type SendSelectedLeadsRequest = {
@@ -1925,10 +1940,10 @@ export async function generateSelectedCampaignLeadContent(payload: GenerateSelec
 }
 
 export async function generateCampaignLeadContent(payload: GenerateCampaignLeadContentRequest) {
-  const { campaignId, feedback, signal } = payload;
+  const { campaignId, leadIds, feedback, signal } = payload;
   const { data } = await apiClient.post<GenerateSelectedLeadContentResponse>(
     `/api/campaigns/${campaignId}/content/generate`,
-    { feedback },
+    { leadIds, feedback },
     { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS, signal }
   );
   return data;

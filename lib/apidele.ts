@@ -815,10 +815,10 @@ export async function generateSelectedCampaignLeadContent(payload: GenerateSelec
 }
 
 export async function generateCampaignLeadContent(payload: GenerateCampaignLeadContentRequest) {
-  const { campaignId, feedback, signal } = payload;
+  const { campaignId, leadIds, feedback, signal } = payload;
   const { data } = await apiClientDelegate.post<GenerateSelectedLeadContentResponse>(
     `/api/delegates/campaigns/${campaignId}/content/generate`,
-    { feedback },
+    { leadIds, feedback },
     { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS, signal }
   );
   return data;

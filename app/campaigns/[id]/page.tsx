@@ -95,6 +95,14 @@ type GenerationFailureInfo = {
   title: string;
   reason: string;
   guidance: string;
+  details: string[];
+  metrics: Array<{
+    label: string;
+    actual: string;
+    expected: string;
+    status?: string;
+  }>;
+  evidence: string[];
 };
 
 type ContentGenerationStats = {
@@ -278,6 +286,119 @@ function textFromList(value: unknown): string {
   return asCleanText(value);
 }
 
+function textArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    const text = asCleanText(value);
+    return text ? [text] : [];
+  }
+  return value
+    .map((item) => {
+      const source = asRecord(item);
+      return source
+        ? asCleanText(source.summary || source.reason || source.claim || source.text)
+        : asCleanText(item);
+    })
+    .filter(Boolean);
+}
+
+function evidenceArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    const text = asCleanText(value);
+    return text ? [text] : [];
+  }
+  return value
+    .map((item) => {
+      const source = asRecord(item);
+      if (!source) return asCleanText(item);
+      const claim = asCleanText(source.claim || source.summary || source.reason || source.text);
+      const evidenceSource = asCleanText(source.source || source.label);
+      const url = asCleanText(source.url);
+      return [claim, evidenceSource ? `Source: ${evidenceSource}` : "", url ? `URL: ${url}` : ""]
+        .filter(Boolean)
+        .join(" | ");
+    })
+    .filter(Boolean);
+}
+
+function normalizeFailureMetrics(value: unknown): GenerationFailureInfo["metrics"] {
+  if (!Array.isArray(value)) return [];
+  const metrics: GenerationFailureInfo["metrics"] = [];
+  for (const item of value) {
+    const source = asRecord(item);
+    if (!source) continue;
+    const label = asCleanText(source.label);
+    const actual = asCleanText(source.actual);
+    const expected = asCleanText(source.expected);
+    if (!label && !actual && !expected) continue;
+    metrics.push({
+      label: label || "Check",
+      actual: actual || "-",
+      expected: expected || "-",
+      status: asCleanText(source.status) || undefined,
+    });
+  }
+  return metrics;
+}
+
+function isGenericFailureReason(value: unknown): boolean {
+  const text = asCleanText(value).toLowerCase().replace(/\s+/g, " ");
+  if (!text) return true;
+  return [
+    "did not meet the qa checks",
+    "did not pass validation or qa",
+    "generation did not pass validation",
+    "not relevant enough for this event based on the validator check",
+    "could not release generated content",
+  ].some((fragment) => text.includes(fragment));
+}
+
+function dedupeText(items: string[]): string[] {
+  return items.filter((item, index, arr) => item && arr.indexOf(item) === index);
+}
+
+function metricsFromFailureText(items: string[]): GenerationFailureInfo["metrics"] {
+  const metrics: GenerationFailureInfo["metrics"] = [];
+  const pushMetric = (label: string, actual: string, expected: string) => {
+    if (!metrics.some((metric) => metric.label === label && metric.actual === actual && metric.expected === expected)) {
+      metrics.push({ label, actual, expected, status: "failed" });
+    }
+  };
+
+  for (const item of items) {
+    const emailWords = item.match(/Email body must be 90-140 words; current body is about (\d+) words/i);
+    if (emailWords?.[1]) {
+      pushMetric("Email body word count", `${emailWords[1]} words`, "90-140 words");
+    }
+
+    const whatsappWords = item.match(/WhatsApp message must be 45-75 words; current message is about (\d+) words/i);
+    if (whatsappWords?.[1]) {
+      pushMetric("WhatsApp word count", `${whatsappWords[1]} words`, "45-75 words");
+    }
+
+    if (/Email body must use four short paragraphs/i.test(item)) {
+      pushMetric("Email paragraph structure", "Missing required structure", "4 paragraphs after greeting");
+    }
+
+    if (/Email opening must start with a personable outreach phrase/i.test(item)) {
+      pushMetric("Opening quality", "Bare event description", "Personable outreach opener");
+    }
+
+    if (/Email final paragraph must be a low-friction question/i.test(item)) {
+      pushMetric("Reply hook", "Missing reply question", "Question ending");
+    }
+
+    if (/Sales first outreach must not pitch/i.test(item)) {
+      pushMetric("Sales tone", "Pitch language detected", "Strategic relevance only");
+    }
+
+    if (/Remove semicolons/i.test(item)) {
+      pushMetric("Punctuation", "Semicolon detected", "Natural short sentences");
+    }
+  }
+
+  return metrics;
+}
+
 function hasText(value: unknown): boolean {
   return String(value ?? "").trim().length > 0;
 }
@@ -302,16 +423,163 @@ function shouldShowTemplateFallback(lead: Pick<Lead, "contentSource" | "template
   return Boolean(lead.templateFallback) && normalizeContentSource(lead.contentSource) !== "generated";
 }
 
+function leadHasContent(
+  lead: Pick<
+    Lead,
+    "contentEmailSubject" | "contentEmail" | "contentLinkedin" | "contentWhatsapp" | "contentSource"
+  >
+): boolean {
+  const contentSource = normalizeContentSource(lead.contentSource);
+  return (
+    hasText(lead.contentEmailSubject) ||
+    hasText(lead.contentEmail) ||
+    hasText(lead.contentLinkedin) ||
+    hasText(lead.contentWhatsapp) ||
+    contentSource === "generated" ||
+    contentSource === "manual" ||
+    contentSource === "template"
+  );
+}
+
+function getLeadContentIndicator(lead: Lead) {
+  if (lead.generationFailure?.status === "validator_rejected") {
+    return {
+      title: lead.generationFailure.reason || "Validator rejected this lead content.",
+      buttonClassName:
+        "border-rose-200 bg-rose-50/90 text-rose-800 hover:border-rose-300 hover:bg-rose-100/80 hover:text-rose-900",
+      iconClassName: "text-rose-500",
+    };
+  }
+
+  if (lead.generationFailure?.status === "qa_failed") {
+    return {
+      title: lead.generationFailure.reason || "Generated content did not pass QA.",
+      buttonClassName:
+        "border-amber-200 bg-amber-50/90 text-amber-800 hover:border-amber-300 hover:bg-amber-100/80 hover:text-amber-900",
+      iconClassName: "text-amber-500",
+    };
+  }
+
+  if (lead.generationFailure?.status === "generation_failed") {
+    return {
+      title: lead.generationFailure.reason || "Content generation failed.",
+      buttonClassName:
+        "border-amber-200 bg-amber-50/90 text-amber-800 hover:border-amber-300 hover:bg-amber-100/80 hover:text-amber-900",
+      iconClassName: "text-amber-500",
+    };
+  }
+
+  if (leadHasContent(lead)) {
+    return {
+      title: "Content is available for this lead.",
+      buttonClassName:
+        "border-emerald-200 bg-emerald-50/90 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-100/80 hover:text-emerald-900",
+      iconClassName: "text-emerald-500",
+    };
+  }
+
+  return {
+    title: "Review email content",
+    buttonClassName:
+      "border-zinc-300/80 bg-white/82 text-zinc-700 hover:border-zinc-300 hover:bg-white hover:text-zinc-900",
+    iconClassName: "text-zinc-400",
+  };
+}
+
 function deriveGenerationFailure(draftStatus: unknown, draftMeta: Record<string, unknown> | null): GenerationFailureInfo | null {
   const status = asCleanText(draftStatus).toLowerCase();
   const failureMeta = getRecordValue(draftMeta, "generationFailure");
   const agenticV2 = getRecordValue(draftMeta, "agenticV2");
   const agentic = getRecordValue(draftMeta, "agentic");
   const source = failureMeta || agenticV2 || agentic;
+  const display =
+    getRecordValue(failureMeta, "display") ||
+    getRecordValue(failureMeta, "failureDisplay") ||
+    getRecordValue(source, "failureDisplay");
+  const agenticDisplay = getRecordValue(agenticV2, "failureDisplay") || getRecordValue(agentic, "failureDisplay");
+  const qa = getRecordValue(agenticV2, "qa") || getRecordValue(agentic, "qa") || getRecordValue(source, "qa");
+  const validator = getRecordValue(agenticV2, "validator") || getRecordValue(agentic, "validator") || getRecordValue(source, "validator");
   const stage = asCleanText(source?.stage || source?.failureStage || failureMeta?.status || status);
+  const details = dedupeText([
+    ...textArray(display?.details),
+    ...textArray(agenticDisplay?.details),
+    ...textArray(failureMeta?.details),
+    ...textArray(source?.details),
+    ...textArray(agenticV2?.details),
+    ...textArray(agentic?.details),
+    ...textArray(source?.rejectReasons),
+    ...textArray(source?.rewriteFeedback),
+    ...textArray(source?.localQualityIssues),
+    ...textArray(agenticV2?.rejectReasons),
+    ...textArray(agenticV2?.rewriteFeedback),
+    ...textArray(agenticV2?.localQualityIssues),
+    ...textArray(agentic?.rejectReasons),
+    ...textArray(agentic?.rewriteFeedback),
+    ...textArray(agentic?.localQualityIssues),
+    ...textArray(validator?.displayReason),
+    ...textArray(validator?.rejectReasons),
+    ...textArray(validator?.relevanceFindings),
+    ...textArray(validator?.companyFitSummary),
+    ...textArray(validator?.leadFitSummary),
+    ...textArray(validator?.departmentFitSummary),
+    ...textArray(qa?.failureDetails),
+    ...textArray(qa?.rewrite_instructions),
+    ...textArray(qa?.quality_notes),
+  ]);
+  const metrics = [
+    ...normalizeFailureMetrics(display?.metrics),
+    ...normalizeFailureMetrics(agenticDisplay?.metrics),
+    ...normalizeFailureMetrics(failureMeta?.metrics),
+    ...normalizeFailureMetrics(source?.qualityMetrics),
+    ...normalizeFailureMetrics(agenticV2?.qualityMetrics),
+    ...normalizeFailureMetrics(agentic?.qualityMetrics),
+    ...metricsFromFailureText(details),
+  ].filter(
+    (item, index, arr) =>
+      arr.findIndex(
+        (candidate) =>
+          candidate.label === item.label &&
+          candidate.actual === item.actual &&
+          candidate.expected === item.expected,
+      ) === index,
+  );
+  const evidence = dedupeText([
+    ...evidenceArray(display?.evidence),
+    ...evidenceArray(agenticDisplay?.evidence),
+    ...evidenceArray(failureMeta?.evidence),
+    ...evidenceArray(source?.evidence),
+    ...evidenceArray(agenticV2?.evidence),
+    ...evidenceArray(agentic?.evidence),
+    ...evidenceArray(validator?.evidence),
+  ]);
+  const displaySummary = asCleanText(display?.summary || agenticDisplay?.summary);
+  const explicitReason = asCleanText(
+    failureMeta?.reason ||
+      source?.reason ||
+      source?.failureReason ||
+      agenticV2?.reason ||
+      agenticV2?.failureReason ||
+      agentic?.reason ||
+      agentic?.failureReason,
+  );
+  const qaReason = asCleanText(qa?.displayReason);
   const reason =
-    asCleanText(source?.reason || source?.failureReason || failureMeta?.reason) ||
-    textFromList(source?.rejectReasons || source?.rewriteFeedback || source?.localQualityIssues);
+    (!isGenericFailureReason(displaySummary) ? displaySummary : "") ||
+    (!isGenericFailureReason(explicitReason) ? explicitReason : "") ||
+    details.find((item) => !isGenericFailureReason(item)) ||
+    (!isGenericFailureReason(qaReason) ? qaReason : "") ||
+    displaySummary ||
+    explicitReason ||
+    details[0] ||
+    textFromList(source?.rejectReasons) ||
+    textFromList(source?.rewriteFeedback) ||
+    textFromList(source?.localQualityIssues) ||
+    textFromList(agenticV2?.rejectReasons) ||
+    textFromList(agenticV2?.rewriteFeedback) ||
+    textFromList(agenticV2?.localQualityIssues) ||
+    textFromList(agentic?.rejectReasons) ||
+    textFromList(agentic?.rewriteFeedback) ||
+    textFromList(agentic?.localQualityIssues);
   const failed =
     status === "validator_rejected" ||
     status === "qa_failed" ||
@@ -328,11 +596,12 @@ function deriveGenerationFailure(draftStatus: unknown, draftMeta: Record<string,
         ? "qa_failed"
         : "generation_failed";
   const title =
-    normalizedStatus === "validator_rejected"
+    asCleanText(display?.title || failureMeta?.title) ||
+    (normalizedStatus === "validator_rejected"
       ? "Lead did not pass validation"
       : normalizedStatus === "qa_failed"
         ? "Generated content did not pass QA"
-        : "Content generation failed";
+        : "Content generation failed");
   const fallbackReason =
     normalizedStatus === "validator_rejected"
       ? "This lead is not relevant enough for this event based on the validator check."
@@ -346,8 +615,11 @@ function deriveGenerationFailure(draftStatus: unknown, draftMeta: Record<string,
     title,
     reason: reason || fallbackReason,
     guidance:
-      asCleanText(failureMeta?.regenerationGuidance || source?.regenerationGuidance) ||
+      asCleanText(failureMeta?.regenerationGuidance || display?.nextAction || source?.regenerationGuidance) ||
       "Generate again after reviewing the failure reason. The next run will receive this metadata as feedback.",
+    details,
+    metrics,
+    evidence,
   };
 }
 
@@ -2791,6 +3063,9 @@ function SuperAdminCampaignDetailPage() {
           selectedGenerationFailure?.guidance ||
           "The next run will use the latest lead, event, website, and validation context.",
         status: selectedGenerationFailure?.status || "generation_failed",
+        details: selectedGenerationFailure?.details || [],
+        metrics: selectedGenerationFailure?.metrics || [],
+        evidence: selectedGenerationFailure?.evidence || [],
       }
     : null;
   const isGeneratingSelectedLeadAgain =
@@ -3384,7 +3659,7 @@ function SuperAdminCampaignDetailPage() {
 
         <div className="relative z-[2] px-4 pb-2 pt-3">
           <div>
-            <table className={canManageLeadActions ? "min-w-[960px] w-full" : "min-w-[520px] w-full"}>
+            <table className={canManageLeadActions ? "min-w-[1000px] w-full" : "min-w-[520px] w-full"}>
             <thead className="border-b border-zinc-100/85 bg-white/70">
               <tr>
                 {canManageLeadActions && bulkSelectMode && (
@@ -3398,6 +3673,9 @@ function SuperAdminCampaignDetailPage() {
                       className="h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
                     />
                   </th>
+                )}
+                {canManageLeadActions && (
+                  <th className="w-16 px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">No.</th>
                 )}
                 <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Profile</th>
                 <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Contact Info</th>
@@ -3415,13 +3693,14 @@ function SuperAdminCampaignDetailPage() {
             <tbody className="divide-y divide-zinc-100/70">
               {paginatedLeads.length === 0 && (
                 <tr>
-                  <td colSpan={canManageLeadActions ? (bulkSelectMode ? 7 : 6) : 2} className="px-6 py-10 text-center text-sm text-zinc-500">
+                  <td colSpan={canManageLeadActions ? (bulkSelectMode ? 8 : 7) : 2} className="px-6 py-10 text-center text-sm text-zinc-500">
                     No {activeFilterLabel.toLowerCase()} leads found.
                   </td>
                 </tr>
               )}
 
-              {paginatedLeads.map((item) => {
+              {paginatedLeads.map((item, index) => {
+                const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
                 const status = approvalStyles[item.approvalStatus] ?? approvalStyles.pending;
                 const StatusIcon = status.icon;
                 const titleBucket = normalizeTitleBucket(item.title || "");
@@ -3458,6 +3737,12 @@ function SuperAdminCampaignDetailPage() {
                 const suppressionEmail = suppressionMeta?.email || optOutEntry?.email || item.email || null;
                 const showTemplateFallback = shouldShowTemplateFallback(item);
                 const reviewContentDisabled = isLeadReadOnly || !canSendEmail;
+                const contentIndicator = getLeadContentIndicator(item);
+                const reviewContentTitle = !canSendEmail
+                  ? "Email content review is available only for leads with email addresses."
+                  : isLeadReadOnly
+                    ? "Lead actions are blocked"
+                    : contentIndicator.title;
 
                 return (
                   <tr
@@ -3476,6 +3761,13 @@ function SuperAdminCampaignDetailPage() {
                           disabled={isLeadSelectionBlocked(item)}
                           className="mt-0.5 h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
                         />
+                      </td>
+                    )}
+                    {canManageLeadActions && (
+                      <td className="px-4 py-3.5 align-top">
+                        <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-zinc-200 bg-white/80 px-2 text-xs font-semibold text-zinc-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                          {rowNumber}
+                        </span>
                       </td>
                     )}
                     <td className="px-4 py-3.5">
@@ -3541,18 +3833,12 @@ function SuperAdminCampaignDetailPage() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-8 rounded-md border border-zinc-300/80 bg-white/82 text-xs font-semibold text-zinc-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+                                className={`h-8 rounded-md border px-2.5 text-xs font-semibold shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] ${contentIndicator.buttonClassName}`}
                                 onClick={() => setSelectedLead(item)}
                                 disabled={reviewContentDisabled}
-                                title={
-                                  !canSendEmail
-                                    ? "Email content review is available only for leads with email addresses."
-                                    : isLeadReadOnly
-                                      ? "Lead actions are blocked"
-                                      : "Review email content"
-                                }
+                                title={reviewContentTitle}
                               >
-                                <Eye className="mr-2 h-3.5 w-3.5 text-zinc-400" />
+                                <Eye className={`mr-2 h-3.5 w-3.5 ${contentIndicator.iconClassName}`} />
                                 Review Content
                               </Button>
                             </div>
@@ -4069,6 +4355,59 @@ function SuperAdminCampaignDetailPage() {
                                 <p className="font-semibold">{selectedEmptyContentNotice.title}</p>
                               </div>
                               <p className="text-xs leading-relaxed">{selectedEmptyContentNotice.reason}</p>
+                              {selectedEmptyContentNotice.metrics.length > 0 ? (
+                                <div className="mt-2 space-y-1.5">
+                                  <p className="text-[11px] font-semibold uppercase tracking-wide opacity-75">
+                                    Failed checks
+                                  </p>
+                                  <div className="grid gap-1.5 sm:grid-cols-2">
+                                  {selectedEmptyContentNotice.metrics.slice(0, 4).map((metric) => (
+                                    <div
+                                      key={`${metric.label}-${metric.actual}-${metric.expected}`}
+                                      className="rounded-md border border-white/70 bg-white/65 px-2 py-1.5 text-[11px] leading-snug"
+                                    >
+                                      <p className="font-semibold">{metric.label}</p>
+                                      <p className="mt-0.5">
+                                        <span className="font-medium">Actual:</span> {metric.actual}
+                                      </p>
+                                      <p>
+                                        <span className="font-medium">Expected:</span> {metric.expected}
+                                      </p>
+                                    </div>
+                                  ))}
+                                  </div>
+                                </div>
+                              ) : null}
+                              {selectedEmptyContentNotice.details.length > 0 ? (
+                                <div className="mt-2 space-y-1.5">
+                                  <p className="text-[11px] font-semibold uppercase tracking-wide opacity-75">
+                                    Rejection factors
+                                  </p>
+                                  <ul className="space-y-1 text-[11px] leading-relaxed">
+                                    {selectedEmptyContentNotice.details.slice(0, 6).map((detail) => (
+                                      <li key={detail} className="flex gap-1.5">
+                                        <span className="mt-[0.45rem] h-1 w-1 shrink-0 rounded-full bg-current opacity-60" />
+                                        <span>{detail}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : null}
+                              {selectedEmptyContentNotice.evidence.length > 0 ? (
+                                <div className="mt-2 space-y-1.5">
+                                  <p className="text-[11px] font-semibold uppercase tracking-wide opacity-75">
+                                    Evidence used
+                                  </p>
+                                  <ul className="space-y-1 text-[11px] leading-relaxed">
+                                    {selectedEmptyContentNotice.evidence.slice(0, 4).map((item) => (
+                                      <li key={item} className="flex gap-1.5">
+                                        <span className="mt-[0.45rem] h-1 w-1 shrink-0 rounded-full bg-current opacity-60" />
+                                        <span className="break-words">{item}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : null}
                               <p className="text-[11px] leading-relaxed opacity-75">{selectedEmptyContentNotice.guidance}</p>
                             </div>
                             <Button

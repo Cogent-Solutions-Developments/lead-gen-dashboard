@@ -28,7 +28,7 @@ import {
   cancelCampaignContentGenerationJob,
   deleteCampaign,
   forceDeleteCampaign,
-  generateSelectedCampaignLeadContent,
+  generateCampaignLeadContent,
   getCampaignLeads,
   getCampaignInfo,
   listCampaigns,
@@ -92,7 +92,6 @@ const filterOnlyStatuses = [
 ] as const;
 
 const CAMPAIGN_LIST_POLL_MS = 30000;
-const CAMPAIGN_CONTENT_GENERATION_BATCH_SIZE = 1;
 const CONTENT_JOB_ACTIVE_STATES = new Set(["PENDING", "STARTED", "PROGRESS", "RETRY"]);
 const CAMPAIGN_PAGE_QUERY_PARAM = "page";
 
@@ -108,6 +107,7 @@ type CampaignContentGenerationState = {
   currentLeadId: string | null;
   remainingLeadIds: string[];
   jobId?: string | null;
+  message?: string | null;
 };
 
 type CampaignContentSummary = {
@@ -206,6 +206,7 @@ function stateFromContentGenerationJob(
       currentLeadId: null,
       remainingLeadIds: [],
       jobId: job.id,
+      message: job.message || null,
     };
   }
   if (state === "CANCELLED" || job.cancelRequested) {
@@ -219,6 +220,7 @@ function stateFromContentGenerationJob(
       currentLeadId: null,
       remainingLeadIds: [],
       jobId: job.id,
+      message: job.message || null,
     };
   }
   if ((campaign.toApprove || 0) > 0 && state === "FAILURE") {
@@ -232,6 +234,7 @@ function stateFromContentGenerationJob(
       currentLeadId: null,
       remainingLeadIds: [],
       jobId: job.id,
+      message: job.message || null,
     };
   }
   return null;
@@ -875,67 +878,56 @@ function SuperAdminCampaignsPage() {
 
     contentGenerationStopRequestedRef.current.delete(campaignId);
 
-    for (let index = 0; index < leadIds.length; index += CAMPAIGN_CONTENT_GENERATION_BATCH_SIZE) {
-      if (contentGenerationStopRequestedRef.current.has(campaignId)) {
+    const controller = new AbortController();
+    contentGenerationControllersRef.current.set(campaignId, controller);
+    setCampaignContentGenerationState(campaignId, {
+      status: "running",
+      total,
+      completed,
+      generated,
+      failed,
+      suppressed,
+      currentLeadId: leadIds[0] || null,
+      remainingLeadIds: leadIds,
+    });
+
+    try {
+      const response = await generateCampaignLeadContent({
+        campaignId,
+        leadIds,
+        signal: controller.signal,
+      });
+      if (response?.queued) {
+        queued = leadIds.length;
         setCampaignContentGenerationState(campaignId, {
-          status: "paused",
+          status: "running",
           total,
           completed,
           generated,
           failed,
           suppressed,
-          currentLeadId: null,
-          remainingLeadIds: leadIds.slice(index),
+          currentLeadId: leadIds[0] || null,
+          remainingLeadIds: leadIds,
+          jobId: response.jobId || null,
         });
-        toast.info("Content generation stopped", {
-          description: `${completed}/${total} lead${total === 1 ? "" : "s"} processed.`,
+        toast.success("Content generation queued", {
+          description: `${queued} lead${queued === 1 ? "" : "s"} sent to one sequential content worker.`,
         });
         await fetchData({ silent: true, showErrors: false });
+        await loadCampaignContentSummary(campaignId, { silent: true });
         return;
       }
-
-      const batchLeadIds = leadIds.slice(index, index + CAMPAIGN_CONTENT_GENERATION_BATCH_SIZE);
-      const leadId = batchLeadIds[0] || null;
-      const controller = new AbortController();
-      contentGenerationControllersRef.current.set(campaignId, controller);
-      setCampaignContentGenerationState(campaignId, {
-        status: "running",
-        total,
-        completed,
-        generated,
-        failed,
-        suppressed,
-        currentLeadId: leadId,
-        remainingLeadIds: leadIds.slice(index + batchLeadIds.length),
+      completed += leadIds.length;
+      generated += Number(response?.generatedCount ?? 0);
+      failed += Number(response?.failedCount ?? 0);
+      suppressed += Number(response?.suppressedCount ?? 0);
+      toast.success("Content generation completed", {
+        description: `Generated ${generated} lead${generated === 1 ? "" : "s"}. ${
+          failed || suppressed ? `Skipped/failed ${failed + suppressed}.` : ""
+        }`,
       });
-
-      let aborted = false;
-      try {
-        const response = await generateSelectedCampaignLeadContent({
-          campaignId,
-          leadIds: batchLeadIds,
-          signal: controller.signal,
-        });
-        if (response?.queued) {
-          queued += batchLeadIds.length;
-        } else {
-          generated += Number(response?.generatedCount ?? 0);
-          failed += Number(response?.failedCount ?? 0);
-          suppressed += Number(response?.suppressedCount ?? 0);
-        }
-      } catch (error: unknown) {
-        if (isContentGenerationAbortError(error)) {
-          aborted = true;
-        } else {
-          failed += batchLeadIds.length;
-        }
-      } finally {
-        if (contentGenerationControllersRef.current.get(campaignId) === controller) {
-          contentGenerationControllersRef.current.delete(campaignId);
-        }
-      }
-
-      if (aborted || contentGenerationStopRequestedRef.current.has(campaignId)) {
+    } catch (error: unknown) {
+      if (isContentGenerationAbortError(error)) {
         contentGenerationStopRequestedRef.current.add(campaignId);
         setCampaignContentGenerationState(campaignId, {
           status: "paused",
@@ -945,7 +937,7 @@ function SuperAdminCampaignsPage() {
           failed,
           suppressed,
           currentLeadId: null,
-          remainingLeadIds: leadIds.slice(index),
+          remainingLeadIds: leadIds,
         });
         toast.info("Content generation stopped", {
           description: `${completed}/${total} lead${total === 1 ? "" : "s"} processed. Use Continue to resume.`,
@@ -953,30 +945,12 @@ function SuperAdminCampaignsPage() {
         await fetchData({ silent: true, showErrors: false });
         return;
       }
-
-      completed += batchLeadIds.length;
-      setCampaignContentGenerationState(campaignId, {
-        status: "running",
-        total,
-        completed,
-        generated,
-        failed,
-        suppressed,
-        currentLeadId: null,
-        remainingLeadIds: leadIds.slice(index + batchLeadIds.length),
-      });
-    }
-
-    if (queued > 0) {
-      toast.success("Content generation queued", {
-        description: `${queued} lead${queued === 1 ? "" : "s"} sent to the content generation worker.`,
-      });
-    } else {
-      toast.success("Content generation completed", {
-        description: `Generated ${generated} lead${generated === 1 ? "" : "s"}. ${
-          failed || suppressed ? `Skipped/failed ${failed + suppressed}.` : ""
-        }`,
-      });
+      failed += leadIds.length;
+      toast.error("Content generation failed", { description: getErrorMessage(error) });
+    } finally {
+      if (contentGenerationControllersRef.current.get(campaignId) === controller) {
+        contentGenerationControllersRef.current.delete(campaignId);
+      }
     }
     await fetchData({ silent: true, showErrors: false });
     await loadCampaignContentSummary(campaignId, { silent: true });
@@ -1087,15 +1061,16 @@ function SuperAdminCampaignsPage() {
 
     contentGenerationStopRequestedRef.current.add(campaignId);
     const controller = contentGenerationControllersRef.current.get(campaignId);
+    const stopMessage = "Stop requested. The current lead step will finish before the worker stops.";
     setContentGenerationByCampaign((prev) => ({
       ...prev,
-      [campaignId]: { ...state, status: "stopping" },
+      [campaignId]: { ...state, status: "stopping", message: stopMessage },
     }));
     if (state.jobId) {
       try {
         await cancelCampaignContentGenerationJob(campaignId, state.jobId);
         toast.info("Content generation stop requested", {
-          description: "The worker will stop after the current lead finishes.",
+          description: stopMessage,
         });
         await fetchData({ silent: true, showErrors: false });
       } catch (error: unknown) {
@@ -1548,7 +1523,9 @@ function SuperAdminCampaignsPage() {
                               onClick={(e) => void handleStopCampaignContentGeneration(campaign.id, e)}
                               disabled={contentGenerationState?.status === "stopping"}
                               title={
-                                isPreparingContent
+                                contentGenerationState?.status === "stopping"
+                                  ? contentGenerationState.message || "Stop requested. Waiting for the current lead step to finish."
+                                  : isPreparingContent
                                   ? "Stop after campaign leads are loaded"
                                   : "Stop content generation for this campaign"
                               }
@@ -1559,7 +1536,7 @@ function SuperAdminCampaignsPage() {
                               ) : (
                                 <Square className="mr-1.5 h-3 w-3 fill-current" />
                               )}
-                              {contentGenerationState?.status === "stopping" ? "Stopping" : "Stop"}
+                              {contentGenerationState?.status === "stopping" ? "Stopping after lead" : "Stop"}
                               {contentProgressLabel ? (
                                 <span className="ml-1.5 rounded-full bg-white/70 px-1.5 py-0.5 text-[10px]">
                                   {contentProgressLabel}
