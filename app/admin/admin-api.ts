@@ -21,7 +21,10 @@ export type AuthRole =
   | "sales_manager_user"
   | "delegate_manager_user"
   | "production_manager_user"
-  | "client_user";
+  | "client_user"
+  | "marketing_user"
+  | "operational_user"
+  | "finance_user";
 
 export type AuthUser = Omit<BaseAuthUser, "role"> & {
   role: AuthRole;
@@ -260,6 +263,9 @@ export const AUTH_ROLES: AuthRole[] = [
   "delegate_manager_user",
   "production_user",
   "production_manager_user",
+  "marketing_user",
+  "operational_user",
+  "finance_user",
   "client_user",
 ];
 
@@ -287,6 +293,13 @@ const ROLE_ALIASES: Record<string, AuthRole> = {
   client_user: "client_user",
   event_client: "client_user",
   event_client_user: "client_user",
+  marketing: "marketing_user",
+  marketing_user: "marketing_user",
+  operational: "operational_user",
+  operations: "operational_user",
+  operational_user: "operational_user",
+  finance: "finance_user",
+  finance_user: "finance_user",
 };
 
 function getBaseUrl() {
@@ -441,6 +454,9 @@ export function getRoleLabel(role: AuthRole | null | undefined) {
   if (role === "sales_manager_user") return "Sales Manager";
   if (role === "delegate_manager_user") return "Delegate Manager";
   if (role === "production_manager_user") return "Production Manager";
+  if (role === "marketing_user") return "Marketing";
+  if (role === "operational_user") return "Operations";
+  if (role === "finance_user") return "Finance";
   if (role === "client_user") return "Client";
   if (role === "delegate_user") return "Delegate";
   if (role === "production_user") return "Production";
@@ -458,6 +474,11 @@ export function updateStoredAuthUser(user: AuthUser) {
 export async function listAuthUsers() {
   const data = await adminAuthRequest<{ users: AuthUser[] }>("/api/auth/users");
   return Array.isArray(data.users) ? data.users.map(normalizeAdminUser) : [];
+}
+
+export async function listAuthRoles() {
+  const data = await adminAuthRequest<{ roles: AuthRole[] }>("/api/auth/roles");
+  return Array.isArray(data.roles) ? data.roles.map(normalizeAdminRole) : [];
 }
 
 export async function createAuthUser(payload: AuthUserCreateInput) {

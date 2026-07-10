@@ -7,11 +7,13 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { clearPersona, getStoredPersona, hasPersona, onPersonaChange, setPersona } from "@/lib/persona";
 import {
   canRoleUsePersona,
+  businessWorkspaceForRole,
   clearAuthSession,
   fetchCurrentAuthUser,
   getAuthLandingPath,
   getStoredAuthSession,
   isCeoRole,
+  isBusinessRole,
   isClientRole,
   isManagerRole,
   isSuperAdminRole,
@@ -67,8 +69,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isSuperAdmin = isSuperAdminRole(role);
   const isCeo = isCeoRole(role);
   const isClient = isClientRole(role);
+  const isBusiness = isBusinessRole(role);
   const isManager = isManagerRole(role);
   const forcedPersona = personaForRole(role);
+  const businessWorkspace = businessWorkspaceForRole(role);
+  const businessLandingPath = businessWorkspace ? `/business/${businessWorkspace}` : null;
   const isCeoWorkspaceAdminRoute = isCeo && isCeoAllowedAdminPath(pathname);
   const isAdminAreaRoute = isAdminAreaPath(pathname) && !isCeoWorkspaceAdminRoute;
   const sidebarExpanded = sidebarHovered;
@@ -146,6 +151,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    if (isBusiness) {
+      if (businessLandingPath && pathname !== businessLandingPath && pathname !== "/profile") {
+        router.replace(businessLandingPath);
+      }
+      return;
+    }
+
     if (isManager && pathname === "/admin/user-performance") {
       router.replace("/manager/user-performance");
       return;
@@ -203,7 +215,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       clearPersona();
       router.replace(getAuthLandingPath(role));
     }
-  }, [authChecked, forcedPersona, isAdminAreaRoute, isAuthRoute, isCeo, isChooser, isClient, isManager, isSuperAdmin, pathname, role, router, selected, session]);
+  }, [authChecked, businessLandingPath, forcedPersona, isAdminAreaRoute, isAuthRoute, isBusiness, isCeo, isChooser, isClient, isManager, isSuperAdmin, pathname, role, router, selected, session]);
 
   if (!authChecked) return null;
 
@@ -226,6 +238,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (isClient) {
     if (pathname !== "/dashboard") return null;
     return <main className="min-h-screen bg-transparent">{children}</main>;
+  }
+
+  if (isBusiness) {
+    if (!businessLandingPath || (pathname !== businessLandingPath && pathname !== "/profile")) return null;
+    return (
+      <>
+        <Sidebar
+          isExpanded={sidebarExpanded}
+          onHoverChange={setSidebarHovered}
+        />
+        <main
+          className={`min-h-screen bg-transparent p-6 transition-[margin] duration-300 ease-out ${
+            sidebarExpanded ? "ml-72" : "ml-24"
+          }`}
+          style={{ "--app-sidebar-width": sidebarExpanded ? "18rem" : "6rem" } as CSSProperties}
+        >
+          {children}
+        </main>
+        <ReleaseAnnouncement session={session} />
+      </>
+    );
   }
 
   if (isCeo && isChooser) return null;

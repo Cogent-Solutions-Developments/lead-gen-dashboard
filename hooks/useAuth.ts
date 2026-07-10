@@ -5,6 +5,7 @@ import {
   getRoleLabel,
   getStoredAuthSession,
   isAdminLikeRole,
+  isBusinessRole,
   isCeoRole,
   isClientRole,
   isSuperAdminRole,
@@ -29,6 +30,7 @@ export function useAuth() {
     const isCeo = isCeoRole(role);
     const isAdminLike = isAdminLikeRole(role);
     const isClient = isClientRole(role);
+    const isBusiness = isBusinessRole(role);
 
     return {
       session,
@@ -40,7 +42,8 @@ export function useAuth() {
       isCeo,
       isAdminLike,
       isClient,
-      isPipelineUser: Boolean(role && !isAdminLike && !isClient),
+      isBusiness,
+      isPipelineUser: Boolean(role && !isAdminLike && !isClient && !isBusiness),
       forcedPersona: personaForRole(role),
       canManageUsers: isAdminLike,
       canManageCampaignActions: isSuperAdmin,

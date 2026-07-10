@@ -7,6 +7,7 @@ import {
   Activity,
   Brain,
   Database,
+  BriefcaseBusiness,
   LayoutDashboard,
   Rocket,
   Plus,
@@ -23,7 +24,7 @@ import {
 import { useMemo, useState } from "react";
 import { clearPersona } from "@/lib/persona";
 import { usePersona } from "@/hooks/usePersona";
-import { clearAuthSession, isManagerRole } from "@/lib/auth";
+import { businessWorkspaceForRole, clearAuthSession, isBusinessRole, isManagerRole } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { UserAvatar } from "@/components/profile/UserAvatar";
 import { toast } from "sonner";
@@ -69,6 +70,17 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
   const { persona } = usePersona();
   const { canUseRoleChooser, isCeo, isSuperAdmin, user } = useAuth();
   const isManager = isManagerRole(user?.role);
+  const isBusiness = isBusinessRole(user?.role);
+  const businessWorkspace = businessWorkspaceForRole(user?.role);
+  const businessLabel =
+    businessWorkspace === "operations"
+      ? "Operations"
+      : businessWorkspace === "finance"
+        ? "Finance"
+        : "Marketing";
+  const businessNavItems: SidebarNavItem[] = businessWorkspace
+    ? [{ name: `${businessLabel} Workspace`, href: `/business/${businessWorkspace}`, icon: BriefcaseBusiness }]
+    : [];
   const [ringingBell, setRingingBell] = useState(false);
   const [ringBellModalOpen, setRingBellModalOpen] = useState(false);
   const personaLabel =
@@ -190,8 +202,9 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
           isExpanded ? "-mx-4" : "-mx-6"
         }`}
       >
-        {navItems
+        {(isBusiness ? businessNavItems : navItems)
           .filter((item) => {
+            if (isBusiness) return true;
             if (isSuperAdmin) return !item.normalOnly && !item.managerOnly && !item.ceoOnly;
             if (isCeo) return !item.superOnly && !item.managerOnly;
             if (item.superOnly) return false;
@@ -246,7 +259,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
         })}
       </nav>
 
-      {!isSuperAdmin && !isCeo && persona === "sales" ? (
+      {!isBusiness && !isSuperAdmin && !isCeo && persona === "sales" ? (
         <div className={`${isExpanded ? "-mx-2" : "mx-0"} pb-6 transition-all duration-300`}>
           <motion.div
             initial={{ opacity: 0, y: 16 }}

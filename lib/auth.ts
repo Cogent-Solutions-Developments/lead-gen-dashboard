@@ -11,7 +11,10 @@ export type AuthRole =
   | "sales_manager_user"
   | "delegate_manager_user"
   | "production_manager_user"
-  | "client_user";
+  | "client_user"
+  | "marketing_user"
+  | "operational_user"
+  | "finance_user";
 
 export type AuthUser = {
   id: string;
@@ -217,6 +220,16 @@ export type ClientDashboardResponse = {
   user: Pick<AuthUser, "id" | "username" | "fullName" | "role">;
   events: ClientDashboardEvent[];
   total: number;
+};
+
+export type BusinessWorkspaceSlug = "marketing" | "operations" | "finance";
+
+export type BusinessWorkspaceDashboard = {
+  workspace: BusinessWorkspaceSlug | string;
+  title: string;
+  status: "foundation_ready" | string;
+  features: string[];
+  capabilities: string[];
 };
 
 export type MyProfile = AuthUser & {
@@ -807,6 +820,13 @@ const ROLE_ALIASES: Record<string, AuthRole> = {
   client_user: "client_user",
   event_client: "client_user",
   event_client_user: "client_user",
+  marketing: "marketing_user",
+  marketing_user: "marketing_user",
+  operational: "operational_user",
+  operations: "operational_user",
+  operational_user: "operational_user",
+  finance: "finance_user",
+  finance_user: "finance_user",
 };
 
 export const AUTH_ROLES: AuthRole[] = [
@@ -818,6 +838,9 @@ export const AUTH_ROLES: AuthRole[] = [
   "delegate_manager_user",
   "production_user",
   "production_manager_user",
+  "marketing_user",
+  "operational_user",
+  "finance_user",
   "client_user",
 ];
 
@@ -832,6 +855,9 @@ export function getRoleLabel(role: AuthRole | null | undefined) {
   if (role === "sales_manager_user") return "Sales Manager";
   if (role === "delegate_manager_user") return "Delegate Manager";
   if (role === "production_manager_user") return "Production Manager";
+  if (role === "marketing_user") return "Marketing";
+  if (role === "operational_user") return "Operations";
+  if (role === "finance_user") return "Finance";
   if (role === "client_user") return "Client";
   if (role === "delegate_user") return "Delegate";
   if (role === "production_user") return "Production";
@@ -854,6 +880,10 @@ export function isClientRole(role: AuthRole | null | undefined) {
   return role === "client_user";
 }
 
+export function isBusinessRole(role: AuthRole | null | undefined) {
+  return role === "marketing_user" || role === "operational_user" || role === "finance_user";
+}
+
 export function isManagerRole(role: AuthRole | null | undefined) {
   return role === "sales_manager_user" || role === "delegate_manager_user" || role === "production_manager_user";
 }
@@ -865,6 +895,13 @@ export function personaForRole(role: AuthRole | null | undefined): Persona | nul
   return null;
 }
 
+export function businessWorkspaceForRole(role: AuthRole | null | undefined): BusinessWorkspaceSlug | null {
+  if (role === "marketing_user") return "marketing";
+  if (role === "operational_user") return "operations";
+  if (role === "finance_user") return "finance";
+  return null;
+}
+
 export function canRoleUsePersona(role: AuthRole | null | undefined, persona: Persona | null) {
   if (!role || !persona) return false;
   if (isSuperAdminRole(role)) return persona !== "ceo";
@@ -873,6 +910,8 @@ export function canRoleUsePersona(role: AuthRole | null | undefined, persona: Pe
 }
 
 export function getAuthLandingPath(role: AuthRole | null | undefined) {
+  const workspace = businessWorkspaceForRole(role);
+  if (workspace) return `/business/${workspace}`;
   return isSuperAdminRole(role) ? "/choose-persona" : "/dashboard";
 }
 
@@ -1423,6 +1462,11 @@ export async function listAuthUsers() {
   return users;
 }
 
+export async function listAuthRoles() {
+  const data = await authRequest<{ roles: AuthRole[] }>("/api/auth/roles");
+  return Array.isArray(data.roles) ? data.roles.map(normalizeAuthRole) : [];
+}
+
 export async function createAuthUser(payload: AuthUserCreateInput) {
   const data = await authRequest<{ user: AuthUser }>("/api/auth/users", {
     method: "POST",
@@ -1765,6 +1809,10 @@ export async function getClientDashboard() {
     events: Array.isArray(source.events) ? source.events.map(normalizeClientDashboardEvent) : [],
     total: Number(source.total ?? source.events?.length ?? 0) || 0,
   };
+}
+
+export async function getBusinessWorkspaceDashboard(workspace: BusinessWorkspaceSlug) {
+  return authRequest<BusinessWorkspaceDashboard>(`/api/business/${workspace}/dashboard`);
 }
 
 function normalizeAdminStorageObject(raw: unknown): AdminStorageObjectItem {

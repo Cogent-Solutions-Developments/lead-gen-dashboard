@@ -39,6 +39,7 @@ import {
   createAuthUser,
   deleteAuthUser,
   getRoleLabel,
+  listAuthRoles,
   listAdminClientCredentials,
   listAdminEvents,
   listAuthUsers,
@@ -110,6 +111,13 @@ const departmentDefinitions: DepartmentDefinition[] = [
     description: "Production managers and campaign execution users.",
     roles: ["production_manager_user", "production_user"],
     icon: Building2,
+  },
+  {
+    id: "business-operations",
+    label: "Business Operations",
+    description: "Foundation workspace roles for non-pipeline operations.",
+    roles: ["marketing_user", "operational_user", "finance_user"],
+    icon: BriefcaseBusiness,
   },
   {
     id: "client",
@@ -324,6 +332,7 @@ export default function AdminUsersPage() {
   const [activeTab, setActiveTab] = useState<AdminUsersTab>("users");
   const [activeDepartmentId, setActiveDepartmentId] = useState(departmentDefinitions[0]?.id || "");
   const [users, setUsers] = useState<AuthUser[]>([]);
+  const [availableRoles, setAvailableRoles] = useState<AuthRole[]>(AUTH_ROLES);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
@@ -357,7 +366,9 @@ export default function AdminUsersPage() {
   const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
-      setUsers(await listAuthUsers());
+      const [roleRows, userRows] = await Promise.all([listAuthRoles(), listAuthUsers()]);
+      setAvailableRoles(roleRows.length ? roleRows : AUTH_ROLES);
+      setUsers(userRows);
     } catch (error) {
       toast.error("Failed to load users", { description: getErrorMessage(error) });
       setUsers([]);
@@ -444,12 +455,12 @@ export default function AdminUsersPage() {
 
   const roleOptions = useMemo(
     () =>
-      AUTH_ROLES.filter((role) => {
+      availableRoles.filter((role) => {
         if (isCeo && (role === "super_admin_user" || role === "ceo_user")) return false;
         if (role === "client_user" && form.role !== "client_user") return false;
         return true;
       }),
-    [form.role, isCeo]
+    [availableRoles, form.role, isCeo]
   );
 
   useEffect(() => {
