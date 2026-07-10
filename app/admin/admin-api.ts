@@ -26,6 +26,7 @@ export type AuthRole =
 export type AuthUser = Omit<BaseAuthUser, "role"> & {
   role: AuthRole;
   email?: string;
+  mfaEnabled?: boolean;
 };
 
 export type AuthUserCreateInput = {

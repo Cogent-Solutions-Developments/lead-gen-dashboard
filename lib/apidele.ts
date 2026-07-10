@@ -12,6 +12,8 @@ import type {
   CampaignInfoResponse,
   CampaignDetail,
   CampaignListItem,
+  CampaignListParams,
+  CampaignListResponse,
   CreateCampaignRequest,
   CreateCampaignResponse,
   DeleteBlockedDetail,
@@ -52,6 +54,13 @@ import type {
   UploadCommonAttachmentResponse,
   ApproveSelectedLeadsRequest,
   ApproveSelectedLeadsResponse,
+  CancelContentGenerationJobResponse,
+  GenerateCampaignLeadContentRequest,
+  GenerateSelectedLeadContentRequest,
+  GenerateSelectedLeadContentResponse,
+  ResetLeadContentResponse,
+  ResetSelectedLeadContentRequest,
+  ResetSelectedLeadContentResponse,
   SendSelectedLeadsRequest,
   SendSelectedLeadsResponse,
   CreateWhatsAppOptOutRequest,
@@ -81,6 +90,8 @@ export type {
   CampaignInfoResponse,
   CampaignDetail,
   CampaignListItem,
+  CampaignListParams,
+  CampaignListResponse,
   CreateCampaignRequest,
   CreateCampaignResponse,
   DeleteBlockedDetail,
@@ -121,6 +132,8 @@ export type {
   UploadCommonAttachmentResponse,
   ApproveSelectedLeadsRequest,
   ApproveSelectedLeadsResponse,
+  GenerateSelectedLeadContentRequest,
+  GenerateSelectedLeadContentResponse,
   SendSelectedLeadsRequest,
   SendSelectedLeadsResponse,
   CreateWhatsAppOptOutRequest,
@@ -221,12 +234,11 @@ export async function getRecentCampaigns(limit?: number) {
   return data;
 }
 
-export async function listCampaigns(params: { status?: string; limit?: number; offset?: number }) {
-  const { data } = await apiClientDelegate.get<{
-    campaigns: CampaignListItem[];
-    total: number;
-    hasMore: boolean;
-  }>("/api/delegates/campaigns", { params });
+export async function listCampaigns(params: CampaignListParams) {
+  const { data } = await apiClientDelegate.get<CampaignListResponse>(
+    "/api/delegates/campaigns",
+    { params }
+  );
   return data;
 }
 
@@ -607,6 +619,13 @@ export async function updateLeadContent(
   return data;
 }
 
+export async function resetLeadContent(id: string) {
+  const { data } = await apiClientDelegate.post<ResetLeadContentResponse>(
+    `/api/delegates/leads/${id}/content/reset`
+  );
+  return data;
+}
+
 export async function generateLeadEmailContent(id: string, payload?: LeadEmailGenerationRequest) {
   const { data } = await apiClientDelegate.post<LeadEmailGenerationResponse>(
     `/api/delegates/leads/${id}/email-content/generate`,
@@ -663,6 +682,13 @@ export async function stopCampaign(id: string) {
     `/api/delegates/campaigns/${id}/stop`
   );
   return data as StopCampaignResponse;
+}
+
+export async function cancelCampaignContentGenerationJob(campaignId: string, jobId: string) {
+  const { data } = await apiClientDelegate.post<CancelContentGenerationJobResponse>(
+    `/api/delegates/campaigns/${campaignId}/content/jobs/${jobId}/cancel`
+  );
+  return data;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -778,14 +804,49 @@ export async function approveSelectedCampaignLeads(payload: ApproveSelectedLeads
   return data;
 }
 
+export async function generateSelectedCampaignLeadContent(payload: GenerateSelectedLeadContentRequest) {
+  const { campaignId, leadIds, feedback, signal } = payload;
+  const { data } = await apiClientDelegate.post<GenerateSelectedLeadContentResponse>(
+    `/api/delegates/campaigns/${campaignId}/content/generate-selected`,
+    { leadIds, feedback },
+    { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS, signal }
+  );
+  return data;
+}
+
+export async function generateCampaignLeadContent(payload: GenerateCampaignLeadContentRequest) {
+  const { campaignId, leadIds, feedback, signal } = payload;
+  const { data } = await apiClientDelegate.post<GenerateSelectedLeadContentResponse>(
+    `/api/delegates/campaigns/${campaignId}/content/generate`,
+    { leadIds, feedback },
+    { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS, signal }
+  );
+  return data;
+}
+
+export async function resetSelectedCampaignLeadContent(payload: ResetSelectedLeadContentRequest) {
+  const { campaignId, leadIds } = payload;
+  const { data } = await apiClientDelegate.post<ResetSelectedLeadContentResponse>(
+    `/api/delegates/campaigns/${campaignId}/content/reset-selected`,
+    { leadIds }
+  );
+  return data;
+}
+
 export async function sendSelectedCampaignLeads(payload: SendSelectedLeadsRequest) {
-  const { campaignId, leadIds, attachmentId } = payload;
+  const { campaignId, leadIds, attachmentId, channel } = payload;
   const query = new URLSearchParams();
   if (attachmentId) query.set("attachment_id", attachmentId);
   const queryText = query.toString();
+  const endpoint =
+    channel === "email"
+      ? "send-selected-email"
+      : channel === "whatsapp"
+        ? "send-selected-whatsapp"
+        : "send-selected-leads";
 
   const { data } = await apiClientDelegate.post<SendSelectedLeadsResponse>(
-    `/api/delegates/campaigns/${campaignId}/send-selected-leads${queryText ? `?${queryText}` : ""}`,
+    `/api/delegates/campaigns/${campaignId}/${endpoint}${queryText ? `?${queryText}` : ""}`,
     leadIds
   );
   return data;
