@@ -574,10 +574,25 @@ export function isAdminLikeRole(role: AuthRole | null | undefined) {
   return isSuperAdminRole(role) || isCeoRole(role);
 }
 
+export function isBusinessRole(role: AuthRole | string | null | undefined) {
+  return role === "marketing_user" || role === "operational_user" || role === "finance_user";
+}
+
+export function isManagerRole(role: AuthRole | string | null | undefined) {
+  return role === "sales_manager_user" || role === "delegate_manager_user" || role === "production_manager_user";
+}
+
 export function personaForRole(role: AuthRole | null | undefined): Persona | null {
   if (role === "sales_user" || role === "sales_manager_user") return "sales";
   if (role === "delegate_user" || role === "delegate_manager_user") return "delegates";
   if (role === "production_user" || role === "production_manager_user") return "production";
+  return null;
+}
+
+export function businessWorkspaceForRole(role: AuthRole | string | null | undefined) {
+  if (role === "marketing_user") return "marketing";
+  if (role === "operational_user") return "operations";
+  if (role === "finance_user") return "finance";
   return null;
 }
 
