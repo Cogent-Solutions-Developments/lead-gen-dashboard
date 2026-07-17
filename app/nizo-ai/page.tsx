@@ -55,11 +55,6 @@ function mentionQueryFromDraft(value: string) {
   return tail.split(/\s/)[0]?.trim() || "";
 }
 
-function sourceTitle(source: NizoAiSource) {
-  const page = source.pageNumber ? ` p.${source.pageNumber}` : "";
-  return `${source.title || source.fileName || "Knowledge"}${page}`;
-}
-
 function leadResultDetail(item: NizoAiLeadSearchItem) {
   return [item.title, item.company, item.campaignName || item.canonicalEventName].filter(Boolean).join(" | ");
 }
@@ -74,7 +69,7 @@ function leadSearchHasMore(result?: NizoAiLeadSearchResult | null) {
 }
 
 export default function NizoAiPage() {
-  const { isSuperAdmin, isPipelineUser } = useAuth();
+  const { isSuperAdmin, isCeo, isPipelineUser } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -87,7 +82,8 @@ export default function NizoAiPage() {
 
   const mentionQuery = useMemo(() => mentionQueryFromDraft(draft), [draft]);
   const mentionActive = useMemo(() => mentionOpen || /(^|\s)@\S*$/.test(draft), [draft, mentionOpen]);
-  const canSend = draft.trim().length > 0 && !sending && isPipelineUser && !isSuperAdmin;
+  const canUseNizoAi = (isPipelineUser || isCeo) && !isSuperAdmin;
+  const canSend = draft.trim().length > 0 && !sending && canUseNizoAi;
   const selectedMentionKeys = useMemo(
     () => new Set(selectedMentions.map((item) => `${item.type}:${item.id}`)),
     [selectedMentions]
@@ -98,7 +94,7 @@ export default function NizoAiPage() {
   }, [messages.length, sending]);
 
   useEffect(() => {
-    if (!mentionActive || isSuperAdmin || !isPipelineUser) {
+    if (!mentionActive || !canUseNizoAi) {
       setMentionResults([]);
       setMentionLoading(false);
       return;
@@ -126,7 +122,7 @@ export default function NizoAiPage() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [isPipelineUser, isSuperAdmin, mentionActive, mentionQuery]);
+  }, [canUseNizoAi, mentionActive, mentionQuery]);
 
   const addMention = useCallback((item: NizoAiMention) => {
     setSelectedMentions((current) => {
@@ -151,7 +147,7 @@ export default function NizoAiPage() {
 
   const sendMessage = useCallback(async (overrideContent?: string, overrideMentions?: NizoAiMention[]) => {
     const content = (overrideContent ?? draft).trim();
-    if (!content || sending || isSuperAdmin || !isPipelineUser) return;
+    if (!content || sending || !canUseNizoAi) return;
     const mentionsForRequest = overrideMentions ?? selectedMentions;
     const clearComposer = overrideContent === undefined;
 
@@ -201,7 +197,7 @@ export default function NizoAiPage() {
     } finally {
       setSending(false);
     }
-  }, [draft, isPipelineUser, isSuperAdmin, selectedMentions, sending, sessionId]);
+  }, [canUseNizoAi, draft, selectedMentions, sending, sessionId]);
 
   const copyText = useCallback(async (text: string) => {
     try {
@@ -212,7 +208,7 @@ export default function NizoAiPage() {
     }
   }, []);
 
-  if (isSuperAdmin || !isPipelineUser) {
+  if (!canUseNizoAi) {
     return (
       <div className="min-h-screen bg-[#f7f7f7] px-8 py-8 font-sans text-zinc-950">
         <div className="mx-auto mt-28 max-w-xl border border-zinc-200 bg-white p-12 text-center shadow-sm">
@@ -225,7 +221,7 @@ export default function NizoAiPage() {
               Nizo AI
             </h1>
           </div>
-          <p className="mt-3 text-sm font-light text-zinc-500">This chat is available to pipeline users.</p>
+          <p className="mt-3 text-sm font-light text-zinc-500">This chat is available to CEO and pipeline users.</p>
         </div>
       </div>
     );
@@ -256,7 +252,7 @@ export default function NizoAiPage() {
           </motion.section>
         ) : (
           <section className="flex-1 space-y-8 pb-6">
-            {messages.map((message, index) => (
+            {messages.map((message) => (
               <motion.article
                 key={message.id}
                 initial={{ opacity: 0, y: 10 }}

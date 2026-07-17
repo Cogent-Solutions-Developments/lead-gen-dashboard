@@ -8,10 +8,14 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Copy,
   ImagePlus,
+  KeyRound,
   Loader2,
   Palette,
+  RefreshCw,
   Save,
+  ShieldCheck,
   Trash2,
   X,
 } from "lucide-react";
@@ -24,8 +28,15 @@ import {
   deleteMyProfileAvatar,
   getRoleLabel,
   getMyProfile,
+  getMfaStatus,
+  confirmMfaTotpSetup,
+  regenerateMfaRecoveryCodes,
+  disableMfaTotp,
+  startMfaTotpSetup,
   updateMyProfile,
   uploadMyProfileAvatar,
+  type MfaStatus,
+  type MfaTotpSetup,
   type MyProfile,
 } from "@/lib/auth";
 
@@ -485,6 +496,13 @@ export default function ProfilePage() {
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState("");
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
   const [themeDialogOpen, setThemeDialogOpen] = useState(false);
+  const [mfaStatus, setMfaStatus] = useState<MfaStatus | null>(null);
+  const [mfaSetup, setMfaSetup] = useState<MfaTotpSetup | null>(null);
+  const [mfaConfirmCode, setMfaConfirmCode] = useState("");
+  const [mfaRecoveryCodes, setMfaRecoveryCodes] = useState<string[]>([]);
+  const [mfaRegenerateCode, setMfaRegenerateCode] = useState("");
+  const [mfaDisableCode, setMfaDisableCode] = useState("");
+  const [mfaBusy, setMfaBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
@@ -494,10 +512,11 @@ export default function ProfilePage() {
     const load = async () => {
       setLoading(true);
       try {
-        const next = await getMyProfile();
+        const [next, nextMfaStatus] = await Promise.all([getMyProfile(), getMfaStatus()]);
         if (!active) return;
         setProfile(next);
         setForm(profileToForm(next));
+        setMfaStatus(nextMfaStatus);
       } catch (error: unknown) {
         toast.error("Profile failed to load", { description: getErrorMessage(error) });
       } finally {
@@ -600,11 +619,101 @@ export default function ProfilePage() {
     }
   };
 
+  const handleStartMfaSetup = async () => {
+    setMfaBusy(true);
+    try {
+      const setup = await startMfaTotpSetup();
+      setMfaSetup(setup);
+      setMfaConfirmCode("");
+      setMfaRecoveryCodes([]);
+      toast.message("Scan the QR code in Microsoft Authenticator.");
+    } catch (error: unknown) {
+      toast.error("MFA setup failed", { description: getErrorMessage(error) });
+    } finally {
+      setMfaBusy(false);
+    }
+  };
+
+  const handleConfirmMfaSetup = async () => {
+    if (!mfaSetup) return;
+    if (!mfaConfirmCode.trim()) {
+      toast.error("Authenticator code is required.");
+      return;
+    }
+    setMfaBusy(true);
+    try {
+      const result = await confirmMfaTotpSetup(mfaSetup.methodId, mfaConfirmCode.trim());
+      setMfaStatus(result.status);
+      setMfaRecoveryCodes(result.recoveryCodes || []);
+      setMfaSetup(null);
+      setMfaConfirmCode("");
+      setProfile((current) => (current ? { ...current, mfaEnabled: true } : current));
+      toast.success("MFA enabled");
+    } catch (error: unknown) {
+      toast.error("Authenticator verification failed", { description: getErrorMessage(error) });
+    } finally {
+      setMfaBusy(false);
+    }
+  };
+
+  const handleRegenerateRecoveryCodes = async () => {
+    if (!mfaRegenerateCode.trim()) {
+      toast.error("Authenticator code is required.");
+      return;
+    }
+    setMfaBusy(true);
+    try {
+      const result = await regenerateMfaRecoveryCodes(mfaRegenerateCode.trim());
+      setMfaRecoveryCodes(result.recoveryCodes || []);
+      setMfaRegenerateCode("");
+      const nextStatus = await getMfaStatus();
+      setMfaStatus(nextStatus);
+      toast.success("Recovery codes regenerated");
+    } catch (error: unknown) {
+      toast.error("Recovery code regeneration failed", { description: getErrorMessage(error) });
+    } finally {
+      setMfaBusy(false);
+    }
+  };
+
+  const handleDisableMfa = async () => {
+    if (!mfaDisableCode.trim()) {
+      toast.error("Authenticator code is required.");
+      return;
+    }
+    setMfaBusy(true);
+    try {
+      const result = await disableMfaTotp(mfaDisableCode.trim());
+      setMfaStatus(result.status);
+      setMfaSetup(null);
+      setMfaRecoveryCodes([]);
+      setMfaRegenerateCode("");
+      setMfaDisableCode("");
+      setProfile((current) => (current ? { ...current, mfaEnabled: false } : current));
+      toast.success("MFA disabled");
+    } catch (error: unknown) {
+      toast.error("MFA disable failed", { description: getErrorMessage(error) });
+    } finally {
+      setMfaBusy(false);
+    }
+  };
+
+  const copyRecoveryCodes = async () => {
+    if (!mfaRecoveryCodes.length) return;
+    try {
+      await navigator.clipboard.writeText(mfaRecoveryCodes.join("\n"));
+      toast.success("Recovery codes copied");
+    } catch {
+      toast.error("Unable to copy recovery codes.");
+    }
+  };
+
   const displayName =
     form.fullName.trim() || profile?.fullName?.trim() || profile?.username || (loading ? "Loading..." : "Unnamed user");
   const roleLabel = profile ? getRoleLabel(profile.role) : "Account";
   const avatarActionsDisabled = avatarBusy || loading;
   const displayDesignation = form.designation.trim() || "Designation not set";
+  const mfaEnabled = Boolean(mfaStatus?.enabled || profile?.mfaEnabled);
   const profileCompletionItems: ProfileCompletionItem[] = [
     {
       label: "Profile image",
@@ -724,7 +833,7 @@ export default function ProfilePage() {
             </div>
           </aside>
 
-          <main className="flex min-h-0 min-w-0 flex-col overflow-hidden xl:border-l xl:border-zinc-300 xl:pl-16">
+          <main className="flex min-h-0 min-w-0 flex-col overflow-y-auto pr-2 xl:border-l xl:border-zinc-300 xl:pl-16">
             <div className="shrink-0 border-b border-zinc-300 pb-4">
               <h2 className="mt-1 text-[clamp(1.75rem,3vw,3rem)] font-light leading-none tracking-tighter text-zinc-950">
                 User identity
@@ -794,6 +903,194 @@ export default function ProfilePage() {
                   className={FIELD_TEXTAREA_CLASS}
                 />
               </FieldRow>
+
+              <section className="mt-7 border-t border-zinc-300 pt-6">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <ShieldCheck className={mfaEnabled ? "h-5 w-5 text-emerald-500" : "h-5 w-5 text-zinc-400"} />
+                      <h3 className="text-2xl font-light leading-none tracking-tight text-zinc-950">
+                        Account security
+                      </h3>
+                    </div>
+                    <p className="mt-2 max-w-2xl text-sm font-light leading-6 text-zinc-500">
+                      Microsoft Authenticator adds a time-based code after password sign-in.
+                    </p>
+                  </div>
+                  <span
+                    className={[
+                      "inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-medium",
+                      mfaEnabled
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-amber-200 bg-amber-50 text-amber-700",
+                    ].join(" ")}
+                  >
+                    {mfaEnabled ? "MFA enabled" : "MFA not enabled"}
+                  </span>
+                </div>
+
+                <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.7fr)]">
+                  <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-950">
+                          Authenticator app
+                        </p>
+                        <p className="mt-1 text-sm font-light leading-6 text-zinc-500">
+                          {mfaEnabled
+                            ? `Recovery codes remaining: ${mfaStatus?.recoveryCodesRemaining ?? 0}`
+                            : "Scan a setup QR code and confirm the first authenticator code."}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void handleStartMfaSetup()}
+                        disabled={loading || mfaBusy}
+                        className="h-10 shrink-0 rounded-full border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 hover:border-zinc-900 hover:bg-white"
+                      >
+                        {mfaBusy && !mfaSetup ? (
+                          <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                        ) : (
+                          <KeyRound className="mr-1 h-4 w-4" />
+                        )}
+                        {mfaEnabled ? "Reconfigure" : "Set up"}
+                      </Button>
+                    </div>
+
+                    {mfaSetup ? (
+                      <div className="mt-5 grid gap-5 md:grid-cols-[12rem_minmax(0,1fr)] md:items-start">
+                        <div
+                          className="flex h-48 w-48 items-center justify-center rounded-2xl border border-zinc-200 bg-white p-3"
+                          dangerouslySetInnerHTML={{ __html: mfaSetup.qrSvg }}
+                        />
+                        <div className="space-y-4">
+                          <div>
+                            <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-400">
+                              Account
+                            </p>
+                            <p className="mt-1 text-sm font-light text-zinc-700">{mfaSetup.accountLabel}</p>
+                          </div>
+                          <div>
+                            <label className="mb-2 block text-xs font-medium text-zinc-400">
+                              6-digit code
+                            </label>
+                            <Input
+                              value={mfaConfirmCode}
+                              inputMode="numeric"
+                              maxLength={6}
+                              onChange={(event) => setMfaConfirmCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                              placeholder="123456"
+                              disabled={mfaBusy}
+                              className="h-11 rounded-xl border-zinc-200 bg-white"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            onClick={() => void handleConfirmMfaSetup()}
+                            disabled={mfaBusy || mfaConfirmCode.length < 6}
+                            className="h-11 rounded-full bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                          >
+                            {mfaBusy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-1 h-4 w-4" />}
+                            Enable MFA
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {mfaEnabled && !mfaSetup ? (
+                      <div className="mt-5 border-t border-zinc-100 pt-5">
+                        <p className="text-sm font-semibold text-zinc-950">Disable MFA</p>
+                        <p className="mt-1 text-sm font-light leading-6 text-zinc-500">
+                          Enter a current authenticator code to remove MFA from this account.
+                        </p>
+                        <div className="mt-4 flex gap-2">
+                          <Input
+                            value={mfaDisableCode}
+                            inputMode="numeric"
+                            maxLength={6}
+                            onChange={(event) => setMfaDisableCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                            placeholder="Authenticator code"
+                            disabled={mfaBusy}
+                            className="h-10 rounded-full border-zinc-200 bg-white px-4 text-sm"
+                          />
+                          <Button
+                            type="button"
+                            onClick={() => void handleDisableMfa()}
+                            disabled={mfaBusy || mfaDisableCode.length < 6}
+                            className="h-10 shrink-0 rounded-full border border-red-200 bg-white px-4 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                          >
+                            {mfaBusy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-1 h-4 w-4" />}
+                            Disable
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-950">Recovery codes</p>
+                        <p className="mt-1 text-sm font-light leading-6 text-zinc-500">
+                          Store these once. Each code can be used one time if the authenticator app is unavailable.
+                        </p>
+                      </div>
+                      {mfaRecoveryCodes.length ? (
+                        <button
+                          type="button"
+                          onClick={() => void copyRecoveryCodes()}
+                          className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 hover:border-zinc-900 hover:text-zinc-950"
+                          aria-label="Copy recovery codes"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {mfaRecoveryCodes.length ? (
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                        {mfaRecoveryCodes.map((code) => (
+                          <code
+                            key={code}
+                            className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-semibold tracking-wide text-zinc-900"
+                          >
+                            {code}
+                          </code>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mt-4 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-5 text-sm font-light text-zinc-500">
+                        New recovery codes appear here after setup or regeneration.
+                      </div>
+                    )}
+
+                    {mfaEnabled ? (
+                      <div className="mt-4 flex gap-2">
+                        <Input
+                          value={mfaRegenerateCode}
+                          inputMode="numeric"
+                          maxLength={6}
+                          onChange={(event) => setMfaRegenerateCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                          placeholder="Authenticator code"
+                          disabled={mfaBusy}
+                          className="h-10 rounded-full border-zinc-200 bg-white px-4 text-sm"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => void handleRegenerateRecoveryCodes()}
+                          disabled={mfaBusy || mfaRegenerateCode.length < 6}
+                          className="h-10 shrink-0 rounded-full border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 hover:border-zinc-900 hover:bg-white"
+                        >
+                          {mfaBusy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1 h-4 w-4" />}
+                          Regenerate
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </section>
             </div>
           </main>
         </div>

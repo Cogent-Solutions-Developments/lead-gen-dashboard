@@ -95,7 +95,7 @@ export default function UploadCampaignPage() {
 
   useEffect(() => {
     if (!user || isSuperAdmin) return;
-    router.replace("/leads?upload=1");
+    router.replace("/my-leads?upload=1");
   }, [isSuperAdmin, router, user]);
 
   useEffect(() => {
@@ -452,7 +452,7 @@ export default function UploadCampaignPage() {
                       value={notes}
                       onChange={(event) => setNotes(event.target.value)}
                       placeholder="Describe your ideal customer profile and outreach goals..."
-                      className="min-h-[12rem] w-full border-b border-zinc-300 bg-transparent py-2 text-xl font-light leading-relaxed tracking-tight text-zinc-950 placeholder:text-zinc-300 focus:border-blue-600 focus:outline-none"
+                      className="min-h-48 w-full border-b border-zinc-300 bg-transparent py-2 text-xl font-light leading-relaxed tracking-tight text-zinc-950 placeholder:text-zinc-300 focus:border-blue-600 focus:outline-none"
                     />
                   </div>
                 </div>

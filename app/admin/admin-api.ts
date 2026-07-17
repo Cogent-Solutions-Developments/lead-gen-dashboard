@@ -17,14 +17,19 @@ import {
 
 export type AuthRole =
   | BaseAuthRole
+  | "ceo_user"
   | "sales_manager_user"
   | "delegate_manager_user"
   | "production_manager_user"
-  | "client_user";
+  | "client_user"
+  | "marketing_user"
+  | "operational_user"
+  | "finance_user";
 
 export type AuthUser = Omit<BaseAuthUser, "role"> & {
   role: AuthRole;
   email?: string;
+  mfaEnabled?: boolean;
 };
 
 export type AuthUserCreateInput = {
@@ -251,12 +256,16 @@ export type {
 
 export const AUTH_ROLES: AuthRole[] = [
   "super_admin_user",
+  "ceo_user",
   "sales_user",
   "sales_manager_user",
   "delegate_user",
   "delegate_manager_user",
   "production_user",
   "production_manager_user",
+  "marketing_user",
+  "operational_user",
+  "finance_user",
   "client_user",
 ];
 
@@ -264,6 +273,10 @@ const ROLE_ALIASES: Record<string, AuthRole> = {
   super_admin_user: "super_admin_user",
   super_admin: "super_admin_user",
   admin: "super_admin_user",
+  ceo: "ceo_user",
+  ceo_user: "ceo_user",
+  chief_executive: "ceo_user",
+  chief_executive_officer: "ceo_user",
   sales_user: "sales_user",
   sales: "sales_user",
   sales_manager: "sales_manager_user",
@@ -280,6 +293,13 @@ const ROLE_ALIASES: Record<string, AuthRole> = {
   client_user: "client_user",
   event_client: "client_user",
   event_client_user: "client_user",
+  marketing: "marketing_user",
+  marketing_user: "marketing_user",
+  operational: "operational_user",
+  operations: "operational_user",
+  operational_user: "operational_user",
+  finance: "finance_user",
+  finance_user: "finance_user",
 };
 
 function getBaseUrl() {
@@ -347,6 +367,7 @@ function normalizeAdminUser(raw: unknown): AuthUser {
   const createdAt = source.createdAt ?? source.created_at;
   const updatedAt = source.updatedAt ?? source.updated_at;
   const lastLoginAt = source.lastLoginAt ?? source.last_login_at;
+  const mfaEnabled = source.mfaEnabled ?? source.mfa_enabled;
 
   return {
     id: String(source.id || ""),
@@ -367,6 +388,7 @@ function normalizeAdminUser(raw: unknown): AuthUser {
     updatedAt: updatedAt == null ? "" : String(updatedAt),
     lastLoginAt: lastLoginAt == null ? null : String(lastLoginAt),
     email: source.email == null ? "" : String(source.email),
+    mfaEnabled: typeof mfaEnabled === "boolean" ? mfaEnabled : undefined,
   };
 }
 
@@ -428,9 +450,13 @@ function normalizeAdminClientCredential(raw: unknown): AdminClientCredential {
 
 export function getRoleLabel(role: AuthRole | null | undefined) {
   if (role === "super_admin_user") return "Super Admin";
+  if (role === "ceo_user") return "CEO";
   if (role === "sales_manager_user") return "Sales Manager";
   if (role === "delegate_manager_user") return "Delegate Manager";
   if (role === "production_manager_user") return "Production Manager";
+  if (role === "marketing_user") return "Marketing";
+  if (role === "operational_user") return "Operations";
+  if (role === "finance_user") return "Finance";
   if (role === "client_user") return "Client";
   if (role === "delegate_user") return "Delegate";
   if (role === "production_user") return "Production";
@@ -448,6 +474,11 @@ export function updateStoredAuthUser(user: AuthUser) {
 export async function listAuthUsers() {
   const data = await adminAuthRequest<{ users: AuthUser[] }>("/api/auth/users");
   return Array.isArray(data.users) ? data.users.map(normalizeAdminUser) : [];
+}
+
+export async function listAuthRoles() {
+  const data = await adminAuthRequest<{ roles: AuthRole[] }>("/api/auth/roles");
+  return Array.isArray(data.roles) ? data.roles.map(normalizeAdminRole) : [];
 }
 
 export async function createAuthUser(payload: AuthUserCreateInput) {
@@ -472,6 +503,25 @@ export async function updateAuthUserPassword(userId: string, password: string) {
     body: JSON.stringify({ password }),
   });
   return normalizeAdminUser(data.user);
+}
+
+export async function resetAuthUserMfa(userId: string) {
+  const data = await adminAuthRequest<{ reset: boolean; removedMethods: number; user: AuthUser }>(
+    `/api/auth/users/${userId}/mfa/reset`,
+    { method: "POST" }
+  );
+  return { ...data, user: normalizeAdminUser(data.user) };
+}
+
+export async function recoverAuthUserAccount(userId: string, password: string) {
+  const data = await adminAuthRequest<{ recovered: boolean; mfaRemovedMethods: number; user: AuthUser }>(
+    `/api/auth/users/${userId}/account-recovery`,
+    {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    }
+  );
+  return { ...data, user: normalizeAdminUser(data.user) };
 }
 
 export async function deleteAuthUser(userId: string) {

@@ -4,6 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import {
   getRoleLabel,
   getStoredAuthSession,
+  isAdminLikeRole,
+  isBusinessRole,
+  isCeoRole,
+  isClientRole,
   isSuperAdminRole,
   onAuthSessionChange,
   personaForRole,
@@ -23,6 +27,10 @@ export function useAuth() {
   return useMemo(() => {
     const role = session?.user.role ?? null;
     const isSuperAdmin = isSuperAdminRole(role);
+    const isCeo = isCeoRole(role);
+    const isAdminLike = isAdminLikeRole(role);
+    const isClient = isClientRole(role);
+    const isBusiness = isBusinessRole(role);
 
     return {
       session,
@@ -31,9 +39,13 @@ export function useAuth() {
       roleLabel: getRoleLabel(role),
       isAuthenticated: Boolean(session),
       isSuperAdmin,
-      isPipelineUser: Boolean(role && !isSuperAdmin),
+      isCeo,
+      isAdminLike,
+      isClient,
+      isBusiness,
+      isPipelineUser: Boolean(role && !isAdminLike && !isClient && !isBusiness),
       forcedPersona: personaForRole(role),
-      canManageUsers: isSuperAdmin,
+      canManageUsers: isAdminLike,
       canManageCampaignActions: isSuperAdmin,
       canUseRoleChooser: isSuperAdmin,
     };

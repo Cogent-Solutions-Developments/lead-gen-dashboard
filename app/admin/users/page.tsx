@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   BriefcaseBusiness,
   Building2,
+  CalendarClock,
   Crown,
   Eye,
   EyeOff,
@@ -17,6 +18,7 @@ import {
   Save,
   Search,
   ShieldCheck,
+  Pencil,
   Trash2,
   UserCog,
   UserPlus,
@@ -37,10 +39,14 @@ import {
   createAuthUser,
   deleteAuthUser,
   getRoleLabel,
+  listAuthRoles,
   listAdminClientCredentials,
   listAdminEvents,
   listAuthUsers,
+  recoverAuthUserAccount,
   revokeAdminClientCredential,
+  resetAuthUserMfa,
+  updateAdminClientCredential,
   updateAuthUser,
   updateAuthUserPassword,
   updateStoredAuthUser,
@@ -82,7 +88,7 @@ const departmentDefinitions: DepartmentDefinition[] = [
     id: "administration",
     label: "Administration",
     description: "Protected platform operators and ownership roles.",
-    roles: ["super_admin_user"],
+    roles: ["super_admin_user", "ceo_user"],
     icon: Crown,
   },
   {
@@ -105,6 +111,13 @@ const departmentDefinitions: DepartmentDefinition[] = [
     description: "Production managers and campaign execution users.",
     roles: ["production_manager_user", "production_user"],
     icon: Building2,
+  },
+  {
+    id: "business-operations",
+    label: "Business Operations",
+    description: "Foundation workspace roles for non-pipeline operations.",
+    roles: ["marketing_user", "operational_user", "finance_user"],
+    icon: BriefcaseBusiness,
   },
   {
     id: "client",
@@ -133,28 +146,68 @@ function formatDate(value?: string | null) {
   return parsed.toLocaleDateString();
 }
 
+function toDateInputValue(value?: string | null) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value).slice(0, 10);
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function expiryDateToIso(value: string) {
+  return new Date(`${value}T23:59:59`).toISOString();
+}
+
 function eventTypeLabel(value?: string | null) {
   return value === "boardroom" ? "Boardroom" : "Conference";
 }
 
 function isManagerRole(role: AuthRole) {
-  return role === "super_admin_user" || role.includes("_manager_");
+  return role === "super_admin_user" || role === "ceo_user" || role.includes("_manager_");
+}
+
+function selectPrimaryClientCredential(credentials: AdminClientCredential[]) {
+  return (
+    credentials.find((credential) => credential.isUsable) ||
+    credentials.find((credential) => credential.isActive) ||
+    credentials[0] ||
+    null
+  );
+}
+
+function upsertCredential(rows: AdminClientCredential[], credential: AdminClientCredential) {
+  if (rows.some((item) => item.id === credential.id)) {
+    return rows.map((item) => (item.id === credential.id ? credential : item));
+  }
+  return [credential, ...rows];
 }
 
 function UserCard({
   item,
   isSelf,
+  showClientAccess,
+  clientCredentials = [],
   onEdit,
   onPassword,
+  onResetMfa,
+  onRecover,
   onDelete,
 }: {
   item: AuthUser;
   isSelf: boolean;
+  showClientAccess: boolean;
+  clientCredentials?: AdminClientCredential[];
   onEdit: () => void;
   onPassword: () => void;
+  onResetMfa: () => void;
+  onRecover: () => void;
   onDelete: () => void;
 }) {
   const manager = isManagerRole(item.role);
+  const clientCredential =
+    showClientAccess && item.role === "client_user" ? selectPrimaryClientCredential(clientCredentials) : null;
 
   return (
     <div
@@ -193,9 +246,33 @@ function UserCard({
             <span className={`font-semibold ${item.isActive === false ? "text-zinc-400" : "text-emerald-700"}`}>
               {item.isActive === false ? "Inactive" : "Active"}
             </span>
+            <span className="text-zinc-300">|</span>
+            <span className={`font-semibold ${item.mfaEnabled ? "text-emerald-700" : "text-zinc-400"}`}>
+              {item.mfaEnabled ? "MFA enabled" : "MFA off"}
+            </span>
           </div>
 
           <p className="mt-3 text-xs text-zinc-500">Last login: {formatDateTime(item.lastLoginAt)}</p>
+          {showClientAccess && item.role === "client_user" ? (
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-blue-100 bg-blue-50/70 px-3 py-2 text-xs text-blue-900">
+              <CalendarClock className="h-3.5 w-3.5 text-blue-700" />
+              <span className="font-semibold">Access expiry</span>
+              <span className="text-blue-300">|</span>
+              <span>{clientCredential ? formatDate(clientCredential.expiresAt) : "Not assigned"}</span>
+              {clientCredential ? (
+                <>
+                  <span className="text-blue-300">|</span>
+                  <span className={clientCredential.isUsable ? "font-semibold text-emerald-700" : "font-semibold text-red-600"}>
+                    {clientCredential.isUsable ? "Usable" : "Expired or revoked"}
+                  </span>
+                  <span className="text-blue-300">|</span>
+                  <span className="max-w-[18rem] truncate text-blue-800">
+                    {clientCredential.event?.eventName || clientCredential.companyName}
+                  </span>
+                </>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap gap-2 lg:justify-end">
@@ -205,6 +282,7 @@ function UserCard({
             onClick={onEdit}
             className="h-8 rounded-md border border-zinc-300 bg-white px-3 text-xs text-zinc-700 hover:bg-zinc-50"
           >
+            <Pencil className="mr-1.5 h-3.5 w-3.5" />
             Edit
           </Button>
           <Button
@@ -214,6 +292,24 @@ function UserCard({
             className="h-8 rounded-md border border-zinc-300 bg-white px-3 text-xs text-zinc-700 hover:bg-zinc-50"
           >
             Password
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={!item.mfaEnabled}
+            onClick={onResetMfa}
+            className="h-8 rounded-md border border-zinc-300 bg-white px-3 text-xs text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            MFA Reset
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={isSelf}
+            onClick={onRecover}
+            className="h-8 rounded-md border border-blue-200 bg-white px-3 text-xs text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Recover
           </Button>
           <Button
             type="button"
@@ -232,10 +328,11 @@ function UserCard({
 }
 
 export default function AdminUsersPage() {
-  const { user: currentUser } = useAuth();
+  const { isCeo, user: currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<AdminUsersTab>("users");
   const [activeDepartmentId, setActiveDepartmentId] = useState(departmentDefinitions[0]?.id || "");
   const [users, setUsers] = useState<AuthUser[]>([]);
+  const [availableRoles, setAvailableRoles] = useState<AuthRole[]>(AUTH_ROLES);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
@@ -243,26 +340,35 @@ export default function AdminUsersPage() {
   const [form, setForm] = useState<UserFormState>(blankForm);
   const [passwordTarget, setPasswordTarget] = useState<AuthUser | null>(null);
   const [newPassword, setNewPassword] = useState("");
+  const [mfaResetTarget, setMfaResetTarget] = useState<AuthUser | null>(null);
+  const [recoveryTarget, setRecoveryTarget] = useState<AuthUser | null>(null);
+  const [recoveryPassword, setRecoveryPassword] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<AuthUser | null>(null);
 
   const [events, setEvents] = useState<AdminEventItem[]>([]);
   const [credentials, setCredentials] = useState<AdminClientCredential[]>([]);
+  const [clientCredentials, setClientCredentials] = useState<AdminClientCredential[]>([]);
   const [eventId, setEventId] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [clientUsername, setClientUsername] = useState("");
   const [clientPassword, setClientPassword] = useState("");
   const [clientFullName, setClientFullName] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
+  const [editingCredentialId, setEditingCredentialId] = useState("");
+  const [editingCredentialExpiry, setEditingCredentialExpiry] = useState("");
   const [showClientPassword, setShowClientPassword] = useState(false);
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [loadingCredentials, setLoadingCredentials] = useState(false);
+  const [loadingClientCredentials, setLoadingClientCredentials] = useState(false);
   const [clientSaving, setClientSaving] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
-      setUsers(await listAuthUsers());
+      const [roleRows, userRows] = await Promise.all([listAuthRoles(), listAuthUsers()]);
+      setAvailableRoles(roleRows.length ? roleRows : AUTH_ROLES);
+      setUsers(userRows);
     } catch (error) {
       toast.error("Failed to load users", { description: getErrorMessage(error) });
       setUsers([]);
@@ -307,10 +413,24 @@ export default function AdminUsersPage() {
     }
   }, [eventId]);
 
+  const loadClientCredentials = useCallback(async () => {
+    setLoadingClientCredentials(true);
+    try {
+      const rows = await listAdminClientCredentials({ includeInactive: true });
+      setClientCredentials(rows);
+    } catch (error) {
+      toast.error("Failed to load client access", { description: getErrorMessage(error) });
+      setClientCredentials([]);
+    } finally {
+      setLoadingClientCredentials(false);
+    }
+  }, []);
+
   useEffect(() => {
     void loadUsers();
     void loadEvents();
-  }, [loadEvents, loadUsers]);
+    void loadClientCredentials();
+  }, [loadClientCredentials, loadEvents, loadUsers]);
 
   useEffect(() => {
     void loadCredentials();
@@ -328,6 +448,26 @@ export default function AdminUsersPage() {
     });
   }, [search, users]);
 
+  const visibleDepartments = useMemo(
+    () => departmentDefinitions.filter((department) => !(isCeo && department.id === "administration")),
+    [isCeo]
+  );
+
+  const roleOptions = useMemo(
+    () =>
+      availableRoles.filter((role) => {
+        if (isCeo && (role === "super_admin_user" || role === "ceo_user")) return false;
+        if (role === "client_user" && form.role !== "client_user") return false;
+        return true;
+      }),
+    [availableRoles, form.role, isCeo]
+  );
+
+  useEffect(() => {
+    if (visibleDepartments.some((department) => department.id === activeDepartmentId)) return;
+    setActiveDepartmentId(visibleDepartments[0]?.id || "");
+  }, [activeDepartmentId, visibleDepartments]);
+
   const stats = useMemo(() => {
     const active = users.filter((item) => item.isActive !== false).length;
     const superAdmins = users.filter((item) => item.role === "super_admin_user").length;
@@ -336,13 +476,13 @@ export default function AdminUsersPage() {
 
   const departmentGroups = useMemo(
     () =>
-      departmentDefinitions.map((department) => {
+      visibleDepartments.map((department) => {
         const rows = filteredUsers.filter((item) => department.roles.includes(item.role));
         const managers = rows.filter((item) => isManagerRole(item.role));
         const normalUsers = rows.filter((item) => !isManagerRole(item.role));
         return { ...department, rows, managers, normalUsers };
       }),
-    [filteredUsers]
+    [filteredUsers, visibleDepartments]
   );
 
   const selectedDepartment = useMemo(
@@ -361,9 +501,31 @@ export default function AdminUsersPage() {
     [activeDepartmentId, departmentGroups]
   );
 
+  const clientCredentialsByUserId = useMemo(() => {
+    const grouped = new Map<string, AdminClientCredential[]>();
+    for (const credential of clientCredentials) {
+      const rows = grouped.get(credential.userId) || [];
+      rows.push(credential);
+      grouped.set(credential.userId, rows);
+    }
+    for (const [userId, rows] of grouped) {
+      grouped.set(
+        userId,
+        [...rows].sort((a, b) => {
+          if (a.isUsable !== b.isUsable) return a.isUsable ? -1 : 1;
+          if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+          return Date.parse(b.updatedAt || b.createdAt || "") - Date.parse(a.updatedAt || a.createdAt || "");
+        })
+      );
+    }
+    return grouped;
+  }, [clientCredentials]);
+
   const resetForm = () => {
     setEditingId(null);
     setForm(blankForm);
+    setEditingCredentialId("");
+    setEditingCredentialExpiry("");
   };
 
   const startCreate = () => {
@@ -372,6 +534,7 @@ export default function AdminUsersPage() {
   };
 
   const startEdit = (item: AuthUser) => {
+    const primaryCredential = selectPrimaryClientCredential(clientCredentialsByUserId.get(item.id) || []);
     setEditingId(item.id);
     setForm({
       username: item.username,
@@ -380,10 +543,16 @@ export default function AdminUsersPage() {
       password: "",
       status: item.isActive === false ? "inactive" : "active",
     });
+    setEditingCredentialId(primaryCredential?.id || "");
+    setEditingCredentialExpiry(toDateInputValue(primaryCredential?.expiresAt));
   };
 
   const submitForm = async () => {
     const username = form.username.trim();
+    const editingClientCredentials = editingId ? clientCredentialsByUserId.get(editingId) || [] : [];
+    const selectedEditingCredential =
+      editingClientCredentials.find((credential) => credential.id === editingCredentialId) || null;
+    const shouldUpdateClientExpiry = Boolean(editingId && form.role === "client_user" && selectedEditingCredential);
     if (!username) {
       toast.error("Username is required");
       return;
@@ -400,9 +569,14 @@ export default function AdminUsersPage() {
       toast.error("Password must be at least 8 characters");
       return;
     }
+    if (shouldUpdateClientExpiry && !editingCredentialExpiry) {
+      toast.error("Client access expiry date is required");
+      return;
+    }
 
     setSaving(true);
     try {
+      let updatedCredential: AdminClientCredential | null = null;
       if (editingId) {
         const isSelf = editingId === currentUser?.id;
         const updated = await updateAuthUser(editingId, {
@@ -413,7 +587,27 @@ export default function AdminUsersPage() {
         });
         setUsers((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
         if (isSelf) updateStoredAuthUser(updated);
-        toast.success("User updated", { description: updated.username });
+        if (
+          shouldUpdateClientExpiry &&
+          selectedEditingCredential &&
+          editingCredentialExpiry !== toDateInputValue(selectedEditingCredential.expiresAt)
+        ) {
+          const savedCredential = await updateAdminClientCredential(selectedEditingCredential.id, {
+            expiresAt: expiryDateToIso(editingCredentialExpiry),
+          });
+          updatedCredential = savedCredential;
+          setClientCredentials((prev) => upsertCredential(prev, savedCredential));
+          setCredentials((prev) =>
+            prev.some((credential) => credential.id === savedCredential.id)
+              ? prev.map((credential) => (credential.id === savedCredential.id ? savedCredential : credential))
+              : prev
+          );
+        }
+        toast.success("User updated", {
+          description: updatedCredential
+            ? `${updated.username} expires ${formatDate(updatedCredential.expiresAt)}.`
+            : updated.username,
+        });
       } else {
         const created = await createAuthUser({
           username,
@@ -473,6 +667,46 @@ export default function AdminUsersPage() {
     }
   };
 
+  const confirmMfaReset = async () => {
+    if (!mfaResetTarget) return;
+    setSaving(true);
+    try {
+      const result = await resetAuthUserMfa(mfaResetTarget.id);
+      setUsers((prev) => prev.map((item) => (item.id === result.user.id ? result.user : item)));
+      toast.success("MFA reset", {
+        description: `${mfaResetTarget.username} must set up Microsoft Authenticator again.`,
+      });
+      setMfaResetTarget(null);
+    } catch (error) {
+      toast.error("MFA reset failed", { description: getErrorMessage(error) });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const submitAccountRecovery = async () => {
+    if (!recoveryTarget) return;
+    if (recoveryPassword.length < 8) {
+      toast.error("Recovery password must be at least 8 characters");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const result = await recoverAuthUserAccount(recoveryTarget.id, recoveryPassword);
+      setUsers((prev) => prev.map((item) => (item.id === result.user.id ? result.user : item)));
+      toast.success("Account recovered", {
+        description: `${recoveryTarget.username} can sign in with the new password. MFA was cleared.`,
+      });
+      setRecoveryTarget(null);
+      setRecoveryPassword("");
+    } catch (error) {
+      toast.error("Account recovery failed", { description: getErrorMessage(error) });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleCreateClientAccess = async () => {
     if (!selectedEvent) {
       toast.error("Select an event first");
@@ -515,6 +749,7 @@ export default function AdminUsersPage() {
       setClientFullName("");
       setExpiresAt("");
       await loadCredentials();
+      await loadClientCredentials();
       await loadUsers();
     } catch (error) {
       toast.error("Failed to create client access", { description: getErrorMessage(error) });
@@ -531,6 +766,7 @@ export default function AdminUsersPage() {
         description: credential.user?.username || credential.companyName,
       });
       await loadCredentials();
+      await loadClientCredentials();
       await loadUsers();
     } catch (error) {
       toast.error("Failed to revoke client access", { description: getErrorMessage(error) });
@@ -543,13 +779,18 @@ export default function AdminUsersPage() {
     if (activeTab === "client-access") {
       void loadEvents();
       void loadCredentials();
+      void loadClientCredentials();
       return;
     }
     void loadUsers();
+    void loadClientCredentials();
   };
 
   const editingSelf = Boolean(editingId && editingId === currentUser?.id);
   const clientFormDisabled = !selectedEvent || loadingEvents || clientSaving;
+  const editingClientCredentials = editingId ? clientCredentialsByUserId.get(editingId) || [] : [];
+  const selectedEditingCredential =
+    editingClientCredentials.find((credential) => credential.id === editingCredentialId) || null;
 
   return (
     <div className="admin-page flex min-h-[calc(100dvh-3rem)] flex-col bg-transparent">
@@ -562,24 +803,28 @@ export default function AdminUsersPage() {
             </div>
 
             <div className="admin-actions xl:justify-end">
-              <Link href="/choose-persona">
+              <Link href={isCeo ? "/dashboard" : "/choose-persona"}>
                 <Button
                   type="button"
                   variant="outline"
                   className="h-10 border-zinc-300 bg-white/90 px-4 text-zinc-700 hover:bg-zinc-50"
                 >
                   <ArrowLeft className="mr-2 h-4 w-4" />
-                  Workspaces
+                  {isCeo ? "Dashboard" : "Workspaces"}
                 </Button>
               </Link>
 
               <Button
                 type="button"
                 onClick={refreshCurrentTab}
-                disabled={loading || saving || loadingEvents || loadingCredentials || clientSaving}
+                disabled={loading || saving || loadingEvents || loadingCredentials || loadingClientCredentials || clientSaving}
                 className="analytics-frost-btn h-10 px-4"
               >
-                <RefreshCw className={`h-4 w-4 ${loading || loadingEvents || loadingCredentials ? "animate-spin" : ""}`} />
+                <RefreshCw
+                  className={`h-4 w-4 ${
+                    loading || loadingEvents || loadingCredentials || loadingClientCredentials ? "animate-spin" : ""
+                  }`}
+                />
                 Refresh
               </Button>
             </div>
@@ -736,10 +981,17 @@ export default function AdminUsersPage() {
                           key={item.id}
                           item={item}
                           isSelf={item.id === currentUser?.id}
+                          showClientAccess
+                          clientCredentials={clientCredentialsByUserId.get(item.id) || []}
                           onEdit={() => startEdit(item)}
                           onPassword={() => {
                             setPasswordTarget(item);
                             setNewPassword("");
+                          }}
+                          onResetMfa={() => setMfaResetTarget(item)}
+                          onRecover={() => {
+                            setRecoveryTarget(item);
+                            setRecoveryPassword("");
                           }}
                           onDelete={() => setDeleteTarget(item)}
                         />
@@ -816,7 +1068,7 @@ export default function AdminUsersPage() {
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent className="border-zinc-300 bg-white">
-                    {AUTH_ROLES.filter((role) => role !== "client_user" || form.role === "client_user").map((role) => (
+                    {roleOptions.map((role) => (
                       <SelectItem key={role} value={role}>
                         {getRoleLabel(role)}
                       </SelectItem>
@@ -842,6 +1094,7 @@ export default function AdminUsersPage() {
                   </SelectContent>
                 </Select>
               </div>
+
             </div>
 
             <div className="rounded-lg border border-zinc-200 bg-zinc-50/70 p-4">
@@ -1122,7 +1375,7 @@ export default function AdminUsersPage() {
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent className="border-zinc-300 bg-white">
-                    {AUTH_ROLES.filter((role) => role !== "client_user" || form.role === "client_user").map((role) => (
+                    {roleOptions.map((role) => (
                       <SelectItem key={role} value={role}>
                         {getRoleLabel(role)}
                       </SelectItem>
@@ -1148,6 +1401,83 @@ export default function AdminUsersPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {form.role === "client_user" ? (
+                <div className="space-y-4 rounded-lg border border-blue-100 bg-blue-50/70 p-4 md:col-span-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-blue-700">Client Access</p>
+                      <h4 className="mt-1 text-sm font-semibold text-slate-900">Credential Expiry</h4>
+                    </div>
+                    <CalendarClock className="h-5 w-5 text-blue-700" />
+                  </div>
+
+                  {editingClientCredentials.length ? (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold uppercase text-zinc-500">Access Record</label>
+                        <Select
+                          value={editingCredentialId}
+                          onValueChange={(value) => {
+                            const nextCredential = editingClientCredentials.find((credential) => credential.id === value);
+                            setEditingCredentialId(value);
+                            setEditingCredentialExpiry(toDateInputValue(nextCredential?.expiresAt));
+                          }}
+                        >
+                          <SelectTrigger className="h-10 border-zinc-300 bg-white">
+                            <SelectValue placeholder="Select credential" />
+                          </SelectTrigger>
+                          <SelectContent className="border-zinc-300 bg-white">
+                            {editingClientCredentials.map((credential) => (
+                              <SelectItem key={credential.id} value={credential.id}>
+                                {credential.event?.eventName || credential.companyName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold uppercase text-zinc-500">Expiry Date</label>
+                        <Input
+                          name="admin-client-access-edit-expiry"
+                          type="date"
+                          value={editingCredentialExpiry}
+                          onChange={(event) => setEditingCredentialExpiry(event.target.value)}
+                          className="h-10 border-zinc-300 bg-white"
+                          autoComplete="off"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2 rounded-md border border-blue-100 bg-white px-3 py-2 text-xs text-zinc-600">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <span className="font-semibold text-zinc-800">
+                            {selectedEditingCredential?.companyName || "Client company"}
+                          </span>
+                          <span className="text-zinc-300">|</span>
+                          <span>
+                            Current expiry: {formatDate(selectedEditingCredential?.expiresAt)}
+                          </span>
+                          <span className="text-zinc-300">|</span>
+                          <span
+                            className={
+                              selectedEditingCredential?.isUsable
+                                ? "font-semibold text-emerald-700"
+                                : "font-semibold text-red-600"
+                            }
+                          >
+                            {selectedEditingCredential?.isUsable ? "Usable" : "Expired or revoked"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="rounded-md border border-blue-100 bg-white px-3 py-2 text-sm text-zinc-500">
+                      No event access credential assigned.
+                    </p>
+                  )}
+                </div>
+              ) : null}
             </div>
 
             <div className="flex flex-col-reverse gap-2 border-t border-zinc-100 px-5 py-4 sm:flex-row sm:justify-end">
@@ -1201,6 +1531,91 @@ export default function AdminUsersPage() {
               <Button type="button" disabled={saving} onClick={submitPassword} className="btn-sidebar-noise h-9 px-3.5">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
                 Update Password
+              </Button>
+            </div>
+          </Card>
+        </div>
+      ) : null}
+
+      {mfaResetTarget ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-blue-950/35 p-4 backdrop-blur-[3px]">
+          <Card className="admin-modal-panel w-full max-w-md overflow-hidden rounded-2xl border border-zinc-300 bg-white">
+            <div className="border-b border-zinc-100 px-5 py-4">
+              <h3 className="text-base font-semibold text-slate-900">Reset MFA</h3>
+              <p className="mt-1 text-sm text-zinc-500">
+                Remove Microsoft Authenticator from {mfaResetTarget.username}. Their next login will use password only
+                until they set up MFA again.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-4">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={saving}
+                onClick={() => setMfaResetTarget(null)}
+                className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-700 hover:bg-zinc-50"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={saving}
+                onClick={confirmMfaReset}
+                className="h-9 rounded-md bg-blue-600 px-3.5 text-white hover:bg-blue-700"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                Reset MFA
+              </Button>
+            </div>
+          </Card>
+        </div>
+      ) : null}
+
+      {recoveryTarget ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-blue-950/35 p-4 backdrop-blur-[3px]">
+          <Card className="admin-modal-panel w-full max-w-md overflow-hidden rounded-2xl border border-zinc-300 bg-white">
+            <div className="border-b border-zinc-100 px-5 py-4">
+              <h3 className="text-base font-semibold text-slate-900">Recover Account</h3>
+              <p className="mt-1 text-sm text-zinc-500">
+                Set a new password for {recoveryTarget.username} and remove MFA from the account.
+              </p>
+            </div>
+            <div className="space-y-2 px-5 py-4">
+              <label className="text-xs font-semibold uppercase text-zinc-500">New Recovery Password</label>
+              <Input
+                name="admin-account-recovery-password"
+                type="password"
+                value={recoveryPassword}
+                onChange={(event) => setRecoveryPassword(event.target.value)}
+                placeholder="Enter new password"
+                className="h-10 border-zinc-300 bg-white"
+                autoComplete="new-password"
+              />
+              <p className="text-xs text-zinc-500">
+                Existing sessions will be revoked. The user can set up MFA again from their profile.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-zinc-100 px-5 py-4">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={saving}
+                onClick={() => {
+                  setRecoveryTarget(null);
+                  setRecoveryPassword("");
+                }}
+                className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-700 hover:bg-zinc-50"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={saving}
+                onClick={submitAccountRecovery}
+                className="h-9 rounded-md bg-blue-600 px-3.5 text-white hover:bg-blue-700"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+                Recover Account
               </Button>
             </div>
           </Card>

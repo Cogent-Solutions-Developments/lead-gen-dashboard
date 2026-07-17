@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,12 +26,16 @@ import {
   ChevronRight,
   RefreshCcw,
   PhoneOff,
+  MessageSquare,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   disableLeadWhatsApp,
+  generateSelectedCampaignLeadContent,
   listEvents,
   searchLeads,
+  sendAdminLeadSms,
   type EventSummaryItem,
   type LeadItem,
 } from "@/lib/apiRouter";
@@ -40,6 +44,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { NormalUserEventLeadSheet } from "@/components/leads/NormalUserEventLeadSheet";
 
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
+const CEO_DEPARTMENT_TABS = [
+  { value: "sales", label: "Sales" },
+  { value: "delegates", label: "Delegate" },
+  { value: "production", label: "Production" },
+] as const;
+const SELECTED_CONTENT_GENERATION_LIMIT = 25;
 const POSITION_OPTIONS = [
   "CEO",
   "CTO",
@@ -76,6 +86,7 @@ type SortBy =
 type ContactState = "whatsapp" | "email" | "both" | "in_progress" | "not_contacted" | "unknown";
 type DeliverySignal = "sent" | "in_progress" | "not_contacted";
 type ApprovalStatus = "pending" | "approved" | "rejected" | "suppressed";
+type CeoDepartmentValue = (typeof CEO_DEPARTMENT_TABS)[number]["value"];
 
 type SuppressionInfo = {
   active?: boolean;
@@ -88,6 +99,7 @@ type SuppressionInfo = {
 
 interface Lead {
   id: string;
+  campaignId: string;
   eventName: string;
   canonicalEventKey: string;
   canonicalEventName: string;
@@ -98,6 +110,12 @@ interface Lead {
   phone: string;
   linkedinUrl: string;
   companyUrl: string;
+  contentEmailSubject: string;
+  contentEmail: string;
+  contentSource: string;
+  draftStatus: string;
+  draftMeta: Record<string, unknown> | null;
+  generationFailure: GenerationFailureInfo | null;
   contactState: ContactState;
   approvalStatus: ApprovalStatus;
   isSuppressed: boolean;
@@ -107,6 +125,13 @@ interface Lead {
   manualLeadAddedByUsername: string;
   manualLeadAddedAt: string;
 }
+
+type GenerationFailureInfo = {
+  status: "validator_rejected" | "qa_failed" | "generation_failed";
+  stage: string;
+  reason: string;
+  guidance: string;
+};
 
 const LinkedInIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -223,6 +248,143 @@ function isLeadSuppressed(lead: Lead): boolean {
     lead.approvalStatus === "suppressed" ||
     Boolean(lead.suppression?.active)
   );
+}
+
+function hasGeneratedEmailContent(lead: Lead): boolean {
+  return hasValue(lead.contentEmailSubject) && hasValue(lead.contentEmail) && lead.contentSource !== "template";
+}
+
+function getRecordValue(source: Record<string, unknown> | null, key: string): Record<string, unknown> | null {
+  return asRecord(source?.[key]);
+}
+
+function textFromList(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.map((item) => asText(item)).filter(Boolean).join("; ");
+  }
+  return asText(value);
+}
+
+function textArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    const text = asText(value).trim();
+    return text ? [text] : [];
+  }
+  return value
+    .map((item) => {
+      const source = asRecord(item);
+      return source
+        ? asText(source.summary || source.reason || source.claim || source.text).trim()
+        : asText(item).trim();
+    })
+    .filter(Boolean);
+}
+
+function isGenericFailureReason(value: unknown): boolean {
+  const text = asText(value).trim().toLowerCase().replace(/\s+/g, " ");
+  if (!text) return true;
+  return [
+    "did not meet the qa checks",
+    "did not pass validation or qa",
+    "generation did not pass validation",
+    "not relevant enough for this event based on the validator check",
+    "could not release generated content",
+  ].some((fragment) => text.includes(fragment));
+}
+
+function dedupeText(items: string[]): string[] {
+  return items.filter((item, index, arr) => item && arr.indexOf(item) === index);
+}
+
+function deriveGenerationFailure(draftStatus: string, draftMeta: Record<string, unknown> | null): GenerationFailureInfo | null {
+  const status = draftStatus.trim().toLowerCase();
+  const failureMeta = getRecordValue(draftMeta, "generationFailure");
+  const agenticV2 = getRecordValue(draftMeta, "agenticV2");
+  const agentic = getRecordValue(draftMeta, "agentic");
+  const source = failureMeta || agenticV2 || agentic;
+  const display =
+    getRecordValue(failureMeta, "display") ||
+    getRecordValue(failureMeta, "failureDisplay") ||
+    getRecordValue(source, "failureDisplay");
+  const agenticDisplay = getRecordValue(agenticV2, "failureDisplay") || getRecordValue(agentic, "failureDisplay");
+  const qa = getRecordValue(agenticV2, "qa") || getRecordValue(agentic, "qa") || getRecordValue(source, "qa");
+  const stage = asText(source?.stage || source?.failureStage || failureMeta?.status || status);
+  const details = dedupeText([
+    ...textArray(display?.details),
+    ...textArray(agenticDisplay?.details),
+    ...textArray(failureMeta?.details),
+    ...textArray(source?.details),
+    ...textArray(agenticV2?.details),
+    ...textArray(agentic?.details),
+    ...textArray(source?.rejectReasons),
+    ...textArray(source?.rewriteFeedback),
+    ...textArray(source?.localQualityIssues),
+    ...textArray(agenticV2?.rejectReasons),
+    ...textArray(agenticV2?.rewriteFeedback),
+    ...textArray(agenticV2?.localQualityIssues),
+    ...textArray(agentic?.rejectReasons),
+    ...textArray(agentic?.rewriteFeedback),
+    ...textArray(agentic?.localQualityIssues),
+    ...textArray(qa?.failureDetails),
+    ...textArray(qa?.rewrite_instructions),
+    ...textArray(qa?.quality_notes),
+  ]);
+  const displaySummary = asText(display?.summary || agenticDisplay?.summary).trim();
+  const explicitReason = asText(
+    failureMeta?.reason ||
+      source?.reason ||
+      source?.failureReason ||
+      agenticV2?.reason ||
+      agenticV2?.failureReason ||
+      agentic?.reason ||
+      agentic?.failureReason,
+  ).trim();
+  const qaReason = asText(qa?.displayReason).trim();
+  const reason =
+    (!isGenericFailureReason(displaySummary) ? displaySummary : "") ||
+    (!isGenericFailureReason(explicitReason) ? explicitReason : "") ||
+    details.find((item) => !isGenericFailureReason(item)) ||
+    (!isGenericFailureReason(qaReason) ? qaReason : "") ||
+    displaySummary ||
+    explicitReason ||
+    details[0] ||
+    textFromList(source?.rejectReasons) ||
+    textFromList(source?.rewriteFeedback) ||
+    textFromList(source?.localQualityIssues) ||
+    textFromList(agenticV2?.rejectReasons) ||
+    textFromList(agenticV2?.rewriteFeedback) ||
+    textFromList(agenticV2?.localQualityIssues) ||
+    textFromList(agentic?.rejectReasons) ||
+    textFromList(agentic?.rewriteFeedback) ||
+    textFromList(agentic?.localQualityIssues);
+  const failed =
+    status === "validator_rejected" ||
+    status === "qa_failed" ||
+    status === "generation_failed" ||
+    Boolean(failureMeta) ||
+    source?.approved === false;
+
+  if (!failed) return null;
+
+  const normalizedStatus =
+    status === "validator_rejected" || stage === "validator"
+      ? "validator_rejected"
+      : status === "qa_failed" || stage === "qa"
+        ? "qa_failed"
+        : "generation_failed";
+
+  return {
+    status: normalizedStatus,
+    stage: stage || normalizedStatus,
+    reason: reason || "Generation did not pass validation or QA.",
+    guidance:
+      asText(failureMeta?.regenerationGuidance || source?.regenerationGuidance) ||
+      "Regenerate after reviewing the failure reason.",
+  };
+}
+
+function isLeadSelectableForGeneration(lead: Lead): boolean {
+  return hasValue(lead.campaignId) && !isLeadSuppressed(lead);
 }
 
 function parseBooleanFlag(value: unknown): boolean | null {
@@ -561,6 +723,7 @@ function mapLeadItemToAdminLead(item: LeadItem): Lead {
 
   return {
     id: asText(item.id),
+    campaignId: asText(item.campaignId),
     eventName: normalizedEventName,
     canonicalEventKey: asText(item.canonicalEventKey),
     canonicalEventName: asText(item.canonicalEventName) || normalizedEventName,
@@ -571,6 +734,12 @@ function mapLeadItemToAdminLead(item: LeadItem): Lead {
     phone: asText(item.phone),
     linkedinUrl: asText(item.linkedinUrl),
     companyUrl: asText(item.companyUrl),
+    contentEmailSubject: asText(item.contentEmailSubject),
+    contentEmail: asText(item.contentEmail),
+    contentSource: asText(item.contentSource),
+    draftStatus: asText(item.draftStatus),
+    draftMeta: asRecord(item.draftMeta),
+    generationFailure: deriveGenerationFailure(asText(item.draftStatus), asRecord(item.draftMeta)),
     contactState: deriveContactState(item as Record<string, unknown>),
     approvalStatus: normalizeApprovalStatus(item.approvalStatus),
     isSuppressed: parseBoolean(item.isSuppressed),
@@ -623,10 +792,17 @@ function SuperAdminTotalLeads() {
   const [disableTargetLead, setDisableTargetLead] = useState<Lead | null>(null);
   const [disableReason, setDisableReason] = useState("");
   const [isDisablingLead, setIsDisablingLead] = useState(false);
+  const [smsTargetLead, setSmsTargetLead] = useState<Lead | null>(null);
+  const [smsMessage, setSmsMessage] = useState("");
+  const [isSendingSms, setIsSendingSms] = useState(false);
+  const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(() => new Set());
+  const [generatingLeadIds, setGeneratingLeadIds] = useState<Set<string>>(() => new Set());
+  const [isGeneratingSelectedContent, setIsGeneratingSelectedContent] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const requestSequenceRef = useRef(0);
   const targetLeadRowRef = useRef<HTMLTableRowElement | null>(null);
   const initialLeadLoadRef = useRef(true);
+  const contentGenerationEnabled = persona === "sales" || persona === "delegates" || persona === "production";
 
   const clearAdvancedFilters = useCallback(() => {
     setNameFilter("");
@@ -845,6 +1021,21 @@ function SuperAdminTotalLeads() {
 
   const totalPages = Math.max(1, Math.ceil(totalLeads / itemsPerPage));
   const paginatedLeads = filteredLeads;
+  const selectablePageLeadIds = useMemo(
+    () => (contentGenerationEnabled ? paginatedLeads.filter(isLeadSelectableForGeneration).map((lead) => lead.id) : []),
+    [contentGenerationEnabled, paginatedLeads]
+  );
+  const selectedPageLeadCount = selectablePageLeadIds.filter((id) => selectedLeadIds.has(id)).length;
+  const allSelectablePageLeadsSelected =
+    selectablePageLeadIds.length > 0 && selectedPageLeadCount === selectablePageLeadIds.length;
+  const selectedLeads = useMemo(
+    () => leads.filter((lead) => selectedLeadIds.has(lead.id)),
+    [leads, selectedLeadIds]
+  );
+  const eligibleSelectedLeads = useMemo(
+    () => (contentGenerationEnabled ? selectedLeads.filter(isLeadSelectableForGeneration) : []),
+    [contentGenerationEnabled, selectedLeads]
+  );
 
   const visiblePageNumbers = useMemo(() => {
     const windowSize = 5;
@@ -880,6 +1071,14 @@ function SuperAdminTotalLeads() {
   }, [paginatedLeads, targetLeadId]);
 
   useEffect(() => {
+    const loadedIds = new Set(leads.map((lead) => lead.id));
+    setSelectedLeadIds((prev) => {
+      const next = new Set(Array.from(prev).filter((id) => loadedIds.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [leads]);
+
+  useEffect(() => {
     setCurrentPage(1);
   }, [
     q,
@@ -898,6 +1097,144 @@ function SuperAdminTotalLeads() {
     hasWebsiteFilter,
     itemsPerPage,
   ]);
+
+  const toggleLeadSelection = (lead: Lead) => {
+    if (!contentGenerationEnabled) {
+      toast.info("Content generation is available for campaign leads");
+      return;
+    }
+    if (!isLeadSelectableForGeneration(lead)) {
+      toast.info("This lead cannot be selected", {
+        description: isLeadSuppressed(lead)
+          ? "Suppressed leads are read-only."
+          : "Campaign context is missing for this lead.",
+      });
+      return;
+    }
+    setSelectedLeadIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(lead.id)) next.delete(lead.id);
+      else next.add(lead.id);
+      return next;
+    });
+  };
+
+  const togglePageSelection = () => {
+    if (selectablePageLeadIds.length === 0) return;
+    setSelectedLeadIds((prev) => {
+      const next = new Set(prev);
+      if (allSelectablePageLeadsSelected) {
+        selectablePageLeadIds.forEach((id) => next.delete(id));
+      } else {
+        selectablePageLeadIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const generateContentForLeads = async (targets: Lead[], source: "single" | "selected") => {
+    if (!contentGenerationEnabled) {
+      toast.info("Content generation is available for campaign leads");
+      return;
+    }
+    const eligible = targets.filter(isLeadSelectableForGeneration);
+    if (eligible.length === 0) {
+      toast.info("No eligible leads selected", {
+        description: "Choose leads with campaign context that are not suppressed.",
+      });
+      return;
+    }
+    if (eligible.length > SELECTED_CONTENT_GENERATION_LIMIT) {
+      toast.error("Select fewer leads", {
+        description: `Generate content for ${SELECTED_CONTENT_GENERATION_LIMIT} or fewer leads at a time.`,
+      });
+      return;
+    }
+
+    const ids = eligible.map((lead) => lead.id);
+    const grouped = new Map<string, string[]>();
+    eligible.forEach((lead) => {
+      const current = grouped.get(lead.campaignId) || [];
+      current.push(lead.id);
+      grouped.set(lead.campaignId, current);
+    });
+
+    if (source === "selected") setIsGeneratingSelectedContent(true);
+    setGeneratingLeadIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
+
+    try {
+      let generatedCount = 0;
+      let queuedCount = 0;
+      let suppressedCount = 0;
+      let failedCount = 0;
+      const generatedIds: string[] = [];
+      const failureMessages: string[] = [];
+
+      for (const [campaignId, leadIds] of grouped.entries()) {
+        const response = await generateSelectedCampaignLeadContent({ campaignId, leadIds });
+        if (response.queued) {
+          queuedCount += leadIds.length;
+        } else {
+          generatedCount += Number(response.generatedCount || 0);
+          suppressedCount += Number(response.suppressedCount || 0);
+          failedCount += Number(response.failedCount || 0);
+          generatedIds.push(...(response.generatedLeadIds || []));
+          failureMessages.push(
+            ...(response.failed || [])
+              .map((item) => item.error)
+              .filter((message): message is string => Boolean(message?.trim()))
+          );
+        }
+      }
+
+      if (queuedCount > 0) {
+        toast.success(source === "single" ? "Content generation queued" : "Selected content generation queued", {
+          description: `${queuedCount} lead${queuedCount === 1 ? "" : "s"} sent to the content generation worker.`,
+        });
+      } else if (generatedCount > 0) {
+        toast.success(source === "single" ? "Content generated" : "Selected content generated", {
+          description:
+            failedCount || suppressedCount
+              ? `${generatedCount} generated, ${suppressedCount} suppressed, ${failedCount} failed.`
+              : `${generatedCount} lead${generatedCount === 1 ? "" : "s"} ready for review.`,
+        });
+      } else {
+        toast.warning("No content generated", {
+          description: failureMessages[0] || `${suppressedCount} suppressed, ${failedCount} failed.`,
+        });
+      }
+
+      if (generatedIds.length > 0) {
+        setSelectedLeadIds((prev) => {
+          const next = new Set(prev);
+          generatedIds.forEach((id) => next.delete(id));
+          return next;
+        });
+      }
+      await fetchLeadPage("refresh");
+    } catch (error: unknown) {
+      const rawMessage = error instanceof Error ? error.message : "Please try again.";
+      let description = rawMessage;
+      try {
+        const parsed = JSON.parse(rawMessage) as { detail?: unknown };
+        if (typeof parsed.detail === "string") description = parsed.detail;
+      } catch {
+        // Keep normalized API error text.
+      }
+      toast.error("Content generation failed", { description });
+    } finally {
+      if (source === "selected") setIsGeneratingSelectedContent(false);
+      setGeneratingLeadIds((prev) => {
+        const next = new Set(prev);
+        ids.forEach((id) => next.delete(id));
+        return next;
+      });
+    }
+  };
 
   const addFiles = (files: FileList | File[]) => {
     const arr = Array.isArray(files) ? files : Array.from(files);
@@ -987,6 +1324,59 @@ function SuperAdminTotalLeads() {
     }
   };
 
+  const openSmsDialog = (lead: Lead) => {
+    if (!hasValue(lead.phone)) {
+      toast.error("Lead has no phone number");
+      return;
+    }
+    if (isLeadSuppressed(lead)) {
+      toast.info("Lead is opted out", {
+        description: "This lead is blocked for marketing messages.",
+      });
+      return;
+    }
+
+    setSmsTargetLead(lead);
+    setSmsMessage("");
+  };
+
+  const closeSmsDialog = () => {
+    if (isSendingSms) return;
+    setSmsTargetLead(null);
+    setSmsMessage("");
+  };
+
+  const handleSendAdminSms = async () => {
+    if (!smsTargetLead || isSendingSms) return;
+    const message = smsMessage.trim();
+    if (!message) {
+      toast.error("Enter a message");
+      return;
+    }
+
+    try {
+      setIsSendingSms(true);
+      const result = await sendAdminLeadSms(smsTargetLead.id, message);
+      toast.success("SMS sent", {
+        description: `${smsTargetLead.employeeName || "Lead"} received the message at ${result.to || smsTargetLead.phone}.`,
+      });
+      setSmsTargetLead(null);
+      setSmsMessage("");
+    } catch (error: unknown) {
+      const rawMessage = error instanceof Error ? error.message : "Please try again.";
+      let description = rawMessage;
+      try {
+        const parsed = JSON.parse(rawMessage) as { detail?: unknown };
+        if (typeof parsed.detail === "string") description = parsed.detail;
+      } catch {
+        // Keep the normalized API error string.
+      }
+      toast.error("Failed to send SMS", { description });
+    } finally {
+      setIsSendingSms(false);
+    }
+  };
+
   const handleCopyLeadDetails = async (lead: Lead) => {
     const detailText = [
       `Event: ${lead.eventName || "-"}`,
@@ -1057,7 +1447,6 @@ function SuperAdminTotalLeads() {
           </div>
         </div>
       </div>
-
       <Card className="relative isolate mt-3 overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.84)_0%,rgba(250,252,255,0.66)_56%,rgba(240,246,253,0.56)_100%)] backdrop-blur-[16px] [backdrop-filter:saturate(175%)_blur(16px)] shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74),inset_0_0_22px_rgba(255,255,255,0.2)]">
         <div className="pointer-events-none absolute -right-20 -top-20 h-52 w-52 rounded-full bg-gradient-to-br from-sky-300/30 via-blue-500/10 to-transparent blur-3xl" />
         <div className="pointer-events-none absolute -left-20 -bottom-20 h-52 w-52 rounded-full bg-gradient-to-tr from-blue-300/16 via-sky-200/8 to-transparent blur-3xl" />
@@ -1231,6 +1620,32 @@ function SuperAdminTotalLeads() {
             ) : null}
           </div>
           <div className="flex items-center gap-1.5">
+            {selectedLeadIds.size > 0 ? (
+              <Badge className="rounded-md border border-zinc-300/80 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-zinc-500 shadow-none">
+                Selected {selectedLeadIds.size}
+              </Badge>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void generateContentForLeads(eligibleSelectedLeads, "selected")}
+              className="h-8 border-zinc-300/80 bg-white/82 px-2.5 text-xs font-semibold text-zinc-700 shadow-none hover:border-zinc-400 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={!contentGenerationEnabled || eligibleSelectedLeads.length === 0 || isGeneratingSelectedContent}
+              title={
+                !contentGenerationEnabled
+                  ? "Content generation is available for campaign leads"
+                  : eligibleSelectedLeads.length === 0
+                  ? "Select leads to generate outreach content"
+                  : "Generate outreach content for selected leads"
+              }
+            >
+              {isGeneratingSelectedContent ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              Generate selected
+            </Button>
             <Badge className="rounded-md border border-zinc-300/80 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-zinc-500 shadow-none">
               Total {totalLeads}
             </Badge>
@@ -1241,15 +1656,26 @@ function SuperAdminTotalLeads() {
         </div>
 
         <div className="relative z-[1] overflow-x-auto px-4 pb-2 pt-2">
-          <table className="min-w-[1180px] w-full">
+          <table className="min-w-[1320px] w-full">
             <thead className="border-b border-zinc-100/85 bg-white/70">
               <tr>
+                <th className="w-10 px-3 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={allSelectablePageLeadsSelected}
+                    onChange={togglePageSelection}
+                    disabled={selectablePageLeadIds.length === 0}
+                    aria-label="Select leads on this page"
+                    className="h-4 w-4 rounded border-zinc-300 text-zinc-900 accent-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"
+                  />
+                </th>
                 <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Event</th>
                 <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Name</th>
                 <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Position</th>
                 <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Company</th>
                 <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Email</th>
                 <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Phone</th>
+                <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Content</th>
                 <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Sent</th>
                 <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-400">Links</th>
                 <th className="px-3 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-zinc-400">Actions</th>
@@ -1259,7 +1685,7 @@ function SuperAdminTotalLeads() {
             <tbody className="divide-y divide-zinc-100/70">
               {paginatedLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-sm text-zinc-500">
+                  <td colSpan={11} className="px-6 py-12 text-center text-sm text-zinc-500">
                     {totalLeads > 0
                       ? "No leads on this page match the current filter combination."
                       : "No leads match the current filter combination."}
@@ -1269,6 +1695,11 @@ function SuperAdminTotalLeads() {
                 paginatedLeads.map((item) => {
                   const isReadOnly = isLeadSuppressed(item);
                   const isTargetLead = targetLeadId === item.id;
+                  const isSelected = selectedLeadIds.has(item.id);
+                  const isGeneratingContent = generatingLeadIds.has(item.id);
+                  const contentReady = hasGeneratedEmailContent(item);
+                  const generationFailure = item.generationFailure;
+                  const canGenerateContent = contentGenerationEnabled && isLeadSelectableForGeneration(item);
                   const sentChannels = isReadOnly
                     ? { whatsapp: false, email: false }
                     : getSentChannelState(item.contactState);
@@ -1286,6 +1717,17 @@ function SuperAdminTotalLeads() {
                             : "hover:bg-white/46"
                       }`}
                     >
+                    <td className="px-3 py-3 align-top">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleLeadSelection(item)}
+                        disabled={!canGenerateContent || isGeneratingContent}
+                        aria-label={`Select ${item.employeeName || "lead"}`}
+                        className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-zinc-900 accent-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"
+                      />
+                    </td>
+
                     <td className="px-3 py-3 align-top">
                       <span className="line-clamp-2 text-sm text-zinc-700">
                         {item.canonicalEventName || item.eventName || "-"}
@@ -1350,6 +1792,41 @@ function SuperAdminTotalLeads() {
                     </td>
 
                     <td className="px-3 py-3 align-top">
+                      <span
+                        className={`inline-flex rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                          generationFailure
+                            ? generationFailure.status === "validator_rejected"
+                              ? "border-rose-200 bg-rose-50 text-rose-700"
+                              : "border-amber-200 bg-amber-50 text-amber-700"
+                            : contentReady
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-zinc-300/80 bg-white text-zinc-500"
+                        }`}
+                        title={generationFailure?.guidance}
+                      >
+                        {generationFailure
+                          ? generationFailure.status === "validator_rejected"
+                            ? "Rejected"
+                            : generationFailure.status === "qa_failed"
+                              ? "QA failed"
+                              : "Failed"
+                          : contentReady
+                            ? "Ready"
+                            : "Needed"}
+                      </span>
+                      {generationFailure ? (
+                        <span className="mt-1 block max-w-[12rem] text-[10px] leading-snug text-zinc-500" title={generationFailure.reason}>
+                          {generationFailure.reason}
+                        </span>
+                      ) : null}
+                      {item.contentSource ? (
+                        <span className="mt-1 block max-w-[8rem] truncate text-[10px] text-zinc-400" title={item.contentSource}>
+                          {item.contentSource}
+                        </span>
+                      ) : null}
+                    </td>
+
+                    <td className="px-3 py-3 align-top">
                       <div className="flex items-center gap-2">
                         <span
                           className={`inline-block h-3 w-3 rounded-full ${sentChannels.whatsapp ? "bg-emerald-500" : "bg-zinc-300"}`}
@@ -1394,12 +1871,54 @@ function SuperAdminTotalLeads() {
                           type="button"
                           variant="ghost"
                           size="icon"
+                          onClick={() => void generateContentForLeads([item], "single")}
+                          className="h-8 w-8 rounded-md border border-zinc-300/80 bg-white/82 text-zinc-500 shadow-none hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-45"
+                          title={
+                            !contentGenerationEnabled
+                              ? "Content generation is available for campaign leads"
+                              : !canGenerateContent
+                              ? isReadOnly
+                                ? "Suppressed lead is read-only"
+                                : "Campaign context is missing"
+                              : contentReady
+                                ? "Regenerate outreach content"
+                                : "Generate outreach content"
+                          }
+                          disabled={!canGenerateContent || isGeneratingContent}
+                        >
+                          {isGeneratingContent ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
                           onClick={() => void handleCopyLeadDetails(item)}
                           className="h-8 w-8 rounded-md border border-zinc-300/80 bg-white/82 text-zinc-500 shadow-none hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
                           title={isReadOnly ? "Suppressed lead is read-only" : "Copy lead details"}
                           disabled={isReadOnly}
                         >
                           <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openSmsDialog(item)}
+                          className="h-8 w-8 rounded-md border border-zinc-300/80 bg-white/82 text-zinc-400 shadow-none hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-45"
+                          title={
+                            !hasValue(item.phone)
+                              ? "Lead has no phone number"
+                              : isReadOnly
+                                ? "Suppressed lead is read-only"
+                                : "Send SMS"
+                          }
+                          disabled={!hasValue(item.phone) || isReadOnly}
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           type="button"
@@ -1485,6 +2004,62 @@ function SuperAdminTotalLeads() {
           </div>
         )}
       </Card>
+
+      {smsTargetLead ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/60 p-4 backdrop-blur-sm"
+          onMouseDown={closeSmsDialog}
+        >
+          <div
+            className="w-full max-w-lg overflow-hidden rounded-xl border border-zinc-300 bg-white shadow-2xl"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="border-b border-zinc-100 bg-zinc-50/60 px-6 py-4">
+              <h3 className="text-lg font-semibold text-zinc-900">Send SMS</h3>
+              <p className="mt-1 text-xs text-zinc-500">
+                <span className="font-semibold text-zinc-900">{smsTargetLead.employeeName || "Lead"}</span>
+                {smsTargetLead.phone ? ` | ${smsTargetLead.phone}` : ""}
+              </p>
+            </div>
+
+            <div className="space-y-3 px-6 py-5">
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                Message
+              </label>
+              <textarea
+                value={smsMessage}
+                onChange={(event) => setSmsMessage(event.target.value.slice(0, 1600))}
+                rows={6}
+                className="w-full resize-none rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm leading-6 text-zinc-800 outline-none transition focus:border-zinc-400 focus:ring-1 focus:ring-zinc-300"
+                placeholder="Write the SMS message..."
+                disabled={isSendingSms}
+              />
+              <div className="flex justify-end text-[11px] text-zinc-400">
+                {smsMessage.trim().length}/1600
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-zinc-100 bg-zinc-50/50 px-6 py-4">
+              <Button
+                variant="outline"
+                className="border-zinc-300 text-zinc-700 hover:bg-zinc-50"
+                onClick={closeSmsDialog}
+                disabled={isSendingSms}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-zinc-900 text-white hover:bg-zinc-800"
+                onClick={() => void handleSendAdminSms()}
+                disabled={isSendingSms || smsMessage.trim().length === 0}
+              >
+                {isSendingSms ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Send
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {disableTargetLead ? (
         <div
@@ -1658,7 +2233,59 @@ function SuperAdminTotalLeads() {
   );
 }
 
+function CeoDatabasePage() {
+  const [activeDepartment, setActiveDepartment] = useState<CeoDepartmentValue>("sales");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const switchDepartment = useCallback(
+    (next: CeoDepartmentValue) => {
+      if (next === activeDepartment) return;
+
+      setActiveDepartment(next);
+
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("event");
+      params.delete("lead");
+      params.delete("search");
+      params.delete("upload");
+      const nextQuery = params.toString();
+      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+    },
+    [activeDepartment, pathname, router, searchParams]
+  );
+
+  const departmentTabs = (
+    <Card className="rounded-2xl border border-white/80 bg-white/88 p-1.5 shadow-[0_12px_38px_-32px_rgba(15,23,42,0.65)] backdrop-blur-[12px]">
+      <div className="grid gap-1 md:grid-cols-3">
+        {CEO_DEPARTMENT_TABS.map((tab) => {
+          const active = activeDepartment === tab.value;
+          return (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => switchDepartment(tab.value)}
+              className={`h-11 rounded-xl px-4 text-sm font-semibold transition-all ${
+                active
+                  ? "bg-blue-600 text-white shadow-[0_14px_28px_-18px_rgba(37,99,235,0.9)]"
+                  : "bg-transparent text-zinc-600 hover:bg-zinc-50 hover:text-zinc-950"
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+    </Card>
+  );
+
+  return <NormalUserEventLeadSheet dataPersona={activeDepartment} departmentTabs={departmentTabs} />;
+}
+
 export default function LeadsPage() {
-  const { isSuperAdmin } = useAuth();
-  return isSuperAdmin ? <SuperAdminTotalLeads /> : <NormalUserEventLeadSheet />;
+  const { isCeo, isSuperAdmin } = useAuth();
+  if (isSuperAdmin) return <SuperAdminTotalLeads />;
+  if (isCeo) return <CeoDatabasePage />;
+  return <NormalUserEventLeadSheet />;
 }

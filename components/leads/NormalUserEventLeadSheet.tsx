@@ -13,19 +13,28 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  addEventLead,
-  createCampaignFromUpload,
-  downloadLeadTemplateFile,
-  createWorkflowStatus,
+  addEventLeadForPersona,
+  addMyLeadsEventLead,
+  createCampaignFromUploadForPersona,
+  createMyLeadsCampaignFromUpload,
+  downloadLeadTemplateFileForPersona,
+  downloadMyLeadsCampaignExport,
+  downloadMyLeadsLeadTemplateFile,
+  createWorkflowStatusForPersona,
   downloadEventAgendaFile,
-  generateLeadContent,
-  getLeadWorkflowStatusHistory,
+  generateLeadContentForPersona,
+  getLeadWorkflowStatusHistoryForPersona,
   listEventAgendas,
-  listEventLeads,
-  listEvents,
-  listWorkflowStatuses,
-  updateLeadWorkflowStatus,
-  validateLeadTemplateUpload,
+  listEventLeadsForPersona,
+  listEventsForPersona,
+  listMyLeadsCampaigns,
+  listMyLeadsEventLeads,
+  listMyLeadsEvents,
+  listWorkflowStatusesForPersona,
+  updateLeadWorkflowStatusForPersona,
+  validateLeadTemplateUploadForPersona,
+  validateMyLeadsLeadTemplateUpload,
+  type CampaignListItem,
   type EventLeadCreateRequest,
   type EventLeadListItem,
   type EventLeadListResponse,
@@ -44,6 +53,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 import { getDailyDealBellMedia } from "@/lib/dealBellMedia";
 import { cn } from "@/lib/utils";
+import type { Persona } from "@/lib/persona";
 import {
   AlertTriangle,
   BellRing,
@@ -458,6 +468,11 @@ const STATUS_DOT_CLASS: Record<string, string> = {
 const DEFAULT_PAGE_SIZE = 100;
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 const SEARCH_DEBOUNCE_MS = 300;
+const INITIAL_DATA_CACHE_TTL_MS = 2 * 60 * 1000;
+const LEAD_PAGE_CACHE_TTL_MS = 60 * 1000;
+const MAX_INITIAL_DATA_CACHE_ENTRIES = 8;
+const MAX_LEAD_PAGE_CACHE_ENTRIES = 24;
+const LEAD_SHEET_DEPARTMENT_PERSONAS: LeadSheetDepartmentPersona[] = ["sales", "delegates", "production"];
 
 const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
   fullName: "",
@@ -536,10 +551,13 @@ function getDisplayEventName(name?: string | null) {
 }
 
 const EVENT_SELECT_CONTENT_CLASS =
-  "z-[120] max-h-[18rem] w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-zinc-200 bg-white/98 p-2 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-[10px]";
+  "z-[120] max-h-[min(24rem,var(--radix-select-content-available-height))] w-[min(42rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-zinc-200 bg-white/98 p-0 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-[10px] [&_[data-slot=select-scroll-down-button]]:hidden [&_[data-slot=select-scroll-up-button]]:hidden";
+
+const EVENT_SELECT_VIEWPORT_CLASS =
+  "!h-auto max-h-[min(22rem,var(--radix-select-content-available-height))] overflow-y-auto p-1.5 scrollbar-modern";
 
 const EVENT_SELECT_ITEM_CLASS =
-  "rounded-xl py-2.5 pl-3 pr-9 text-sm font-medium text-zinc-800 transition-colors focus:bg-zinc-100/80 focus:text-zinc-950 focus:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] focus:[&_svg]:!text-zinc-500 data-[highlighted]:bg-zinc-100/80 data-[highlighted]:text-zinc-950 data-[highlighted]:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] data-[highlighted]:[&_svg]:!text-zinc-500 data-[state=checked]:border data-[state=checked]:border-blue-500/20 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]_svg]:h-4 [&_[data-slot=select-item-indicator]_svg]:w-4 [&_[data-slot=select-item-indicator]_svg]:stroke-[2.25]";
+  "min-h-11 items-start rounded-xl py-2.5 pl-3 pr-10 text-sm font-medium leading-snug text-zinc-800 transition-colors focus:bg-zinc-100/80 focus:text-zinc-950 focus:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] focus:[&_svg]:!text-zinc-500 data-[highlighted]:bg-zinc-100/80 data-[highlighted]:text-zinc-950 data-[highlighted]:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_-20px_rgba(15,23,42,0.45)] data-[highlighted]:[&_svg]:!text-zinc-500 data-[state=checked]:border data-[state=checked]:border-blue-500/20 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-16px_rgba(37,99,235,0.8)] data-[state=checked]:[&_svg]:!text-white [&_[data-slot=select-item-indicator]]:right-3 [&_[data-slot=select-item-indicator]]:top-3.5 [&_[data-slot=select-item-indicator]_svg]:h-4 [&_[data-slot=select-item-indicator]_svg]:w-4 [&_[data-slot=select-item-indicator]_svg]:stroke-[2.25]";
 
 const UPLOAD_EVENT_SELECT_CONTENT_CLASS =
   "z-[120] max-h-[18rem] w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-5rem)] rounded-2xl border border-zinc-200 bg-white/98 p-0 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78)] backdrop-blur-[10px]";
@@ -665,6 +683,295 @@ function buildFixedWorkflowStatuses(
   return fixedStatuses.map((item) => byKey.get(item.statusKey) ?? item);
 }
 
+function fixedWorkflowStatusesForPersona(persona: LeadSheetDepartmentPersona) {
+  if (persona === "production") return PRODUCTION_WORKFLOW_STATUSES;
+  if (persona === "delegates") return DELEGATE_WORKFLOW_STATUSES;
+  return FIXED_WORKFLOW_STATUSES;
+}
+
+type CacheEntry<T> = {
+  expiresAt: number;
+  value: T;
+};
+
+type LeadSheetInitialData = {
+  events: EventSummaryItem[];
+  registryEvents: AdminEventItem[];
+  workflowStatuses: WorkflowStatusDefinitionItem[];
+};
+
+type LeadPageFetchParams = {
+  limit: number;
+  offset: number;
+  search?: string;
+  workflowStatus?: WorkflowStatus;
+  category?: string;
+  includeManual: boolean;
+  sort: string;
+};
+
+const initialDataCache = new Map<string, CacheEntry<LeadSheetInitialData>>();
+const initialDataInFlight = new Map<string, Promise<LeadSheetInitialData>>();
+const leadPageCache = new Map<string, CacheEntry<EventLeadListResponse>>();
+const leadPageInFlight = new Map<string, Promise<EventLeadListResponse>>();
+const registryEventsCache = new Map<string, CacheEntry<AdminEventItem[]>>();
+const registryEventsInFlight = new Map<string, Promise<AdminEventItem[]>>();
+
+function readFreshCache<T>(cache: Map<string, CacheEntry<T>>, key: string): T | null {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    cache.delete(key);
+    return null;
+  }
+  cache.delete(key);
+  cache.set(key, entry);
+  return entry.value;
+}
+
+function writeBoundedCache<T>(
+  cache: Map<string, CacheEntry<T>>,
+  key: string,
+  value: T,
+  ttlMs: number,
+  maxEntries: number
+) {
+  const now = Date.now();
+  for (const [entryKey, entry] of cache) {
+    if (entry.expiresAt <= now) cache.delete(entryKey);
+  }
+  if (cache.has(key)) cache.delete(key);
+  while (cache.size >= maxEntries) {
+    const oldestKey = cache.keys().next().value as string | undefined;
+    if (!oldestKey) break;
+    cache.delete(oldestKey);
+  }
+  cache.set(key, { value, expiresAt: now + ttlMs });
+}
+
+function leadSheetInitialCacheKey(
+  cacheScope: string,
+  mode: LeadSheetDataMode,
+  persona: LeadSheetDepartmentPersona
+) {
+  return `${cacheScope}:${mode}:${persona}`;
+}
+
+function leadPageCacheKey(
+  cacheScope: string,
+  mode: LeadSheetDataMode,
+  persona: LeadSheetDepartmentPersona,
+  canonicalEventKey: string,
+  params: LeadPageFetchParams
+) {
+  return [
+    cacheScope,
+    mode,
+    persona,
+    canonicalEventKey,
+    params.limit,
+    params.offset,
+    params.search || "",
+    params.workflowStatus || "",
+    params.category || "",
+    params.includeManual ? "1" : "0",
+    params.sort,
+  ].join("|");
+}
+
+function readCachedInitialData(
+  cacheScope: string,
+  mode: LeadSheetDataMode,
+  persona: LeadSheetDepartmentPersona
+) {
+  return readFreshCache(initialDataCache, leadSheetInitialCacheKey(cacheScope, mode, persona));
+}
+
+function readCachedLeadPage(
+  cacheScope: string,
+  mode: LeadSheetDataMode,
+  persona: LeadSheetDepartmentPersona,
+  canonicalEventKey: string,
+  params: LeadPageFetchParams
+) {
+  return readFreshCache(leadPageCache, leadPageCacheKey(cacheScope, mode, persona, canonicalEventKey, params));
+}
+
+function invalidateInitialDataCache(
+  cacheScope: string,
+  mode: LeadSheetDataMode,
+  persona: LeadSheetDepartmentPersona
+) {
+  initialDataCache.delete(leadSheetInitialCacheKey(cacheScope, mode, persona));
+}
+
+function invalidateLeadPageCache(
+  cacheScope: string,
+  mode: LeadSheetDataMode,
+  persona: LeadSheetDepartmentPersona,
+  canonicalEventKey?: string
+) {
+  const prefix = canonicalEventKey
+    ? `${cacheScope}|${mode}|${persona}|${canonicalEventKey}|`
+    : `${cacheScope}|${mode}|${persona}|`;
+  for (const key of Array.from(leadPageCache.keys())) {
+    if (key.startsWith(prefix)) leadPageCache.delete(key);
+  }
+}
+
+async function getActiveRegistryEventsCached(cacheScope: string, force = false) {
+  if (!force) {
+    const cached = readFreshCache(registryEventsCache, cacheScope);
+    if (cached) return cached;
+
+    const inFlight = registryEventsInFlight.get(cacheScope);
+    if (inFlight) return inFlight;
+  }
+
+  const request = listActiveEventRegistry()
+    .then((rows) => {
+      const value = Array.isArray(rows) ? rows : [];
+      writeBoundedCache(
+        registryEventsCache,
+        cacheScope,
+        value,
+        INITIAL_DATA_CACHE_TTL_MS,
+        MAX_INITIAL_DATA_CACHE_ENTRIES
+      );
+      return value;
+    })
+    .finally(() => {
+      registryEventsInFlight.delete(cacheScope);
+    });
+
+  registryEventsInFlight.set(cacheScope, request);
+  return request;
+}
+
+async function getInitialLeadSheetData({
+  cacheScope,
+  mode,
+  persona,
+  fixedStatuses,
+  listEventsFn,
+  force = false,
+}: {
+  cacheScope: string;
+  mode: LeadSheetDataMode;
+  persona: LeadSheetDepartmentPersona;
+  fixedStatuses: WorkflowStatusDefinitionItem[];
+  listEventsFn: () => Promise<{ events?: EventSummaryItem[] }>;
+  force?: boolean;
+}) {
+  const cacheKey = leadSheetInitialCacheKey(cacheScope, mode, persona);
+  if (!force) {
+    const cached = readFreshCache(initialDataCache, cacheKey);
+    if (cached) return cached;
+
+    const inFlight = initialDataInFlight.get(cacheKey);
+    if (inFlight) return inFlight;
+  }
+
+  const request = (async (): Promise<LeadSheetInitialData> => {
+    const [eventsResponse, initialStatusResponse, registryRows] = await Promise.all([
+      listEventsFn(),
+      listWorkflowStatusesForPersona(persona),
+      getActiveRegistryEventsCached(cacheScope, force),
+    ]);
+
+    let finalStatuses = Array.isArray(initialStatusResponse.statuses)
+      ? initialStatusResponse.statuses
+      : [];
+    const missingFixedStatuses = fixedStatuses.filter(
+      (item) => !finalStatuses.some((status) => status.statusKey === item.statusKey)
+    );
+
+    if (missingFixedStatuses.length > 0) {
+      await Promise.all(
+        missingFixedStatuses.map(async (item) => {
+          try {
+            await createWorkflowStatusForPersona(persona, item.label);
+          } catch {
+            return null;
+          }
+          return null;
+        })
+      );
+
+      const refreshedStatusResponse = await listWorkflowStatusesForPersona(persona);
+      finalStatuses = Array.isArray(refreshedStatusResponse.statuses)
+        ? refreshedStatusResponse.statuses
+        : [];
+    }
+
+    const value = {
+      events: eventsResponse.events || [],
+      registryEvents: registryRows,
+      workflowStatuses: buildFixedWorkflowStatuses(finalStatuses, fixedStatuses),
+    };
+    writeBoundedCache(
+      initialDataCache,
+      cacheKey,
+      value,
+      INITIAL_DATA_CACHE_TTL_MS,
+      MAX_INITIAL_DATA_CACHE_ENTRIES
+    );
+    return value;
+  })();
+
+  initialDataInFlight.set(cacheKey, request);
+  try {
+    return await request;
+  } finally {
+    if (initialDataInFlight.get(cacheKey) === request) initialDataInFlight.delete(cacheKey);
+  }
+}
+
+async function getLeadPageCached({
+  cacheScope,
+  mode,
+  persona,
+  canonicalEventKey,
+  params,
+  fetcher,
+  force = false,
+}: {
+  cacheScope: string;
+  mode: LeadSheetDataMode;
+  persona: LeadSheetDepartmentPersona;
+  canonicalEventKey: string;
+  params: LeadPageFetchParams;
+  fetcher: () => Promise<EventLeadListResponse>;
+  force?: boolean;
+}) {
+  const cacheKey = leadPageCacheKey(cacheScope, mode, persona, canonicalEventKey, params);
+  if (!force) {
+    const cached = readFreshCache(leadPageCache, cacheKey);
+    if (cached) return cached;
+
+    const inFlight = leadPageInFlight.get(cacheKey);
+    if (inFlight) return inFlight;
+  }
+
+  const request = fetcher().then((response) => {
+    writeBoundedCache(
+      leadPageCache,
+      cacheKey,
+      response,
+      LEAD_PAGE_CACHE_TTL_MS,
+      MAX_LEAD_PAGE_CACHE_ENTRIES
+    );
+    return response;
+  });
+
+  leadPageInFlight.set(cacheKey, request);
+  try {
+    return await request;
+  } finally {
+    if (leadPageInFlight.get(cacheKey) === request) leadPageInFlight.delete(cacheKey);
+  }
+}
+
 function getStatusDotClass(status: string) {
   return STATUS_DOT_CLASS[status] ?? "bg-zinc-400";
 }
@@ -712,6 +1019,47 @@ function updateSearchParam(pathname: string, searchParams: URLSearchParams, key:
   else next.delete(key);
   const query = next.toString();
   return query ? `${pathname}?${query}` : pathname;
+}
+
+type LeadSheetDataMode = "shared" | "my-leads";
+type LeadSheetDepartmentPersona = Extract<Persona, "sales" | "delegates" | "production">;
+
+type NormalUserEventLeadSheetProps = {
+  mode?: LeadSheetDataMode;
+  departmentTabs?: ReactNode;
+  dataPersona?: LeadSheetDepartmentPersona;
+};
+
+function humanizeCampaignStatus(value?: string | null) {
+  const cleaned = asText(value);
+  if (!cleaned) return "Unknown";
+  return cleaned
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function formatCampaignTimestamp(value?: string | null) {
+  const text = asText(value);
+  if (!text) return "";
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) return text;
+  return parsed.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function buildCampaignExportFileName(campaign: Pick<CampaignListItem, "name" | "id">) {
+  const slug =
+    asText(campaign.name)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 72) || "my-leads-campaign";
+  return `${slug}-${asText(campaign.id).slice(0, 8) || "export"}.csv`;
 }
 
 function LeadSheetDialog({
@@ -828,9 +1176,15 @@ function LeadSheetDialog({
   );
 }
 
-export function NormalUserEventLeadSheet() {
+export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, dataPersona }: NormalUserEventLeadSheetProps) {
   const { persona } = usePersona();
+  const effectivePersona: LeadSheetDepartmentPersona =
+    dataPersona ?? (persona === "delegates" || persona === "production" ? persona : "sales");
   const { role, user } = useAuth();
+  const cacheScope = useMemo(
+    () => [role || "unknown-role", user?.id || user?.username || "anonymous"].join(":"),
+    [role, user?.id, user?.username]
+  );
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -844,7 +1198,11 @@ export function NormalUserEventLeadSheet() {
   );
 
   const [events, setEvents] = useState<EventSummaryItem[]>([]);
+  const [eventsPersona, setEventsPersona] = useState<LeadSheetDepartmentPersona | "">("");
   const [registryEvents, setRegistryEvents] = useState<AdminEventItem[]>([]);
+  const [myLeadCampaigns, setMyLeadCampaigns] = useState<CampaignListItem[]>([]);
+  const [loadingMyLeadCampaigns, setLoadingMyLeadCampaigns] = useState(false);
+  const [exportingCampaignId, setExportingCampaignId] = useState("");
   const [leadPage, setLeadPage] = useState<EventLeadListResponse | null>(null);
   const [workflowStatuses, setWorkflowStatuses] = useState<WorkflowStatusDefinitionItem[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
@@ -883,6 +1241,48 @@ export function NormalUserEventLeadSheet() {
   const targetLeadRowRef = useRef<HTMLDivElement | null>(null);
   const emailGenerationRequestRef = useRef(0);
   const previousSelectedEventKeyRef = useRef("");
+  const latestPersonaRef = useRef(effectivePersona);
+  const initialDataRequestRef = useRef(0);
+  const leadPageRequestRef = useRef(0);
+  const isMyLeadsMode = mode === "my-leads";
+
+  useEffect(() => {
+    latestPersonaRef.current = effectivePersona;
+  }, [effectivePersona]);
+
+  const leadSheetApi = useMemo(
+    () =>
+      isMyLeadsMode
+        ? {
+            listEvents: () => listMyLeadsEvents(effectivePersona),
+            listEventLeads: (
+              canonicalEventKey: string,
+              params: Parameters<typeof listMyLeadsEventLeads>[1]
+            ) => listMyLeadsEventLeads(canonicalEventKey, params, effectivePersona),
+            createCampaignFromUpload: (payload: Parameters<typeof createMyLeadsCampaignFromUpload>[0]) =>
+              createMyLeadsCampaignFromUpload(payload, effectivePersona),
+            addEventLead: (canonicalEventKey: string, payload: EventLeadCreateRequest) =>
+              addMyLeadsEventLead(canonicalEventKey, payload, effectivePersona),
+            validateLeadTemplateUpload: (file: File | Blob) =>
+              validateMyLeadsLeadTemplateUpload(file, effectivePersona),
+            downloadLeadTemplateFile: () => downloadMyLeadsLeadTemplateFile(undefined, effectivePersona),
+          }
+        : {
+            listEvents: () => listEventsForPersona(effectivePersona),
+            listEventLeads: (
+              canonicalEventKey: string,
+              params: Parameters<typeof listEventLeadsForPersona>[2]
+            ) => listEventLeadsForPersona(effectivePersona, canonicalEventKey, params),
+            createCampaignFromUpload: (payload: Parameters<typeof createCampaignFromUploadForPersona>[1]) =>
+              createCampaignFromUploadForPersona(effectivePersona, payload),
+            addEventLead: (canonicalEventKey: string, payload: EventLeadCreateRequest) =>
+              addEventLeadForPersona(effectivePersona, canonicalEventKey, payload),
+            validateLeadTemplateUpload: (file: File | Blob) =>
+              validateLeadTemplateUploadForPersona(effectivePersona, file),
+            downloadLeadTemplateFile: () => downloadLeadTemplateFileForPersona(effectivePersona),
+          },
+    [effectivePersona, isMyLeadsMode]
+  );
 
   const resetFilters = useCallback(() => {
     setFilters(EMPTY_FILTERS);
@@ -898,76 +1298,148 @@ export function NormalUserEventLeadSheet() {
   }, [workflowStatuses]);
 
   const fixedWorkflowStatuses = useMemo(
-    () =>
-      persona === "production"
-        ? PRODUCTION_WORKFLOW_STATUSES
-        : persona === "delegates"
-          ? DELEGATE_WORKFLOW_STATUSES
-          : FIXED_WORKFLOW_STATUSES,
-    [persona]
+    () => fixedWorkflowStatusesForPersona(effectivePersona),
+    [effectivePersona]
   );
 
   const statusOptions = useMemo(() => {
     return workflowStatuses.length > 0 ? workflowStatuses : fixedWorkflowStatuses;
   }, [fixedWorkflowStatuses, workflowStatuses]);
   const canUseDealBellFlow = role === "sales_user";
-  const canUseTemplateUpload = role === "sales_user" || role === "delegate_user" || role === "production_user";
+  const isPipelineUserRole = role === "sales_user" || role === "delegate_user" || role === "production_user";
+  const canUseTemplateUpload = isMyLeadsMode && isPipelineUserRole;
+  const canUseManualLeadAdd = isMyLeadsMode && isPipelineUserRole;
   const isDealClosedStatusChange = Boolean(
     pendingStatusChange && canUseDealBellFlow && pendingStatusChange.nextStatus === "deal-closed"
   );
 
-  const loadInitialData = useCallback(async () => {
+  const applyInitialData = useCallback((requestPersona: LeadSheetDepartmentPersona, data: LeadSheetInitialData) => {
+    setEvents(data.events);
+    setEventsPersona(requestPersona);
+    setRegistryEvents(data.registryEvents);
+    setWorkflowStatuses(data.workflowStatuses);
+  }, []);
+
+  const loadInitialData = useCallback(async (options: { force?: boolean } = {}) => {
+    const requestPersona = effectivePersona;
+    const requestId = ++initialDataRequestRef.current;
+    const force = Boolean(options.force);
+    const cached = force ? null : readCachedInitialData(cacheScope, mode, requestPersona);
+
+    if (cached) {
+      applyInitialData(requestPersona, cached);
+      setLoadingEvents(false);
+      return cached;
+    }
+
     setLoadingEvents(true);
+    setEventsPersona("");
+    setEvents([]);
+    setLeadPage(null);
     try {
-      const [eventsResponse, initialStatusResponse] = await Promise.all([
-        listEvents(),
-        listWorkflowStatuses(),
-      ]);
-      const registryRows = await listActiveEventRegistry();
-      let finalStatuses = Array.isArray(initialStatusResponse.statuses)
-        ? initialStatusResponse.statuses
-        : [];
-      const missingFixedStatuses = fixedWorkflowStatuses.filter(
-        (item) => !finalStatuses.some((status) => status.statusKey === item.statusKey)
-      );
+      const data = await getInitialLeadSheetData({
+        cacheScope,
+        mode,
+        persona: requestPersona,
+        fixedStatuses: fixedWorkflowStatuses,
+        listEventsFn: leadSheetApi.listEvents,
+        force,
+      });
 
-      if (missingFixedStatuses.length > 0) {
-        await Promise.all(
-          missingFixedStatuses.map(async (item) => {
-            try {
-              await createWorkflowStatus(item.label);
-            } catch {
-              return null;
-            }
-            return null;
-          })
-        );
-
-        const refreshedStatusResponse = await listWorkflowStatuses();
-        finalStatuses = Array.isArray(refreshedStatusResponse.statuses)
-          ? refreshedStatusResponse.statuses
-          : [];
+      if (initialDataRequestRef.current !== requestId || latestPersonaRef.current !== requestPersona) {
+        return data;
       }
 
-      setEvents(eventsResponse.events || []);
-      setRegistryEvents(registryRows);
-      setWorkflowStatuses(buildFixedWorkflowStatuses(finalStatuses, fixedWorkflowStatuses));
+      applyInitialData(requestPersona, data);
+      return data;
     } catch (error: unknown) {
+      if (initialDataRequestRef.current !== requestId || latestPersonaRef.current !== requestPersona) return null;
       toast.error("Failed to load lead sheet", {
         description: getErrorMessage(error),
       });
       setEvents([]);
+      setEventsPersona(requestPersona);
       setRegistryEvents([]);
       setLeadPage(null);
       setWorkflowStatuses(fixedWorkflowStatuses);
+      return null;
     } finally {
-      setLoadingEvents(false);
+      if (initialDataRequestRef.current === requestId && latestPersonaRef.current === requestPersona) {
+        setLoadingEvents(false);
+      }
     }
-  }, [fixedWorkflowStatuses]);
+  }, [applyInitialData, cacheScope, effectivePersona, fixedWorkflowStatuses, leadSheetApi, mode]);
+
+  const loadMyLeadCampaigns = useCallback(async () => {
+    if (!isMyLeadsMode) {
+      setMyLeadCampaigns([]);
+      return;
+    }
+
+    setLoadingMyLeadCampaigns(true);
+    try {
+      const response = await listMyLeadsCampaigns(
+        { status: "all", limit: 20, offset: 0 },
+        effectivePersona
+      );
+      setMyLeadCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
+    } catch (error: unknown) {
+      toast.error("Failed to load My Leads campaigns", {
+        description: getErrorMessage(error),
+      });
+      setMyLeadCampaigns([]);
+    } finally {
+      setLoadingMyLeadCampaigns(false);
+    }
+  }, [effectivePersona, isMyLeadsMode]);
 
   useEffect(() => {
     void loadInitialData();
   }, [loadInitialData]);
+
+  useEffect(() => {
+    void loadMyLeadCampaigns();
+  }, [loadMyLeadCampaigns]);
+
+  useEffect(() => {
+    if (!dataPersona || isMyLeadsMode) return;
+
+    const timer = window.setTimeout(() => {
+      const prefetchParams: LeadPageFetchParams = {
+        limit: DEFAULT_PAGE_SIZE,
+        offset: 0,
+        includeManual: true,
+        sort: "createdAt:desc",
+      };
+
+      for (const personaToPrefetch of LEAD_SHEET_DEPARTMENT_PERSONAS) {
+        if (personaToPrefetch === effectivePersona) continue;
+
+        void getInitialLeadSheetData({
+          cacheScope,
+          mode,
+          persona: personaToPrefetch,
+          fixedStatuses: fixedWorkflowStatusesForPersona(personaToPrefetch),
+          listEventsFn: () => listEventsForPersona(personaToPrefetch),
+        })
+          .then((data) => {
+            const firstEventKey = data.events[0]?.canonicalEventKey;
+            if (!firstEventKey) return null;
+            return getLeadPageCached({
+              cacheScope,
+              mode,
+              persona: personaToPrefetch,
+              canonicalEventKey: firstEventKey,
+              params: prefetchParams,
+              fetcher: () => listEventLeadsForPersona(personaToPrefetch, firstEventKey, prefetchParams),
+            });
+          })
+          .catch(() => null);
+      }
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [cacheScope, dataPersona, effectivePersona, isMyLeadsMode, mode]);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -989,29 +1461,33 @@ export function NormalUserEventLeadSheet() {
     setPageOffset(0);
   }, [searchInput, searchParams]);
 
+  const scopedEvents = useMemo(
+    () => (eventsPersona === effectivePersona ? events : []),
+    [effectivePersona, events, eventsPersona]
+  );
+
   const eventSummaryKeySet = useMemo(() => {
-    return new Set(events.map((item) => asText(item.canonicalEventKey)).filter(Boolean));
-  }, [events]);
+    return new Set(scopedEvents.map((item) => asText(item.canonicalEventKey)).filter(Boolean));
+  }, [scopedEvents]);
 
   const activeRegistryEvents = useMemo(
     () => registryEvents.filter((event) => event.isActive),
     [registryEvents]
   );
-  const hasActiveRegistryEvents = activeRegistryEvents.length > 0;
 
   const selectedEventKey = useMemo(() => {
     if (eventParam && eventSummaryKeySet.has(eventParam)) {
       return eventParam;
     }
-    return events[0]?.canonicalEventKey || "";
-  }, [eventParam, eventSummaryKeySet, events]);
+    return scopedEvents[0]?.canonicalEventKey || "";
+  }, [eventParam, eventSummaryKeySet, scopedEvents]);
 
   useEffect(() => {
-    if (!events.length || !selectedEventKey || eventParam === selectedEventKey) return;
+    if (!scopedEvents.length || !selectedEventKey || eventParam === selectedEventKey) return;
     router.replace(
       updateSearchParam(pathname, new URLSearchParams(searchParams.toString()), "event", selectedEventKey)
     );
-  }, [eventParam, events.length, pathname, router, searchParams, selectedEventKey]);
+  }, [eventParam, pathname, router, scopedEvents.length, searchParams, selectedEventKey]);
 
   useEffect(() => {
     if (!selectedEventKey) {
@@ -1050,18 +1526,56 @@ export function NormalUserEventLeadSheet() {
     }));
   }, [activeRegistryEvents, canUseTemplateUpload, selectedEventKey, uploadParam]);
 
-  const loadEventPage = useCallback(async (canonicalEventKey: string, nextOffset: number, query: string) => {
+  const loadEventPage = useCallback(async (
+    canonicalEventKey: string,
+    nextOffset: number,
+    query: string,
+    options: { force?: boolean } = {}
+  ) => {
+    const requestPersona = effectivePersona;
+    const requestId = ++leadPageRequestRef.current;
+    const params: LeadPageFetchParams = {
+      limit: pageSize,
+      offset: nextOffset,
+      search: query || undefined,
+      workflowStatus: filters.status === "all" ? undefined : filters.status,
+      category: filters.category === "all" ? undefined : filters.category,
+      includeManual: true,
+      sort: "createdAt:desc",
+    };
+    const force = Boolean(options.force);
+    const cached = force ? null : readCachedLeadPage(cacheScope, mode, requestPersona, canonicalEventKey, params);
+
+    if (cached) {
+      if (latestPersonaRef.current !== requestPersona) return cached;
+      setLeadPage(cached);
+      setEvents((prev) =>
+        prev.map((item) =>
+          item.canonicalEventKey === cached.event.canonicalEventKey
+            ? { ...item, ...cached.event }
+            : item
+        )
+      );
+      setLoadingLeads(false);
+      return cached;
+    }
+
     setLoadingLeads(true);
     try {
-      const response = await listEventLeads(canonicalEventKey, {
-        limit: pageSize,
-        offset: nextOffset,
-        search: query || undefined,
-        workflowStatus: filters.status === "all" ? undefined : filters.status,
-        category: filters.category === "all" ? undefined : filters.category,
-        includeManual: true,
-        sort: "createdAt:desc",
+      const response = await getLeadPageCached({
+        cacheScope,
+        mode,
+        persona: requestPersona,
+        canonicalEventKey,
+        params,
+        force,
+        fetcher: () => leadSheetApi.listEventLeads(canonicalEventKey, params),
       });
+
+      if (leadPageRequestRef.current !== requestId || latestPersonaRef.current !== requestPersona) {
+        return response;
+      }
+
       setLeadPage(response);
       setEvents((prev) =>
         prev.map((item) =>
@@ -1070,31 +1584,39 @@ export function NormalUserEventLeadSheet() {
             : item
         )
       );
+      return response;
     } catch (error: unknown) {
+      if (leadPageRequestRef.current !== requestId || latestPersonaRef.current !== requestPersona) return null;
       toast.error("Failed to load lead sheet", {
         description: getErrorMessage(error),
       });
       setLeadPage((prev) => (prev?.event.canonicalEventKey === canonicalEventKey ? prev : null));
+      return null;
     } finally {
-      setLoadingLeads(false);
+      if (leadPageRequestRef.current === requestId && latestPersonaRef.current === requestPersona) {
+        setLoadingLeads(false);
+      }
     }
-  }, [filters.category, filters.status, pageSize]);
+  }, [cacheScope, effectivePersona, filters.category, filters.status, leadSheetApi, mode, pageSize]);
 
   useEffect(() => {
-    if (!selectedEventKey) {
+    if (!scopedEvents.length || !selectedEventKey) {
       setLeadPage(null);
       return;
     }
     setLeadPage((prev) => (prev?.event.canonicalEventKey === selectedEventKey ? prev : null));
     void loadEventPage(selectedEventKey, pageOffset, searchQuery);
-  }, [loadEventPage, pageOffset, searchQuery, selectedEventKey]);
+  }, [loadEventPage, pageOffset, scopedEvents.length, searchQuery, selectedEventKey]);
+
+  const activeLeadPage =
+    leadPage?.event?.canonicalEventKey === selectedEventKey ? leadPage : null;
 
   const selectedEvent = useMemo(
     () =>
-      leadPage?.event?.canonicalEventKey === selectedEventKey
-        ? leadPage.event
-        : events.find((item) => item.canonicalEventKey === selectedEventKey) ?? null,
-    [events, leadPage, selectedEventKey]
+      activeLeadPage
+        ? activeLeadPage.event
+        : scopedEvents.find((item) => item.canonicalEventKey === selectedEventKey) ?? null,
+    [activeLeadPage, scopedEvents, selectedEventKey]
   );
 
   const selectedTemplateUploadEvent = useMemo(
@@ -1151,10 +1673,10 @@ export function NormalUserEventLeadSheet() {
   }, [loadSelectedEventAgendas]);
 
   const eventLeads = useMemo(() => {
-    return (leadPage?.items || [])
+    return (activeLeadPage?.items || [])
       .map((item) => mapLeadItem(item, workflowStatusLabelLookup))
       .filter((item): item is LeadSheetRow => Boolean(item));
-  }, [leadPage, workflowStatusLabelLookup]);
+  }, [activeLeadPage, workflowStatusLabelLookup]);
 
   const categoryOptions = useMemo<LeadCategoryOption[]>(() => {
     const byKey = new Map<string, LeadCategoryOption>();
@@ -1238,9 +1760,9 @@ export function NormalUserEventLeadSheet() {
 
   const pageRangeStart = visibleEventLeads.length > 0 ? pageOffset + 1 : 0;
   const pageRangeEnd = pageOffset + visibleEventLeads.length;
-  const pageTotal = leadPage?.total ?? 0;
-  const hasMore = Boolean(leadPage?.hasMore);
-  const isLoading = loadingEvents || (loadingLeads && !leadPage && Boolean(selectedEventKey));
+  const pageTotal = activeLeadPage?.total ?? 0;
+  const hasMore = Boolean(activeLeadPage?.hasMore);
+  const isLoading = loadingEvents || (loadingLeads && !activeLeadPage && Boolean(selectedEventKey));
   const latestAgenda = agendaState.agendas[0] ?? null;
   const templateUploadErrorCopy = useMemo(
     () => getTemplateUploadErrorCopy(templateUpload.error),
@@ -1248,12 +1770,15 @@ export function NormalUserEventLeadSheet() {
   );
 
   const refreshData = useCallback(async () => {
-    await loadInitialData();
+    invalidateInitialDataCache(cacheScope, mode, effectivePersona);
+    invalidateLeadPageCache(cacheScope, mode, effectivePersona, selectedEventKey || undefined);
+    await loadInitialData({ force: true });
+    await loadMyLeadCampaigns();
     if (selectedEventKey) {
-      await loadEventPage(selectedEventKey, pageOffset, searchQuery);
+      await loadEventPage(selectedEventKey, pageOffset, searchQuery, { force: true });
       await loadSelectedEventAgendas();
     }
-  }, [loadEventPage, loadInitialData, loadSelectedEventAgendas, pageOffset, searchQuery, selectedEventKey]);
+  }, [cacheScope, effectivePersona, loadEventPage, loadInitialData, loadMyLeadCampaigns, loadSelectedEventAgendas, mode, pageOffset, searchQuery, selectedEventKey]);
 
   const clearUploadRouteFlag = useCallback(() => {
     if (uploadParam !== "1") return;
@@ -1262,21 +1787,6 @@ export function NormalUserEventLeadSheet() {
     const nextQuery = nextParams.toString();
     router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
   }, [pathname, router, searchParams, uploadParam]);
-
-  const openTemplateUploadDialog = () => {
-    const currentEventKey = selectedEvent?.canonicalEventKey || selectedEventKey || events[0]?.canonicalEventKey || "";
-    const selectedRegistryEvent =
-      activeRegistryEvents.find((event) => event.id === selectedEvent?.eventRegistryId) ??
-      activeRegistryEvents.find((event) => event.eventKey === currentEventKey) ??
-      activeRegistryEvents[0] ??
-      null;
-
-    setTemplateUpload({
-      ...EMPTY_TEMPLATE_UPLOAD,
-      selectedEventId: selectedRegistryEvent?.id || "",
-    });
-    setTemplateUploadOpen(true);
-  };
 
   const closeTemplateUploadDialog = () => {
     if (templateUpload.submitting) return;
@@ -1289,7 +1799,7 @@ export function NormalUserEventLeadSheet() {
 
   const handleTemplateDownload = async () => {
     try {
-      await downloadLeadTemplateFile();
+      await leadSheetApi.downloadLeadTemplateFile();
       toast.success("Template download started");
     } catch (error: unknown) {
       toast.error("Template download failed", { description: getErrorMessage(error) });
@@ -1325,7 +1835,7 @@ export function NormalUserEventLeadSheet() {
     }));
 
     try {
-      const validation = await validateLeadTemplateUpload(file);
+      const validation = await leadSheetApi.validateLeadTemplateUpload(file);
       setTemplateUpload((prev) => ({
         ...prev,
         validation,
@@ -1364,7 +1874,7 @@ export function NormalUserEventLeadSheet() {
 
     setTemplateUpload((prev) => ({ ...prev, submitting: true, error: "" }));
     try {
-      const response = await createCampaignFromUpload({
+      const response = await leadSheetApi.createCampaignFromUpload({
         name: uploadEvent.eventName,
         eventRegistryId,
         icp: `Template upload for ${uploadEvent.eventName}`,
@@ -1396,6 +1906,8 @@ export function NormalUserEventLeadSheet() {
       setSearchInput("");
       setSearchQuery("");
       setPageOffset(0);
+      invalidateInitialDataCache(cacheScope, mode, effectivePersona);
+      invalidateLeadPageCache(cacheScope, mode, effectivePersona);
       await refreshData();
     } catch (error: unknown) {
       setTemplateUpload((prev) => ({
@@ -1404,6 +1916,23 @@ export function NormalUserEventLeadSheet() {
         error: getErrorMessage(error),
       }));
       toast.error("Upload failed", { description: getErrorMessage(error) });
+    }
+  };
+
+  const handleMyLeadCampaignExport = async (campaign: CampaignListItem) => {
+    if (!isMyLeadsMode || exportingCampaignId) return;
+    setExportingCampaignId(campaign.id);
+    try {
+      await downloadMyLeadsCampaignExport(campaign.id, buildCampaignExportFileName(campaign), effectivePersona);
+      toast.success("Campaign export started", {
+        description: campaign.name,
+      });
+    } catch (error: unknown) {
+      toast.error("Export failed", {
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setExportingCampaignId("");
     }
   };
 
@@ -1462,7 +1991,8 @@ export function NormalUserEventLeadSheet() {
 
       setUpdatingKeys((prev) => ({ ...prev, [updateKey]: true }));
       try {
-        const response = await updateLeadWorkflowStatus(item.id, nextStatus, comment);
+        const response = await updateLeadWorkflowStatusForPersona(effectivePersona, item.id, nextStatus, comment);
+        invalidateLeadPageCache(cacheScope, mode, effectivePersona, item.canonicalEventKey);
 
         const nextLabel =
           asText(response.workflowStatusLabel) ||
@@ -1509,7 +2039,7 @@ export function NormalUserEventLeadSheet() {
         });
       }
     },
-    [workflowStatusLabelLookup]
+    [cacheScope, effectivePersona, mode, workflowStatusLabelLookup]
   );
 
   const handleStatusSelection = (item: LeadSheetRow, value: string) => {
@@ -1598,7 +2128,7 @@ export function NormalUserEventLeadSheet() {
     setHistoryError(null);
     setHistoryLoading(true);
     try {
-      const response = await getLeadWorkflowStatusHistory(item.id);
+      const response = await getLeadWorkflowStatusHistoryForPersona(effectivePersona, item.id);
       setHistoryItems(Array.isArray(response.history) ? response.history : []);
     } catch (error: unknown) {
       const message = getErrorMessage(error);
@@ -1700,7 +2230,8 @@ export function NormalUserEventLeadSheet() {
     });
 
     try {
-      const response: LeadContentGenerationResponse = await generateLeadContent(
+      const response: LeadContentGenerationResponse = await generateLeadContentForPersona(
+        effectivePersona,
         item.id,
         {
           platform,
@@ -1792,6 +2323,7 @@ export function NormalUserEventLeadSheet() {
   };
 
   const submitAddLead = async () => {
+    if (!canUseManualLeadAdd) return;
     if (!selectedEvent) {
       toast.error("Select an event first");
       return;
@@ -1814,12 +2346,13 @@ export function NormalUserEventLeadSheet() {
 
     setAddingLead(true);
     try {
-      const created = await addEventLead(selectedEvent.canonicalEventKey, payload);
+      const created = await leadSheetApi.addEventLead(selectedEvent.canonicalEventKey, payload);
+      invalidateLeadPageCache(cacheScope, mode, effectivePersona, selectedEvent.canonicalEventKey);
       closeAddLeadDialog(true);
       toast.success("Lead added", {
         description: `${created.employeeName} is now part of ${created.canonicalEventName}.`,
       });
-      await loadEventPage(selectedEvent.canonicalEventKey, pageOffset, searchQuery);
+      await loadEventPage(selectedEvent.canonicalEventKey, pageOffset, searchQuery, { force: true });
     } catch (error: unknown) {
       toast.error("Failed to add lead", {
         description: getErrorMessage(error),
@@ -1852,15 +2385,19 @@ export function NormalUserEventLeadSheet() {
                 <SelectContent
                   align="start"
                   position="popper"
+                  sideOffset={10}
                   className={EVENT_SELECT_CONTENT_CLASS}
+                  viewportClassName={EVENT_SELECT_VIEWPORT_CLASS}
                 >
-                  {events.map((item) => (
+                  {scopedEvents.map((item) => (
                     <SelectItem
                       key={item.canonicalEventKey}
                       value={item.canonicalEventKey}
                       className={EVENT_SELECT_ITEM_CLASS}
                     >
-                      {getDisplayEventName(item.canonicalEventName)}
+                      <span className="block min-w-0 line-clamp-2 text-left leading-snug">
+                        {getDisplayEventName(item.canonicalEventName)}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1878,8 +2415,104 @@ export function NormalUserEventLeadSheet() {
           </div>
         </header>
 
+        {departmentTabs ? <div className="shrink-0 pt-5">{departmentTabs}</div> : null}
+
         <div className="grid min-h-0 flex-1 gap-12 overflow-hidden pt-10 xl:grid-cols-[19rem_minmax(0,1fr)]">
           <aside className="shrink-0 space-y-10 overflow-y-auto pr-2 scrollbar-hide">
+            {isMyLeadsMode ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-xs font-medium text-zinc-400">My campaigns</label>
+                  <button
+                    type="button"
+                    onClick={() => void loadMyLeadCampaigns()}
+                    disabled={loadingMyLeadCampaigns}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950 disabled:opacity-50"
+                    title="Refresh campaigns"
+                  >
+                    {loadingMyLeadCampaigns ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCcw className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </div>
+
+                <div className="max-h-72 space-y-2 overflow-y-auto pr-1 scrollbar-modern">
+                  {loadingMyLeadCampaigns && myLeadCampaigns.length === 0 ? (
+                    <div className="space-y-2">
+                      {Array.from({ length: 3 }).map((_, index) => (
+                        <div key={index} className="h-20 animate-pulse rounded-xl border border-zinc-100 bg-white/60" />
+                      ))}
+                    </div>
+                  ) : myLeadCampaigns.length === 0 ? (
+                    <div className="rounded-xl border border-zinc-200 bg-white/70 px-4 py-4 text-sm font-light leading-6 text-zinc-500">
+                      No personal campaigns yet.
+                    </div>
+                  ) : (
+                    myLeadCampaigns.map((campaign) => {
+                      const eventKey = asText(campaign.canonicalEventKey);
+                      const isSelected = eventKey && eventKey === selectedEventKey;
+                      return (
+                        <div
+                          key={campaign.id}
+                          className={cn(
+                            "rounded-xl border bg-white/80 px-3 py-3 shadow-[0_12px_28px_-24px_rgba(2,10,27,0.55)] transition-colors",
+                            isSelected ? "border-blue-300" : "border-zinc-200 hover:border-zinc-300"
+                          )}
+                        >
+                          <button
+                            type="button"
+                            disabled={!eventKey}
+                            onClick={() => eventKey && handleEventChange(eventKey)}
+                            className="block w-full min-w-0 text-left disabled:cursor-not-allowed"
+                          >
+                            <span className="block truncate text-sm font-semibold text-zinc-950">
+                              {campaign.name || "Untitled campaign"}
+                            </span>
+                            <span className="mt-1 block truncate text-[11px] font-light text-zinc-500">
+                              {campaign.canonicalEventName || campaign.category || "Personal upload"}
+                            </span>
+                          </button>
+
+                          <div className="mt-3 flex items-center justify-between gap-2">
+                            <div className="min-w-0 text-[11px] text-zinc-400">
+                              <span>{Number(campaign.totalLeads || 0).toLocaleString()} leads</span>
+                              {campaign.createdAt ? (
+                                <>
+                                  <span className="mx-1.5">/</span>
+                                  <span>{formatCampaignTimestamp(campaign.createdAt)}</span>
+                                </>
+                              ) : null}
+                            </div>
+                            <div className="flex shrink-0 items-center gap-1.5">
+                              <span className="hidden rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-medium text-zinc-500 2xl:inline-flex">
+                                {humanizeCampaignStatus(campaign.status)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => void handleMyLeadCampaignExport(campaign)}
+                                disabled={Boolean(exportingCampaignId)}
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-400 transition-colors hover:border-blue-500 hover:text-blue-600 disabled:opacity-50"
+                                title="Export campaign"
+                              >
+                                {exportingCampaignId === campaign.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Download className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                              {eventKey ? <ChevronRight className="h-3.5 w-3.5 text-zinc-300" /> : null}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            ) : null}
+
             <div className="space-y-6">
               <div>
                 <label className="text-xs font-medium text-zinc-400">Event agenda</label>
@@ -3237,7 +3870,7 @@ export function NormalUserEventLeadSheet() {
       </LeadSheetDialog>
 
       <LeadSheetDialog
-        open={addLeadOpen}
+        open={canUseManualLeadAdd && addLeadOpen}
         title="Add Lead"
         description=""
         eyebrow=""
