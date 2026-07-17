@@ -9,6 +9,7 @@ import {
   BrainCircuit,
   FileText,
   HardDrive,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   MessageSquare,
@@ -38,6 +39,12 @@ const adminTabs = [
     href: "/admin/users",
     icon: ShieldCheck,
     match: (pathname: string) => pathname === "/admin/users",
+  },
+  {
+    name: "Client Access",
+    href: "/admin/client-access",
+    icon: KeyRound,
+    match: (pathname: string) => pathname === "/admin/client-access",
   },
   {
     name: "User Performance",

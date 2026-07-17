@@ -17,6 +17,8 @@ export type {
   CampaignInfoResponse,
   CampaignDetail,
   CampaignListItem,
+  CampaignListParams,
+  CampaignListResponse,
   CampaignType,
   CreateCampaignRequest,
   CreateCampaignResponse,
@@ -77,8 +79,14 @@ export type {
   UploadCampaignResponse,
   ApproveSelectedLeadsRequest,
   ApproveSelectedLeadsResponse,
+  GenerateSelectedLeadContentRequest,
+  GenerateSelectedLeadContentResponse,
+  ResetLeadContentResponse,
+  ResetSelectedLeadContentRequest,
+  ResetSelectedLeadContentResponse,
   SendSelectedLeadsRequest,
   SendSelectedLeadsResponse,
+  SendAdminLeadSmsResponse,
   CreateWhatsAppOptOutRequest,
   CreateWhatsAppOptOutResponse,
   ListWhatsAppOptOutsResponse,
@@ -233,6 +241,9 @@ export const rejectLead: typeof sales.rejectLead = (...args) =>
 export const updateLeadContent: typeof sales.updateLeadContent = (...args) =>
   pickModule().updateLeadContent(...args);
 
+export const resetLeadContent: typeof sales.resetLeadContent = (...args) =>
+  pickModule().resetLeadContent(...args);
+
 export const generateLeadEmailContent: typeof sales.generateLeadEmailContent = (...args) =>
   pickModule().generateLeadEmailContent(...args);
 
@@ -257,6 +268,9 @@ export const exportCampaignCsvUrl: typeof sales.exportCampaignCsvUrl = (...args)
 export const stopCampaign: typeof sales.stopCampaign = (...args) =>
   pickModule().stopCampaign(...args);
 
+export const cancelCampaignContentGenerationJob: typeof sales.cancelCampaignContentGenerationJob = (...args) =>
+  pickModule().cancelCampaignContentGenerationJob(...args);
+
 export const deleteCampaign: typeof sales.deleteCampaign = (...args) =>
   pickModule().deleteCampaign(...args);
 
@@ -272,6 +286,15 @@ export const uploadCampaignCommonAttachment: typeof sales.uploadCampaignCommonAt
 export const approveSelectedCampaignLeads: typeof sales.approveSelectedCampaignLeads = (...args) =>
   pickModule().approveSelectedCampaignLeads(...args);
 
+export const generateSelectedCampaignLeadContent: typeof sales.generateSelectedCampaignLeadContent = (...args) =>
+  pickModule().generateSelectedCampaignLeadContent(...args);
+
+export const generateCampaignLeadContent: typeof sales.generateCampaignLeadContent = (...args) =>
+  pickModule().generateCampaignLeadContent(...args);
+
+export const resetSelectedCampaignLeadContent: typeof sales.resetSelectedCampaignLeadContent = (...args) =>
+  pickModule().resetSelectedCampaignLeadContent(...args);
+
 export const sendSelectedCampaignLeads: typeof sales.sendSelectedCampaignLeads = (...args) =>
   pickModule().sendSelectedCampaignLeads(...args);
 
@@ -286,6 +309,9 @@ export const createWhatsAppOptOut: typeof sales.createWhatsAppOptOut = (...args)
 
 export const disableLeadWhatsApp: typeof sales.disableLeadWhatsApp = (...args) =>
   pickModule().disableLeadWhatsApp(...args);
+
+export const sendAdminLeadSms: typeof sales.sendAdminLeadSms = (...args) =>
+  sales.sendAdminLeadSms(...args);
 
 export const listReplyNotifications: typeof sales.listReplyNotifications = (...args) =>
   pickModule().listReplyNotifications(...args);
