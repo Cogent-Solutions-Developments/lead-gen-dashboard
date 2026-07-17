@@ -104,36 +104,7 @@ export type CampaignListItem = {
   progress: number;
   totalLeads: number;
   toApprove: number;
-  contentGenerationJob?: ContentGenerationJob | null;
   createdAt: string;
-};
-
-export type ContentGenerationJob = {
-  id: string;
-  type: string;
-  state: string;
-  pct: number;
-  step?: string | null;
-  message?: string | null;
-  cancelRequested?: boolean;
-  createdAt?: string | null;
-  updatedAt?: string | null;
-  finishedAt?: string | null;
-};
-
-export type CampaignListParams = {
-  status?: string;
-  limit?: number;
-  offset?: number;
-  search?: string;
-  category?: string;
-};
-
-export type CampaignListResponse = {
-  campaigns: CampaignListItem[];
-  total: number;
-  hasMore: boolean;
-  categories?: string[];
 };
 
 export type CampaignDetail = {
@@ -401,103 +372,10 @@ export type ApproveSelectedLeadsResponse = {
   suppressedCount?: number;
 };
 
-export type GenerateSelectedLeadContentRequest = {
-  campaignId: string;
-  leadIds: string[];
-  feedback?: string;
-  signal?: AbortSignal;
-};
-
-export type GenerateCampaignLeadContentRequest = {
-  campaignId: string;
-  leadIds?: string[];
-  feedback?: string;
-  signal?: AbortSignal;
-};
-
-export type GenerateSelectedLeadContentResponse = {
-  message: string;
-  campaignId: string;
-  requestedCount: number;
-  generatedCount: number;
-  generatedLeadIds: string[];
-  suppressedCount: number;
-  suppressedLeadIds: string[];
-  missingLeadIds?: string[];
-  failedCount: number;
-  failed?: Array<{
-    leadId: string;
-    error: string;
-    stage?: string;
-    status?: string;
-    details?: string[];
-    metrics?: Array<{ label: string; actual: string; expected: string; status?: string }>;
-  }>;
-  generationMode?: string | null;
-  queued?: boolean;
-  jobId?: string | null;
-  taskId?: string | null;
-  queue?: string | null;
-};
-
-export type CancelContentGenerationJobResponse = {
-  ok: boolean;
-  campaignId: string;
-  jobId: string;
-  status: string;
-  state?: string | null;
-};
-
-export type ResetSelectedLeadContentRequest = {
-  campaignId: string;
-  leadIds: string[];
-};
-
-export type ResetLeadContentResponse = {
-  id: string;
-  draftId?: string | null;
-  draftStatus?: string | null;
-  draftMeta?: Record<string, unknown> | null;
-  contentEmailSubject: string | null;
-  contentEmail: string | null;
-  contentLinkedin: string | null;
-  contentWhatsapp: string | null;
-  contentSource?: string | null;
-  templateFallback?: boolean | null;
-  approvalStatus?: string | null;
-  reviewStatus?: string | null;
-  isSuppressed?: boolean | null;
-  suppression?: SuppressionMeta | null;
-  contactReadOnly?: boolean | null;
-  sendable?: boolean | null;
-  channelCapabilities?: ChannelCapabilities | null;
-  updatedAt?: string | null;
-};
-
-export type ResetSelectedLeadContentResponse = {
-  message: string;
-  campaignId: string;
-  requestedCount: number;
-  resetCount: number;
-  resetLeadIds: string[];
-  leads: ResetLeadContentResponse[];
-  missingLeadIds?: string[];
-  failedCount: number;
-  failed?: Array<{
-    leadId: string;
-    error: string;
-    stage?: string;
-    status?: string;
-    details?: string[];
-    metrics?: Array<{ label: string; actual: string; expected: string; status?: string }>;
-  }>;
-};
-
 export type SendSelectedLeadsRequest = {
   campaignId: string;
   leadIds: string[];
   attachmentId?: string;
-  channel?: OutreachRequestChannel;
 };
 
 export type SendSelectedLeadsResponse = {
@@ -616,19 +494,6 @@ export type DisableLeadWhatsAppResponse = {
   reason: string | null;
 };
 
-export type SendAdminLeadSmsResponse = {
-  ok: boolean;
-  leadId: string;
-  campaignId?: string | null;
-  draftId?: string | null;
-  to?: string | null;
-  provider: "twilio";
-  providerMessageId?: string | null;
-  providerStatus?: string | null;
-  statusCode?: number;
-  sentAt?: string | null;
-};
-
 export type CampaignInfo = {
   campaignId: string;
   name: string | null;
@@ -654,7 +519,6 @@ export type WorkflowStatus = string;
 
 export type LeadItem = {
   id: string;
-  campaignId?: string | null;
   batchId: string;
   employeeName: string;
   title: string;
@@ -667,9 +531,6 @@ export type LeadItem = {
   contentEmail: string | null;
   contentLinkedin: string | null;
   contentWhatsapp: string | null;
-  draftId?: string | null;
-  draftStatus?: string | null;
-  draftMeta?: Record<string, unknown> | null;
   eventName?: string | null;
   canonicalEventKey?: string | null;
   canonicalEventName?: string | null;
@@ -1221,8 +1082,8 @@ export async function getRecentCampaigns(limit?: number) {
   return data;
 }
 
-export async function listCampaigns(params: CampaignListParams) {
-  const { data } = await apiClient.get<CampaignListResponse>(
+export async function listCampaigns(params: { status?: string; limit?: number; offset?: number }) {
+  const { data } = await apiClient.get<{ campaigns: CampaignListItem[]; total: number; hasMore: boolean }>(
     "/api/campaigns",
     { params }
   );
@@ -1738,11 +1599,6 @@ export async function updateLeadContent(id: string, payload: {
   return data;
 }
 
-export async function resetLeadContent(id: string) {
-  const { data } = await apiClient.post<ResetLeadContentResponse>(`/api/leads/${id}/content/reset`);
-  return data;
-}
-
 export async function generateLeadEmailContent(id: string, payload?: LeadEmailGenerationRequest) {
   const { data } = await apiClient.post<LeadEmailGenerationResponse>(
     `/api/leads/${id}/email-content/generate`,
@@ -1793,13 +1649,6 @@ export function exportCampaignCsvUrl(id: string) {
 export async function stopCampaign(id: string) {
   const { data } = await apiClient.post(`/api/campaigns/${id}/stop`);
   return data as StopCampaignResponse;
-}
-
-export async function cancelCampaignContentGenerationJob(campaignId: string, jobId: string) {
-  const { data } = await apiClient.post<CancelContentGenerationJobResponse>(
-    `/api/campaigns/${campaignId}/content/jobs/${jobId}/cancel`
-  );
-  return data;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -1929,49 +1778,14 @@ export async function approveSelectedCampaignLeads(payload: ApproveSelectedLeads
   return data;
 }
 
-export async function generateSelectedCampaignLeadContent(payload: GenerateSelectedLeadContentRequest) {
-  const { campaignId, leadIds, feedback, signal } = payload;
-  const { data } = await apiClient.post<GenerateSelectedLeadContentResponse>(
-    `/api/campaigns/${campaignId}/content/generate-selected`,
-    { leadIds, feedback },
-    { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS, signal }
-  );
-  return data;
-}
-
-export async function generateCampaignLeadContent(payload: GenerateCampaignLeadContentRequest) {
-  const { campaignId, leadIds, feedback, signal } = payload;
-  const { data } = await apiClient.post<GenerateSelectedLeadContentResponse>(
-    `/api/campaigns/${campaignId}/content/generate`,
-    { leadIds, feedback },
-    { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS, signal }
-  );
-  return data;
-}
-
-export async function resetSelectedCampaignLeadContent(payload: ResetSelectedLeadContentRequest) {
-  const { campaignId, leadIds } = payload;
-  const { data } = await apiClient.post<ResetSelectedLeadContentResponse>(
-    `/api/campaigns/${campaignId}/content/reset-selected`,
-    { leadIds }
-  );
-  return data;
-}
-
 export async function sendSelectedCampaignLeads(payload: SendSelectedLeadsRequest) {
-  const { campaignId, leadIds, attachmentId, channel } = payload;
+  const { campaignId, leadIds, attachmentId } = payload;
   const query = new URLSearchParams();
   if (attachmentId) query.set("attachment_id", attachmentId);
   const queryText = query.toString();
-  const endpoint =
-    channel === "email"
-      ? "send-selected-email"
-      : channel === "whatsapp"
-        ? "send-selected-whatsapp"
-        : "send-selected-leads";
 
   const { data } = await apiClient.post<SendSelectedLeadsResponse>(
-    `/api/campaigns/${campaignId}/${endpoint}${queryText ? `?${queryText}` : ""}`,
+    `/api/campaigns/${campaignId}/send-selected-leads${queryText ? `?${queryText}` : ""}`,
     leadIds
   );
   return data;
@@ -2029,14 +1843,6 @@ export async function disableLeadWhatsApp(leadId: string, reason?: string) {
     {
       params: reason?.trim() ? { reason: reason.trim() } : undefined,
     }
-  );
-  return data;
-}
-
-export async function sendAdminLeadSms(leadId: string, message: string) {
-  const { data } = await apiClient.post<SendAdminLeadSmsResponse>(
-    `/api/admin/leads/${encodeURIComponent(leadId)}/send-sms`,
-    { message }
   );
   return data;
 }
