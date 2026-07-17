@@ -164,7 +164,11 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
       </div>
 
       {/* 1. Navigation Items (Scrollable if needed) */}
-      <nav className={`flex-1 overflow-y-auto pt-4 transition-[margin] duration-300 ${isExpanded ? "-mx-10" : "-mx-6"}`}>
+      <nav
+        className={`scrollbar-hide min-w-0 flex-1 overflow-x-hidden overflow-y-auto pt-4 transition-[margin] duration-300 ${
+          isExpanded ? "-mx-10" : "-mx-6"
+        }`}
+      >
         {navItems
           .filter((item) => {
             if (isSuperAdmin) return !item.normalOnly && !item.ceoOnly;
