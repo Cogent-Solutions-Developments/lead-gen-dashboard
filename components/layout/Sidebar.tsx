@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  Activity,
   Brain,
   Database,
   LayoutDashboard,
@@ -11,6 +12,7 @@ import {
   Plus,
   Upload,
   UserRound,
+  UsersRound,
   LogOut,
   ShieldCheck,
   BellRing,
@@ -35,6 +37,10 @@ const navItems = [
   { name: "Nizo Finder", normalLabel: "Database", href: "/leads", icon: Database },
   { name: "My Leads", href: "/my-leads", icon: UserRound, normalOnly: true },
   { name: "Nizo AI", href: "/nizo-ai", icon: Brain, normalOnly: true },
+  { name: "User & Role Management", href: "/admin/users", icon: ShieldCheck, ceoOnly: true },
+  { name: "User Performance", href: "/admin/user-performance", icon: UsersRound, ceoOnly: true },
+  { name: "Knowledge Library", href: "/admin/knowledge", icon: Brain, ceoOnly: true },
+  { name: "System Monitor", href: "/settings/system-monitor", icon: Activity, ceoOnly: true },
   { name: "Admin Panel", href: "/admin", icon: ShieldCheck, superOnly: true },
 ];
 const APP_VERSION_LABEL = "v0.3.0";
@@ -48,10 +54,10 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { persona } = usePersona();
-  const { isSuperAdmin, user } = useAuth();
+  const { isCeo, isSuperAdmin, user } = useAuth();
   const [ringingBell, setRingingBell] = useState(false);
   const [ringBellModalOpen, setRingBellModalOpen] = useState(false);
-  const personaLabel = persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
+  const personaLabel = persona === "ceo" ? "CEO" : persona === "delegates" ? "Delegates" : persona === "production" ? "Production" : "Sales";
   const dealBellMedia = useMemo(
     () => getDailyDealBellMedia(user?.id || user?.username),
     [user?.id, user?.username]
@@ -160,7 +166,11 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
       {/* 1. Navigation Items (Scrollable if needed) */}
       <nav className={`flex-1 overflow-y-auto pt-4 transition-[margin] duration-300 ${isExpanded ? "-mx-10" : "-mx-6"}`}>
         {navItems
-          .filter((item) => (isSuperAdmin ? !item.normalOnly : !item.superOnly))
+          .filter((item) => {
+            if (isSuperAdmin) return !item.normalOnly && !item.ceoOnly;
+            if (isCeo) return !item.superOnly;
+            return !item.superOnly && !item.ceoOnly;
+          })
           .map((item, index) => {
           const isActive = pathname === item.href;
           return (
@@ -195,7 +205,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
                     isActive ? "font-medium" : "font-light"
                   } ${isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"
                   }`}>
-                    {isSuperAdmin ? item.name : item.normalLabel ?? item.name}
+                    {isSuperAdmin || item.ceoOnly ? item.name : item.normalLabel ?? item.name}
                   </span>
                 </div>
               </Link>
@@ -204,7 +214,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
         })}
       </nav>
 
-      {!isSuperAdmin && persona === "sales" ? (
+      {!isSuperAdmin && !isCeo && persona === "sales" ? (
         <div className={`${isExpanded ? "-mx-2" : "mx-0"} pb-6 transition-all duration-300`}>
           <motion.div
             initial={{ opacity: 0, y: 16 }}

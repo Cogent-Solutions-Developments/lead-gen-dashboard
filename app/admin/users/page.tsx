@@ -328,8 +328,7 @@ function UserCard({
 }
 
 export default function AdminUsersPage() {
-  const { user: currentUser } = useAuth();
-  const isCeo = String(currentUser?.role || "").toLowerCase() === "ceo_user";
+  const { isCeo, user: currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<AdminUsersTab>("users");
   const [activeDepartmentId, setActiveDepartmentId] = useState(departmentDefinitions[0]?.id || "");
   const [users, setUsers] = useState<AuthUser[]>([]);

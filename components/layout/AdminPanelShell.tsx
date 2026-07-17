@@ -21,7 +21,7 @@ import {
   Webhook,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { clearAuthSession } from "@/lib/auth";
+import { clearAuthSession, isCeoRole } from "@/lib/auth";
 import { clearPersona } from "@/lib/persona";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -105,6 +105,10 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
+
+  if (isCeoRole(user?.role)) {
+    return <>{children}</>;
+  }
 
   const handleSignOut = async () => {
     try {

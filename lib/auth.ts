@@ -4,9 +4,13 @@ import type { Persona } from "@/lib/persona";
 
 export type AuthRole =
   | "super_admin_user"
+  | "ceo_user"
   | "sales_user"
+  | "sales_manager_user"
   | "delegate_user"
-  | "production_user";
+  | "delegate_manager_user"
+  | "production_user"
+  | "production_manager_user";
 
 export type AuthUser = {
   id: string;
@@ -510,22 +514,36 @@ const ROLE_ALIASES: Record<string, AuthRole> = {
   super_admin: "super_admin_user",
   superadmin: "super_admin_user",
   admin: "super_admin_user",
+  ceo: "ceo_user",
+  ceo_user: "ceo_user",
+  chief_executive: "ceo_user",
+  chief_executive_officer: "ceo_user",
   sales_user: "sales_user",
   sales: "sales_user",
   sale_user: "sales_user",
   salate_user: "sales_user",
+  sales_manager: "sales_manager_user",
+  sales_manager_user: "sales_manager_user",
+  sales_manager_usert: "sales_manager_user",
   delegate_user: "delegate_user",
   delegate: "delegate_user",
   delegate_usert: "delegate_user",
   delegagate_user: "delegate_user",
   delegagate_usert: "delegate_user",
+  delegate_manager: "delegate_manager_user",
+  delegate_manager_user: "delegate_manager_user",
+  delegagate_manager_user: "delegate_manager_user",
   production_user: "production_user",
   production: "production_user",
   production_usert: "production_user",
+  production_manager: "production_manager_user",
+  production_manager_user: "production_manager_user",
+  production_manager_usert: "production_manager_user",
 };
 
 export const AUTH_ROLES: AuthRole[] = [
   "super_admin_user",
+  "ceo_user",
   "sales_user",
   "delegate_user",
   "production_user",
@@ -538,6 +556,7 @@ export function normalizeAuthRole(role: unknown): AuthRole {
 
 export function getRoleLabel(role: AuthRole | null | undefined) {
   if (role === "super_admin_user") return "Super Admin";
+  if (role === "ceo_user") return "CEO";
   if (role === "delegate_user") return "Delegate";
   if (role === "production_user") return "Production";
   return "Sales";
@@ -547,16 +566,25 @@ export function isSuperAdminRole(role: AuthRole | null | undefined) {
   return role === "super_admin_user";
 }
 
+export function isCeoRole(role: AuthRole | null | undefined) {
+  return role === "ceo_user";
+}
+
+export function isAdminLikeRole(role: AuthRole | null | undefined) {
+  return isSuperAdminRole(role) || isCeoRole(role);
+}
+
 export function personaForRole(role: AuthRole | null | undefined): Persona | null {
-  if (role === "sales_user") return "sales";
-  if (role === "delegate_user") return "delegates";
-  if (role === "production_user") return "production";
+  if (role === "sales_user" || role === "sales_manager_user") return "sales";
+  if (role === "delegate_user" || role === "delegate_manager_user") return "delegates";
+  if (role === "production_user" || role === "production_manager_user") return "production";
   return null;
 }
 
 export function canRoleUsePersona(role: AuthRole | null | undefined, persona: Persona | null) {
   if (!role || !persona) return false;
-  if (isSuperAdminRole(role)) return true;
+  if (isSuperAdminRole(role)) return persona !== "ceo";
+  if (isCeoRole(role)) return persona === "ceo";
   return personaForRole(role) === persona;
 }
 

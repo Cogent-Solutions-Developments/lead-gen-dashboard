@@ -192,7 +192,7 @@ function ExternalDashboardButton({ label, href }: { label: string; href?: string
 }
 
 export default function SystemMonitorPage() {
-  const { isSuperAdmin } = useAuth();
+  const { isAdminLike, isCeo } = useAuth();
   const [snapshot, setSnapshot] = useState<SystemMonitorSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -201,7 +201,7 @@ export default function SystemMonitorPage() {
 
   const loadSnapshot = useCallback(
     async ({ silent = false }: { silent?: boolean } = {}) => {
-      if (!isSuperAdmin) return;
+      if (!isAdminLike) return;
 
       if (!silent) setLoading(true);
       setRefreshing(true);
@@ -218,20 +218,20 @@ export default function SystemMonitorPage() {
         setRefreshing(false);
       }
     },
-    [isSuperAdmin]
+    [isAdminLike]
   );
 
   useEffect(() => {
-    if (isSuperAdmin) void loadSnapshot();
-  }, [isSuperAdmin, loadSnapshot]);
+    if (isAdminLike) void loadSnapshot();
+  }, [isAdminLike, loadSnapshot]);
 
   useEffect(() => {
-    if (!autoRefresh || !isSuperAdmin) return;
+    if (!autoRefresh || !isAdminLike) return;
     const timer = window.setInterval(() => {
       void loadSnapshot({ silent: true });
     }, 30000);
     return () => window.clearInterval(timer);
-  }, [autoRefresh, isSuperAdmin, loadSnapshot]);
+  }, [autoRefresh, isAdminLike, loadSnapshot]);
 
   const checks = snapshot?.checks;
   const runtime = snapshot?.runtime;
@@ -288,14 +288,14 @@ export default function SystemMonitorPage() {
     [checks, snapshot, warnings.length]
   );
 
-  if (!isSuperAdmin) {
+  if (!isAdminLike) {
     return (
       <AdminPanelShell>
       <div className="flex min-h-[calc(100dvh-3rem)] items-center justify-center p-4">
         <Card className="max-w-md rounded-2xl border border-zinc-300 bg-white/88 p-6 text-center">
           <ShieldAlert className="mx-auto h-9 w-9 text-amber-600" />
-          <h1 className="mt-3 text-lg font-semibold text-zinc-900">Super Admin Only</h1>
-          <p className="mt-2 text-sm text-zinc-500">System Monitor is restricted to super admin users.</p>
+          <h1 className="mt-3 text-lg font-semibold text-zinc-900">Admin Access Required</h1>
+          <p className="mt-2 text-sm text-zinc-500">System Monitor is restricted to super admin and CEO users.</p>
         </Card>
       </div>
       </AdminPanelShell>
@@ -331,7 +331,7 @@ export default function SystemMonitorPage() {
             Auto 30s
           </label>
 
-          <Link href="/settings">
+          <Link href={isCeo ? "/dashboard" : "/settings"}>
             <Button
               type="button"
               variant="outline"

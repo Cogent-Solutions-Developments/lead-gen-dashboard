@@ -11,6 +11,7 @@ import {
   fetchCurrentAuthUser,
   getAuthLandingPath,
   getStoredAuthSession,
+  isCeoRole,
   isSuperAdminRole,
   onAuthSessionChange,
   personaForRole,
@@ -36,12 +37,21 @@ function isAdminAreaPath(pathname: string) {
   );
 }
 
+function isCeoAllowedAdminPath(pathname: string) {
+  return (
+    pathname === "/admin/users" ||
+    pathname === "/admin/user-performance" ||
+    pathname === "/admin/knowledge" ||
+    pathname.startsWith("/admin/knowledge/") ||
+    pathname === "/settings/system-monitor"
+  );
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const isChooser = pathname === "/" || pathname === "/choose-persona";
   const isAuthRoute = pathname === "/sign-in";
-  const isAdminAreaRoute = isAdminAreaPath(pathname);
   const isFlushContentRoute = pathname === "/nizo-ai" || pathname === "/dashboard";
   const [selected, setSelected] = useState<boolean>(() => hasPersona());
   const [session, setSession] = useState<AuthSession | null>(() => getStoredAuthSession());
@@ -49,7 +59,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarHovered, setSidebarHovered] = useState(false);
   const role = session?.user.role ?? null;
   const isSuperAdmin = isSuperAdminRole(role);
+  const isCeo = isCeoRole(role);
   const forcedPersona = personaForRole(role);
+  const isCeoWorkspaceAdminRoute = isCeo && isCeoAllowedAdminPath(pathname);
+  const isAdminAreaRoute = isAdminAreaPath(pathname) && !isCeoWorkspaceAdminRoute;
   const sidebarExpanded = sidebarHovered;
 
   useEffect(() => {
@@ -118,6 +131,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    if (isCeo && pathname === "/admin") {
+      router.replace("/admin/users");
+      return;
+    }
+
+    if (isCeo) {
+      if (getStoredPersona() !== "ceo") {
+        setPersona("ceo");
+        return;
+      }
+
+      if (isChooser) {
+        router.replace("/dashboard");
+        return;
+      }
+    }
+
     if (forcedPersona) {
       if (getStoredPersona() !== forcedPersona) {
         setPersona(forcedPersona);
@@ -131,6 +161,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
 
     if (!isSuperAdmin && isSuperOnlyPath(pathname)) {
+      if (isCeo && isCeoAllowedAdminPath(pathname)) {
+        return;
+      }
       router.replace("/dashboard");
       return;
     }
@@ -145,7 +178,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       clearPersona();
       router.replace(getAuthLandingPath(role));
     }
-  }, [authChecked, forcedPersona, isAdminAreaRoute, isAuthRoute, isChooser, isSuperAdmin, pathname, role, router, selected, session]);
+  }, [authChecked, forcedPersona, isAdminAreaRoute, isAuthRoute, isCeo, isChooser, isSuperAdmin, pathname, role, router, selected, session]);
 
   if (!authChecked) return null;
 
@@ -154,10 +187,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <main className="min-h-screen bg-transparent">{children}</main>;
   }
 
+  if (!isSuperAdmin && isSuperOnlyPath(pathname) && !(isCeo && isCeoAllowedAdminPath(pathname))) {
+    return null;
+  }
+
   if (forcedPersona) {
     if (getStoredPersona() !== forcedPersona) return null;
     if (isChooser || isSuperOnlyPath(pathname)) return null;
   }
+
+  if (isCeo && isChooser) return null;
 
   if (isAuthRoute || isChooser) {
     return (
