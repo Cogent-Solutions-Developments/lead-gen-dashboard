@@ -50,7 +50,7 @@ function compactText(parts: Array<string | number | null | undefined>) {
   return parts
     .map((part) => String(part ?? "").trim())
     .filter(Boolean)
-    .join(" · ");
+    .join(" | ");
 }
 
 function includesQuery(values: Array<string | number | null | undefined>, query: string) {
@@ -83,9 +83,9 @@ function mapLeadResult(lead: LeadItem): SearchResult {
   return {
     type: "lead",
     id: lead.id,
-    title: lead.employeeName || "Unnamed lead",
+    title: lead.employeeName || lead.email || lead.phone || "Lead details unavailable",
     subtitle: compactText([lead.title, lead.company]) || "Lead record",
-    meta: compactText([lead.email, lead.phone, lead.canonicalEventName || lead.eventName]) || "No contact detail",
+    meta: compactText([lead.email, lead.phone, lead.canonicalEventName || lead.eventName]) || "Contact details unavailable",
     href: leadHref(lead),
   };
 }

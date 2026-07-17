@@ -34,7 +34,7 @@ import {
   updateAdminClientCredential,
   type AdminClientCredential,
   type AdminEventItem,
-} from "../admin-api";
+} from "@/lib/auth";
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Please try again.";

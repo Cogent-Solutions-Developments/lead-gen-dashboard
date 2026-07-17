@@ -6,16 +6,21 @@ export type AuthRole =
   | "super_admin_user"
   | "ceo_user"
   | "sales_user"
-  | "sales_manager_user"
   | "delegate_user"
-  | "delegate_manager_user"
   | "production_user"
-  | "production_manager_user";
+  | "sales_manager_user"
+  | "delegate_manager_user"
+  | "production_manager_user"
+  | "client_user"
+  | "marketing_user"
+  | "operational_user"
+  | "finance_user";
 
 export type AuthUser = {
   id: string;
   username: string;
   role: AuthRole;
+  email?: string;
   fullName?: string;
   designation?: string;
   dateOfBirth?: string | null;
@@ -30,6 +35,7 @@ export type AuthUser = {
   createdAt?: string;
   updatedAt?: string;
   lastLoginAt?: string | null;
+  mfaEnabled?: boolean;
 };
 
 export type AuthSession = {
@@ -38,6 +44,36 @@ export type AuthSession = {
   expiresIn: number;
   expiresAt: number;
   user: AuthUser;
+};
+
+export type MfaLoginChallenge = {
+  mfaRequired: true;
+  challengeId: string;
+  expiresIn: number;
+  method: "totp" | string;
+};
+
+export type LoginResult = AuthSession | MfaLoginChallenge;
+
+export type MfaStatus = {
+  enabled: boolean;
+  method?: "totp" | string | null;
+  verifiedAt?: string | null;
+  lastUsedAt?: string | null;
+  recoveryCodesRemaining: number;
+};
+
+export type MfaTotpSetup = {
+  methodId: string;
+  issuer: string;
+  accountLabel: string;
+  otpauthUri: string;
+  qrSvg: string;
+};
+
+export type MfaSetupConfirmResult = {
+  status: MfaStatus;
+  recoveryCodes: string[];
 };
 
 export type AuthUserCreateInput = {
@@ -61,6 +97,8 @@ export type AdminEventItem = {
   eventName: string;
   location?: string | null;
   category?: string | null;
+  eventType?: "conference" | "boardroom" | string | null;
+  websiteUrl?: string | null;
   date?: string | null;
   logoStorageObjectId?: string | null;
   logoUrl?: string | null;
@@ -74,6 +112,8 @@ export type AdminEventCreateInput = {
   eventName: string;
   eventKey: string;
   location: string;
+  eventType?: string;
+  websiteUrl?: string;
   date: string;
   isActive: boolean;
 };
@@ -82,9 +122,114 @@ export type AdminEventUpdateInput = {
   eventName?: string;
   eventKey?: string;
   location?: string;
+  eventType?: string;
+  websiteUrl?: string;
   date?: string;
   isActive?: boolean;
   syncLinkedCampaigns?: boolean;
+};
+
+export type AdminClientCredential = {
+  id: string;
+  userId: string;
+  eventRegistryId: string;
+  eventType: string;
+  companyName: string;
+  companyKey: string;
+  credentialLabel?: string;
+  expiresAt?: string | null;
+  isActive: boolean;
+  isUsable: boolean;
+  revokedAt?: string | null;
+  createdByUserId?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  lastLoginAt?: string | null;
+  notes?: string;
+  meta?: Record<string, unknown>;
+  user?: Pick<AuthUser, "id" | "username" | "fullName" | "role" | "isActive"> & { email?: string };
+  event?: AdminEventItem | null;
+};
+
+export type AdminClientCredentialCreateInput = {
+  username: string;
+  password?: string;
+  email?: string;
+  fullName?: string;
+  eventId: string;
+  companyName: string;
+  eventType?: string;
+  credentialLabel?: string;
+  expiresAt?: string;
+  isActive?: boolean;
+  rotatePassword?: boolean;
+  notes?: string;
+};
+
+export type AdminClientCredentialUpdateInput = {
+  eventId?: string;
+  companyName?: string;
+  eventType?: string;
+  credentialLabel?: string;
+  expiresAt?: string;
+  clearExpiresAt?: boolean;
+  isActive?: boolean;
+  notes?: string;
+};
+
+export type ClientDashboardLead = {
+  leadIdentityKey?: string | null;
+  workflowStatus?: string | null;
+  workflowStatusLabel?: string | null;
+  updatedAt?: string | null;
+  name: string;
+  designation: string;
+  company: string;
+};
+
+export type ClientDashboardProgress = {
+  total: number;
+  items: ClientDashboardLead[];
+};
+
+export type ClientDashboardEvent = {
+  credential: {
+    id: string;
+    companyName: string;
+    eventType: string;
+    expiresAt?: string | null;
+  };
+  event: AdminEventItem;
+  latestAgenda?: {
+    id: string;
+    eventRegistryId: string;
+    name: string;
+    mime?: string | null;
+    sizeBytes: number;
+    downloadUrl?: string | null;
+    createdAt?: string | null;
+    isLatest?: boolean;
+  } | null;
+  delegateProgress: {
+    confirmed: ClientDashboardProgress;
+    inReview: ClientDashboardProgress;
+  };
+};
+
+export type ClientDashboardResponse = {
+  user: Pick<AuthUser, "id" | "username" | "fullName" | "role">;
+  events: ClientDashboardEvent[];
+  total: number;
+};
+
+export type BusinessWorkspaceSlug = "marketing" | "operations" | "finance";
+
+export type BusinessWorkspaceDashboard = {
+  workspace: BusinessWorkspaceSlug | string;
+  title: string;
+  status: "foundation_ready" | string;
+  features: string[];
+  capabilities: string[];
 };
 
 export type MyProfile = AuthUser & {
@@ -408,6 +553,32 @@ export type AdminUserPerformanceSummary = {
   topUser?: AdminUserPerformanceRunner | Record<string, unknown> | null;
 };
 
+export type ManagerUserPerformanceActivity = {
+  id?: string | null;
+  pipeline: string;
+  workflowStatus?: string | null;
+  workflowStatusLabel?: string | null;
+  updatedAt?: string | null;
+  user?: {
+    id?: string | null;
+    name?: string | null;
+    initials?: string | null;
+  } | null;
+  event?: {
+    canonicalEventKey?: string | null;
+    canonicalEventName?: string | null;
+  } | null;
+  lead?: {
+    id?: string | null;
+    name?: string | null;
+    designation?: string | null;
+    company?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    linkedinUrl?: string | null;
+  } | null;
+};
+
 export type AdminUserPerformanceResponse = {
   period: AdminUserPerformancePeriod | string;
   date: string;
@@ -416,6 +587,115 @@ export type AdminUserPerformanceResponse = {
   generatedAt?: string | null;
   summary: AdminUserPerformanceSummary;
   clusters: AdminUserPerformanceCluster[];
+  activities?: ManagerUserPerformanceActivity[];
+  activityTotal?: number;
+};
+
+export type ManagerPerformancePeriod = "daily" | "weekly" | "monthly" | "yearly";
+
+export type ManagerPerformanceTeamUser = {
+  id: string;
+  username: string;
+  fullName: string;
+  role: "sales_user" | "delegate_user" | "production_user" | string;
+  designation?: string | null;
+  avatarUrl?: string | null;
+  isActive?: boolean;
+  lastLoginAt?: string | null;
+};
+
+export type ManagerPerformanceLeadSnapshot = {
+  employeeName: string;
+  title?: string | null;
+  company?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  linkedinUrl?: string | null;
+  companyUrl?: string | null;
+  category?: string | null;
+};
+
+export type ManagerPerformanceActivity = {
+  id: string;
+  userId: string;
+  username: string;
+  userDisplayName: string;
+  leadId: string;
+  leadIdentityKey: string;
+  canonicalEventKey: string;
+  canonicalEventName: string;
+  leadSnapshot: ManagerPerformanceLeadSnapshot;
+  type: "workflow-status" | "manual-lead" | "content-generation" | "contact-action" | string;
+  workflowStatus?: string | null;
+  workflowStatusLabel?: string | null;
+  comment?: string | null;
+  channel?: "email" | "whatsapp" | "phone" | "linkedin" | "website" | null;
+  createdAt: string;
+};
+
+export type ManagerTouchedLead = ManagerPerformanceLeadSnapshot & {
+  leadId: string;
+  canonicalEventKey: string;
+  canonicalEventName: string;
+  currentWorkflowStatus: string;
+  currentWorkflowStatusLabel?: string | null;
+  firstTouchedAt: string;
+  lastTouchedAt: string;
+  touchCount: number;
+  activities: ManagerPerformanceActivity[];
+};
+
+export type ManagerPerformanceTotals = {
+  activityCount: number;
+  touchedLeadCount: number;
+  manualLeadCount: number;
+  workflowUpdateCount: number;
+  contentGeneratedCount?: number;
+  contactActionCount?: number;
+  kpiCount: number;
+};
+
+export type ManagerUserPerformance = {
+  userId: string;
+  username: string;
+  fullName: string;
+  totals: ManagerPerformanceTotals;
+  statusCounts: Record<string, number>;
+  touchedLeads: ManagerTouchedLead[];
+};
+
+export type ManagerPerformanceResponse = {
+  period: {
+    key: ManagerPerformancePeriod;
+    start: string;
+    end: string;
+    timezone: string;
+  };
+  managerScope: {
+    persona: "sales" | "delegates" | "production" | string;
+    managerUserId: string;
+    managerName: string;
+  };
+  teamUsers: ManagerPerformanceTeamUser[];
+  summary: {
+    totalUsers: number;
+    activeUsers: number;
+    activityCount: number;
+    touchedLeadCount: number;
+    manualLeadCount: number;
+    workflowUpdateCount: number;
+    contentGeneratedCount?: number;
+    contactActionCount?: number;
+    kpiTotal: number;
+  };
+  perUserPerformance: ManagerUserPerformance[];
+  activities: ManagerPerformanceActivity[];
+  pagination?: {
+    limit: number;
+    offset: number;
+    activityTotal: number;
+    hasMore: boolean;
+  };
 };
 
 export type SystemOperationLogService = {
@@ -524,7 +804,6 @@ const ROLE_ALIASES: Record<string, AuthRole> = {
   salate_user: "sales_user",
   sales_manager: "sales_manager_user",
   sales_manager_user: "sales_manager_user",
-  sales_manager_usert: "sales_manager_user",
   delegate_user: "delegate_user",
   delegate: "delegate_user",
   delegate_usert: "delegate_user",
@@ -532,21 +811,37 @@ const ROLE_ALIASES: Record<string, AuthRole> = {
   delegagate_usert: "delegate_user",
   delegate_manager: "delegate_manager_user",
   delegate_manager_user: "delegate_manager_user",
-  delegagate_manager_user: "delegate_manager_user",
   production_user: "production_user",
   production: "production_user",
   production_usert: "production_user",
   production_manager: "production_manager_user",
   production_manager_user: "production_manager_user",
-  production_manager_usert: "production_manager_user",
+  client: "client_user",
+  client_user: "client_user",
+  event_client: "client_user",
+  event_client_user: "client_user",
+  marketing: "marketing_user",
+  marketing_user: "marketing_user",
+  operational: "operational_user",
+  operations: "operational_user",
+  operational_user: "operational_user",
+  finance: "finance_user",
+  finance_user: "finance_user",
 };
 
 export const AUTH_ROLES: AuthRole[] = [
   "super_admin_user",
   "ceo_user",
   "sales_user",
+  "sales_manager_user",
   "delegate_user",
+  "delegate_manager_user",
   "production_user",
+  "production_manager_user",
+  "marketing_user",
+  "operational_user",
+  "finance_user",
+  "client_user",
 ];
 
 export function normalizeAuthRole(role: unknown): AuthRole {
@@ -557,6 +852,13 @@ export function normalizeAuthRole(role: unknown): AuthRole {
 export function getRoleLabel(role: AuthRole | null | undefined) {
   if (role === "super_admin_user") return "Super Admin";
   if (role === "ceo_user") return "CEO";
+  if (role === "sales_manager_user") return "Sales Manager";
+  if (role === "delegate_manager_user") return "Delegate Manager";
+  if (role === "production_manager_user") return "Production Manager";
+  if (role === "marketing_user") return "Marketing";
+  if (role === "operational_user") return "Operations";
+  if (role === "finance_user") return "Finance";
+  if (role === "client_user") return "Client";
   if (role === "delegate_user") return "Delegate";
   if (role === "production_user") return "Production";
   return "Sales";
@@ -574,11 +876,15 @@ export function isAdminLikeRole(role: AuthRole | null | undefined) {
   return isSuperAdminRole(role) || isCeoRole(role);
 }
 
-export function isBusinessRole(role: AuthRole | string | null | undefined) {
+export function isClientRole(role: AuthRole | null | undefined) {
+  return role === "client_user";
+}
+
+export function isBusinessRole(role: AuthRole | null | undefined) {
   return role === "marketing_user" || role === "operational_user" || role === "finance_user";
 }
 
-export function isManagerRole(role: AuthRole | string | null | undefined) {
+export function isManagerRole(role: AuthRole | null | undefined) {
   return role === "sales_manager_user" || role === "delegate_manager_user" || role === "production_manager_user";
 }
 
@@ -589,7 +895,7 @@ export function personaForRole(role: AuthRole | null | undefined): Persona | nul
   return null;
 }
 
-export function businessWorkspaceForRole(role: AuthRole | string | null | undefined) {
+export function businessWorkspaceForRole(role: AuthRole | null | undefined): BusinessWorkspaceSlug | null {
   if (role === "marketing_user") return "marketing";
   if (role === "operational_user") return "operations";
   if (role === "finance_user") return "finance";
@@ -604,6 +910,8 @@ export function canRoleUsePersona(role: AuthRole | null | undefined, persona: Pe
 }
 
 export function getAuthLandingPath(role: AuthRole | null | undefined) {
+  const workspace = businessWorkspaceForRole(role);
+  if (workspace) return `/business/${workspace}`;
   return isSuperAdminRole(role) ? "/choose-persona" : "/dashboard";
 }
 
@@ -629,11 +937,13 @@ function normalizeUser(raw: unknown): AuthUser {
   const createdAt = source.createdAt ?? source.created_at;
   const updatedAt = source.updatedAt ?? source.updated_at;
   const lastLoginAt = source.lastLoginAt ?? source.last_login_at;
+  const mfaEnabled = source.mfaEnabled ?? source.mfa_enabled;
 
   return {
     id: String(source.id || ""),
     username: String(source.username || ""),
     role: normalizeAuthRole(source.role),
+    email: source.email == null ? undefined : String(source.email),
     fullName: fullName == null ? "" : String(fullName),
     designation: designation == null ? "" : String(designation),
     dateOfBirth: dateOfBirth == null ? null : String(dateOfBirth),
@@ -648,6 +958,7 @@ function normalizeUser(raw: unknown): AuthUser {
     createdAt: createdAt == null ? undefined : String(createdAt),
     updatedAt: updatedAt == null ? undefined : String(updatedAt),
     lastLoginAt: lastLoginAt == null ? null : String(lastLoginAt),
+    mfaEnabled: typeof mfaEnabled === "boolean" ? mfaEnabled : undefined,
   };
 }
 
@@ -1011,27 +1322,130 @@ export async function deleteMyProfileAvatar() {
   return { ...data, profile };
 }
 
-export async function loginWithPassword(username: string, password: string) {
-  const data = await authRequest<{
-    accessToken: string;
-    tokenType: string;
-    expiresIn: number;
-    user: AuthUser;
-  }>("/api/auth/login", {
-    method: "POST",
-    auth: false,
-    body: JSON.stringify({ username, password }),
-  });
-
-  const session: AuthSession = {
+function normalizeAuthSession(data: {
+  accessToken: string;
+  tokenType: string;
+  expiresIn: number;
+  user: AuthUser;
+}): AuthSession {
+  return {
     accessToken: data.accessToken,
     tokenType: data.tokenType,
     expiresIn: Number(data.expiresIn || 0),
     expiresAt: Date.now() + Number(data.expiresIn || 0) * 1000,
     user: normalizeUser(data.user),
   };
+}
+
+export function isMfaLoginChallenge(value: LoginResult): value is MfaLoginChallenge {
+  return Boolean((value as MfaLoginChallenge)?.mfaRequired && (value as MfaLoginChallenge)?.challengeId);
+}
+
+export async function loginWithPassword(username: string, password: string): Promise<LoginResult> {
+  const data = await authRequest<
+    | {
+        accessToken: string;
+        tokenType: string;
+        expiresIn: number;
+        user: AuthUser;
+      }
+    | MfaLoginChallenge
+  >("/api/auth/login", {
+    method: "POST",
+    auth: false,
+    body: JSON.stringify({ username, password }),
+  });
+
+  if (Boolean((data as MfaLoginChallenge).mfaRequired)) {
+    return {
+      mfaRequired: true,
+      challengeId: String((data as MfaLoginChallenge).challengeId || ""),
+      expiresIn: Number((data as MfaLoginChallenge).expiresIn || 0),
+      method: String((data as MfaLoginChallenge).method || "totp"),
+    };
+  }
+
+  const session = normalizeAuthSession(
+    data as {
+      accessToken: string;
+      tokenType: string;
+      expiresIn: number;
+      user: AuthUser;
+    }
+  );
   setAuthSession(session);
   return session;
+}
+
+export async function verifyMfaLogin(challengeId: string, code: string) {
+  const data = await authRequest<{
+    accessToken: string;
+    tokenType: string;
+    expiresIn: number;
+    user: AuthUser;
+  }>("/api/auth/mfa/login/verify", {
+    method: "POST",
+    auth: false,
+    body: JSON.stringify({ challengeId, code }),
+  });
+  const session = normalizeAuthSession(data);
+  setAuthSession(session);
+  return session;
+}
+
+export async function verifyMfaRecoveryCode(challengeId: string, recoveryCode: string) {
+  const data = await authRequest<{
+    accessToken: string;
+    tokenType: string;
+    expiresIn: number;
+    user: AuthUser;
+  }>("/api/auth/mfa/login/recovery-code", {
+    method: "POST",
+    auth: false,
+    body: JSON.stringify({ challengeId, recoveryCode }),
+  });
+  const session = normalizeAuthSession(data);
+  setAuthSession(session);
+  return session;
+}
+
+export async function getMfaStatus() {
+  return authRequest<MfaStatus>("/api/auth/mfa/status");
+}
+
+export async function startMfaTotpSetup() {
+  return authRequest<MfaTotpSetup>("/api/auth/mfa/totp/setup/start", {
+    method: "POST",
+  });
+}
+
+export async function confirmMfaTotpSetup(methodId: string, code: string) {
+  return authRequest<MfaSetupConfirmResult>("/api/auth/mfa/totp/setup/confirm", {
+    method: "POST",
+    body: JSON.stringify({ methodId, code }),
+  });
+}
+
+export async function regenerateMfaRecoveryCodes(code: string) {
+  return authRequest<{ recoveryCodes: string[] }>("/api/auth/mfa/recovery-codes/regenerate", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
+export async function disableMfaTotp(code: string) {
+  return authRequest<{ disabled: boolean; status: MfaStatus }>("/api/auth/mfa/totp/disable", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
+export async function resetAuthUserMfa(userId: string) {
+  const data = await authRequest<{ reset: boolean; removedMethods: number; user: AuthUser }>(
+    `/api/auth/users/${userId}/mfa/reset`,
+    { method: "POST" }
+  );
+  return { ...data, user: normalizeUser(data.user) };
 }
 
 export async function fetchCurrentAuthUser() {
@@ -1046,6 +1460,11 @@ export async function listAuthUsers() {
   const users = Array.isArray(data.users) ? data.users.map(normalizeUser) : [];
   cacheAuthUsersDisplayNames(users);
   return users;
+}
+
+export async function listAuthRoles() {
+  const data = await authRequest<{ roles: AuthRole[] }>("/api/auth/roles");
+  return Array.isArray(data.roles) ? data.roles.map(normalizeAuthRole) : [];
 }
 
 export async function createAuthUser(payload: AuthUserCreateInput) {
@@ -1090,6 +1509,8 @@ function normalizeAdminEvent(raw: unknown): AdminEventItem {
     eventName: String(source.eventName || ""),
     location: source.location == null ? null : String(source.location),
     category: source.category == null ? null : String(source.category),
+    eventType: source.eventType == null ? null : String(source.eventType),
+    websiteUrl: source.websiteUrl == null ? null : String(source.websiteUrl),
     date: source.date == null ? null : String(source.date),
     logoStorageObjectId: source.logoStorageObjectId == null ? null : String(source.logoStorageObjectId),
     logoUrl: source.logoUrl == null ? null : String(source.logoUrl),
@@ -1097,6 +1518,98 @@ function normalizeAdminEvent(raw: unknown): AdminEventItem {
     createdByUserId: source.createdByUserId == null ? null : String(source.createdByUserId),
     createdAt: source.createdAt == null ? null : String(source.createdAt),
     updatedAt: source.updatedAt == null ? null : String(source.updatedAt),
+  };
+}
+
+function normalizeAdminClientCredential(raw: unknown): AdminClientCredential {
+  const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const user = source.user && typeof source.user === "object" ? (source.user as Record<string, unknown>) : null;
+  const event = source.event && typeof source.event === "object" ? normalizeAdminEvent(source.event) : null;
+  return {
+    id: String(source.id || ""),
+    userId: String(source.userId || ""),
+    eventRegistryId: String(source.eventRegistryId || ""),
+    eventType: String(source.eventType || "conference"),
+    companyName: String(source.companyName || ""),
+    companyKey: String(source.companyKey || ""),
+    credentialLabel: String(source.credentialLabel || ""),
+    expiresAt: source.expiresAt == null ? null : String(source.expiresAt),
+    isActive: source.isActive !== false,
+    isUsable: Boolean(source.isUsable),
+    revokedAt: source.revokedAt == null ? null : String(source.revokedAt),
+    createdByUserId: source.createdByUserId == null ? null : String(source.createdByUserId),
+    createdAt: source.createdAt == null ? null : String(source.createdAt),
+    updatedAt: source.updatedAt == null ? null : String(source.updatedAt),
+    lastLoginAt: source.lastLoginAt == null ? null : String(source.lastLoginAt),
+    notes: String(source.notes || ""),
+    meta: source.meta && typeof source.meta === "object" ? (source.meta as Record<string, unknown>) : {},
+    user: user
+      ? {
+          id: String(user.id || ""),
+          username: String(user.username || ""),
+          fullName: String(user.fullName || ""),
+          email: String(user.email || ""),
+          role: normalizeAuthRole(user.role),
+          isActive: user.isActive !== false,
+        }
+      : undefined,
+    event,
+  };
+}
+
+function normalizeClientProgress(raw: unknown): ClientDashboardProgress {
+  const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const items = Array.isArray(source.items) ? source.items : [];
+  return {
+    total: Number(source.total ?? items.length) || 0,
+    items: items.map((item) => {
+      const row = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+      return {
+        leadIdentityKey: row.leadIdentityKey == null ? null : String(row.leadIdentityKey),
+        workflowStatus: row.workflowStatus == null ? null : String(row.workflowStatus),
+        workflowStatusLabel: row.workflowStatusLabel == null ? null : String(row.workflowStatusLabel),
+        updatedAt: row.updatedAt == null ? null : String(row.updatedAt),
+        name: String(row.name || ""),
+        designation: String(row.designation || ""),
+        company: String(row.company || ""),
+      };
+    }),
+  };
+}
+
+function normalizeClientDashboardEvent(raw: unknown): ClientDashboardEvent {
+  const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const credential = (source.credential && typeof source.credential === "object" ? source.credential : {}) as Record<string, unknown>;
+  const latestAgenda = source.latestAgenda && typeof source.latestAgenda === "object"
+    ? (source.latestAgenda as Record<string, unknown>)
+    : null;
+  const progress = (source.delegateProgress && typeof source.delegateProgress === "object"
+    ? source.delegateProgress
+    : {}) as Record<string, unknown>;
+  return {
+    credential: {
+      id: String(credential.id || ""),
+      companyName: String(credential.companyName || ""),
+      eventType: String(credential.eventType || "conference"),
+      expiresAt: credential.expiresAt == null ? null : String(credential.expiresAt),
+    },
+    event: normalizeAdminEvent(source.event),
+    latestAgenda: latestAgenda
+      ? {
+          id: String(latestAgenda.id || ""),
+          eventRegistryId: String(latestAgenda.eventRegistryId || ""),
+          name: String(latestAgenda.name || "agenda.pdf"),
+          mime: latestAgenda.mime == null ? null : String(latestAgenda.mime),
+          sizeBytes: Number(latestAgenda.sizeBytes ?? 0) || 0,
+          downloadUrl: latestAgenda.downloadUrl == null ? null : String(latestAgenda.downloadUrl),
+          createdAt: latestAgenda.createdAt == null ? null : String(latestAgenda.createdAt),
+          isLatest: latestAgenda.isLatest !== false,
+        }
+      : null,
+    delegateProgress: {
+      confirmed: normalizeClientProgress(progress.confirmed),
+      inReview: normalizeClientProgress(progress.inReview),
+    },
   };
 }
 
@@ -1200,6 +1713,13 @@ export async function updateAdminEvent(eventId: string, payload: AdminEventUpdat
   return normalizeAdminEvent(data.event);
 }
 
+export async function deleteAdminEvent(eventId: string) {
+  const data = await authRequest<{ event: AdminEventItem; deleted: boolean }>(`/api/admin/events/${eventId}`, {
+    method: "DELETE",
+  });
+  return { ...data, event: normalizeAdminEvent(data.event) };
+}
+
 export async function uploadAdminEventLogo(eventId: string, file: File) {
   const formData = new FormData();
   formData.append("file", file);
@@ -1218,6 +1738,81 @@ export async function deleteAdminEventLogo(eventId: string) {
     method: "DELETE",
   });
   return { ...data, event: normalizeAdminEvent(data.event) };
+}
+
+export async function listAdminClientCredentials(params?: {
+  eventId?: string;
+  userId?: string;
+  includeInactive?: boolean;
+}) {
+  const query = new URLSearchParams();
+  if (params?.eventId) query.set("eventId", params.eventId);
+  if (params?.userId) query.set("userId", params.userId);
+  if (params?.includeInactive) query.set("includeInactive", "true");
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  const data = await authRequest<{ credentials: AdminClientCredential[] }>(`/api/admin/client-credentials${suffix}`);
+  return Array.isArray(data.credentials) ? data.credentials.map(normalizeAdminClientCredential) : [];
+}
+
+export async function createAdminClientCredential(payload: AdminClientCredentialCreateInput) {
+  const data = await authRequest<{
+    credential: AdminClientCredential;
+    userCreated: boolean;
+    passwordUpdated: boolean;
+  }>("/api/admin/client-credentials", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return {
+    ...data,
+    credential: normalizeAdminClientCredential(data.credential),
+  };
+}
+
+export async function updateAdminClientCredential(id: string, payload: AdminClientCredentialUpdateInput) {
+  const data = await authRequest<{ credential: AdminClientCredential }>(`/api/admin/client-credentials/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  return normalizeAdminClientCredential(data.credential);
+}
+
+export async function updateAdminClientCredentialPassword(id: string, password: string) {
+  const data = await authRequest<{ credential: AdminClientCredential; user: AuthUser }>(
+    `/api/admin/client-credentials/${id}/password`,
+    {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    }
+  );
+  return {
+    credential: normalizeAdminClientCredential(data.credential),
+    user: data.user ? normalizeUser(data.user) : null,
+  };
+}
+
+export async function revokeAdminClientCredential(id: string) {
+  const data = await authRequest<{ credential: AdminClientCredential; revoked: boolean }>(
+    `/api/admin/client-credentials/${id}`,
+    {
+      method: "DELETE",
+    }
+  );
+  return { ...data, credential: normalizeAdminClientCredential(data.credential) };
+}
+
+export async function getClientDashboard() {
+  const data = await authRequest<ClientDashboardResponse>("/api/client/dashboard");
+  const source = (data && typeof data === "object" ? data : {}) as ClientDashboardResponse;
+  return {
+    ...source,
+    events: Array.isArray(source.events) ? source.events.map(normalizeClientDashboardEvent) : [],
+    total: Number(source.total ?? source.events?.length ?? 0) || 0,
+  };
+}
+
+export async function getBusinessWorkspaceDashboard(workspace: BusinessWorkspaceSlug) {
+  return authRequest<BusinessWorkspaceDashboard>(`/api/business/${workspace}/dashboard`);
 }
 
 function normalizeAdminStorageObject(raw: unknown): AdminStorageObjectItem {
@@ -1381,6 +1976,154 @@ export async function fetchAdminUserPerformance(options: {
   if (options.date) params.set("date", options.date);
   const suffix = params.toString() ? `?${params.toString()}` : "";
   return authRequest<AdminUserPerformanceResponse>(`/api/admin/user-performance${suffix}`);
+}
+
+function managerPerformancePipeline(persona?: string) {
+  const normalized = String(persona || "").trim().toLowerCase();
+  if (normalized === "delegates") return "delegate";
+  if (normalized === "production") return "production";
+  return "sales";
+}
+
+function managerPerformanceMetric(pipeline: string) {
+  if (pipeline === "sales") {
+    return { metricKey: "proposal-sent", metricLabel: "Proposals Sent", accent: "#2563eb", label: "Sales" };
+  }
+  if (pipeline === "production") {
+    return { metricKey: "confirmed", metricLabel: "Confirmed", accent: "#f97316", label: "Production" };
+  }
+  return { metricKey: "confirmed", metricLabel: "Confirmed", accent: "#14b8a6", label: "Delegate" };
+}
+
+function managerInitials(value: string) {
+  const words = String(value || "").trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "U";
+  return words.slice(0, 2).map((word) => word[0]?.toUpperCase()).join("");
+}
+
+export async function fetchManagerUserPerformance(options: {
+  period?: AdminUserPerformancePeriod;
+  date?: string;
+  limit?: number;
+} = {}) {
+  const params = new URLSearchParams();
+  if (options.period) params.set("period", options.period);
+  if (options.date) params.set("date", options.date);
+  if (options.limit) params.set("limit", String(options.limit));
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  const data = await authRequest<ManagerPerformanceResponse>(`/api/manager/performance${suffix}`);
+  const pipeline = managerPerformancePipeline(data.managerScope?.persona);
+  const metric = managerPerformanceMetric(pipeline);
+  const runners = [...(data.perUserPerformance || [])]
+    .map((item) => ({
+      id: item.userId,
+      userId: item.userId,
+      username: item.username,
+      fullName: item.fullName,
+      name: item.fullName || item.username,
+      role: data.teamUsers.find((user) => user.id === item.userId)?.role || "",
+      kpiCount: Number(item.totals?.kpiCount || 0),
+      total: Number(item.totals?.kpiCount || 0),
+      rank: 0,
+    }))
+    .sort((a, b) => Number(b.kpiCount || 0) - Number(a.kpiCount || 0))
+    .map((item, index) => ({ ...item, rank: index + 1 }));
+  const total = Number(data.summary?.kpiTotal || 0);
+  const activeUsers = Number(data.summary?.totalUsers || data.teamUsers?.length || 0);
+  const contributors = Number(data.summary?.activeUsers || 0);
+  const topUser = runners[0] || null;
+  const cluster: AdminUserPerformanceCluster = {
+    pipeline,
+    label: metric.label,
+    role: data.teamUsers[0]?.role || "",
+    metricKey: metric.metricKey,
+    metricLabel: metric.metricLabel,
+    accent: metric.accent,
+    ownerUserId: data.managerScope?.managerUserId,
+    total,
+    activeUsers,
+    contributors,
+    averagePerUser: activeUsers ? Number((total / activeUsers).toFixed(2)) : 0,
+    topUser,
+    runners,
+  };
+  const activities: ManagerUserPerformanceActivity[] = (data.activities || []).map((activity) => {
+    const snapshot = activity.leadSnapshot || { employeeName: "" };
+    const displayName =
+      snapshot.employeeName?.trim() ||
+      snapshot.email?.trim() ||
+      snapshot.phone?.trim() ||
+      snapshot.linkedinUrl?.trim() ||
+      activity.leadIdentityKey ||
+      "Lead details unavailable";
+    const userDisplayName = activity.userDisplayName || activity.username || "Unknown user";
+    return {
+      id: activity.id,
+      pipeline,
+      workflowStatus: activity.workflowStatus,
+      workflowStatusLabel: activity.workflowStatusLabel,
+      updatedAt: activity.createdAt,
+      user: {
+        id: activity.userId,
+        name: userDisplayName,
+        initials: managerInitials(userDisplayName),
+      },
+      event: {
+        canonicalEventKey: activity.canonicalEventKey,
+        canonicalEventName: activity.canonicalEventName,
+      },
+      lead: {
+        id: activity.leadId,
+        name: displayName,
+        designation: snapshot.title || "",
+        company: snapshot.company || "",
+        email: snapshot.email || "",
+        phone: snapshot.phone || "",
+        linkedinUrl: snapshot.linkedinUrl || "",
+      },
+    };
+  });
+  return {
+    period: data.period?.key || options.period || "daily",
+    date: options.date || data.period?.start?.slice(0, 10) || "",
+    periodStart: data.period?.start,
+    periodEnd: data.period?.end,
+    generatedAt: new Date().toISOString(),
+    summary: {
+      totalKpis: total,
+      activeUsers,
+      contributors,
+      averagePerUser: cluster.averagePerUser,
+      topPipeline: cluster,
+      topUser,
+    },
+    clusters: [cluster],
+    activities,
+    activityTotal: Number(data.pagination?.activityTotal || data.summary?.activityCount || activities.length),
+  } satisfies AdminUserPerformanceResponse;
+}
+
+export async function fetchManagerPerformance(options: {
+  period?: ManagerPerformancePeriod;
+  date?: string;
+  userId?: string;
+  search?: string;
+  workflowStatus?: string;
+  eventKey?: string;
+  limit?: number;
+  offset?: number;
+} = {}) {
+  const params = new URLSearchParams();
+  if (options.period) params.set("period", options.period);
+  if (options.date) params.set("date", options.date);
+  if (options.userId) params.set("userId", options.userId);
+  if (options.search) params.set("search", options.search);
+  if (options.workflowStatus) params.set("workflowStatus", options.workflowStatus);
+  if (options.eventKey) params.set("eventKey", options.eventKey);
+  if (typeof options.limit === "number") params.set("limit", String(options.limit));
+  if (typeof options.offset === "number") params.set("offset", String(options.offset));
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return authRequest<ManagerPerformanceResponse>(`/api/manager/performance${suffix}`);
 }
 
 export async function listSystemOperationLogServices() {

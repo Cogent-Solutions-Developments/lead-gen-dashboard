@@ -1,7 +1,10 @@
 import * as sales from "@/lib/api";
 import * as delegates from "@/lib/apidele";
 import * as production from "@/lib/apiproduction";
+import { apiClient } from "@/lib/apiClient";
 import { getPersona, type Persona } from "@/lib/persona";
+
+type DepartmentPersona = Extract<Persona, "sales" | "delegates" | "production">;
 
 export type {
   CampaignImportSummary,
@@ -112,6 +115,42 @@ const pickModule = (persona?: Persona) => {
   return sales;
 };
 
+const getMyLeadsPrefix = (persona?: Persona) => {
+  const selected = persona ?? getPersona();
+  if (selected === "delegates") return "/api/delegates/my-leads";
+  if (selected === "production") return "/api/productions/my-leads";
+  return "/api/my-leads";
+};
+
+function appendUploadCampaignFormData(payload: sales.UploadCampaignRequest) {
+  const formData = new FormData();
+  formData.append("name", payload.name.trim());
+  formData.append("location", payload.location?.trim() ?? "");
+  formData.append("category", payload.category?.trim() ?? "");
+  formData.append("date", payload.date?.trim() ?? "");
+  formData.append("eventRegistryId", payload.eventRegistryId?.trim() ?? "");
+  formData.append("icp", payload.icp?.trim() ?? "");
+
+  const leadSheetName =
+    typeof File !== "undefined" && payload.leadSheet instanceof File && payload.leadSheet.name
+      ? payload.leadSheet.name
+      : "lead-sheet.csv";
+
+  formData.append("leadSheet", payload.leadSheet, leadSheetName);
+  return formData;
+}
+
+function triggerBlobDownload(blob: Blob, fileName: string) {
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => window.URL.revokeObjectURL(url), 500);
+}
+
 export const getDashboardStats: typeof sales.getDashboardStats = (...args) =>
   pickModule().getDashboardStats(...args);
 
@@ -211,6 +250,174 @@ export const listEvents: typeof sales.listEvents = (...args) =>
 export const listEventLeads: typeof sales.listEventLeads = (...args) =>
   pickModule().listEventLeads(...args);
 
+export function listEventsForPersona(persona: DepartmentPersona): ReturnType<typeof sales.listEvents> {
+  return pickModule(persona).listEvents();
+}
+
+export function listEventLeadsForPersona(
+  persona: DepartmentPersona,
+  canonicalEventKey: string,
+  params?: sales.EventLeadListParams
+): ReturnType<typeof sales.listEventLeads> {
+  return pickModule(persona).listEventLeads(canonicalEventKey, params);
+}
+
+export function createCampaignFromUploadForPersona(
+  persona: DepartmentPersona,
+  payload: sales.UploadCampaignRequest
+): ReturnType<typeof sales.createCampaignFromUpload> {
+  return pickModule(persona).createCampaignFromUpload(payload);
+}
+
+export function validateLeadTemplateUploadForPersona(
+  persona: DepartmentPersona,
+  file: File | Blob
+): ReturnType<typeof sales.validateLeadTemplateUpload> {
+  return pickModule(persona).validateLeadTemplateUpload(file);
+}
+
+export function downloadLeadTemplateFileForPersona(
+  persona: DepartmentPersona,
+  fileName?: string
+): ReturnType<typeof sales.downloadLeadTemplateFile> {
+  return pickModule(persona).downloadLeadTemplateFile(fileName);
+}
+
+export async function getMyLeadsRecentCampaigns(limit?: number, persona?: Persona) {
+  const params = typeof limit === "number" ? { limit } : undefined;
+  const { data } = await apiClient.get<{ campaigns: sales.RecentCampaign[] }>(
+    `${getMyLeadsPrefix(persona)}/campaigns/recent`,
+    { params }
+  );
+  return data;
+}
+
+export async function listMyLeadsCampaigns(
+  params: { status?: string; limit?: number; offset?: number },
+  persona?: Persona
+) {
+  const { data } = await apiClient.get<{
+    campaigns: sales.CampaignListItem[];
+    total: number;
+    hasMore: boolean;
+  }>(`${getMyLeadsPrefix(persona)}/campaigns`, { params });
+  return data;
+}
+
+export async function createMyLeadsCampaignFromUpload(
+  payload: sales.UploadCampaignRequest,
+  persona?: Persona
+) {
+  const { data } = await apiClient.post<sales.UploadCampaignResponse>(
+    `${getMyLeadsPrefix(persona)}/campaigns`,
+    appendUploadCampaignFormData(payload)
+  );
+  return data;
+}
+
+export async function validateMyLeadsLeadTemplateUpload(file: File | Blob, persona?: Persona) {
+  const formData = new FormData();
+  const fileName =
+    typeof File !== "undefined" && file instanceof File && file.name
+      ? file.name
+      : "lead-upload-template.xlsx";
+
+  formData.append("leadSheet", file, fileName);
+
+  const { data } = await apiClient.post<sales.LeadTemplateValidationResponse>(
+    `${getMyLeadsPrefix(persona)}/lead-template/validate`,
+    formData
+  );
+  return data;
+}
+
+export async function downloadMyLeadsLeadTemplateFile(
+  fileName = "lead-upload-template.xlsx",
+  persona?: Persona
+) {
+  const { data } = await apiClient.get<Blob>(`${getMyLeadsPrefix(persona)}/lead-template`, {
+    responseType: "blob",
+  });
+  triggerBlobDownload(data, fileName || "lead-upload-template.xlsx");
+}
+
+export async function getMyLeadsCampaign(id: string, persona?: Persona) {
+  const { data } = await apiClient.get<sales.CampaignDetail>(
+    `${getMyLeadsPrefix(persona)}/campaigns/${encodeURIComponent(id)}`
+  );
+  return data;
+}
+
+export async function downloadMyLeadsCampaignExport(
+  id: string,
+  fileName = "my-leads-campaign.csv",
+  persona?: Persona
+) {
+  const { data } = await apiClient.get<Blob>(
+    `${getMyLeadsPrefix(persona)}/campaigns/${encodeURIComponent(id)}/export`,
+    { responseType: "blob" }
+  );
+  triggerBlobDownload(data, fileName || "my-leads-campaign.csv");
+}
+
+export function exportMyLeadsCampaignCsvUrl(id: string, persona?: Persona) {
+  return `${process.env.NEXT_PUBLIC_API_BASE_URL}${getMyLeadsPrefix(persona)}/campaigns/${encodeURIComponent(id)}/export`;
+}
+
+export async function getMyLeadsCampaignLeads(id: string, status: string = "all", persona?: Persona) {
+  const { data } = await apiClient.get<{ leads: sales.LeadItem[]; total: number }>(
+    `${getMyLeadsPrefix(persona)}/campaigns/${encodeURIComponent(id)}/leads`,
+    { params: { status } }
+  );
+  return data;
+}
+
+export async function listMyLeadsAllLeads(persona?: Persona) {
+  const { data } = await apiClient.get<{ leads: sales.LeadItem[]; total: number }>(
+    `${getMyLeadsPrefix(persona)}/all/leads`
+  );
+  return data;
+}
+
+export async function listMyLeadsEvents(persona?: Persona) {
+  const { data } = await apiClient.get<sales.EventSummaryResponse>(`${getMyLeadsPrefix(persona)}/events`);
+  return data;
+}
+
+export async function listMyLeadsEventLeads(
+  canonicalEventKey: string,
+  params?: sales.EventLeadListParams,
+  persona?: Persona
+) {
+  const { data } = await apiClient.get<sales.EventLeadListResponse>(
+    `${getMyLeadsPrefix(persona)}/events/${encodeURIComponent(canonicalEventKey)}/leads`,
+    {
+      params: {
+        limit: params?.limit,
+        offset: params?.offset,
+        search: params?.search,
+        workflowStatus: params?.workflowStatus,
+        category: params?.category,
+        includeManual: params?.includeManual,
+        sort: params?.sort,
+      },
+    }
+  );
+  return data;
+}
+
+export async function addMyLeadsEventLead(
+  canonicalEventKey: string,
+  payload: sales.EventLeadCreateRequest,
+  persona?: Persona
+) {
+  const { data } = await apiClient.post<sales.EventLeadCreateResponse>(
+    `${getMyLeadsPrefix(persona)}/events/${encodeURIComponent(canonicalEventKey)}/leads`,
+    payload
+  );
+  return data;
+}
+
 export const listEventAgendas: typeof sales.listEventAgendas = (...args) =>
   sales.listEventAgendas(...args);
 
@@ -255,6 +462,51 @@ export const updateLeadWorkflowStatus: typeof sales.updateLeadWorkflowStatus = (
 
 export const getLeadWorkflowStatusHistory: typeof sales.getLeadWorkflowStatusHistory = (...args) =>
   pickModule().getLeadWorkflowStatusHistory(...args);
+
+export function listWorkflowStatusesForPersona(
+  persona: DepartmentPersona
+): ReturnType<typeof sales.listWorkflowStatuses> {
+  return pickModule(persona).listWorkflowStatuses();
+}
+
+export function createWorkflowStatusForPersona(
+  persona: DepartmentPersona,
+  label: string
+): ReturnType<typeof sales.createWorkflowStatus> {
+  return pickModule(persona).createWorkflowStatus(label);
+}
+
+export function addEventLeadForPersona(
+  persona: DepartmentPersona,
+  canonicalEventKey: string,
+  payload: sales.EventLeadCreateRequest
+): ReturnType<typeof sales.addEventLead> {
+  return pickModule(persona).addEventLead(canonicalEventKey, payload);
+}
+
+export function generateLeadContentForPersona(
+  persona: DepartmentPersona,
+  id: string,
+  payload: sales.LeadContentGenerationRequest
+): ReturnType<typeof sales.generateLeadContent> {
+  return pickModule(persona).generateLeadContent(id, payload);
+}
+
+export function updateLeadWorkflowStatusForPersona(
+  persona: DepartmentPersona,
+  id: string,
+  workflowStatus: sales.WorkflowStatus,
+  comment?: string
+): ReturnType<typeof sales.updateLeadWorkflowStatus> {
+  return pickModule(persona).updateLeadWorkflowStatus(id, workflowStatus, comment);
+}
+
+export function getLeadWorkflowStatusHistoryForPersona(
+  persona: DepartmentPersona,
+  id: string
+): ReturnType<typeof sales.getLeadWorkflowStatusHistory> {
+  return pickModule(persona).getLeadWorkflowStatusHistory(id);
+}
 
 export const approveAllCampaign: typeof sales.approveAllCampaign = (...args) =>
   pickModule().approveAllCampaign(...args);

@@ -4,15 +4,25 @@ import { useEffect, useState, type FormEvent } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { getAuthLandingPath, getStoredAuthSession, isCeoRole, loginWithPassword, personaForRole } from "@/lib/auth";
+import {
+  getAuthLandingPath,
+  getStoredAuthSession,
+  isCeoRole,
+  isMfaLoginChallenge,
+  loginWithPassword,
+  personaForRole,
+  verifyMfaLogin,
+  verifyMfaRecoveryCode,
+  type AuthSession,
+  type MfaLoginChallenge,
+} from "@/lib/auth";
 import { setPersona } from "@/lib/persona";
 
 const LOGIN_REVEAL_DELAY_MS = 6000;
 const HERO_GIF_SRC = "/videos/supernizo-figure-cropped.webp";
-const HERO_TITLE = "I am supernizo";
 const HERO_TAGLINE = "An Enterprise Agentic AI for Intelligent Outreach";
 const HERO_DESCRIPTION =
   "I am an enterprise agentic AI platform that intelligently identifies your dream customers and prospects, autonomously manages outreach, and streamlines customer engagement at scale.";
@@ -25,6 +35,10 @@ export default function SignInPage() {
   const prefersReducedMotion = useReducedMotion();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaRecoveryCode, setMfaRecoveryCode] = useState("");
+  const [useRecoveryCode, setUseRecoveryCode] = useState(false);
+  const [mfaChallenge, setMfaChallenge] = useState<MfaLoginChallenge | null>(null);
   const [loading, setLoading] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [laptopHeroViewport, setLaptopHeroViewport] = useState(false);
@@ -92,6 +106,18 @@ export default function SignInPage() {
     return () => mediaQuery.removeEventListener("change", syncLaptopViewport);
   }, []);
 
+  const completeSignIn = (session: AuthSession) => {
+    const forcedPersona = personaForRole(session.user.role);
+    if (forcedPersona) {
+      setPersona(forcedPersona);
+    } else if (isCeoRole(session.user.role)) {
+      setPersona("ceo");
+    }
+
+    toast.success("Signed in successfully.");
+    router.replace(getAuthLandingPath(session.user.role));
+  };
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!username.trim() || !password.trim()) {
@@ -101,19 +127,47 @@ export default function SignInPage() {
 
     setLoading(true);
     try {
-      const session = await loginWithPassword(username.trim(), password);
-      const forcedPersona = personaForRole(session.user.role);
-      if (forcedPersona) {
-        setPersona(forcedPersona);
-      } else if (isCeoRole(session.user.role)) {
-        setPersona("ceo");
+      const result = await loginWithPassword(username.trim(), password);
+      if (isMfaLoginChallenge(result)) {
+        setMfaChallenge(result);
+        setMfaCode("");
+        setMfaRecoveryCode("");
+        setUseRecoveryCode(false);
+        toast.message("Authenticator code required.");
+        return;
       }
 
-      toast.success("Signed in successfully.");
-      router.replace(getAuthLandingPath(session.user.role));
+      completeSignIn(result);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unable to sign in.";
       toast.error("Sign in failed", { description: message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitMfa = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!mfaChallenge?.challengeId) {
+      setMfaChallenge(null);
+      return;
+    }
+
+    const code = useRecoveryCode ? mfaRecoveryCode.trim() : mfaCode.trim();
+    if (!code) {
+      toast.error(useRecoveryCode ? "Recovery code is required." : "Authenticator code is required.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const session = useRecoveryCode
+        ? await verifyMfaRecoveryCode(mfaChallenge.challengeId, code)
+        : await verifyMfaLogin(mfaChallenge.challengeId, code);
+      completeSignIn(session);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unable to verify MFA.";
+      toast.error("Verification failed", { description: message });
     } finally {
       setLoading(false);
     }
@@ -261,10 +315,92 @@ export default function SignInPage() {
           <div className="w-full max-w-md overflow-hidden rounded-2xl border border-zinc-200 bg-white/88 p-8 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.78),inset_0_1px_0_rgba(255,255,255,0.95)] transition-all">
             <div className="mb-8 border-b border-zinc-100 pb-6 text-left">
               <h2 className="text-4xl font-light leading-none tracking-tighter text-zinc-950">
-                Sign in
+                {mfaChallenge ? "Verify" : "Sign in"}
               </h2>
+              {mfaChallenge ? (
+                <p className="mt-3 text-sm font-light leading-6 text-zinc-500">
+                  Enter the 6-digit code from Microsoft Authenticator.
+                </p>
+              ) : null}
             </div>
 
+            {mfaChallenge ? (
+            <form className="space-y-7" onSubmit={submitMfa}>
+              <div className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                <ShieldCheck className="h-5 w-5 shrink-0" />
+                <span>Password accepted. Complete MFA to open your session.</span>
+              </div>
+
+              {useRecoveryCode ? (
+                <div>
+                  <label className="mb-3 block text-xs font-medium text-zinc-400">
+                    Recovery code
+                  </label>
+                  <input
+                    type="text"
+                    value={mfaRecoveryCode}
+                    onChange={(event) => setMfaRecoveryCode(event.target.value)}
+                    placeholder="ABCD-EFGH-JKLM"
+                    autoComplete="one-time-code"
+                    className="h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 placeholder:text-zinc-300 outline-none transition-colors duration-200 focus:border-blue-600"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="mb-3 block text-xs font-medium text-zinc-400">
+                    Authenticator code
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={mfaCode}
+                    onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="123456"
+                    autoComplete="one-time-code"
+                    className="h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 placeholder:text-zinc-300 outline-none transition-colors duration-200 focus:border-blue-600"
+                  />
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={loading}
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-7 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:border-blue-400/20 disabled:bg-blue-600/55 disabled:text-white/80 disabled:opacity-100"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Verifying...
+                  </>
+                ) : (
+                  "Verify and sign in"
+                )}
+              </Button>
+
+              <div className="flex items-center justify-between gap-4 text-xs text-zinc-500">
+                <button
+                  type="button"
+                  onClick={() => setUseRecoveryCode((value) => !value)}
+                  className="font-medium text-blue-600 hover:text-blue-700"
+                >
+                  {useRecoveryCode ? "Use authenticator code" : "Use recovery code"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMfaChallenge(null);
+                    setPassword("");
+                    setMfaCode("");
+                    setMfaRecoveryCode("");
+                  }}
+                  className="font-medium text-zinc-500 hover:text-zinc-900"
+                >
+                  Back
+                </button>
+              </div>
+            </form>
+            ) : (
             <form className="space-y-7" onSubmit={submit}>
               <div>
                 <label className="mb-3 block text-xs font-medium text-zinc-400">
@@ -310,6 +446,7 @@ export default function SignInPage() {
               </Button>
 
             </form>
+            )}
           </div>
         </motion.section>
       </main>

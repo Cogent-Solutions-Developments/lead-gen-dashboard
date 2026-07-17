@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { NormalUserEventLeadSheet } from "@/components/leads/NormalUserEventLeadSheet";
 
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
+const CEO_DEPARTMENT_TABS = [
+  { value: "sales", label: "Sales" },
+  { value: "delegates", label: "Delegate" },
+  { value: "production", label: "Production" },
+] as const;
 const SELECTED_CONTENT_GENERATION_LIMIT = 25;
 const POSITION_OPTIONS = [
   "CEO",
@@ -81,6 +86,7 @@ type SortBy =
 type ContactState = "whatsapp" | "email" | "both" | "in_progress" | "not_contacted" | "unknown";
 type DeliverySignal = "sent" | "in_progress" | "not_contacted";
 type ApprovalStatus = "pending" | "approved" | "rejected" | "suppressed";
+type CeoDepartmentValue = (typeof CEO_DEPARTMENT_TABS)[number]["value"];
 
 type SuppressionInfo = {
   active?: boolean;
@@ -1441,7 +1447,6 @@ function SuperAdminTotalLeads() {
           </div>
         </div>
       </div>
-
       <Card className="relative isolate mt-3 overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.84)_0%,rgba(250,252,255,0.66)_56%,rgba(240,246,253,0.56)_100%)] backdrop-blur-[16px] [backdrop-filter:saturate(175%)_blur(16px)] shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74),inset_0_0_22px_rgba(255,255,255,0.2)]">
         <div className="pointer-events-none absolute -right-20 -top-20 h-52 w-52 rounded-full bg-gradient-to-br from-sky-300/30 via-blue-500/10 to-transparent blur-3xl" />
         <div className="pointer-events-none absolute -left-20 -bottom-20 h-52 w-52 rounded-full bg-gradient-to-tr from-blue-300/16 via-sky-200/8 to-transparent blur-3xl" />
@@ -2228,7 +2233,59 @@ function SuperAdminTotalLeads() {
   );
 }
 
+function CeoDatabasePage() {
+  const [activeDepartment, setActiveDepartment] = useState<CeoDepartmentValue>("sales");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const switchDepartment = useCallback(
+    (next: CeoDepartmentValue) => {
+      if (next === activeDepartment) return;
+
+      setActiveDepartment(next);
+
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("event");
+      params.delete("lead");
+      params.delete("search");
+      params.delete("upload");
+      const nextQuery = params.toString();
+      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+    },
+    [activeDepartment, pathname, router, searchParams]
+  );
+
+  const departmentTabs = (
+    <Card className="rounded-2xl border border-white/80 bg-white/88 p-1.5 shadow-[0_12px_38px_-32px_rgba(15,23,42,0.65)] backdrop-blur-[12px]">
+      <div className="grid gap-1 md:grid-cols-3">
+        {CEO_DEPARTMENT_TABS.map((tab) => {
+          const active = activeDepartment === tab.value;
+          return (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => switchDepartment(tab.value)}
+              className={`h-11 rounded-xl px-4 text-sm font-semibold transition-all ${
+                active
+                  ? "bg-blue-600 text-white shadow-[0_14px_28px_-18px_rgba(37,99,235,0.9)]"
+                  : "bg-transparent text-zinc-600 hover:bg-zinc-50 hover:text-zinc-950"
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+    </Card>
+  );
+
+  return <NormalUserEventLeadSheet dataPersona={activeDepartment} departmentTabs={departmentTabs} />;
+}
+
 export default function LeadsPage() {
-  const { isSuperAdmin } = useAuth();
-  return isSuperAdmin ? <SuperAdminTotalLeads /> : <NormalUserEventLeadSheet />;
+  const { isCeo, isSuperAdmin } = useAuth();
+  if (isSuperAdmin) return <SuperAdminTotalLeads />;
+  if (isCeo) return <CeoDatabasePage />;
+  return <NormalUserEventLeadSheet />;
 }

@@ -18,6 +18,7 @@ const ACTIONS = [
     description: "Import lead sheets",
     icon: UploadCloud,
     href: "/campaigns/upload",
+    normalHref: "/my-leads?upload=1",
     adminOnly: false,
   },
   {
@@ -41,15 +42,18 @@ export function QuickActions() {
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {ACTIONS.filter((action) => !action.adminOnly || isSuperAdmin).map((action, index) => (
-        <motion.div
-          key={action.label}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.05 }}
-        >
+      {ACTIONS.filter((action) => !action.adminOnly || isSuperAdmin).map((action, index) => {
+        const href = !isSuperAdmin && "normalHref" in action ? action.normalHref ?? action.href : action.href;
+
+        return (
+          <motion.div
+            key={action.label}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05 }}
+          >
           <Link
-            href={action.href}
+            href={href}
             className="group relative flex items-center gap-6 rounded-none border-b border-zinc-100 bg-transparent py-4 transition-all hover:border-zinc-950"
           >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-100 bg-white text-zinc-400 transition-all group-hover:border-zinc-900 group-hover:bg-zinc-950 group-hover:text-white">
@@ -66,7 +70,8 @@ export function QuickActions() {
             <ArrowUpRight className="h-4 w-4 shrink-0 text-zinc-200 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-zinc-950" />
           </Link>
         </motion.div>
-      ))}
+        );
+      })}
     </div>
   );
 }

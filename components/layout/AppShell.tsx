@@ -7,11 +7,15 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { clearPersona, getStoredPersona, hasPersona, onPersonaChange, setPersona } from "@/lib/persona";
 import {
   canRoleUsePersona,
+  businessWorkspaceForRole,
   clearAuthSession,
   fetchCurrentAuthUser,
   getAuthLandingPath,
   getStoredAuthSession,
   isCeoRole,
+  isBusinessRole,
+  isClientRole,
+  isManagerRole,
   isSuperAdminRole,
   onAuthSessionChange,
   personaForRole,
@@ -37,6 +41,10 @@ function isAdminAreaPath(pathname: string) {
   );
 }
 
+function isManagerOnlyPath(pathname: string) {
+  return pathname === "/manager" || pathname.startsWith("/manager/");
+}
+
 function isCeoAllowedAdminPath(pathname: string) {
   return (
     pathname === "/admin/users" ||
@@ -60,7 +68,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const role = session?.user.role ?? null;
   const isSuperAdmin = isSuperAdminRole(role);
   const isCeo = isCeoRole(role);
+  const isClient = isClientRole(role);
+  const isBusiness = isBusinessRole(role);
+  const isManager = isManagerRole(role);
   const forcedPersona = personaForRole(role);
+  const businessWorkspace = businessWorkspaceForRole(role);
+  const businessLandingPath = businessWorkspace ? `/business/${businessWorkspace}` : null;
   const isCeoWorkspaceAdminRoute = isCeo && isCeoAllowedAdminPath(pathname);
   const isAdminAreaRoute = isAdminAreaPath(pathname) && !isCeoWorkspaceAdminRoute;
   const sidebarExpanded = sidebarHovered;
@@ -131,6 +144,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    if (isClient) {
+      if (pathname !== "/dashboard") {
+        router.replace("/dashboard");
+      }
+      return;
+    }
+
+    if (isBusiness) {
+      if (businessLandingPath && pathname !== businessLandingPath && pathname !== "/profile") {
+        router.replace(businessLandingPath);
+      }
+      return;
+    }
+
+    if (isManager && pathname === "/admin/user-performance") {
+      router.replace("/manager/user-performance");
+      return;
+    }
+
     if (isCeo && pathname === "/admin") {
       router.replace("/admin/users");
       return;
@@ -146,6 +178,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         router.replace("/dashboard");
         return;
       }
+    }
+
+    if (isManagerOnlyPath(pathname) && !isManager) {
+      router.replace(getAuthLandingPath(role));
+      return;
     }
 
     if (forcedPersona) {
@@ -178,7 +215,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       clearPersona();
       router.replace(getAuthLandingPath(role));
     }
-  }, [authChecked, forcedPersona, isAdminAreaRoute, isAuthRoute, isCeo, isChooser, isSuperAdmin, pathname, role, router, selected, session]);
+  }, [authChecked, businessLandingPath, forcedPersona, isAdminAreaRoute, isAuthRoute, isBusiness, isCeo, isChooser, isClient, isManager, isSuperAdmin, pathname, role, router, selected, session]);
 
   if (!authChecked) return null;
 
@@ -187,6 +224,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <main className="min-h-screen bg-transparent">{children}</main>;
   }
 
+  if (isManagerOnlyPath(pathname) && !isManager) return null;
+
   if (!isSuperAdmin && isSuperOnlyPath(pathname) && !(isCeo && isCeoAllowedAdminPath(pathname))) {
     return null;
   }
@@ -194,6 +233,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (forcedPersona) {
     if (getStoredPersona() !== forcedPersona) return null;
     if (isChooser || isSuperOnlyPath(pathname)) return null;
+  }
+
+  if (isClient) {
+    if (pathname !== "/dashboard") return null;
+    return <main className="min-h-screen bg-transparent">{children}</main>;
+  }
+
+  if (isBusiness) {
+    if (!businessLandingPath || (pathname !== businessLandingPath && pathname !== "/profile")) return null;
+    return (
+      <>
+        <Sidebar
+          isExpanded={sidebarExpanded}
+          onHoverChange={setSidebarHovered}
+        />
+        <main
+          className={`min-h-screen bg-transparent p-6 transition-[margin] duration-300 ease-out ${
+            sidebarExpanded ? "ml-72" : "ml-24"
+          }`}
+          style={{ "--app-sidebar-width": sidebarExpanded ? "18rem" : "6rem" } as CSSProperties}
+        >
+          {children}
+        </main>
+        <ReleaseAnnouncement session={session} />
+      </>
+    );
   }
 
   if (isCeo && isChooser) return null;
