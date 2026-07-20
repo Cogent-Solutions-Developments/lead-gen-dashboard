@@ -1057,7 +1057,8 @@ export type WorkflowStatusDefinitionsResponse = {
 
 export type EventLeadCreateRequest = {
   fullName: string;
-  title?: string;
+  category: string;
+  title: string;
   companyName?: string;
   companyUrl?: string;
   email?: string;
