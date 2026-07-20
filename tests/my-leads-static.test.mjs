@@ -23,7 +23,7 @@ test("shared LeadSheet hides create actions while My Leads enables them", () => 
   assert.match(leadSheet, /type LeadSheetDataMode = "shared" \| "my-leads"/);
   assert.match(leadSheet, /const canUseTemplateUpload = isMyLeadsMode && isPipelineUserRole;/);
   assert.match(leadSheet, /const canUseManualLeadAdd = isMyLeadsMode && isPipelineUserRole;/);
-  assert.match(leadSheet, /addMyLeadsEventLead\(canonicalEventKey, payload, persona\)/);
+  assert.match(leadSheet, /addMyLeadsEventLead\(canonicalEventKey, payload, effectivePersona\)/);
 });
 
 test("My Leads endpoints resolve to the correct pipeline prefixes", () => {
@@ -47,7 +47,7 @@ test("normal upload entry points route to My Leads upload", () => {
 
 test("My Leads page enforces role persona and redirects admins", () => {
   const page = read("app/my-leads/page.tsx");
-  assert.match(page, /router\.replace\("\/campaigns\/upload"\)/);
-  assert.match(page, /setPersona\(forcedPersona\)/);
-  assert.match(page, /<NormalUserEventLeadSheet mode="my-leads" \/>/);
+  assert.match(page, /router\.replace\("\/leads"\)/);
+  assert.match(page, /const expectedPersona = personaForRole\(role\)/);
+  assert.match(page, /if \(hasPersonaMismatch\) router\.replace\("\/dashboard"\)/);
 });

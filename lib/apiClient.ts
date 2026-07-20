@@ -26,6 +26,9 @@ apiClient.interceptors.response.use(
           ? err.response.data
           : JSON.stringify(err.response.data)
         : err.message || "Request failed";
-    return Promise.reject(new Error(msg));
+    const error = new Error(msg) as Error & { status?: number; data?: unknown };
+    error.status = err?.response?.status;
+    error.data = err?.response?.data;
+    return Promise.reject(error);
   }
 );

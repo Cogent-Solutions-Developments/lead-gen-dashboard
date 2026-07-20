@@ -7,7 +7,6 @@ import {
   ArrowRight,
   CalendarDays,
   FileText,
-  KeyRound,
   MessageSquare,
   ServerCog,
   Settings,
@@ -25,13 +24,6 @@ const adminTasks = [
     href: "/admin/users",
     icon: UsersRound,
     metric: "Access",
-  },
-  {
-    title: "Client Access",
-    description: "Assign event dashboard credentials by event, company, username, password, and expiry date.",
-    href: "/admin/client-access",
-    icon: KeyRound,
-    metric: "Clients",
   },
   {
     title: "User Performance",

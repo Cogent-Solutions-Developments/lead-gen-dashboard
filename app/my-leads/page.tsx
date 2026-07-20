@@ -784,7 +784,10 @@ export default function MyLeadsPage() {
   );
   const canUseDealBellFlow = role === "sales_user";
   const isDealClosedStatusChange = Boolean(
-    pendingStatusChange && canUseDealBellFlow && pendingStatusChange.nextStatus === "deal-closed"
+    pendingStatusChange &&
+      canUseDealBellFlow &&
+      pendingStatusChange.nextStatus === "deal-closed" &&
+      pendingStatusChange.item.workflowStatus !== "deal-closed"
   );
 
   const loadEvents = useCallback(async () => {
@@ -1097,7 +1100,7 @@ export default function MyLeadsPage() {
   };
 
   const handleWorkflowStatusChange = async (item: MyLeadRow, nextStatus: string, comment?: string) => {
-    if (nextStatus === item.workflowStatus || updatingLeadIds[item.id]) return false;
+    if ((nextStatus === item.workflowStatus && !comment?.trim()) || updatingLeadIds[item.id]) return false;
 
     setUpdatingLeadIds((prev) => ({ ...prev, [item.id]: true }));
     try {
@@ -1182,6 +1185,11 @@ export default function MyLeadsPage() {
         statusComment.trim() || undefined
       );
       if (!updated) return;
+
+      toast.success(
+        pendingStatusChange.nextStatus === pendingStatusChange.item.workflowStatus ? "Comment added" : "Status updated",
+        { description: pendingStatusChange.item.employeeName || "Lead updated successfully." }
+      );
 
       if (shouldRingBell) {
         try {
@@ -1792,12 +1800,26 @@ export default function MyLeadsPage() {
                               ) : null}
                             </button>
                           ) : null}
-                          <button type="button" onClick={() => void openHistory(item)} className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950">
-                            <History className="h-3.5 w-3.5" />
-                            {item.workflowCommentHistoryCount > 0
-                              ? `${item.workflowCommentHistoryCount} comment${item.workflowCommentHistoryCount === 1 ? "" : "s"}`
-                              : "Comment history"}
-                          </button>
+                          <div className="flex flex-wrap gap-x-3 gap-y-1">
+                            <button type="button" onClick={() => void openHistory(item)} className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950">
+                              <History className="h-3.5 w-3.5" />
+                              {item.workflowCommentHistoryCount > 0
+                                ? `${item.workflowCommentHistoryCount} comment${item.workflowCommentHistoryCount === 1 ? "" : "s"}`
+                                : "Comment history"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={Boolean(updatingLeadIds[item.id])}
+                              onClick={() => {
+                                setPendingStatusChange({ item, nextStatus: item.workflowStatus });
+                                setStatusComment("");
+                              }}
+                              className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-xs font-medium text-blue-600 transition-colors hover:border-blue-700 hover:text-blue-800 disabled:opacity-50"
+                            >
+                              <MessageSquare className="h-3.5 w-3.5" />
+                              Add comment
+                            </button>
+                          </div>
                         </div>
                       </div>
                       </div>
@@ -1807,7 +1829,7 @@ export default function MyLeadsPage() {
               )}
             </div>
 
-            <footer className="mt-6 flex shrink-0 flex-col gap-5 border-t border-zinc-100 pb-4 pt-8 sm:flex-row sm:items-center sm:justify-between">
+            <footer className="mt-6 flex shrink-0 flex-col gap-5 border-t border-zinc-100 pb-20 pt-8 sm:flex-row sm:items-center sm:justify-between sm:pb-4 sm:pr-16">
               <div className="space-y-1">
                 <p className="text-xs font-medium text-zinc-400">Lead sheet range</p>
                 <p className="text-lg font-light tabular-nums tracking-tight text-zinc-950">
@@ -2002,12 +2024,13 @@ export default function MyLeadsPage() {
                     <span className="text-xs font-medium text-zinc-400">Comment optional</span>
                     <Textarea
                       value={statusComment}
+                      maxLength={2000}
                       onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
                       placeholder="Example: Follow up after first call. Asked to reconnect next week."
                       className="min-h-0 flex-1 resize-none rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-6 shadow-none focus-visible:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
                     />
                     <span className="block text-right text-xs font-light text-zinc-400">
-                      {statusComment.length}/2000
+                      {2000 - statusComment.length} characters remaining
                     </span>
                   </label>
                 </div>
@@ -2061,12 +2084,13 @@ export default function MyLeadsPage() {
                   <span className="text-xs font-medium text-zinc-400">Comment optional</span>
                   <Textarea
                     value={statusComment}
+                    maxLength={2000}
                     onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
                     placeholder="Example: Follow up after first call. Asked to reconnect next week."
                     className="min-h-32 rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-6 shadow-none focus-visible:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500"
                   />
                   <span className="block text-right text-xs font-light text-zinc-400">
-                    {statusComment.length}/2000
+                    {2000 - statusComment.length} characters remaining
                   </span>
                 </label>
 

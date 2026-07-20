@@ -4,6 +4,8 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ReleaseAnnouncement } from "@/components/layout/ReleaseAnnouncement";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { useActivityTracking } from "@/hooks/useActivityTracking";
 import { clearPersona, getStoredPersona, hasPersona, onPersonaChange, setPersona } from "@/lib/persona";
 import {
   canRoleUsePersona,
@@ -77,6 +79,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isCeoWorkspaceAdminRoute = isCeo && isCeoAllowedAdminPath(pathname);
   const isAdminAreaRoute = isAdminAreaPath(pathname) && !isCeoWorkspaceAdminRoute;
   const sidebarExpanded = sidebarHovered;
+
+  useActivityTracking(Boolean(authChecked && session && !isAuthRoute), session?.user.id);
 
   useEffect(() => {
     const unsubscribe = onPersonaChange(() => setSelected(hasPersona()));
@@ -237,7 +241,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (isClient) {
     if (pathname !== "/dashboard") return null;
-    return <main className="min-h-screen bg-transparent">{children}</main>;
+    return (
+      <>
+        <main className="min-h-screen bg-transparent">{children}</main>
+        <NotificationCenter sessionKey={session.user.id} />
+      </>
+    );
   }
 
   if (isBusiness) {
@@ -257,6 +266,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
         <ReleaseAnnouncement session={session} />
+        <NotificationCenter sessionKey={session.user.id} />
       </>
     );
   }
@@ -268,6 +278,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <>
         <main className="min-h-screen bg-transparent">{children}</main>
         {!isAuthRoute ? <ReleaseAnnouncement session={session} /> : null}
+        {!isAuthRoute ? <NotificationCenter sessionKey={session.user.id} /> : null}
       </>
     );
   }
@@ -277,6 +288,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <>
         {children}
         <ReleaseAnnouncement session={session} />
+        <NotificationCenter sessionKey={session.user.id} />
       </>
     );
   }
@@ -298,6 +310,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <ReleaseAnnouncement session={session} />
+      <NotificationCenter sessionKey={session.user.id} />
     </>
   );
 }

@@ -115,6 +115,12 @@ export type ManagerUserPerformanceActivity = {
   pipeline: string;
   workflowStatus?: string | null;
   workflowStatusLabel?: string | null;
+  comment?: string | null;
+  commentUpdatedAt?: string | null;
+  commentUpdatedByUserId?: string | null;
+  commentUpdatedByUsername?: string | null;
+  commentUpdatedByUserDisplayName?: string | null;
+  commentHistoryCount?: number | null;
   updatedAt?: string | null;
   user?: {
     id?: string | null;
@@ -175,10 +181,15 @@ export type ManagerPerformanceActivity = {
   canonicalEventKey: string;
   canonicalEventName: string;
   leadSnapshot: ManagerPerformanceLeadSnapshot;
-  type: "workflow-status" | "manual-lead" | "content-generation" | "contact-action" | string;
+  type?: "workflow-status" | "manual-lead" | "content-generation" | "contact-action" | string | null;
   workflowStatus?: string | null;
   workflowStatusLabel?: string | null;
   comment?: string | null;
+  commentUpdatedAt?: string | null;
+  commentUpdatedByUserId?: string | null;
+  commentUpdatedByUsername?: string | null;
+  commentUpdatedByUserDisplayName?: string | null;
+  commentHistoryCount?: number | null;
   channel?: "email" | "whatsapp" | "phone" | "linkedin" | "website" | null;
   createdAt: string;
 };
@@ -682,7 +693,7 @@ export async function fetchManagerUserPerformance(options: {
   if (options.date) params.set("date", options.date);
   if (options.limit) params.set("limit", String(options.limit));
   const suffix = params.toString() ? `?${params.toString()}` : "";
-  const data = await adminAuthRequest<ManagerPerformanceResponse>(`/api/manager/performance${suffix}`);
+  const data = await adminAuthRequest<ManagerPerformanceResponse>(`/api/manager/user-performance${suffix}`);
   const pipeline = managerPerformancePipeline(data.managerScope?.persona);
   const metric = managerPerformanceMetric(pipeline);
   const runners = [...(data.perUserPerformance || [])]
@@ -733,6 +744,12 @@ export async function fetchManagerUserPerformance(options: {
       pipeline,
       workflowStatus: activity.workflowStatus,
       workflowStatusLabel: activity.workflowStatusLabel,
+      comment: activity.comment,
+      commentUpdatedAt: activity.commentUpdatedAt,
+      commentUpdatedByUserId: activity.commentUpdatedByUserId,
+      commentUpdatedByUsername: activity.commentUpdatedByUsername,
+      commentUpdatedByUserDisplayName: activity.commentUpdatedByUserDisplayName,
+      commentHistoryCount: activity.commentHistoryCount,
       updatedAt: activity.createdAt,
       user: {
         id: activity.userId,

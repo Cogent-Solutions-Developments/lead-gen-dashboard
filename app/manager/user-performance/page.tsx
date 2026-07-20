@@ -67,6 +67,10 @@ function leadName(activity: ManagerPerformanceActivity) {
   return textValue(activity.leadSnapshot?.employeeName, textValue(activity.leadIdentityKey, "Lead details unavailable"));
 }
 
+function activityTypeLabel(value?: string | null) {
+  return textValue(value, "Activity").replaceAll("-", " ");
+}
+
 function StatTile({ label, value, note }: { label: string; value: string; note: string }) {
   return (
     <section className="border border-zinc-200 bg-white px-5 py-4 shadow-sm">
@@ -79,6 +83,10 @@ function StatTile({ label, value, note }: { label: string; value: string; note: 
 
 function ActivityRow({ activity }: { activity: ManagerPerformanceActivity }) {
   const snapshot = activity.leadSnapshot || { employeeName: "" };
+  const commentAuthor = textValue(
+    activity.commentUpdatedByUserDisplayName,
+    textValue(activity.commentUpdatedByUsername, textValue(activity.userDisplayName, activity.username))
+  );
   return (
     <article className="border-b border-zinc-100 py-4 last:border-b-0">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -91,7 +99,7 @@ function ActivityRow({ activity }: { activity: ManagerPerformanceActivity }) {
               </span>
             ) : null}
             <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600">
-              {activity.type.replace("-", " ")}
+              {activityTypeLabel(activity.type)}
             </span>
           </div>
           <p className="mt-1 text-sm text-zinc-500">
@@ -100,7 +108,15 @@ function ActivityRow({ activity }: { activity: ManagerPerformanceActivity }) {
           <p className="mt-1 text-xs text-zinc-500">
             {activity.canonicalEventName} | By {textValue(activity.userDisplayName, activity.username)}
           </p>
-          {activity.comment ? <p className="mt-2 text-sm text-zinc-700">{activity.comment}</p> : null}
+          {activity.comment ? (
+            <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+              <p className="text-sm text-blue-950">{activity.comment}</p>
+              <p className="mt-1 text-xs text-blue-700">
+                By {commentAuthor} · {formatDateTime(activity.commentUpdatedAt || activity.createdAt)}
+                {(activity.commentHistoryCount || 0) > 1 ? ` · ${activity.commentHistoryCount} comments in history` : ""}
+              </p>
+            </div>
+          ) : null}
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
             {snapshot.email ? <span>{snapshot.email}</span> : null}
             {snapshot.phone ? <span>{snapshot.phone}</span> : null}
@@ -382,7 +398,7 @@ export default function ManagerUserPerformancePage() {
             </div>
             <div className="px-5">
               {activities.length ? (
-                activities.map((activity) => <ActivityRow key={`${activity.type}-${activity.id}`} activity={activity} />)
+                activities.map((activity) => <ActivityRow key={`${activity.type || "activity"}-${activity.id}`} activity={activity} />)
               ) : (
                 <p className="py-12 text-center text-sm text-zinc-500">No activity details for this window.</p>
               )}
