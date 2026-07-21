@@ -100,10 +100,12 @@ type TemplateUploadState = {
   error: string;
   submitting: boolean;
   selectedEventId: string;
+  category: string;
 };
 
 type AddLeadFormState = {
   fullName: string;
+  category: string;
   title: string;
   companyName: string;
   companyUrl: string;
@@ -188,9 +190,11 @@ const EMPTY_TEMPLATE_UPLOAD: TemplateUploadState = {
   error: "",
   submitting: false,
   selectedEventId: "",
+  category: "",
 };
 const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
   fullName: "",
+  category: "",
   title: "",
   companyName: "",
   companyUrl: "",
@@ -780,7 +784,11 @@ export default function MyLeadsPage() {
     [templateUpload.error]
   );
   const templateUploadReady = Boolean(
-    templateUpload.file && templateValidation && selectedTemplateUploadEvent?.isActive
+    templateUpload.file &&
+      templateValidation &&
+      templateValidation.sheetCount === 1 &&
+      selectedTemplateUploadEvent?.isActive &&
+      templateUpload.category.trim()
   );
   const canUseDealBellFlow = role === "sales_user";
   const isDealClosedStatusChange = Boolean(
@@ -903,17 +911,7 @@ export default function MyLeadsPage() {
   if (!role || isSuperAdmin || hasPersonaMismatch) return null;
 
   const openTemplateUploadDialog = () => {
-    const currentEventKey = selectedEvent?.canonicalEventKey || selectedEventKey || events[0]?.canonicalEventKey || "";
-    const selectedRegistryEvent =
-      activeRegistryEvents.find((event) => event.id === selectedEvent?.eventRegistryId) ??
-      activeRegistryEvents.find((event) => event.eventKey === currentEventKey) ??
-      activeRegistryEvents[0] ??
-      null;
-
-    setTemplateUpload({
-      ...EMPTY_TEMPLATE_UPLOAD,
-      selectedEventId: selectedRegistryEvent?.id || "",
-    });
+    setTemplateUpload(EMPTY_TEMPLATE_UPLOAD);
     setTemplateUploadOpen(true);
   };
 
@@ -964,6 +962,15 @@ export default function MyLeadsPage() {
 
     try {
       const validation = await validateMyLeadTemplateUpload(file);
+      if (validation.sheetCount !== 1) {
+        setTemplateUpload((prev) => ({
+          ...prev,
+          validation: null,
+          validating: false,
+          error: "Upload one category worksheet at a time. Remove the other worksheets and try again.",
+        }));
+        return;
+      }
       setTemplateUpload((prev) => ({
         ...prev,
         validation,
@@ -971,7 +978,7 @@ export default function MyLeadsPage() {
         error: "",
       }));
       toast.success("Template checked", {
-        description: `${validation.importRows.toLocaleString()} leads ready across ${validation.sheetCount.toLocaleString()} categories.`,
+        description: `${validation.importRows.toLocaleString()} leads are ready to upload.`,
       });
     } catch (error: unknown) {
       setTemplateUpload((prev) => ({
@@ -986,6 +993,15 @@ export default function MyLeadsPage() {
   const handleTemplateUploadSubmit = async () => {
     if (!templateUpload.file || !templateUpload.validation) {
       toast.error("Choose a valid template first.");
+      return;
+    }
+    const category = templateUpload.category.trim();
+    if (!category) {
+      toast.error("Category is required.");
+      return;
+    }
+    if (templateUpload.validation.sheetCount !== 1) {
+      toast.error("Upload one category worksheet at a time.");
       return;
     }
 
@@ -1005,7 +1021,7 @@ export default function MyLeadsPage() {
       const response = await createMyCampaignFromUpload({
         name: uploadEvent.eventName,
         location: uploadEvent.location || "",
-        category: uploadEvent.category || "",
+        category,
         date: uploadEvent.date || "",
         eventRegistryId,
         icp: `Template upload for ${uploadEvent.eventName}`,
@@ -1071,7 +1087,8 @@ export default function MyLeadsPage() {
 
     const payload: EventLeadCreateRequest = {
       fullName: addLeadForm.fullName.trim(),
-      title: addLeadForm.title.trim() || undefined,
+      category: addLeadForm.category.trim(),
+      title: addLeadForm.title.trim(),
       companyName: addLeadForm.companyName.trim() || undefined,
       companyUrl: addLeadForm.companyUrl.trim() || undefined,
       email: addLeadForm.email.trim() || undefined,
@@ -1081,6 +1098,14 @@ export default function MyLeadsPage() {
 
     if (!payload.fullName) {
       toast.error("Full name is required");
+      return;
+    }
+    if (!payload.category) {
+      toast.error("Category is required");
+      return;
+    }
+    if (!payload.title) {
+      toast.error("Title is required");
       return;
     }
 
@@ -2648,18 +2673,31 @@ export default function MyLeadsPage() {
             </Select>
           </div>
 
-          <div
-            className={cn(
-              "group flex min-h-16 items-center gap-3 py-1 transition-opacity",
-              !selectedTemplateUploadEvent ? "opacity-60" : ""
-            )}
-          >
+          <div>
+            <label htmlFor="my-lead-upload-category" className="mb-3 block text-xs font-medium text-zinc-400">
+              Category <span className="text-red-500">*</span>
+            </label>
+            <Input
+              id="my-lead-upload-category"
+              value={templateUpload.category}
+              onChange={(event) =>
+                setTemplateUpload((prev) => ({ ...prev, category: event.target.value }))
+              }
+              placeholder="Type category"
+              required
+              aria-required="true"
+              disabled={templateUpload.validating || templateUpload.submitting}
+              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+            />
+          </div>
+
+          <div className="group flex min-h-16 items-center gap-3 py-1">
             <label
               htmlFor="my-lead-template-upload"
               className={cn(
-                "flex min-w-0 flex-1 items-center gap-4",
+                "flex min-w-0 flex-1 items-center gap-4 transition-opacity",
                 !selectedTemplateUploadEvent || templateUpload.validating || templateUpload.submitting
-                  ? "cursor-not-allowed"
+                  ? "cursor-not-allowed opacity-60"
                   : "cursor-pointer"
               )}
             >
@@ -2765,10 +2803,8 @@ export default function MyLeadsPage() {
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-4">
-                  <p className="text-sm font-medium text-zinc-500">Detected categories</p>
-                  <p className="text-xs font-medium text-zinc-400">
-                    {templateValidation.categories.length.toLocaleString()} found
-                  </p>
+                  <p className="text-sm font-medium text-zinc-500">Worksheet</p>
+                  <p className="text-xs font-medium text-zinc-400">1 category upload</p>
                 </div>
                 <div className="max-h-32 overflow-y-auto border-y border-zinc-100 scrollbar-modern">
                   {templateValidation.categories.map((category) => (
@@ -2842,25 +2878,46 @@ export default function MyLeadsPage() {
       >
         <div className="grid gap-x-8 gap-y-8 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <label className="mb-3 block text-xs font-medium text-zinc-400">
-              Full Name
+            <label htmlFor="my-lead-full-name" className="mb-3 block text-xs font-medium text-zinc-400">
+              Full Name <span className="text-red-500">*</span>
             </label>
             <Input
+              id="my-lead-full-name"
               value={addLeadForm.fullName}
               onChange={(event) => updateAddLeadField("fullName", event.target.value)}
               placeholder="Lead name"
+              required
+              aria-required="true"
               className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
             />
           </div>
 
           <div className="sm:col-span-2">
-            <label className="mb-3 block text-xs font-medium text-zinc-400">
-              Title
+            <label htmlFor="my-lead-category" className="mb-3 block text-xs font-medium text-zinc-400">
+              Category <span className="text-red-500">*</span>
             </label>
             <Input
+              id="my-lead-category"
+              value={addLeadForm.category}
+              onChange={(event) => updateAddLeadField("category", event.target.value)}
+              placeholder="Type category"
+              required
+              aria-required="true"
+              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label htmlFor="my-lead-title" className="mb-3 block text-xs font-medium text-zinc-400">
+              Title <span className="text-red-500">*</span>
+            </label>
+            <Input
+              id="my-lead-title"
               value={addLeadForm.title}
               onChange={(event) => updateAddLeadField("title", event.target.value)}
               placeholder="Job title"
+              required
+              aria-required="true"
               className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
             />
           </div>
@@ -2940,7 +2997,13 @@ export default function MyLeadsPage() {
             type="button"
             className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-7 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700 disabled:border-blue-400/20 disabled:bg-blue-600/55 disabled:text-white/80 disabled:opacity-100 disabled:shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-18px_rgba(37,99,235,0.75)]"
             onClick={() => void submitAddLead()}
-            disabled={addingLead || !selectedEvent}
+            disabled={
+              addingLead ||
+              !selectedEvent ||
+              !addLeadForm.fullName.trim() ||
+              !addLeadForm.category.trim() ||
+              !addLeadForm.title.trim()
+            }
           >
             {addingLead ? (
               <>

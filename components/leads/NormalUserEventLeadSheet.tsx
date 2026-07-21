@@ -106,6 +106,7 @@ type LeadSheetRow = {
 
 type AddLeadFormState = {
   fullName: string;
+  category: string;
   title: string;
   companyName: string;
   companyUrl: string;
@@ -476,6 +477,7 @@ const LEAD_SHEET_DEPARTMENT_PERSONAS: LeadSheetDepartmentPersona[] = ["sales", "
 
 const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
   fullName: "",
+  category: "",
   title: "",
   companyName: "",
   companyUrl: "",
@@ -2344,7 +2346,8 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
 
     const payload: EventLeadCreateRequest = {
       fullName: addLeadForm.fullName.trim(),
-      title: addLeadForm.title.trim() || undefined,
+      category: addLeadForm.category.trim(),
+      title: addLeadForm.title.trim(),
       companyName: addLeadForm.companyName.trim() || undefined,
       companyUrl: addLeadForm.companyUrl.trim() || undefined,
       email: addLeadForm.email.trim() || undefined,
@@ -2354,6 +2357,14 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
 
     if (!payload.fullName) {
       toast.error("Full name is required");
+      return;
+    }
+    if (!payload.category) {
+      toast.error("Category is required");
+      return;
+    }
+    if (!payload.title) {
+      toast.error("Title is required");
       return;
     }
 
@@ -3908,25 +3919,46 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
       >
         <div className="grid gap-x-8 gap-y-8 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <label className="mb-3 block text-xs font-medium text-zinc-400">
-              Full Name
+            <label htmlFor="lead-sheet-full-name" className="mb-3 block text-xs font-medium text-zinc-400">
+              Full Name <span className="text-red-500">*</span>
             </label>
             <Input
+              id="lead-sheet-full-name"
               value={addLeadForm.fullName}
               onChange={(event) => updateAddLeadField("fullName", event.target.value)}
               placeholder="Lead name"
+              required
+              aria-required="true"
               className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
             />
           </div>
 
           <div className="sm:col-span-2">
-            <label className="mb-3 block text-xs font-medium text-zinc-400">
-              Title
+            <label htmlFor="lead-sheet-category" className="mb-3 block text-xs font-medium text-zinc-400">
+              Category <span className="text-red-500">*</span>
             </label>
             <Input
+              id="lead-sheet-category"
+              value={addLeadForm.category}
+              onChange={(event) => updateAddLeadField("category", event.target.value)}
+              placeholder="Type category"
+              required
+              aria-required="true"
+              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label htmlFor="lead-sheet-title" className="mb-3 block text-xs font-medium text-zinc-400">
+              Title <span className="text-red-500">*</span>
+            </label>
+            <Input
+              id="lead-sheet-title"
               value={addLeadForm.title}
               onChange={(event) => updateAddLeadField("title", event.target.value)}
               placeholder="Job title"
+              required
+              aria-required="true"
               className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
             />
           </div>
@@ -4006,7 +4038,13 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
             type="button"
             className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-7 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700 disabled:border-blue-400/20 disabled:bg-blue-600/55 disabled:text-white/80 disabled:opacity-100 disabled:shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-18px_rgba(37,99,235,0.75)]"
             onClick={() => void submitAddLead()}
-            disabled={addingLead || !selectedEvent}
+            disabled={
+              addingLead ||
+              !selectedEvent ||
+              !addLeadForm.fullName.trim() ||
+              !addLeadForm.category.trim() ||
+              !addLeadForm.title.trim()
+            }
           >
             {addingLead ? (
               <>
