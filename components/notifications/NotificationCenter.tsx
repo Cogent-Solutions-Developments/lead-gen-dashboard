@@ -1,14 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CakeSlice, CheckCheck, Inbox, Loader2, MessageSquareDot, PartyPopper, RefreshCw } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { CakeSlice, CheckCheck, Gift, Inbox, Loader2, MessageSquareDot, PartyPopper, RefreshCw, X } from "lucide-react";
 import {
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
   type PeopleNotification,
 } from "@/lib/peopleApi";
-import { markEveryNotificationRead, markOneNotificationRead } from "@/lib/peopleUtils";
+import {
+  localCalendarDateKey,
+  markEveryNotificationRead,
+  markOneNotificationRead,
+  millisecondsUntilNextLocalDay,
+  notificationCalendarDate,
+  notificationsForCalendarDate,
+} from "@/lib/peopleUtils";
 
 const NOTIFICATION_POLL_MS = 60_000;
 
@@ -34,8 +42,10 @@ function newestFirst(notifications: PeopleNotification[]) {
 }
 
 export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<PeopleNotification[]>([]);
+  const [birthdayPopup, setBirthdayPopup] = useState<PeopleNotification | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -46,8 +56,16 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const requestRef = useRef<AbortController | null>(null);
   const actionControllersRef = useRef<Set<AbortController>>(new Set());
+  const notificationsRef = useRef<PeopleNotification[]>([]);
   const notificationCountRef = useRef(0);
   notificationCountRef.current = notifications.length;
+
+  const replaceNotifications = useCallback((next: PeopleNotification[]) => {
+    notificationsRef.current = next;
+    notificationCountRef.current = next.length;
+    setNotifications(next);
+    setUnreadCount(next.filter((notification) => !notification.isRead).length);
+  }, []);
 
   const load = useCallback(async (append = false) => {
     requestRef.current?.abort();
@@ -64,15 +82,16 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
         signal: controller.signal,
       });
       if (controller.signal.aborted) return;
-      setNotifications((current) =>
-        newestFirst(
-          append
-            ? [...current, ...response.notifications.filter((item) => !current.some((old) => old.id === item.id))]
-            : response.notifications
-        )
+      const today = localCalendarDateKey();
+      const dailyNotifications = notificationsForCalendarDate(response.notifications, today);
+      const current = notificationsForCalendarDate(notificationsRef.current, today);
+      const next = newestFirst(
+        append
+          ? [...current, ...dailyNotifications.filter((item) => !current.some((old) => old.id === item.id))]
+          : dailyNotifications,
       );
-      setUnreadCount(response.unreadCount);
-      setHasMore(response.pagination.hasMore);
+      replaceNotifications(next);
+      setHasMore(response.pagination.hasMore && dailyNotifications.length === response.notifications.length);
     } catch (error) {
       if (!controller.signal.aborted) setError(errorMessage(error));
     } finally {
@@ -81,7 +100,7 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
         setLoadingMore(false);
       }
     }
-  }, []);
+  }, [replaceNotifications]);
 
   useEffect(() => {
     const actionControllers = actionControllersRef.current;
@@ -94,6 +113,46 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
       actionControllers.clear();
     };
   }, [load, sessionKey]);
+
+  useEffect(() => {
+    let timeout = 0;
+    const scheduleReset = () => {
+      timeout = window.setTimeout(() => {
+        replaceNotifications([]);
+        setHasMore(false);
+        setOpen(false);
+        setBirthdayPopup(null);
+        void load();
+        scheduleReset();
+      }, millisecondsUntilNextLocalDay());
+    };
+    scheduleReset();
+    return () => window.clearTimeout(timeout);
+  }, [load, replaceNotifications, sessionKey]);
+
+  useEffect(() => {
+    if (pathname !== "/dashboard") {
+      setBirthdayPopup(null);
+      return;
+    }
+
+    const wish = notifications.find((notification) => notification.type === "birthday_wish");
+    if (!wish) return;
+    const occurrenceDate = notificationCalendarDate(wish) || localCalendarDateKey();
+    const storageKey = `supernizo:birthday-popup:last-shown:${sessionKey}`;
+    if (window.localStorage.getItem(storageKey) === occurrenceDate) return;
+    window.localStorage.setItem(storageKey, occurrenceDate);
+    setBirthdayPopup(wish);
+  }, [notifications, pathname, sessionKey]);
+
+  useEffect(() => {
+    if (!birthdayPopup) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setBirthdayPopup(null);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [birthdayPopup]);
 
   useEffect(() => {
     if (!open) return;
@@ -116,16 +175,13 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
     const controller = new AbortController();
     actionControllersRef.current.add(controller);
     setUpdatingIds((current) => new Set(current).add(notification.id));
-    setNotifications((current) => markOneNotificationRead(current, notification.id));
-    setUnreadCount((current) => Math.max(0, current - 1));
+    const previous = notificationsRef.current;
+    replaceNotifications(markOneNotificationRead(previous, notification.id));
     try {
       await markNotificationRead(notification.id, controller.signal);
     } catch (error) {
       if (controller.signal.aborted) return;
-      setNotifications((current) =>
-        current.map((item) => (item.id === notification.id ? { ...item, isRead: false } : item))
-      );
-      setUnreadCount((current) => current + 1);
+      replaceNotifications(previous);
       setError(errorMessage(error));
     } finally {
       actionControllersRef.current.delete(controller);
@@ -143,17 +199,14 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
     if (!unreadCount || markingAll) return;
     const controller = new AbortController();
     actionControllersRef.current.add(controller);
-    const previous = notifications;
-    const previousCount = unreadCount;
+    const previous = notificationsRef.current;
     setMarkingAll(true);
-    setNotifications((current) => markEveryNotificationRead(current));
-    setUnreadCount(0);
+    replaceNotifications(markEveryNotificationRead(previous));
     try {
       await markAllNotificationsRead(controller.signal);
     } catch (error) {
       if (controller.signal.aborted) return;
-      setNotifications(previous);
-      setUnreadCount(previousCount);
+      replaceNotifications(previous);
       setError(errorMessage(error));
     } finally {
       actionControllersRef.current.delete(controller);
@@ -163,6 +216,41 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
 
   return (
     <div ref={rootRef} className="fixed bottom-4 right-3 z-[70] font-sans sm:bottom-6 sm:right-5">
+      {birthdayPopup ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="birthday-popup-title"
+            className="relative w-full max-w-md overflow-hidden rounded-3xl border border-pink-200 bg-white p-7 text-center shadow-2xl"
+          >
+            <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-pink-100 via-amber-100 to-blue-100" aria-hidden="true" />
+            <button
+              type="button"
+              onClick={() => setBirthdayPopup(null)}
+              aria-label="Close birthday wish"
+              className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-zinc-600 shadow-sm hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-pink-500 to-fuchsia-600 text-white shadow-lg">
+              <Gift className="h-9 w-9" aria-hidden="true" />
+            </div>
+            <p className="relative mt-5 text-xs font-bold uppercase tracking-[0.2em] text-pink-600">A special wish for you</p>
+            <h2 id="birthday-popup-title" className="relative mt-2 text-3xl font-bold tracking-tight text-zinc-950">
+              {birthdayPopup.title || "Happy Birthday!"}
+            </h2>
+            <p className="relative mt-3 text-sm leading-6 text-zinc-600">{birthdayPopup.message}</p>
+            <button
+              type="button"
+              onClick={() => setBirthdayPopup(null)}
+              className="relative mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-pink-600 px-6 text-sm font-semibold text-white shadow-sm hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 focus-visible:ring-offset-2"
+            >
+              Thank you
+            </button>
+          </section>
+        </div>
+      ) : null}
       <span className="sr-only" aria-live="polite" aria-atomic="true">
         {unreadCount ? `${unreadCount} unread notifications` : "No unread notifications"}
       </span>

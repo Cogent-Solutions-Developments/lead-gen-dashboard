@@ -24,6 +24,23 @@ test("notification helpers preserve records and update unread state", () => {
   assert.ok(peopleUtils.markEveryNotificationRead(records).every((item) => item.isRead));
 });
 
+test("notification helpers keep only the current local-day feed", () => {
+  const today = new Date(2026, 6, 21, 10, 0, 0);
+  const yesterday = new Date(2026, 6, 20, 10, 0, 0);
+  const dateKey = peopleUtils.localCalendarDateKey(today);
+  const records = [
+    { id: "today-system", type: "system_update", createdAt: today.toISOString() },
+    { id: "old-system", type: "system_update", createdAt: yesterday.toISOString() },
+    { id: "today-birthday", type: "birthday_wish", occurrenceDate: dateKey, createdAt: yesterday.toISOString() },
+  ];
+
+  assert.deepEqual(
+    peopleUtils.notificationsForCalendarDate(records, dateKey).map((item) => item.id),
+    ["today-system", "today-birthday"],
+  );
+  assert.ok(peopleUtils.millisecondsUntilNextLocalDay(today) > 0);
+});
+
 test("notification center covers loading, unread count, empty, retry, mark-one, mark-all and pagination", () => {
   const source = read("components/notifications/NotificationCenter.tsx");
   assert.match(source, /listNotifications/);
@@ -41,6 +58,11 @@ test("notification center covers loading, unread count, empty, retry, mark-one, 
   assert.match(source, /PartyPopper/);
   assert.doesNotMatch(source, /A birthday wish for you/);
   assert.doesNotMatch(source, /Birthday updates from your team/);
+  assert.match(source, /pathname !== "\/dashboard"/);
+  assert.match(source, /notification\.type === "birthday_wish"/);
+  assert.match(source, /birthday-popup:last-shown:\$\{sessionKey\}/);
+  assert.match(source, /aria-labelledby="birthday-popup-title"/);
+  assert.match(source, /millisecondsUntilNextLocalDay/);
 });
 
 test("notification trigger follows the Pro inbox pattern without overlapping page headers", () => {
