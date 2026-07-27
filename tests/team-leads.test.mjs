@@ -125,7 +125,7 @@ test("Team Leads member selection reuses the performance selector design", () =>
 test("member pagination stays at the bottom of the department panel", () => {
   const page = read("app/team-leads/page.tsx");
 
-  assert.match(page, /<aside className="flex min-h-0 flex-col/);
+  assert.match(page, /<aside className="flex max-h-\[30rem\] min-h-0 flex-col/);
   assert.match(page, /className="min-h-72 flex-1 overflow-y-auto p-2 scrollbar-modern"/);
 });
 
@@ -140,7 +140,10 @@ test("desktop Team Leads fits the viewport with a compact title-only header", ()
   );
   assert.match(page, /xl:h-\[calc\(100dvh-3rem\)\] xl:overflow-hidden/);
   assert.match(page, /xl:min-h-0 xl:flex-1 xl:overflow-hidden/);
-  assert.match(myLeadsPage, /xl:h-full xl:min-h-0/);
+  assert.match(myLeadsPage, /overflow-visible xl:h-full xl:overflow-hidden/);
+  assert.match(page, /sm:flex-row sm:items-center sm:justify-between/);
+  assert.match(myLeadsPage, /md:grid-cols-\[minmax\(0,0\.75fr\)_minmax\(14rem,0\.95fr\)_10rem\]/);
+  assert.match(myLeadsPage, /md:rounded-none md:border-0/);
 });
 
 test("selected member headers are added while the manager bearer token is preserved", () => {
@@ -416,11 +419,11 @@ test("embedded Team Leads supports selectable ranges and scrolls larger lists", 
   );
   assert.match(
     myLeadsPage,
-    /embedded && pageSize === EMBEDDED_PAGE_SIZE \? "overflow-hidden" : "overflow-auto"/,
+    /embedded && pageSize === EMBEDDED_PAGE_SIZE[\s\S]*?\? "overflow-visible xl:overflow-hidden"[\s\S]*?: "overflow-auto"/,
   );
   assert.match(
     myLeadsPage,
-    /pageSize === EMBEDDED_PAGE_SIZE &&\s*"grid min-h-0 flex-1 grid-rows-5"/,
+    /pageSize === EMBEDDED_PAGE_SIZE &&\s*"xl:grid xl:min-h-0 xl:flex-1 xl:grid-rows-5"/,
   );
   assert.match(myLeadsPage, /\{embedded \? "Leads per page" : "Visible range"\}/);
 });

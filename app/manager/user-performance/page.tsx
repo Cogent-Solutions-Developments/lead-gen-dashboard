@@ -7,6 +7,7 @@ import {
   Loader2,
   RefreshCw,
   Search,
+  SlidersHorizontal,
   UsersRound,
 } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
@@ -99,27 +100,7 @@ function statusTextClass(value?: string | null) {
   return classes[normalized] || "text-zinc-500";
 }
 
-function SummaryMetric({
-  label,
-  value,
-  note,
-}: {
-  label: string;
-  value: string;
-  note?: string;
-}) {
-  return (
-    <div className="min-w-0 rounded-lg border border-zinc-100 bg-zinc-50/70 px-4 py-3">
-      <p className="text-[11px] font-semibold text-zinc-400">{label}</p>
-      <div className="mt-1 flex items-baseline gap-2">
-        <strong className="text-2xl font-semibold tracking-tight text-slate-950">{value}</strong>
-        {note ? <span className="truncate text-xs text-zinc-500">{note}</span> : null}
-      </div>
-    </div>
-  );
-}
-
-function PerformanceMixSection({
+function PerformanceChartSection({
   activity,
   leads,
   manual,
@@ -150,17 +131,14 @@ function PerformanceMixSection({
 
   return (
     <section
-      className="mt-4 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 p-4 shadow-[0_28px_70px_-38px_rgba(15,23,42,0.9)] sm:p-6"
-      aria-labelledby="performance-mix-title"
+      className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-4 shadow-[0_26px_60px_-42px_rgba(37,99,235,0.38),inset_0_1px_0_rgba(255,255,255,0.95)] sm:p-6"
+      aria-label="Performance distribution"
     >
-      <h4 id="performance-mix-title" className="text-sm font-semibold text-white">
-        Performance mix
-      </h4>
-      <div className="mt-2 grid gap-4 lg:grid-cols-[minmax(18rem,0.9fr)_minmax(20rem,1.1fr)] lg:items-center">
+      <div className="grid gap-4 lg:grid-cols-[minmax(18rem,0.9fr)_minmax(20rem,1.1fr)] lg:items-center">
         <div
           className="relative mx-auto h-[clamp(16rem,60vw,24rem)] w-full min-w-0 max-w-[32rem]"
           role="img"
-          aria-label={`Performance mix: ${metrics.map((item) => `${item.name} ${item.value}`).join(", ")}`}
+          aria-label={`Performance distribution: ${metrics.map((item) => `${item.name} ${item.value}`).join(", ")}`}
         >
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -206,14 +184,14 @@ function PerformanceMixSection({
             </PieChart>
           </ResponsiveContainer>
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-            <strong className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            <strong className="text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
               {formatNumber(activeValue)}
             </strong>
-            <span className="mt-1 max-w-24 truncate text-xs font-semibold text-slate-300">
+            <span className="mt-1 max-w-24 truncate text-xs font-semibold text-zinc-500">
               {activeMetric?.name || "Total"}
             </span>
             {activePercentage != null ? (
-              <span className="mt-0.5 text-xs font-medium text-slate-500">{activePercentage}%</span>
+              <span className="mt-0.5 text-xs font-medium text-zinc-400">{activePercentage}%</span>
             ) : null}
           </div>
         </div>
@@ -235,10 +213,10 @@ function PerformanceMixSection({
                 onFocus={() => setHoveredMetric(item.name)}
                 onBlur={() => setHoveredMetric(null)}
                 className={[
-                  "min-w-0 rounded-xl border bg-white/[0.055] p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 sm:p-4",
+                  "min-w-0 rounded-xl border bg-zinc-50/70 p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:p-4",
                   active
-                    ? "border-white/40 bg-white/[0.1] shadow-[0_18px_36px_-24px_rgba(0,0,0,0.8)]"
-                    : "border-white/10 hover:border-white/25 hover:bg-white/[0.08]",
+                    ? "border-blue-200 bg-white shadow-[0_18px_36px_-28px_rgba(37,99,235,0.42)]"
+                    : "border-zinc-200 hover:border-blue-200 hover:bg-white",
                 ].join(" ")}
                 style={active ? { borderColor: item.color } : undefined}
               >
@@ -248,10 +226,10 @@ function PerformanceMixSection({
                     style={{ backgroundColor: item.color }}
                     aria-hidden="true"
                   />
-                  <span className="truncate text-xs font-semibold text-slate-300">{item.name}</span>
-                  <span className="ml-auto text-xs tabular-nums text-slate-500">{percentage}%</span>
+                  <span className="truncate text-xs font-semibold text-zinc-600">{item.name}</span>
+                  <span className="ml-auto text-xs tabular-nums text-zinc-400">{percentage}%</span>
                 </span>
-                <strong className="mt-3 block text-2xl font-semibold tabular-nums tracking-tight text-white sm:text-3xl">
+                <strong className="mt-3 block text-2xl font-semibold tabular-nums tracking-tight text-slate-950 sm:text-3xl">
                   {formatNumber(item.value)}
                 </strong>
               </button>
@@ -327,6 +305,7 @@ export default function ManagerUserPerformancePage() {
   const [search, setSearch] = useState("");
   const [workflowStatus, setWorkflowStatus] = useState("");
   const [eventKey, setEventKey] = useState("");
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [data, setData] = useState<ManagerPerformanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -445,17 +424,6 @@ export default function ManagerUserPerformancePage() {
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-zinc-100 pt-4 sm:grid-cols-3 md:grid-cols-5 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
-          <SummaryMetric label="Activities" value={formatNumber(summary?.activityCount)} />
-          <SummaryMetric label="Touched leads" value={formatNumber(summary?.touchedLeadCount)} />
-          <SummaryMetric
-            label="Active users"
-            value={formatNumber(summary?.activeUsers)}
-            note={`of ${formatNumber(summary?.totalUsers)}`}
-          />
-          <SummaryMetric label="Manual leads" value={formatNumber(summary?.manualLeadCount)} />
-          <SummaryMetric label="KPI total" value={formatNumber(summary?.kpiTotal)} />
-        </div>
       </header>
 
       {!canUseManagerView ? (
@@ -463,33 +431,6 @@ export default function ManagerUserPerformancePage() {
           This page is scoped for department manager roles.
         </section>
       ) : null}
-
-      <section className={`${PERFORMANCE_CARD_CLASS} mt-4 p-3 sm:mt-5 sm:p-4`} aria-label="Performance filters">
-        <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr]">
-          <label className="flex h-11 items-center rounded-lg border border-zinc-200 bg-zinc-50/60 px-4 text-sm text-zinc-500 transition-colors focus-within:border-blue-300 focus-within:bg-white">
-            <Search className="mr-2 h-4 w-4 text-zinc-400" />
-            <input
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search leads, users, or comments"
-              className="h-full min-w-0 flex-1 bg-transparent text-sm font-medium text-zinc-700 outline-none"
-            />
-          </label>
-          <input
-            value={workflowStatus}
-            onChange={(event) => setWorkflowStatus(event.target.value)}
-            placeholder="Filter by status"
-            className="h-11 rounded-lg border border-zinc-200 bg-zinc-50/60 px-4 text-sm font-medium text-zinc-700 outline-none transition-colors focus:border-blue-300 focus:bg-white"
-          />
-          <input
-            value={eventKey}
-            onChange={(event) => setEventKey(event.target.value)}
-            placeholder="Filter by event"
-            className="h-11 rounded-lg border border-zinc-200 bg-zinc-50/60 px-4 text-sm font-medium text-zinc-700 outline-none transition-colors focus:border-blue-300 focus:bg-white"
-          />
-        </div>
-      </section>
 
       {loading && !data ? (
         <section
@@ -501,14 +442,60 @@ export default function ManagerUserPerformancePage() {
       ) : (
         <section className={`${PERFORMANCE_CARD_CLASS} mt-5 overflow-hidden`}>
           <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-4 sm:px-5">
-            <div>
-              <h2 className="text-base font-semibold text-slate-950">Department Performance</h2>
-              <p className="mt-1 text-sm text-zinc-500">
-                Select a team member to focus the same report and activity data.
-              </p>
-            </div>
-            <Activity className="h-5 w-5 text-zinc-400" />
+            <h2 className="text-base font-semibold text-slate-950">Department Performance</h2>
+            <button
+              type="button"
+              aria-label="Toggle performance filters"
+              aria-controls="department-performance-filters"
+              aria-expanded={filterPanelOpen}
+              title="Filters"
+              onClick={() => setFilterPanelOpen((current) => !current)}
+              className={[
+                "relative flex h-9 w-9 items-center justify-center rounded-lg border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+                filterPanelOpen || search || workflowStatus || eventKey
+                  ? "border-blue-200 bg-blue-50 text-blue-700"
+                  : "border-zinc-200 bg-white text-zinc-500 hover:border-blue-200 hover:text-blue-700",
+              ].join(" ")}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              {search || workflowStatus || eventKey ? (
+                <span
+                  className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-blue-600"
+                  aria-hidden="true"
+                />
+              ) : null}
+            </button>
           </div>
+
+          {filterPanelOpen ? (
+            <div
+              id="department-performance-filters"
+              className="grid gap-3 border-b border-zinc-100 bg-zinc-50/65 p-3 sm:p-4 lg:grid-cols-[1.4fr_1fr_1fr]"
+            >
+              <label className="flex h-11 items-center rounded-lg border border-zinc-200 bg-white px-4 text-sm text-zinc-500 transition-colors focus-within:border-blue-300">
+                <Search className="mr-2 h-4 w-4 text-zinc-400" />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search leads, users, or comments"
+                  className="h-full min-w-0 flex-1 bg-transparent text-sm font-medium text-zinc-700 outline-none"
+                />
+              </label>
+              <input
+                value={workflowStatus}
+                onChange={(event) => setWorkflowStatus(event.target.value)}
+                placeholder="Filter by status"
+                className="h-11 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 outline-none transition-colors focus:border-blue-300"
+              />
+              <input
+                value={eventKey}
+                onChange={(event) => setEventKey(event.target.value)}
+                placeholder="Filter by event"
+                className="h-11 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 outline-none transition-colors focus:border-blue-300"
+              />
+            </div>
+          ) : null}
 
           <div className="grid overflow-hidden lg:grid-cols-[16rem_minmax(0,1fr)]">
             <aside
@@ -582,21 +569,16 @@ export default function ManagerUserPerformancePage() {
             </aside>
 
             <div className="min-w-0 p-3 sm:p-4">
-              <div className="border-b border-zinc-100 pb-4">
-                <div className="min-w-0">
+              {selectedTeamUser ? (
+                <div className="border-b border-zinc-100 pb-4">
                   <h3 className="truncate text-xl font-semibold tracking-tight text-slate-950">
-                    {selectedTeamUser?.fullName ||
-                      selectedTeamUser?.username ||
-                      data?.managerScope?.persona ||
-                      "Team performance"}
+                    {selectedTeamUser.fullName || selectedTeamUser.username}
                   </h3>
-                  {selectedTeamUser ? (
-                    <p className="mt-1 truncate text-sm text-zinc-500">@{selectedTeamUser.username}</p>
-                  ) : null}
+                  <p className="mt-1 truncate text-sm text-zinc-500">@{selectedTeamUser.username}</p>
                 </div>
-              </div>
+              ) : null}
 
-              <PerformanceMixSection
+              <PerformanceChartSection
                 activity={selectedActivityCount}
                 leads={selectedTouchedLeadCount}
                 manual={selectedManualLeadCount}

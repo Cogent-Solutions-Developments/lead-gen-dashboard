@@ -514,11 +514,11 @@ export default function TeamLeadsPage() {
     <>
       <div className="flex min-h-[calc(100dvh-3rem)] flex-col bg-transparent font-sans xl:h-[calc(100dvh-3rem)] xl:overflow-hidden">
         <header className="shrink-0 border-b border-zinc-300 pb-4">
-          <h1 className="text-4xl font-light tracking-tight text-zinc-950 sm:text-5xl">Team Leads</h1>
+          <h1 className="text-3xl font-light tracking-tight text-zinc-950 sm:text-4xl xl:text-5xl">Team Leads</h1>
         </header>
 
-        <div className="mt-5 grid min-h-0 gap-6 xl:flex-1 xl:grid-cols-[18rem_minmax(0,1fr)] xl:overflow-hidden">
-          <aside className="flex min-h-0 flex-col rounded-2xl border border-zinc-300 bg-white shadow-[0_24px_60px_-48px_rgba(15,23,42,0.55)]">
+        <div className="mt-4 grid min-h-0 gap-4 lg:grid-cols-[17rem_minmax(0,1fr)] xl:flex-1 xl:gap-6 xl:grid-cols-[18rem_minmax(0,1fr)] xl:overflow-hidden">
+          <aside className="flex max-h-[30rem] min-h-0 flex-col rounded-2xl border border-zinc-300 bg-white shadow-[0_24px_60px_-48px_rgba(15,23,42,0.55)] lg:max-h-none">
             <div className="border-b border-zinc-200 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -664,21 +664,21 @@ export default function TeamLeadsPage() {
 
                 <div
                   className={cn(
-                    "flex shrink-0 items-center justify-between gap-4 border-b border-zinc-300",
+                    "flex shrink-0 flex-col gap-3 border-b border-zinc-300 sm:flex-row sm:items-center sm:justify-between sm:gap-4",
                     isInactiveTeamLeadMember(selectedMember) ||
                       (!selectedMember.access.canManage && !selectedMember.access.takeoverRequired)
                       ? "mt-4"
                       : ""
                   )}
                 >
-                  <div className="flex" role="tablist" aria-label="Team lead views">
+                  <div className="grid w-full min-w-0 grid-cols-2 sm:flex sm:w-auto" role="tablist" aria-label="Team lead views">
                     <button
                       type="button"
                       role="tab"
                       aria-selected={activeTab === "leads"}
                       onClick={() => setActiveTab("leads")}
                       className={cn(
-                        "inline-flex h-11 items-center gap-2 border-b-2 px-4 text-sm font-semibold transition-colors",
+                        "inline-flex h-11 min-w-0 items-center justify-center gap-2 border-b-2 px-2 text-sm font-semibold transition-colors sm:justify-start sm:px-4",
                         activeTab === "leads"
                           ? "border-blue-600 text-blue-700"
                           : "border-transparent text-zinc-500 hover:text-zinc-900"
@@ -693,7 +693,7 @@ export default function TeamLeadsPage() {
                       aria-selected={activeTab === "history"}
                       onClick={() => setActiveTab("history")}
                       className={cn(
-                        "inline-flex h-11 items-center gap-2 border-b-2 px-4 text-sm font-semibold transition-colors",
+                        "inline-flex h-11 min-w-0 items-center justify-center gap-2 border-b-2 px-2 text-sm font-semibold transition-colors sm:justify-start sm:px-4",
                         activeTab === "history"
                           ? "border-blue-600 text-blue-700"
                           : "border-transparent text-zinc-500 hover:text-zinc-900"
@@ -708,9 +708,9 @@ export default function TeamLeadsPage() {
                   (takeoverMode ||
                     selectedMember.access.canManage ||
                     selectedMember.access.takeoverRequired) ? (
-                    <div className="flex items-center gap-2 pb-1">
+                    <div className="flex w-full items-center gap-2 pb-2 sm:w-auto sm:pb-1">
                       {takeoverMode ? (
-                        <Button type="button" variant="outline" size="sm" onClick={endTakeover}>
+                        <Button type="button" variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={endTakeover}>
                           End takeover
                         </Button>
                       ) : (
@@ -720,7 +720,7 @@ export default function TeamLeadsPage() {
                             setTakeoverBackendMessage("");
                             setTakeoverOpen(true);
                           }}
-                          className="h-10 rounded-full border border-blue-500/20 bg-blue-600 px-6 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700"
+                          className="h-10 rounded-full flex-1 border border-blue-500/20 bg-blue-600 px-6 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700 sm:flex-none"
                         >
                           Take control
                         </Button>
@@ -737,7 +737,7 @@ export default function TeamLeadsPage() {
                         <span
                           id="takeover-control-help"
                           role="tooltip"
-                          className="pointer-events-none invisible absolute right-0 top-full z-40 mt-2 w-72 translate-y-1 rounded-xl border border-zinc-200 bg-white p-3 text-left text-xs font-normal leading-5 text-zinc-600 opacity-0 shadow-[0_18px_35px_-24px_rgba(15,23,42,0.55)] transition-all group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100"
+                          className="pointer-events-none invisible absolute right-0 top-full z-40 mt-2 w-72 max-w-[calc(100vw-2rem)] translate-y-1 rounded-xl border border-zinc-200 bg-white p-3 text-left text-xs font-normal leading-5 text-zinc-600 opacity-0 shadow-[0_18px_35px_-24px_rgba(15,23,42,0.55)] transition-all group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100"
                         >
                           {takeoverMode
                             ? "End takeover to return this member's workspace to view-only mode."
@@ -752,7 +752,7 @@ export default function TeamLeadsPage() {
                   <div
                     role="tabpanel"
                     aria-label="Member leads"
-                    className="mt-5 min-w-0 xl:min-h-0 xl:flex-1 xl:overflow-hidden"
+                    className="mt-4 min-w-0 xl:min-h-0 xl:flex-1 xl:overflow-hidden"
                   >
                     <MyLeadsWorkspace
                       key={teamLeadQueryKey(selectedMember.id, "my-leads-workspace")}

@@ -1447,10 +1447,10 @@ export function MyLeadsWorkspace({
           teamMemberId ? teamLeadQueryKey(teamMemberId, "my-leads") : undefined
         }
         className={cn(
-          "flex min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans",
+          "flex min-h-0 min-w-0 flex-col bg-transparent p-1 font-sans",
           embedded
-            ? "h-[calc(100dvh-18rem)] min-h-[42rem] xl:h-full xl:min-h-0"
-            : "h-[calc(100dvh-3rem)]"
+            ? "overflow-visible xl:h-full xl:overflow-hidden"
+            : "h-[calc(100dvh-3rem)] overflow-hidden"
         )}
       >
         <header
@@ -1459,7 +1459,7 @@ export function MyLeadsWorkspace({
             embedded ? "pb-3" : "min-h-[6.25rem] pb-11"
           )}
         >
-          <div className="flex min-w-0 items-center gap-7 whitespace-nowrap overflow-hidden">
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-5 xl:gap-7 xl:whitespace-nowrap xl:overflow-hidden">
             <div className="min-w-0 flex-1">
               <Select value={selectedEventKey || "my-leads"} onValueChange={handleEventChange}>
                 <SelectTrigger
@@ -1498,16 +1498,16 @@ export function MyLeadsWorkspace({
 
             <div
               className={cn(
-                "ml-auto flex min-w-max flex-nowrap items-center justify-end",
-                embedded ? "gap-4" : "gap-8"
+                "flex w-full min-w-0 flex-wrap items-center justify-between sm:ml-auto sm:w-auto sm:flex-nowrap sm:justify-end",
+                embedded ? "gap-3 sm:gap-4" : "gap-4 sm:gap-8"
               )}
             >
-              <div className="inline-flex h-12 shrink-0 items-center gap-1.5 rounded-full border border-zinc-200 bg-white p-1.5" aria-label="My leads actions">
+              <div className="grid h-12 min-w-0 flex-1 grid-cols-2 items-center gap-1.5 rounded-full border border-zinc-200 bg-white p-1.5 sm:inline-flex sm:flex-none" aria-label="My leads actions">
                 <button
                   type="button"
                   onClick={openTemplateUploadDialog}
                   disabled={loadingRegistryEvents || !hasActiveRegistryEvents}
-                  className="inline-flex h-9 w-40 items-center justify-center gap-2.5 rounded-full text-sm font-semibold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-50"
+                  className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full px-2 text-xs font-semibold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-50 sm:w-40 sm:text-sm"
                 >
                   <FileUp className="h-4 w-4" />
                   Upload leads
@@ -1517,16 +1517,16 @@ export function MyLeadsWorkspace({
                   type="button"
                   onClick={() => setAddLeadOpen(true)}
                   disabled={!selectedEvent}
-                  className="inline-flex h-9 w-40 items-center justify-center gap-2.5 rounded-full border border-blue-500/20 bg-blue-600 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:opacity-50"
+                  className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-2 text-xs font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:opacity-50 sm:w-40 sm:text-sm"
                 >
                   <Plus className="h-4 w-4" />
                   Add a lead
                 </button>
               </div>
 
-              <div className="flex shrink-0 items-baseline gap-3">
-                <span className="text-sm font-medium text-zinc-400">Leads To Cover</span>
-                <span className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
+              <div className="flex shrink-0 items-baseline gap-2 sm:gap-3">
+                <span className="text-xs font-medium text-zinc-400 sm:text-sm">Leads To Cover</span>
+                <span className="text-3xl font-light tabular-nums tracking-tight text-zinc-950 sm:text-4xl">
                   {pageTotal.toLocaleString()}
                 </span>
               </div>
@@ -1536,13 +1536,13 @@ export function MyLeadsWorkspace({
 
         <div
           className={cn(
-            "grid min-h-0 flex-1 overflow-hidden",
+            "grid min-h-0 min-w-0 flex-1",
             embedded
-              ? "gap-6 pt-4 xl:grid-cols-[17rem_minmax(0,1fr)]"
-              : "gap-12 pt-10 xl:grid-cols-[19rem_minmax(0,1fr)]"
+              ? "gap-4 overflow-visible pt-4 xl:grid-cols-[17rem_minmax(0,1fr)] xl:gap-6 xl:overflow-hidden"
+              : "gap-6 overflow-hidden pt-6 xl:grid-cols-[19rem_minmax(0,1fr)] xl:gap-12 xl:pt-10"
           )}
         >
-          <aside className="relative min-h-0 shrink-0 overflow-hidden pr-2">
+          <aside className="relative min-h-0 min-w-0 shrink-0 overflow-hidden xl:pr-2">
             <div className="relative z-20 space-y-6 bg-[#f7f7f7] pb-6 pr-1">
               <div>
                 <div className="relative h-11 w-full rounded-full border border-zinc-300 bg-white px-4 shadow-[0_22px_60px_-52px_rgba(2,10,27,0.42)] transition-colors focus-within:border-zinc-400">
@@ -1637,19 +1637,22 @@ export function MyLeadsWorkspace({
 
           <main
             className={cn(
-              "flex min-h-0 flex-col overflow-hidden xl:border-l xl:border-zinc-300",
+              "flex min-h-0 min-w-0 flex-col xl:border-l xl:border-zinc-300",
+              embedded ? "overflow-visible xl:overflow-hidden" : "overflow-hidden",
               embedded ? "xl:pl-8" : "xl:pl-16"
             )}
           >
             <div
               className={cn(
-                "min-h-0 flex-1 pr-4 scrollbar-modern",
-                embedded && pageSize === EMBEDDED_PAGE_SIZE ? "overflow-hidden" : "overflow-auto"
+                "min-h-0 min-w-0 flex-1 scrollbar-modern xl:pr-4",
+                embedded && pageSize === EMBEDDED_PAGE_SIZE
+                  ? "overflow-visible xl:overflow-hidden"
+                  : "overflow-auto"
               )}
             >
               {pagedRows.length === 0 ? (
                 <div className="w-full">
-                  <div className="sticky top-0 z-20 grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 bg-[#f7f7f7]/95 py-3 text-sm font-light text-zinc-500 backdrop-blur">
+                  <div className="sticky top-0 z-20 hidden grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 bg-[#f7f7f7]/95 py-3 text-sm font-light text-zinc-500 backdrop-blur md:grid">
                     <div>Identity details</div>
                     <div>Contact channels</div>
                     <div>Status</div>
@@ -1662,7 +1665,7 @@ export function MyLeadsWorkspace({
                 <div className={cn("w-full", embedded && "flex h-full min-h-0 flex-col")}>
                   <div
                     className={cn(
-                      "sticky top-0 z-20 grid shrink-0 grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 bg-[#f7f7f7]/95 font-light text-zinc-500 backdrop-blur",
+                      "sticky top-0 z-20 hidden shrink-0 grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 bg-[#f7f7f7]/95 font-light text-zinc-500 backdrop-blur md:grid",
                       embedded ? "py-2 text-xs" : "py-3 text-sm"
                     )}
                   >
@@ -1674,7 +1677,7 @@ export function MyLeadsWorkspace({
                     className={cn(
                       embedded &&
                         pageSize === EMBEDDED_PAGE_SIZE &&
-                        "grid min-h-0 flex-1 grid-rows-5"
+                        "xl:grid xl:min-h-0 xl:flex-1 xl:grid-rows-5"
                     )}
                   >
                     {pagedRows.map((item) => {
@@ -1701,11 +1704,11 @@ export function MyLeadsWorkspace({
                         <div
                           key={item.id}
                           className={cn(
-                            "group grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 transition-all duration-300 hover:bg-zinc-50/60",
-                            embedded ? "min-h-0 overflow-visible py-2" : "py-6"
+                            "group grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm transition-all duration-300 hover:bg-zinc-50/60 md:grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] md:gap-0 md:rounded-none md:border-0 md:border-b md:border-zinc-300 md:bg-transparent md:p-0 md:shadow-none",
+                            embedded ? "min-h-0 overflow-visible md:py-2" : "md:py-6"
                           )}
                         >
-                      <div className={cn(embedded ? "min-w-0 pr-4" : "pr-8")}>
+                      <div className={cn("min-w-0", embedded ? "md:pr-4" : "md:pr-8")}>
                         <div className={cn("flex flex-col", embedded ? "gap-0.5" : "gap-1.5")}>
                           <div className="flex items-center gap-5">
                             <span
@@ -1734,7 +1737,7 @@ export function MyLeadsWorkspace({
                         </div>
                       </div>
 
-                      <div className={cn(embedded ? "min-w-0 pr-4" : "pr-8")}>
+                      <div className={cn("min-w-0", embedded ? "md:pr-4" : "md:pr-8")}>
                         <div className={cn("flex flex-col", embedded ? "gap-0.5" : "gap-2")}>
                           <div className="space-y-1.5">
                             {primaryEmail ? (
@@ -1903,7 +1906,7 @@ export function MyLeadsWorkspace({
                         </div>
                       </div>
 
-                      <div className="flex h-full flex-col">
+                      <div className="flex h-full min-w-0 flex-col border-t border-zinc-100 pt-2 md:border-t-0 md:pt-0">
                         <Select
                           value={selectedStatusValue}
                           onValueChange={(value) => handleStatusSelection(item, value)}
