@@ -1,6 +1,11 @@
 import { AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import { getLocalDevNgrokHeaders } from "@/lib/devNgrok";
 import type { Persona } from "@/lib/persona";
+import {
+  attachTeamLeadRequestHeaders,
+  clearTeamLeadRequestScope,
+  type TeamLeadLifecycleStatus,
+} from "@/lib/teamLeads";
 
 export type AuthRole =
   | "super_admin_user"
@@ -36,6 +41,9 @@ export type AuthUser = {
   updatedAt?: string;
   lastLoginAt?: string | null;
   mfaEnabled?: boolean;
+  lifecycleStatus?: TeamLeadLifecycleStatus;
+  deactivatedAt?: string | null;
+  deactivationReason?: string;
 };
 
 export type AuthSession = {
@@ -82,6 +90,8 @@ export type AuthUserCreateInput = {
   role: AuthRole;
   fullName?: string;
   isActive?: boolean;
+  lifecycleStatus?: TeamLeadLifecycleStatus;
+  deactivationReason?: string;
 };
 
 export type AuthUserUpdateInput = {
@@ -949,6 +959,9 @@ function normalizeUser(raw: unknown): AuthUser {
   const updatedAt = source.updatedAt ?? source.updated_at;
   const lastLoginAt = source.lastLoginAt ?? source.last_login_at;
   const mfaEnabled = source.mfaEnabled ?? source.mfa_enabled;
+  const lifecycleStatus = source.lifecycleStatus ?? source.lifecycle_status;
+  const deactivatedAt = source.deactivatedAt ?? source.deactivated_at;
+  const deactivationReason = source.deactivationReason ?? source.deactivation_reason;
 
   return {
     id: String(source.id || ""),
@@ -970,6 +983,14 @@ function normalizeUser(raw: unknown): AuthUser {
     updatedAt: updatedAt == null ? undefined : String(updatedAt),
     lastLoginAt: lastLoginAt == null ? null : String(lastLoginAt),
     mfaEnabled: typeof mfaEnabled === "boolean" ? mfaEnabled : undefined,
+    lifecycleStatus:
+      lifecycleStatus === "inactive" || lifecycleStatus === "resigned" || lifecycleStatus === "terminated"
+        ? lifecycleStatus
+        : isActive === false
+          ? "inactive"
+          : "active",
+    deactivatedAt: deactivatedAt == null ? null : String(deactivatedAt),
+    deactivationReason: deactivationReason == null ? "" : String(deactivationReason),
   };
 }
 
@@ -1097,6 +1118,7 @@ export function updateStoredAuthUser(user: AuthUser) {
 
 export function clearAuthSession() {
   if (typeof window === "undefined") return;
+  clearTeamLeadRequestScope();
   window.localStorage.removeItem(STORAGE_KEY);
   emitAuthChange();
 }
@@ -1128,12 +1150,12 @@ export function getAuthHeader(): Record<string, string> {
 
 export function attachAuthToken(config: InternalAxiosRequestConfig) {
   const token = getAuthToken();
+  const headers = AxiosHeaders.from(config.headers);
   if (token) {
-    const headers = AxiosHeaders.from(config.headers);
     headers.set("Authorization", `Bearer ${token}`);
-    config.headers = headers;
   }
-  return config;
+  config.headers = headers;
+  return attachTeamLeadRequestHeaders(config);
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {

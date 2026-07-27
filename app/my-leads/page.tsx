@@ -39,6 +39,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 import { getCachedAuthUserDisplayName, listActiveEventRegistry, personaForRole, type AdminEventItem } from "@/lib/auth";
 import { getDailyDealBellMedia } from "@/lib/dealBellMedia";
+import {
+  getTeamLeadErrorMessage,
+  getTeamLeadRequestScope,
+  teamLeadQueryKey,
+} from "@/lib/teamLeads";
 import { cn } from "@/lib/utils";
 import {
   addMyEventLead,
@@ -144,7 +149,10 @@ type ContactDropdownState = {
   kind: "email" | "phone";
 };
 
-const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
+const PAGE_SIZE_OPTIONS = [5, 50, 100, 200] as const;
+const EMBEDDED_PAGE_SIZE = 5;
+const CONTACT_DROPDOWN_TRIGGER_CLASS =
+  "inline-flex h-7 w-8 items-center justify-center rounded-full border border-white/80 bg-white/60 text-zinc-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_8px_20px_-12px_rgba(15,23,42,0.5)] backdrop-blur-md transition-all hover:border-white hover:bg-white/85 hover:text-zinc-950 hover:shadow-[inset_0_1px_0_rgba(255,255,255,1),0_10px_24px_-12px_rgba(15,23,42,0.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60";
 
 const SALES_STATUSES: MyLeadStatus[] = [
   { statusKey: "new", label: "New" },
@@ -364,6 +372,8 @@ function errorValueToText(value: unknown): string {
 }
 
 function getApiErrorMessage(error: unknown) {
+  if (getTeamLeadRequestScope()) return getTeamLeadErrorMessage(error);
+
   const data = error && typeof error === "object" && "data" in error
     ? (error as { data?: unknown }).data
     : null;
@@ -682,6 +692,18 @@ function LeadSheetDialog({
 }
 
 export default function MyLeadsPage() {
+  return <MyLeadsWorkspace />;
+}
+
+type MyLeadsWorkspaceProps = {
+  embedded?: boolean;
+  teamMemberId?: string;
+};
+
+export function MyLeadsWorkspace({
+  embedded = false,
+  teamMemberId = "",
+}: MyLeadsWorkspaceProps = {}) {
   const router = useRouter();
   const { persona } = usePersona();
   const { isSuperAdmin, role, user } = useAuth();
@@ -722,7 +744,7 @@ export default function MyLeadsPage() {
   const [filters, setFilters] = useState<MyLeadFilterState>(EMPTY_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
   const [pageOffset, setPageOffset] = useState(0);
-  const [pageSize, setPageSize] = useState<number>(100);
+  const [pageSize, setPageSize] = useState<number>(embedded ? EMBEDDED_PAGE_SIZE : 100);
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -901,7 +923,9 @@ export default function MyLeadsPage() {
     selectedEventKey || searchInput.trim().length > 0 || filters.status !== "all" || filters.contact !== "all"
   );
   const visibleRows = useMemo(() => filterRows(rows, searchInput, filters), [filters, rows, searchInput]);
-  const pagedRows = usesServerPagination ? visibleRows : visibleRows.slice(pageOffset, pageOffset + pageSize);
+  const pagedRows = usesServerPagination
+    ? visibleRows
+    : visibleRows.slice(pageOffset, pageOffset + pageSize);
   const activeFilterCount = [filters.status !== "all", filters.contact !== "all"].filter(Boolean).length;
   const pageTotal = usesServerPagination ? leadListMeta.total : visibleRows.length;
   const pageRangeStart = pagedRows.length > 0 ? pageOffset + 1 : 0;
@@ -1418,8 +1442,23 @@ export default function MyLeadsPage() {
 
   return (
     <>
-      <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
-        <header className="min-h-[6.25rem] shrink-0 border-b border-zinc-300 pb-11">
+      <div
+        data-team-lead-query-key={
+          teamMemberId ? teamLeadQueryKey(teamMemberId, "my-leads") : undefined
+        }
+        className={cn(
+          "flex min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans",
+          embedded
+            ? "h-[calc(100dvh-18rem)] min-h-[42rem] xl:h-full xl:min-h-0"
+            : "h-[calc(100dvh-3rem)]"
+        )}
+      >
+        <header
+          className={cn(
+            "shrink-0 border-b border-zinc-300",
+            embedded ? "pb-3" : "min-h-[6.25rem] pb-11"
+          )}
+        >
           <div className="flex min-w-0 items-center gap-7 whitespace-nowrap overflow-hidden">
             <div className="min-w-0 flex-1">
               <Select value={selectedEventKey || "my-leads"} onValueChange={handleEventChange}>
@@ -1427,7 +1466,12 @@ export default function MyLeadsPage() {
                   aria-label="Select lead source"
                   className="group !h-auto w-fit max-w-full justify-start gap-4 whitespace-normal rounded-none border-0 bg-transparent p-0 text-left text-zinc-950 shadow-none transition-colors hover:text-blue-700 focus:ring-0 focus-visible:ring-0 [&>svg]:mt-1 [&>svg]:h-7 [&>svg]:w-7 [&>svg]:opacity-40 [&>svg]:transition-colors [&>svg]:group-hover:opacity-70"
                 >
-                  <span className="line-clamp-2 min-w-0 text-3xl font-light leading-[1.12] tracking-[-0.025em] sm:text-4xl 2xl:text-5xl">
+                  <span
+                    className={cn(
+                      "line-clamp-2 min-w-0 font-light leading-[1.12] tracking-[-0.025em]",
+                      embedded ? "text-2xl sm:text-3xl" : "text-3xl sm:text-4xl 2xl:text-5xl"
+                    )}
+                  >
                     {selectedEventLabel}
                   </span>
                 </SelectTrigger>
@@ -1452,7 +1496,12 @@ export default function MyLeadsPage() {
               </Select>
             </div>
 
-            <div className="ml-auto flex min-w-max flex-nowrap items-center justify-end gap-8">
+            <div
+              className={cn(
+                "ml-auto flex min-w-max flex-nowrap items-center justify-end",
+                embedded ? "gap-4" : "gap-8"
+              )}
+            >
               <div className="inline-flex h-12 shrink-0 items-center gap-1.5 rounded-full border border-zinc-200 bg-white p-1.5" aria-label="My leads actions">
                 <button
                   type="button"
@@ -1485,7 +1534,14 @@ export default function MyLeadsPage() {
           </div>
         </header>
 
-        <div className="grid min-h-0 flex-1 gap-12 overflow-hidden pt-10 xl:grid-cols-[19rem_minmax(0,1fr)]">
+        <div
+          className={cn(
+            "grid min-h-0 flex-1 overflow-hidden",
+            embedded
+              ? "gap-6 pt-4 xl:grid-cols-[17rem_minmax(0,1fr)]"
+              : "gap-12 pt-10 xl:grid-cols-[19rem_minmax(0,1fr)]"
+          )}
+        >
           <aside className="relative min-h-0 shrink-0 overflow-hidden pr-2">
             <div className="relative z-20 space-y-6 bg-[#f7f7f7] pb-6 pr-1">
               <div>
@@ -1539,7 +1595,9 @@ export default function MyLeadsPage() {
                     </span>
                   </div>
                   <div className="flex items-center justify-between border-b border-zinc-100 py-4">
-                    <span className="text-sm font-light text-zinc-500">Visible range</span>
+                    <span className="text-sm font-light text-zinc-500">
+                      {embedded ? "Leads per page" : "Visible range"}
+                    </span>
                     <Select
                       value={String(pageSize)}
                       onValueChange={(value) => {
@@ -1547,7 +1605,7 @@ export default function MyLeadsPage() {
                         setPageOffset(0);
                       }}
                     >
-                      <SelectTrigger className="h-9 w-16 justify-end gap-1 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-xl font-light tabular-nums tracking-tight text-zinc-950 shadow-none transition-colors focus:border-blue-600 focus:ring-0 [&>svg]:ml-0">
+                      <SelectTrigger className="h-9 w-20 justify-end gap-1 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-xl font-light tabular-nums tracking-tight text-zinc-950 shadow-none transition-colors focus:border-blue-600 focus:ring-0 [&>svg]:ml-0">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent align="end" className="rounded-none border-zinc-300 shadow-xl">
@@ -1562,18 +1620,33 @@ export default function MyLeadsPage() {
                 </div>
               </div>
             </div>
-            <div className="my-leads-side-media pointer-events-none fixed bottom-0 z-0 hidden w-[19rem] overflow-hidden xl:block" aria-hidden="true">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/videos/BlockchainEventPromoconverted_1-ezgif.com-optimize%20(1).gif"
-                alt=""
-                className="my-leads-side-media__image absolute bottom-0 left-1/2 max-w-none -translate-x-1/2 object-contain"
-              />
-            </div>
+            {!embedded ? (
+              <div
+                className="my-leads-side-media pointer-events-none fixed bottom-0 z-0 hidden w-[19rem] overflow-hidden xl:block"
+                aria-hidden="true"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/videos/BlockchainEventPromoconverted_1-ezgif.com-optimize%20(1).gif"
+                  alt=""
+                  className="my-leads-side-media__image absolute bottom-0 left-1/2 max-w-none -translate-x-1/2 object-contain"
+                />
+              </div>
+            ) : null}
           </aside>
 
-          <main className="flex min-h-0 flex-col overflow-hidden xl:border-l xl:border-zinc-300 xl:pl-16">
-            <div className="min-h-0 flex-1 overflow-auto pr-4 scrollbar-modern">
+          <main
+            className={cn(
+              "flex min-h-0 flex-col overflow-hidden xl:border-l xl:border-zinc-300",
+              embedded ? "xl:pl-8" : "xl:pl-16"
+            )}
+          >
+            <div
+              className={cn(
+                "min-h-0 flex-1 pr-4 scrollbar-modern",
+                embedded && pageSize === EMBEDDED_PAGE_SIZE ? "overflow-hidden" : "overflow-auto"
+              )}
+            >
               {pagedRows.length === 0 ? (
                 <div className="w-full">
                   <div className="sticky top-0 z-20 grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 bg-[#f7f7f7]/95 py-3 text-sm font-light text-zinc-500 backdrop-blur">
@@ -1586,13 +1659,25 @@ export default function MyLeadsPage() {
                   </div>
                 </div>
               ) : (
-                <div className="w-full">
-                  <div className="sticky top-0 z-20 grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 bg-[#f7f7f7]/95 py-3 text-sm font-light text-zinc-500 backdrop-blur">
+                <div className={cn("w-full", embedded && "flex h-full min-h-0 flex-col")}>
+                  <div
+                    className={cn(
+                      "sticky top-0 z-20 grid shrink-0 grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 bg-[#f7f7f7]/95 font-light text-zinc-500 backdrop-blur",
+                      embedded ? "py-2 text-xs" : "py-3 text-sm"
+                    )}
+                  >
                     <div>Identity details</div>
                     <div>Contact channels</div>
                     <div>Status</div>
                   </div>
-                  {pagedRows.map((item) => {
+                  <div
+                    className={cn(
+                      embedded &&
+                        pageSize === EMBEDDED_PAGE_SIZE &&
+                        "grid min-h-0 flex-1 grid-rows-5"
+                    )}
+                  >
+                    {pagedRows.map((item) => {
                     const primaryEmail = item.emails[0] || "";
                     const primaryPhone = item.phones[0] || "";
                     const emailDropdownOpen = contactDropdown?.leadId === item.id && contactDropdown.kind === "email";
@@ -1612,23 +1697,45 @@ export default function MyLeadsPage() {
                       );
                     };
 
-                    return (
-                      <div key={item.id} className="group grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-6 transition-all duration-300 hover:bg-zinc-50/60">
-                      <div className="pr-8">
-                        <div className="flex flex-col gap-1.5">
+                      return (
+                        <div
+                          key={item.id}
+                          className={cn(
+                            "group grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 transition-all duration-300 hover:bg-zinc-50/60",
+                            embedded ? "min-h-0 overflow-visible py-2" : "py-6"
+                          )}
+                        >
+                      <div className={cn(embedded ? "min-w-0 pr-4" : "pr-8")}>
+                        <div className={cn("flex flex-col", embedded ? "gap-0.5" : "gap-1.5")}>
                           <div className="flex items-center gap-5">
-                            <span className="text-xl font-light tracking-tight text-zinc-950">{item.employeeName || "-"}</span>
+                            <span
+                              className={cn(
+                                "truncate font-light tracking-tight text-zinc-950",
+                                embedded ? "text-sm font-medium" : "text-xl"
+                              )}
+                            >
+                              {item.employeeName || "-"}
+                            </span>
                             {item.isManualLead ? (
                               <span className="rounded-full border border-zinc-300 bg-white px-2 py-0.5 text-xs font-medium text-zinc-500">Manual</span>
                             ) : null}
                           </div>
-                          <span className="max-w-sm text-base font-light leading-relaxed text-zinc-700">{item.title || "-"}</span>
-                          <span className="text-xs font-medium text-zinc-400">{item.company || "-"}</span>
+                          <span
+                            className={cn(
+                              "max-w-sm truncate font-light text-zinc-700",
+                              embedded ? "text-xs leading-4" : "text-base leading-relaxed"
+                            )}
+                          >
+                            {item.title || "-"}
+                          </span>
+                          <span className={cn("truncate font-medium text-zinc-400", embedded ? "text-[11px]" : "text-xs")}>
+                            {item.company || "-"}
+                          </span>
                         </div>
                       </div>
 
-                      <div className="pr-8">
-                        <div className="flex flex-col gap-2">
+                      <div className={cn(embedded ? "min-w-0 pr-4" : "pr-8")}>
+                        <div className={cn("flex flex-col", embedded ? "gap-0.5" : "gap-2")}>
                           <div className="space-y-1.5">
                             {primaryEmail ? (
                               <div className="relative flex min-w-0 items-center gap-2" data-contact-dropdown-root>
@@ -1645,14 +1752,17 @@ export default function MyLeadsPage() {
                                 title="Choose contact method"
                               >
                                 <EmailIcon className="h-3.5 w-3.5 shrink-0 text-[#EF4444]" />
-                                  <span className="truncate text-sm font-light tracking-tight text-zinc-700 transition-colors hover:text-zinc-950">{primaryEmail}</span>
+                                  <span className={cn("truncate font-light tracking-tight text-zinc-700 transition-colors hover:text-zinc-950", embedded ? "text-xs" : "text-sm")}>{primaryEmail}</span>
                               </button>
                                 {item.emails.length > 1 ? (
                                   <div className="relative shrink-0">
                                     <button
                                       type="button"
                                       onClick={() => toggleContactDropdown("email")}
-                                      className="inline-flex h-6 w-7 items-center justify-center rounded-lg border border-white/10 bg-zinc-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_10px_18px_-15px_rgba(2,10,27,0.9)] transition-colors hover:bg-zinc-700"
+                                      className={cn(
+                                        CONTACT_DROPDOWN_TRIGGER_CLASS,
+                                        emailDropdownOpen && "border-blue-200/80 bg-blue-50/75 text-blue-700"
+                                      )}
                                       aria-label="Show all email addresses"
                                       aria-expanded={emailDropdownOpen}
                                     >
@@ -1705,14 +1815,17 @@ export default function MyLeadsPage() {
                                 title="Choose contact method"
                               >
                                 <PhoneIcon className="h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
-                                  <span className="truncate text-sm font-light text-zinc-500 transition-colors hover:text-zinc-950">{primaryPhone}</span>
+                                  <span className={cn("truncate font-light text-zinc-500 transition-colors hover:text-zinc-950", embedded ? "text-xs" : "text-sm")}>{primaryPhone}</span>
                               </button>
                                 {item.phones.length > 1 ? (
                                   <div className="relative shrink-0">
                                     <button
                                       type="button"
                                       onClick={() => toggleContactDropdown("phone")}
-                                      className="inline-flex h-6 w-7 items-center justify-center rounded-lg border border-white/10 bg-zinc-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_10px_18px_-15px_rgba(2,10,27,0.9)] transition-colors hover:bg-zinc-700"
+                                      className={cn(
+                                        CONTACT_DROPDOWN_TRIGGER_CLASS,
+                                        phoneDropdownOpen && "border-blue-200/80 bg-blue-50/75 text-blue-700"
+                                      )}
                                       aria-label="Show all phone numbers"
                                       aria-expanded={phoneDropdownOpen}
                                     >
@@ -1749,7 +1862,12 @@ export default function MyLeadsPage() {
                               <span className="text-sm font-light text-zinc-500">-</span>
                             )}
                           </div>
-                          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-3">
+                          <div
+                            className={cn(
+                              "flex flex-wrap items-center",
+                              embedded ? "gap-x-3 gap-y-0.5 pt-1" : "gap-x-5 gap-y-2 pt-3"
+                            )}
+                          >
                             {item.linkedinUrl ? (
                               <a href={item.linkedinUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950">
                                 <LinkedInIcon className="h-3.5 w-3.5 text-[#0A66C2]" />
@@ -1791,7 +1909,12 @@ export default function MyLeadsPage() {
                           onValueChange={(value) => handleStatusSelection(item, value)}
                           disabled={Boolean(updatingLeadIds[item.id])}
                         >
-                          <SelectTrigger className="h-10 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-base font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0 disabled:opacity-50">
+                          <SelectTrigger
+                            className={cn(
+                              "w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0 disabled:opacity-50",
+                              embedded ? "h-8 text-sm" : "h-10 text-base"
+                            )}
+                          >
                             <SelectValue placeholder={item.workflowStatusLabel} />
                           </SelectTrigger>
                           <SelectContent className="rounded-none border-zinc-300 shadow-2xl">
@@ -1811,14 +1934,21 @@ export default function MyLeadsPage() {
                             Updating status
                           </span>
                         ) : null}
-                        <div className="mt-auto pt-3">
+                        <div className={cn("mt-auto", embedded ? "pt-1" : "pt-3")}>
                           {item.workflowComment ? (
-                            <button type="button" onClick={() => void openHistory(item)} className="mb-2 block w-full border-l border-zinc-300 pl-3 text-left transition-colors hover:border-zinc-900">
-                              <span className="line-clamp-2 text-xs font-light leading-relaxed text-zinc-500">
+                            <button
+                              type="button"
+                              onClick={() => void openHistory(item)}
+                              className={cn(
+                                "block w-full border-l border-zinc-300 text-left transition-colors hover:border-zinc-900",
+                                embedded ? "mb-1 pl-2" : "mb-2 pl-3"
+                              )}
+                            >
+                              <span className={cn("font-light text-zinc-500", embedded ? "line-clamp-1 text-[10px] leading-4" : "line-clamp-2 text-xs leading-relaxed")}>
                                 {item.workflowComment}
                               </span>
                               {item.workflowCommentUpdatedAt ? (
-                                <span className="mt-1 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+                                <span className={cn("mt-1 items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400", embedded ? "hidden" : "flex")}>
                                   <Clock3 className="h-3 w-3" />
                                   {item.workflowCommentUpdatedAt}
                                 </span>
@@ -1826,35 +1956,45 @@ export default function MyLeadsPage() {
                             </button>
                           ) : null}
                           <div className="flex flex-wrap gap-x-3 gap-y-1">
-                            <button type="button" onClick={() => void openHistory(item)} className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950">
+                            <button type="button" onClick={() => void openHistory(item)} className={cn("inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950", embedded ? "text-[10px]" : "text-xs")}>
                               <History className="h-3.5 w-3.5" />
                               {item.workflowCommentHistoryCount > 0
                                 ? `${item.workflowCommentHistoryCount} comment${item.workflowCommentHistoryCount === 1 ? "" : "s"}`
                                 : "Comment history"}
                             </button>
-                            <button
-                              type="button"
-                              disabled={Boolean(updatingLeadIds[item.id])}
-                              onClick={() => {
-                                setPendingStatusChange({ item, nextStatus: item.workflowStatus });
-                                setStatusComment("");
-                              }}
-                              className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-xs font-medium text-blue-600 transition-colors hover:border-blue-700 hover:text-blue-800 disabled:opacity-50"
-                            >
-                              <MessageSquare className="h-3.5 w-3.5" />
-                              Add comment
-                            </button>
+                            {!embedded ? (
+                              <button
+                                type="button"
+                                disabled={Boolean(updatingLeadIds[item.id])}
+                                onClick={() => {
+                                  setPendingStatusChange({ item, nextStatus: item.workflowStatus });
+                                  setStatusComment("");
+                                }}
+                                className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-xs font-medium text-blue-600 transition-colors hover:border-blue-700 hover:text-blue-800 disabled:opacity-50"
+                              >
+                                <MessageSquare className="h-3.5 w-3.5" />
+                                Add comment
+                              </button>
+                            ) : null}
                           </div>
                         </div>
                       </div>
-                      </div>
-                    );
-                  })}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
 
-            <footer className="mt-6 flex shrink-0 flex-col gap-5 border-t border-zinc-100 pb-20 pt-8 sm:flex-row sm:items-center sm:justify-between sm:pb-4 sm:pr-16">
+            <footer
+              className={cn(
+                "flex shrink-0 flex-col border-t border-zinc-100 sm:flex-row sm:items-center sm:justify-between",
+                embedded
+                  ? "mt-2 gap-3 py-2 sm:pr-20"
+                  : "mt-6 gap-5 pb-20 pt-8 sm:pb-4 sm:pr-16"
+              )}
+            >
               <div className="space-y-1">
                 <p className="text-xs font-medium text-zinc-400">Lead sheet range</p>
                 <p className="text-lg font-light tabular-nums tracking-tight text-zinc-950">

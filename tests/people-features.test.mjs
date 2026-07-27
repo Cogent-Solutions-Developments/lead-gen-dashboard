@@ -192,6 +192,35 @@ test("KPI activities show comments only when present with author, time and histo
   }
 });
 
+test("manager performance uses the CEO detail hierarchy without redundant report panels", () => {
+  const source = read("app/manager/user-performance/page.tsx");
+
+  assert.match(source, /const PERFORMANCE_CARD_CLASS/);
+  assert.match(source, />Department Performance</);
+  assert.match(source, /aria-label="Team users"/);
+  assert.match(source, /lg:grid-cols-\[16rem_minmax\(0,1fr\)\]/);
+  assert.match(source, /\.slice\(0, 1\)\.toUpperCase\(\)/);
+  assert.match(source, /item\.isActive \? "bg-emerald-500" : "bg-zinc-400"/);
+  assert.match(source, /border-blue-200 bg-blue-50/);
+  assert.match(source, /function PerformanceMixSection/);
+  assert.match(source, /aria-label=\{`Performance mix:/);
+  assert.match(source, /<PieChart>/);
+  assert.match(source, /selectedMetric/);
+  assert.match(source, /activePercentage/);
+  assert.match(source, /aria-labelledby="performance-mix-title"/);
+  assert.match(source, /if \(normalized === "workflow-status"\) return "Status"/);
+  assert.match(source, /placeholder="Filter by status"/);
+  assert.match(source, /function statusTextClass/);
+  assert.match(source, /statusTextClass\(\s*lead\.currentWorkflowStatus\s*\)/);
+  assert.doesNotMatch(source, /Department overview/);
+  assert.match(source, />Recent activity and comments</);
+  assert.match(source, /max-h-\[42rem\][\s\S]*overflow-y-auto/);
+  assert.doesNotMatch(source, /Manager Control/);
+  assert.doesNotMatch(source, /<h2[^>]*>Window<\/h2>/);
+  assert.doesNotMatch(source, /<h2[^>]*>Scope<\/h2>/);
+  assert.doesNotMatch(source, /snapshot\.linkedinUrl/);
+});
+
 test("admin performance stays focused and includes activity context", () => {
   const source = read("app/admin/user-performance/page.tsx");
   assert.match(source, /fetchUserActivity/);
@@ -241,7 +270,7 @@ test("KPI activities tolerate legacy records without an activity type", () => {
   const manager = read("app/manager/user-performance/page.tsx");
   const authModels = read("lib/auth.ts");
   assert.match(manager, /activityTypeLabel\(activity\.type\)/);
-  assert.match(manager, /textValue\(value, "Activity"\)\.replaceAll/);
+  assert.match(manager, /textValue\(value, "Activity"\)\.toLowerCase\(\)/);
   assert.match(manager, /activity\.type \|\| "activity"/);
   assert.match(authModels, /type\?:[\s\S]*?string \| null/);
 });

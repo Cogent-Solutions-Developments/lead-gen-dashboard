@@ -44,7 +44,12 @@ function isAdminAreaPath(pathname: string) {
 }
 
 function isManagerOnlyPath(pathname: string) {
-  return pathname === "/manager" || pathname.startsWith("/manager/");
+  return (
+    pathname === "/manager" ||
+    pathname.startsWith("/manager/") ||
+    pathname === "/team-leads" ||
+    pathname.startsWith("/team-leads/")
+  );
 }
 
 function isCeoAllowedAdminPath(pathname: string) {

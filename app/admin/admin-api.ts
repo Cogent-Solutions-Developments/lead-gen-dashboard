@@ -45,6 +45,8 @@ export type AuthUserUpdateInput = {
   role?: AuthRole;
   fullName?: string;
   isActive?: boolean;
+  lifecycleStatus?: "active" | "inactive" | "resigned" | "terminated";
+  deactivationReason?: string;
 };
 
 export type AdminEventItem = BaseAdminEventItem & {
@@ -379,6 +381,9 @@ function normalizeAdminUser(raw: unknown): AuthUser {
   const updatedAt = source.updatedAt ?? source.updated_at;
   const lastLoginAt = source.lastLoginAt ?? source.last_login_at;
   const mfaEnabled = source.mfaEnabled ?? source.mfa_enabled;
+  const lifecycleStatus = source.lifecycleStatus ?? source.lifecycle_status;
+  const deactivatedAt = source.deactivatedAt ?? source.deactivated_at;
+  const deactivationReason = source.deactivationReason ?? source.deactivation_reason;
 
   return {
     id: String(source.id || ""),
@@ -400,6 +405,14 @@ function normalizeAdminUser(raw: unknown): AuthUser {
     lastLoginAt: lastLoginAt == null ? null : String(lastLoginAt),
     email: source.email == null ? "" : String(source.email),
     mfaEnabled: typeof mfaEnabled === "boolean" ? mfaEnabled : undefined,
+    lifecycleStatus:
+      lifecycleStatus === "inactive" || lifecycleStatus === "resigned" || lifecycleStatus === "terminated"
+        ? lifecycleStatus
+        : isActive === false
+          ? "inactive"
+          : "active",
+    deactivatedAt: deactivatedAt == null ? null : String(deactivatedAt),
+    deactivationReason: deactivationReason == null ? "" : String(deactivationReason),
   };
 }
 
@@ -536,9 +549,27 @@ export async function recoverAuthUserAccount(userId: string, password: string) {
 }
 
 export async function deleteAuthUser(userId: string) {
-  await adminAuthRequest<{ deleted: boolean; user: AuthUser }>(`/api/auth/users/${userId}`, {
+  const data = await adminAuthRequest<{
+    deleted: boolean;
+    deactivated?: boolean;
+    retained?: boolean;
+    user: AuthUser;
+  }>(`/api/auth/users/${userId}`, {
     method: "DELETE",
   });
+  return { ...data, user: normalizeAdminUser(data.user) };
+}
+
+export async function permanentlyDeleteAuthUser(userId: string, confirmation: string) {
+  const data = await adminAuthRequest<{
+    deleted: true;
+    deactivated: false;
+    user: AuthUser;
+  }>(`/api/auth/users/${encodeURIComponent(userId)}/permanent-delete`, {
+    method: "POST",
+    body: JSON.stringify({ confirmation }),
+  });
+  return { ...data, user: normalizeAdminUser(data.user) };
 }
 
 export async function listAdminEvents(includeInactive = true) {
