@@ -18,11 +18,14 @@ import {
   Loader2,
   LockKeyhole,
   Search,
+  SlidersHorizontal,
   UserRound,
+  UserRoundX,
   UsersRound,
   X,
 } from "lucide-react";
 import { MyLeadsWorkspace } from "@/app/my-leads/page";
+import { UserAvatar } from "@/components/profile/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -64,11 +67,38 @@ function memberStatusDotClass(status: TeamLeadLifecycleStatus) {
   return "bg-zinc-400";
 }
 
-function formatDateTime(value?: string | null) {
-  if (!value) return "Time unavailable";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString();
+function memberDeactivatedIconClass(status: TeamLeadLifecycleStatus) {
+  return status === "terminated" ? "text-rose-600" : "text-amber-600";
+}
+
+function formatTimeWindow(startValue?: string | null, endValue?: string | null) {
+  if (!startValue) return "Time unavailable";
+  const start = new Date(startValue);
+  if (Number.isNaN(start.getTime())) return startValue;
+
+  const date = new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  const time = new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const end = endValue ? new Date(endValue) : null;
+  if (!end || Number.isNaN(end.getTime()) || end.getTime() === start.getTime()) {
+    return `${date.format(start)} · ${time.format(start)}`;
+  }
+
+  const sameDate =
+    start.getFullYear() === end.getFullYear() &&
+    start.getMonth() === end.getMonth() &&
+    start.getDate() === end.getDate();
+  if (sameDate) {
+    return `${date.format(start)} · ${time.format(start)} – ${time.format(end)}`;
+  }
+  return `${date.format(start)}, ${time.format(start)} – ${date.format(end)}, ${time.format(end)}`;
 }
 
 function humanize(value: string) {
@@ -79,12 +109,26 @@ function humanize(value: string) {
     .toLowerCase();
 }
 
+function actionLabel(value: string) {
+  const label = humanize(value).replace(/\bworkflow status\b/g, "status");
+  return label ? `${label.charAt(0).toUpperCase()}${label.slice(1)}` : "Action";
+}
+
 function actionSentence(item: TeamLeadAction) {
   const actor = item.actor?.fullName || item.actor?.username || "A manager";
   const owner = item.owner?.fullName || item.owner?.username || "the selected member";
   const entity = humanize(item.entityType || "record");
-  const action = humanize(item.action || "updated");
+  const action = actionLabel(item.action || "updated").toLowerCase();
   return `${actor} ${action} for ${entity === "lead" ? "a lead" : `a ${entity}`} owned by ${owner}.`;
+}
+
+function outcomeLabel(outcome: string) {
+  const normalized = outcome.toLowerCase();
+  if (normalized === "succeeded") return "Completed";
+  if (normalized === "started") return "In progress";
+  if (normalized === "denied") return "Not allowed";
+  if (normalized === "failed") return "Failed";
+  return "Status unavailable";
 }
 
 function outcomeClasses(outcome: string) {
@@ -276,6 +320,8 @@ export default function TeamLeadsPage() {
   const [activeTab, setActiveTab] = useState<"leads" | "history">("leads");
   const [actionFilter, setActionFilter] = useState("");
   const [outcomeFilter, setOutcomeFilter] = useState("");
+  const [historyFiltersOpen, setHistoryFiltersOpen] = useState(false);
+  const [historyActionOptions, setHistoryActionOptions] = useState<string[]>([]);
   const [historyItems, setHistoryItems] = useState<TeamLeadAction[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
@@ -332,6 +378,8 @@ export default function TeamLeadsPage() {
       setActiveTab("leads");
       setActionFilter("");
       setOutcomeFilter("");
+      setHistoryFiltersOpen(false);
+      setHistoryActionOptions([]);
       setHistoryItems([]);
       setHistoryError("");
       historyRequestRef.current += 1;
@@ -454,6 +502,17 @@ export default function TeamLeadsPage() {
         });
         if (requestId !== historyRequestRef.current) return;
         setHistoryItems((current) => (append ? [...current, ...response.actions] : response.actions));
+        if (!actionFilter.trim()) {
+          const receivedActions = response.actions
+            .map((item) => item.action.trim())
+            .filter(Boolean);
+          setHistoryActionOptions((current) => {
+            const options = append ? [...current, ...receivedActions] : receivedActions;
+            return Array.from(new Set(options)).sort((left, right) =>
+              actionLabel(left).localeCompare(actionLabel(right))
+            );
+          });
+        }
         setHistoryHasMore(response.pagination.hasMore);
       } catch (error: unknown) {
         if (requestId !== historyRequestRef.current) return;
@@ -562,12 +621,14 @@ export default function TeamLeadsPage() {
                 <div role="listbox" aria-label="Team members" className="space-y-1">
                   {members.map((member) => {
                     const selected = selectedMember?.id === member.id;
+                    const inactive = isInactiveTeamLeadMember(member);
                     return (
                       <button
                         key={member.id}
                         type="button"
                         role="option"
                         aria-selected={selected}
+                        aria-label={`${memberName(member)}, ${member.lifecycleStatus}`}
                         disabled={!member.access.canView}
                         onClick={() => selectMember(member)}
                         onKeyDown={(event) => handleMemberKeyDown(event, member)}
@@ -579,16 +640,16 @@ export default function TeamLeadsPage() {
                           !member.access.canView && "cursor-not-allowed opacity-50"
                         )}
                       >
-                        <span
+                        <UserAvatar
+                          user={member}
+                          size="md"
                           className={cn(
-                            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-semibold shadow-sm",
+                            "!h-9 !w-9 !rounded-lg shadow-sm",
                             selected
-                              ? "bg-blue-600 text-white"
-                              : "border border-zinc-200 bg-white text-zinc-700"
+                              ? "!border-blue-600 !bg-blue-600 !text-white"
+                              : "!border-zinc-200 !bg-white !text-zinc-700"
                           )}
-                        >
-                          {memberName(member).slice(0, 1).toUpperCase()}
-                        </span>
+                        />
                         <span className="min-w-0 flex-1 text-left">
                           <span className="block truncate">{memberName(member)}</span>
                           <span className="mt-0.5 flex items-center gap-1.5 truncate text-xs font-normal text-zinc-500">
@@ -602,6 +663,22 @@ export default function TeamLeadsPage() {
                             {member.username}
                           </span>
                         </span>
+                        {inactive ? (
+                          <span
+                            className={cn(
+                              "group relative inline-flex h-6 w-6 shrink-0 items-center justify-center",
+                              memberDeactivatedIconClass(member.lifecycleStatus)
+                            )}
+                          >
+                            <UserRoundX className="h-4.5 w-4.5 stroke-[2.25]" aria-hidden="true" />
+                            <span
+                              role="tooltip"
+                              className="pointer-events-none invisible absolute right-0 top-full z-40 mt-0 w-max translate-y-1 text-[11px] font-normal text-current opacity-0 transition-all group-hover:visible group-hover:translate-y-0 group-hover:opacity-100"
+                            >
+                              Deactivated user
+                            </span>
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
@@ -647,15 +724,9 @@ export default function TeamLeadsPage() {
               </div>
             ) : (
               <>
-                {isInactiveTeamLeadMember(selectedMember) ? (
-                  <div className="flex shrink-0 gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-950">
-                    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
-                    <p>
-                      {memberName(selectedMember)} is {selectedMember.lifecycleStatus} and cannot sign in. You are
-                      managing their retained leads. All actions will be recorded under your manager account.
-                    </p>
-                  </div>
-                ) : !selectedMember.access.canManage && !selectedMember.access.takeoverRequired ? (
+                {!isInactiveTeamLeadMember(selectedMember) &&
+                !selectedMember.access.canManage &&
+                !selectedMember.access.takeoverRequired ? (
                   <div className="flex shrink-0 gap-3 rounded-2xl border border-zinc-300 bg-zinc-100 px-5 py-4 text-sm text-zinc-700">
                     <LockKeyhole className="h-5 w-5 shrink-0" />
                     Your current pipeline permissions allow viewing only. Modifying controls remain protected.
@@ -665,8 +736,9 @@ export default function TeamLeadsPage() {
                 <div
                   className={cn(
                     "flex shrink-0 flex-col gap-3 border-b border-zinc-300 sm:flex-row sm:items-center sm:justify-between sm:gap-4",
-                    isInactiveTeamLeadMember(selectedMember) ||
-                      (!selectedMember.access.canManage && !selectedMember.access.takeoverRequired)
+                    !isInactiveTeamLeadMember(selectedMember) &&
+                      !selectedMember.access.canManage &&
+                      !selectedMember.access.takeoverRequired
                       ? "mt-4"
                       : ""
                   )}
@@ -767,43 +839,69 @@ export default function TeamLeadsPage() {
                     data-query-cache-key={historyCacheKey}
                     className="mt-5 overflow-hidden rounded-2xl border border-zinc-300 bg-white xl:min-h-0 xl:flex-1"
                   >
-                    <div className="flex flex-col gap-4 border-b border-zinc-200 p-5 lg:flex-row lg:items-end lg:justify-between">
+                    <div className="flex items-center justify-between gap-4 border-b border-zinc-200 p-5">
                       <div>
                         <h3 className="text-lg font-semibold text-zinc-950">Action history</h3>
-                        <p className="mt-1 text-sm text-zinc-500">Audited manager actions for {memberName(selectedMember)}.</p>
                       </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div>
-                          <label htmlFor="team-lead-action-filter" className="mb-1 block text-xs font-semibold uppercase text-zinc-500">
-                            Action
-                          </label>
-                          <Input
+                      <button
+                        type="button"
+                        aria-label="Toggle action history filters"
+                        aria-controls="team-lead-history-filters"
+                        aria-expanded={historyFiltersOpen}
+                        title="Filters"
+                        onClick={() => setHistoryFiltersOpen((current) => !current)}
+                        className={cn(
+                          "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+                          historyFiltersOpen || actionFilter || outcomeFilter
+                            ? "border-blue-200 bg-blue-50 text-blue-700"
+                            : "border-zinc-200 bg-white text-zinc-500 hover:border-blue-200 hover:text-blue-700"
+                        )}
+                      >
+                        <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+                        {actionFilter || outcomeFilter ? (
+                          <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-blue-600" aria-hidden="true" />
+                        ) : null}
+                      </button>
+                    </div>
+
+                    {historyFiltersOpen ? (
+                      <div
+                        id="team-lead-history-filters"
+                        className="grid gap-3 border-b border-zinc-200 bg-zinc-50/70 p-4 sm:grid-cols-2"
+                      >
+                        <label className="grid gap-1.5 text-xs font-semibold text-zinc-600">
+                          Action
+                          <select
                             id="team-lead-action-filter"
                             value={actionFilter}
                             onChange={(event) => setActionFilter(event.target.value)}
-                            placeholder="e.g. workflow_status"
-                            className="h-10 w-full border-zinc-300 bg-white sm:w-52"
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="team-lead-outcome-filter" className="mb-1 block text-xs font-semibold uppercase text-zinc-500">
-                            Outcome
-                          </label>
+                            className="h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-800 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                          >
+                            <option value="">All actions</option>
+                            {historyActionOptions.map((action) => (
+                              <option key={action} value={action}>
+                                {actionLabel(action)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="grid gap-1.5 text-xs font-semibold text-zinc-600">
+                          Outcome
                           <select
                             id="team-lead-outcome-filter"
                             value={outcomeFilter}
                             onChange={(event) => setOutcomeFilter(event.target.value)}
-                            className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 sm:w-44"
+                            className="h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-800 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                           >
                             <option value="">All outcomes</option>
-                            <option value="started">Started</option>
-                            <option value="succeeded">Succeeded</option>
-                            <option value="denied">Denied</option>
+                            <option value="started">In progress</option>
+                            <option value="succeeded">Completed</option>
+                            <option value="denied">Not allowed</option>
                             <option value="failed">Failed</option>
                           </select>
-                        </div>
+                        </label>
                       </div>
-                    </div>
+                    ) : null}
 
                     <div className="p-5">
                       {historyLoading ? (
@@ -838,17 +936,14 @@ export default function TeamLeadsPage() {
                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                   <p className="max-w-3xl text-sm font-medium leading-6 text-zinc-900">{actionSentence(item)}</p>
                                   <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold", outcomeClasses(item.outcome))}>
-                                    {item.outcome || "Unknown outcome"}
+                                    {outcomeLabel(item.outcome)}
                                   </span>
                                 </div>
                                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
-                                  <span className="inline-flex items-center gap-1">
+                                  <span className="inline-flex items-center gap-1.5" aria-label="Time window">
                                     <Clock3 className="h-3.5 w-3.5" />
-                                    {formatDateTime(item.createdAt)}
+                                    {formatTimeWindow(item.createdAt, item.completedAt)}
                                   </span>
-                                  {item.completedAt ? <span>Completed {formatDateTime(item.completedAt)}</span> : null}
-                                  {item.statusCode != null ? <span>HTTP {item.statusCode}</span> : null}
-                                  {item.entityId ? <span>{item.entityType || "entity"} #{item.entityId}</span> : null}
                                 </div>
                                 {item.reason ? (
                                   <p className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm leading-6 text-zinc-600">

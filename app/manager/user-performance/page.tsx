@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { toast } from "sonner";
+import { UserAvatar } from "@/components/profile/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -540,16 +541,16 @@ export default function ManagerUserPerformancePage() {
                           : "border-transparent text-zinc-600 hover:border-blue-100 hover:bg-white hover:text-blue-700",
                       ].join(" ")}
                     >
-                      <span
+                      <UserAvatar
+                        user={item}
+                        size="md"
                         className={[
-                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-semibold shadow-sm",
+                          "!h-9 !w-9 !rounded-lg shadow-sm",
                           selected
-                            ? "bg-blue-600 text-white"
-                            : "border border-zinc-200 bg-white text-zinc-700",
+                            ? "!border-blue-600 !bg-blue-600 !text-white"
+                            : "!border-zinc-200 !bg-white !text-zinc-700",
                         ].join(" ")}
-                      >
-                        {(item.fullName || item.username || "U").slice(0, 1).toUpperCase()}
-                      </span>
+                      />
                       <span className="min-w-0 flex-1 text-left">
                         <span className="block truncate">{item.fullName || item.username}</span>
                         <span className="mt-0.5 flex items-center gap-1.5 truncate text-xs font-normal text-zinc-500">

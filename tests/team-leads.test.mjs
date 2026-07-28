@@ -116,10 +116,20 @@ test("Team Leads member selection reuses the performance selector design", () =>
   const page = read("app/team-leads/page.tsx");
 
   assert.match(page, /memberStatusDotClass/);
-  assert.match(page, /memberName\(member\)\.slice\(0, 1\)\.toUpperCase\(\)/);
+  assert.match(page, /<UserAvatar[\s\S]*?user=\{member\}/);
   assert.match(page, /border-blue-200 bg-blue-50 text-blue-800 shadow-sm/);
   assert.match(page, /memberStatusDotClass\(member\.lifecycleStatus\)/);
+  assert.match(page, /<UserRoundX/);
+  assert.match(page, /memberDeactivatedIconClass\(member\.lifecycleStatus\)/);
+  assert.match(page, /role="tooltip"[\s\S]*?Deactivated user/);
+  assert.match(page, /role="tooltip"[\s\S]*?text-current/);
+  assert.doesNotMatch(page, /role="tooltip"[\s\S]{0,250}rounded-lg border border-zinc-200 bg-white/);
+  assert.doesNotMatch(page, /<Slash/);
+  assert.match(page, /status === "terminated" \? "text-rose-600" : "text-amber-600"/);
+  assert.doesNotMatch(page, /grayscale opacity-60/);
+  assert.match(page, /aria-label=\{`\$\{memberName\(member\)\}, \$\{member\.lifecycleStatus\}`\}/);
   assert.doesNotMatch(page, /function StatusBadge/);
+  assert.doesNotMatch(page, /cannot sign in\. You are/);
 });
 
 test("member pagination stays at the bottom of the department panel", () => {
@@ -272,13 +282,16 @@ test("switching members clears takeover state instead of leaking the prior reaso
   teamLeads.clearTeamLeadRequestScope();
 });
 
-test("activity history renders actor, owner, action, outcome, and time", () => {
+test("activity history renders actor, owner, action, outcome, and a safe time window", () => {
   const page = read("app/team-leads/page.tsx");
   assert.match(page, /item\.actor\?\.fullName \|\| item\.actor\?\.username/);
   assert.match(page, /item\.owner\?\.fullName \|\| item\.owner\?\.username/);
   assert.match(page, /item\.action/);
   assert.match(page, /item\.outcome/);
-  assert.match(page, /formatDateTime\(item\.createdAt\)/);
+  assert.match(page, /formatTimeWindow\(item\.createdAt, item\.completedAt\)/);
+  assert.match(page, /aria-label="Time window"/);
+  assert.doesNotMatch(page, /HTTP \{item\.statusCode\}/);
+  assert.doesNotMatch(page, /#\{item\.entityId\}/);
   assert.match(page, /listTeamLeadActions/);
   assert.match(page, /Load more/);
 });
@@ -287,12 +300,14 @@ test("member and audit responses normalize lifecycle and userId identities", () 
   const inactive = teamLeads.normalizeTeamLeadMember({
     id: "member-3",
     username: "nimal",
+    avatar_url: "/api/profile/avatar/member-3",
     isActive: false,
     lifecycleStatus: "resigned",
     access: { canView: true, canManage: false, takeoverRequired: false },
   });
   assert.equal(inactive.lifecycleStatus, "resigned");
   assert.equal(inactive.isActive, false);
+  assert.equal(inactive.avatarUrl, "/api/profile/avatar/member-3");
   assert.equal(inactive.access.canView, true);
 
   const action = teamLeads.normalizeTeamLeadAction({
@@ -363,6 +378,11 @@ test("action history renders started, succeeded, denied, and failed outcomes", (
   for (const outcome of ["started", "succeeded", "denied", "failed"]) {
     assert.match(page, new RegExp(`value="${outcome}"`));
   }
+  assert.match(page, /function outcomeLabel/);
+  assert.match(page, /function actionLabel[\s\S]*?replace\(\/\\bworkflow status\\b\/g, "status"\)/);
+  assert.match(page, /aria-label="Toggle action history filters"/);
+  assert.match(page, /id="team-lead-history-filters"/);
+  assert.doesNotMatch(page, /placeholder="e\.g\. workflow_status"/);
   assert.match(page, />Action history</);
 });
 

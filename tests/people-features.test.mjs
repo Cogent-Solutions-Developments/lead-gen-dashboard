@@ -204,7 +204,7 @@ test("manager performance uses the CEO detail hierarchy without redundant report
   assert.match(source, /aria-label="Toggle performance filters"/);
   assert.match(source, /aria-controls="department-performance-filters"/);
   assert.match(source, /filterPanelOpen \? \(/);
-  assert.match(source, /\.slice\(0, 1\)\.toUpperCase\(\)/);
+  assert.match(source, /<UserAvatar[\s\S]*?user=\{item\}/);
   assert.match(source, /item\.isActive \? "bg-emerald-500" : "bg-zinc-400"/);
   assert.match(source, /border-blue-200 bg-blue-50/);
   assert.match(source, /function PerformanceChartSection/);

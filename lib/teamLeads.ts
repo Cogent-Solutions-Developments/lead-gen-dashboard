@@ -13,6 +13,7 @@ export type TeamLeadMember = {
   username: string;
   fullName: string;
   email: string;
+  avatarUrl: string;
   role: string;
   isActive: boolean;
   lifecycleStatus: TeamLeadLifecycleStatus;
@@ -128,6 +129,7 @@ export function normalizeTeamLeadMember(value: unknown): TeamLeadMember {
     username: text(source.username),
     fullName: text(source.fullName ?? source.full_name),
     email: text(source.email),
+    avatarUrl: text(source.avatarUrl ?? source.avatar_url),
     role: text(source.role),
     isActive: isActive && lifecycleStatus === "active",
     lifecycleStatus,
