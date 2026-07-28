@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
+  BarChart3,
   CalendarDays,
   Loader2,
   RefreshCw,
@@ -10,7 +11,18 @@ import {
   SlidersHorizontal,
   UsersRound,
 } from "lucide-react";
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { toast } from "sonner";
 import { UserAvatar } from "@/components/profile/UserAvatar";
 import { Button } from "@/components/ui/button";
@@ -22,6 +34,10 @@ import {
   type ManagerPerformancePeriod,
   type ManagerPerformanceResponse,
 } from "@/lib/auth";
+import {
+  fetchManagerUserActivity,
+} from "@/lib/peopleApi";
+import { formatEngagedDuration } from "@/lib/peopleUtils";
 
 const PERIOD_OPTIONS: Array<{ value: ManagerPerformancePeriod; label: string }> = [
   { value: "daily", label: "Daily" },
@@ -32,6 +48,16 @@ const PERIOD_OPTIONS: Array<{ value: ManagerPerformancePeriod; label: string }> 
 
 const PERFORMANCE_CARD_CLASS =
   "rounded-lg border border-zinc-200/80 bg-white/95 shadow-[0_22px_46px_-38px_rgba(37,99,235,0.28),inset_0_1px_0_rgba(255,255,255,0.95)]";
+
+type VersionUsage = { light: number; heavy: number };
+type VersionUsageByUser = Record<string, VersionUsage>;
+type PerformanceSection = "overview" | "members" | "activity";
+
+const PERFORMANCE_SECTIONS = [
+  { id: "overview" as const, label: "Overview", icon: BarChart3 },
+  { id: "members" as const, label: "Members", icon: UsersRound },
+  { id: "activity" as const, label: "Activity", icon: Activity },
+];
 
 function todayValue() {
   const now = new Date();
@@ -64,6 +90,41 @@ function formatNumber(value: unknown) {
 function textValue(value?: string | null, fallback = "-") {
   const normalized = String(value || "").trim();
   return normalized || fallback;
+}
+
+async function fetchManagerVersionUsage(
+  dateValue: string,
+  period: ManagerPerformancePeriod
+): Promise<VersionUsageByUser> {
+  const year = Number(dateValue.slice(0, 4)) || new Date().getFullYear();
+  const windows =
+    period === "yearly"
+      ? Array.from({ length: 12 }, (_, index) => ({
+          date: `${year}-${String(index + 1).padStart(2, "0")}-01`,
+          period: "monthly" as const,
+        }))
+      : [{ date: dateValue, period }];
+  const responses = await Promise.all(
+    windows.map((window) =>
+      fetchManagerUserActivity({
+        date: window.date,
+        period: window.period,
+        limit: 500,
+        offset: 0,
+      })
+    )
+  );
+
+  return responses.reduce<VersionUsageByUser>((usageByUser, response) => {
+    response.users.forEach((item) => {
+      const current = usageByUser[item.userId] || { light: 0, heavy: 0 };
+      usageByUser[item.userId] = {
+        light: current.light + Number(item.frontendUsage?.light?.engagedSeconds || 0),
+        heavy: current.heavy + Number(item.frontendUsage?.heavy?.engagedSeconds || 0),
+      };
+    });
+    return usageByUser;
+  }, {});
 }
 
 function leadName(activity: ManagerPerformanceActivity) {
@@ -106,137 +167,189 @@ function PerformanceChartSection({
   leads,
   manual,
   kpi,
+  lightSeconds,
+  heavySeconds,
 }: {
   activity?: number;
   leads?: number;
   manual?: number;
   kpi?: number;
+  lightSeconds?: number;
+  heavySeconds?: number;
 }) {
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
-  const [hoveredMetric, setHoveredMetric] = useState<string | null>(null);
+  const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
   const metrics = [
     { name: "Activity", value: Number(activity || 0), color: "#2563eb" },
     { name: "Leads", value: Number(leads || 0), color: "#8b5cf6" },
     { name: "Manual", value: Number(manual || 0), color: "#10b981" },
     { name: "KPI", value: Number(kpi || 0), color: "#f59e0b" },
   ];
-  const chartData = metrics.filter((item) => item.value > 0);
-  const total = metrics.reduce((sum, item) => sum + item.value, 0);
-  const visibleData = chartData.length
-    ? chartData
-    : [{ name: "No activity", value: 1, color: "#e4e4e7" }];
-  const activeName = hoveredMetric || selectedMetric;
-  const activeMetric = metrics.find((item) => item.name === activeName) || null;
-  const activeValue = activeMetric?.value ?? total;
-  const activePercentage = activeMetric && total ? Math.round((activeMetric.value / total) * 100) : null;
+  const versions = [
+    { name: "Light", value: Number(lightSeconds || 0), color: "#2563eb" },
+    { name: "Heavy", value: Number(heavySeconds || 0), color: "#8b5cf6" },
+  ];
+  const versionTotal = versions.reduce((sum, item) => sum + item.value, 0);
+  const versionData = versionTotal
+    ? versions
+    : [{ name: "No usage", value: 1, color: "#e4e4e7" }];
+  const activeVersion = versions.find((item) => item.name === selectedVersion) || null;
 
   return (
     <section
-      className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-4 shadow-[0_26px_60px_-42px_rgba(37,99,235,0.38),inset_0_1px_0_rgba(255,255,255,0.95)] sm:p-6"
-      aria-label="Performance distribution"
+      className="h-full min-h-[22rem] overflow-hidden rounded-2xl border border-zinc-200 bg-white p-3 shadow-[0_26px_60px_-42px_rgba(37,99,235,0.38),inset_0_1px_0_rgba(255,255,255,0.95)] sm:p-4"
+      aria-label="Performance and system usage"
     >
-      <div className="grid gap-4 lg:grid-cols-[minmax(18rem,0.9fr)_minmax(20rem,1.1fr)] lg:items-center">
-        <div
-          className="relative mx-auto h-[clamp(16rem,60vw,24rem)] w-full min-w-0 max-w-[32rem]"
-          role="img"
-          aria-label={`Performance distribution: ${metrics.map((item) => `${item.name} ${item.value}`).join(", ")}`}
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={visibleData}
-                dataKey="value"
-                nameKey="name"
-                innerRadius="53%"
-                outerRadius="82%"
-                paddingAngle={chartData.length > 1 ? 3 : 0}
-                cornerRadius={7}
-                stroke="none"
-              >
-                {visibleData.map((item) => (
-                  <Cell
-                    key={item.name}
-                    fill={item.color}
-                    className="cursor-pointer transition-opacity"
-                    opacity={activeName && activeName !== item.name ? 0.3 : 1}
-                    onMouseEnter={() => setHoveredMetric(item.name)}
-                    onMouseLeave={() => setHoveredMetric(null)}
-                    onClick={() =>
-                      setSelectedMetric((current) => (current === item.name ? null : item.name))
-                    }
-                  />
-                ))}
-              </Pie>
-              {chartData.length ? (
+      <div className="grid h-full min-h-0 gap-3 xl:grid-cols-2">
+        <article className="flex min-h-[18rem] min-w-0 flex-col rounded-xl border border-zinc-200 bg-zinc-50/40 p-3 sm:p-4">
+          <h3 className="text-sm font-semibold text-slate-900">Performance</h3>
+          <div
+            className="mt-3 min-h-60 min-w-0 flex-1"
+            role="img"
+            aria-label={`Performance: ${metrics.map((item) => `${item.name} ${item.value}`).join(", ")}`}
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={metrics} margin={{ top: 10, right: 4, left: -20, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke="#e4e4e7" strokeDasharray="3 5" />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "#71717a", fontSize: 11, fontWeight: 600 }}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "#a1a1aa", fontSize: 10 }}
+                />
                 <Tooltip
-                  formatter={(value, name) => {
-                    const metric = metrics.find((item) => item.name === name);
-                    const percentage = metric && total ? Math.round((metric.value / total) * 100) : 0;
-                    return [`${formatNumber(value)} · ${percentage}%`, name];
-                  }}
+                  cursor={{ fill: "#eff6ff", radius: 8 }}
+                  formatter={(value) => [formatNumber(value), ""]}
                   contentStyle={{
                     borderRadius: "10px",
-                    borderColor: "#e4e4e7",
-                    boxShadow: "0 12px 30px -18px rgba(15, 23, 42, 0.45)",
+                    borderColor: "#dbeafe",
+                    boxShadow: "0 14px 30px -20px rgba(37, 99, 235, 0.55)",
                     fontSize: "12px",
                   }}
                 />
-              ) : null}
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-            <strong className="text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-              {formatNumber(activeValue)}
-            </strong>
-            <span className="mt-1 max-w-24 truncate text-xs font-semibold text-zinc-500">
-              {activeMetric?.name || "Total"}
-            </span>
-            {activePercentage != null ? (
-              <span className="mt-0.5 text-xs font-medium text-zinc-400">{activePercentage}%</span>
-            ) : null}
+                <Bar dataKey="value" radius={[7, 7, 2, 2]} maxBarSize={62}>
+                  {metrics.map((item) => (
+                    <Cell
+                      key={item.name}
+                      fill={item.color}
+                      className="cursor-pointer transition-opacity"
+                      opacity={selectedMetric && selectedMetric !== item.name ? 0.28 : 1}
+                      onClick={() =>
+                        setSelectedMetric((current) => (current === item.name ? null : item.name))
+                      }
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-        </div>
+        </article>
 
-        <div className="grid grid-cols-2 gap-2 sm:gap-3" aria-label="Performance metrics">
-          {metrics.map((item) => {
-            const percentage = total ? Math.round((item.value / total) * 100) : 0;
-            const active = activeName === item.name;
-            return (
-              <button
-                key={item.name}
-                type="button"
-                aria-pressed={selectedMetric === item.name}
-                onClick={() =>
-                  setSelectedMetric((current) => (current === item.name ? null : item.name))
-                }
-                onMouseEnter={() => setHoveredMetric(item.name)}
-                onMouseLeave={() => setHoveredMetric(null)}
-                onFocus={() => setHoveredMetric(item.name)}
-                onBlur={() => setHoveredMetric(null)}
-                className={[
-                  "min-w-0 rounded-xl border bg-zinc-50/70 p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:p-4",
-                  active
-                    ? "border-blue-200 bg-white shadow-[0_18px_36px_-28px_rgba(37,99,235,0.42)]"
-                    : "border-zinc-200 hover:border-blue-200 hover:bg-white",
-                ].join(" ")}
-                style={active ? { borderColor: item.color } : undefined}
-              >
-                <span className="flex min-w-0 items-center gap-2">
-                  <span
-                    className="h-2.5 w-2.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: item.color }}
-                    aria-hidden="true"
-                  />
-                  <span className="truncate text-xs font-semibold text-zinc-600">{item.name}</span>
-                  <span className="ml-auto text-xs tabular-nums text-zinc-400">{percentage}%</span>
-                </span>
-                <strong className="mt-3 block text-2xl font-semibold tabular-nums tracking-tight text-slate-950 sm:text-3xl">
-                  {formatNumber(item.value)}
+        <article className="flex min-h-[18rem] min-w-0 flex-col rounded-xl border border-zinc-200 bg-zinc-50/40 p-3 sm:p-4">
+          <h3 className="text-sm font-semibold text-slate-900">System usage</h3>
+          <div className="grid min-h-60 flex-1 items-center gap-2 sm:grid-cols-[minmax(12rem,1fr)_minmax(9rem,0.7fr)]">
+            <div
+              className="relative mx-auto h-full min-h-56 w-full max-w-md"
+              role="img"
+              aria-label={`System usage: Light ${formatEngagedDuration(versions[0].value)}, Heavy ${formatEngagedDuration(versions[1].value)}`}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={versionData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius="58%"
+                    outerRadius="82%"
+                    paddingAngle={versionTotal ? 4 : 0}
+                    cornerRadius={8}
+                    stroke="none"
+                  >
+                    {versionData.map((item) => (
+                      <Cell
+                        key={item.name}
+                        fill={item.color}
+                        className="cursor-pointer transition-opacity"
+                        opacity={selectedVersion && selectedVersion !== item.name ? 0.28 : 1}
+                        onClick={() => {
+                          if (item.name === "No usage") return;
+                          setSelectedVersion((current) =>
+                            current === item.name ? null : item.name
+                          );
+                        }}
+                      />
+                    ))}
+                  </Pie>
+                  {versionTotal ? (
+                    <Tooltip
+                      formatter={(value, name) => [
+                        formatEngagedDuration(Number(value || 0)),
+                        name,
+                      ]}
+                      contentStyle={{
+                        borderRadius: "10px",
+                        borderColor: "#dbeafe",
+                        boxShadow: "0 14px 30px -20px rgba(37, 99, 235, 0.55)",
+                        fontSize: "12px",
+                      }}
+                    />
+                  ) : null}
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+                <strong className="max-w-28 truncate text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">
+                  {formatEngagedDuration(activeVersion?.value ?? versionTotal)}
                 </strong>
-              </button>
-            );
-          })}
-        </div>
+                <span className="mt-1 text-[11px] font-semibold text-zinc-500">
+                  {activeVersion?.name || "Total"}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-1" aria-label="System usage totals">
+              {versions.map((item) => {
+                const percentage = versionTotal
+                  ? Math.round((item.value / versionTotal) * 100)
+                  : 0;
+                return (
+                  <button
+                    key={item.name}
+                    type="button"
+                    aria-pressed={selectedVersion === item.name}
+                    onClick={() =>
+                      setSelectedVersion((current) => (current === item.name ? null : item.name))
+                    }
+                    className={[
+                      "min-w-0 rounded-xl border bg-white p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+                      selectedVersion === item.name
+                        ? "border-blue-300 shadow-[0_16px_30px_-24px_rgba(37,99,235,0.6)]"
+                        : "border-zinc-200 hover:border-blue-200",
+                    ].join(" ")}
+                  >
+                    <span className="flex items-center gap-2 text-xs font-semibold text-zinc-600">
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{ backgroundColor: item.color }}
+                        aria-hidden="true"
+                      />
+                      {item.name}
+                      <span className="ml-auto text-zinc-400">{percentage}%</span>
+                    </span>
+                    <strong className="mt-2 block truncate text-base font-semibold tabular-nums text-slate-950">
+                      {formatEngagedDuration(item.value)}
+                    </strong>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </article>
       </div>
     </section>
   );
@@ -307,7 +420,9 @@ export default function ManagerUserPerformancePage() {
   const [workflowStatus, setWorkflowStatus] = useState("");
   const [eventKey, setEventKey] = useState("");
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<PerformanceSection>("overview");
   const [data, setData] = useState<ManagerPerformanceResponse | null>(null);
+  const [versionUsageByUser, setVersionUsageByUser] = useState<VersionUsageByUser>({});
   const [loading, setLoading] = useState(true);
 
   const canUseManagerView = isManagerRole(user?.role);
@@ -334,9 +449,22 @@ export default function ManagerUserPerformancePage() {
     }
   }, [date, eventKey, period, search, userId, workflowStatus]);
 
+  const loadVersionUsage = useCallback(async () => {
+    try {
+      setVersionUsageByUser(await fetchManagerVersionUsage(date, period));
+    } catch (error) {
+      toast.error("System usage failed to load", { description: getErrorMessage(error) });
+      setVersionUsageByUser({});
+    }
+  }, [date, period]);
+
   useEffect(() => {
     void loadPerformance();
   }, [loadPerformance]);
+
+  useEffect(() => {
+    void loadVersionUsage();
+  }, [loadVersionUsage]);
 
   const summary = data?.summary;
   const teamUsers = data?.teamUsers || [];
@@ -358,21 +486,29 @@ export default function ManagerUserPerformancePage() {
   const selectedManualLeadCount =
     selectedPerformance?.totals.manualLeadCount ?? summary?.manualLeadCount;
   const selectedKpiCount = selectedPerformance?.totals.kpiCount ?? summary?.kpiTotal;
+  const versionUsage = useMemo(
+    () => {
+      if (userId !== "all") return versionUsageByUser[userId] || { light: 0, heavy: 0 };
+      return Object.values(versionUsageByUser).reduce(
+        (totals, item) => ({
+          light: totals.light + item.light,
+          heavy: totals.heavy + item.heavy,
+        }),
+        { light: 0, heavy: 0 }
+      );
+    },
+    [userId, versionUsageByUser]
+  );
 
   return (
-    <main className="mx-auto min-h-[calc(100dvh-3rem)] w-full max-w-[112rem] overflow-x-hidden overflow-y-auto bg-transparent font-sans sm:p-1">
-      <header className={`${PERFORMANCE_CARD_CLASS} p-4 sm:p-5`}>
+    <main className="mx-auto flex h-[calc(100dvh-3rem)] min-h-0 w-full max-w-[112rem] flex-col overflow-hidden bg-transparent font-sans sm:p-1">
+      <header className={`${PERFORMANCE_CARD_CLASS} shrink-0 p-4 sm:p-5`}>
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
               User Performance
             </h1>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-zinc-500">
-              <span>
-                {data?.managerScope?.persona
-                  ? `${data.managerScope.managerName} · ${data.managerScope.persona} department`
-                  : "Department performance and lead activity"}
-              </span>
               <span className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-700">
                 <CalendarDays className="h-3.5 w-3.5" />
                 {windowText}
@@ -411,7 +547,10 @@ export default function ManagerUserPerformancePage() {
 
             <Button
               type="button"
-              onClick={() => void loadPerformance()}
+              onClick={() => {
+                void loadPerformance();
+                void loadVersionUsage();
+              }}
               disabled={loading}
               className="h-11 min-w-0 rounded-lg border border-blue-500/20 bg-blue-600 px-3 text-sm font-semibold text-white shadow-sm shadow-blue-200 hover:bg-blue-700 disabled:bg-blue-600/55 sm:px-5"
             >
@@ -435,14 +574,16 @@ export default function ManagerUserPerformancePage() {
 
       {loading && !data ? (
         <section
-          className={`${PERFORMANCE_CARD_CLASS} mt-5 flex min-h-64 items-center justify-center text-sm text-zinc-500`}
+          className={`${PERFORMANCE_CARD_CLASS} mt-5 flex min-h-0 flex-1 items-center justify-center text-sm text-zinc-500`}
         >
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           Loading manager performance...
         </section>
       ) : (
-        <section className={`${PERFORMANCE_CARD_CLASS} mt-5 overflow-hidden`}>
-          <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-4 sm:px-5">
+        <section
+          className={`${PERFORMANCE_CARD_CLASS} mt-5 flex min-h-0 flex-1 flex-col overflow-hidden`}
+        >
+          <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 px-4 py-4 sm:px-5">
             <h2 className="text-base font-semibold text-slate-950">Department Performance</h2>
             <button
               type="button"
@@ -498,12 +639,12 @@ export default function ManagerUserPerformancePage() {
             </div>
           ) : null}
 
-          <div className="grid overflow-hidden lg:grid-cols-[16rem_minmax(0,1fr)]">
+          <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] overflow-hidden lg:grid-cols-[16rem_minmax(0,1fr)] lg:grid-rows-1">
             <aside
-              className="border-b border-zinc-100 bg-zinc-50/70 p-3 lg:border-b-0 lg:border-r"
+              className="min-h-0 overflow-hidden border-b border-zinc-100 bg-zinc-50/70 p-3 lg:border-b-0 lg:border-r"
               aria-label="Team users"
             >
-              <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] lg:max-h-[54rem] lg:flex-col lg:overflow-y-auto [&::-webkit-scrollbar]:hidden">
+              <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] lg:h-full lg:min-h-0 lg:flex-col lg:overflow-x-hidden lg:overflow-y-auto lg:pr-1 lg:scrollbar-modern [&::-webkit-scrollbar]:hidden lg:[&::-webkit-scrollbar]:block">
                 <button
                   type="button"
                   aria-pressed={userId === "all"}
@@ -569,9 +710,9 @@ export default function ManagerUserPerformancePage() {
               </div>
             </aside>
 
-            <div className="min-w-0 p-3 sm:p-4">
+            <div className="flex min-h-0 min-w-0 flex-col overflow-hidden p-3 sm:p-4">
               {selectedTeamUser ? (
-                <div className="border-b border-zinc-100 pb-4">
+                <div className="shrink-0 border-b border-zinc-100 pb-4">
                   <h3 className="truncate text-xl font-semibold tracking-tight text-slate-950">
                     {selectedTeamUser.fullName || selectedTeamUser.username}
                   </h3>
@@ -579,14 +720,75 @@ export default function ManagerUserPerformancePage() {
                 </div>
               ) : null}
 
-              <PerformanceChartSection
-                activity={selectedActivityCount}
-                leads={selectedTouchedLeadCount}
-                manual={selectedManualLeadCount}
-                kpi={selectedKpiCount}
-              />
+              <nav
+                className="mt-4 flex min-w-0 shrink-0 gap-1 overflow-x-auto border-b border-zinc-200 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                role="tablist"
+                aria-label="Performance sections"
+              >
+                {PERFORMANCE_SECTIONS.map((section, index) => {
+                  const Icon = section.icon;
+                  const selected = activeSection === section.id;
+                  return (
+                    <button
+                      key={section.id}
+                      id={`performance-tab-${section.id}`}
+                      type="button"
+                      role="tab"
+                      aria-selected={selected}
+                      aria-controls={`performance-panel-${section.id}`}
+                      tabIndex={selected ? 0 : -1}
+                      onClick={() => setActiveSection(section.id)}
+                      onKeyDown={(event) => {
+                        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+                        event.preventDefault();
+                        const direction = event.key === "ArrowRight" ? 1 : -1;
+                        const nextIndex =
+                          (index + direction + PERFORMANCE_SECTIONS.length) %
+                          PERFORMANCE_SECTIONS.length;
+                        const nextSection = PERFORMANCE_SECTIONS[nextIndex];
+                        setActiveSection(nextSection.id);
+                        document.getElementById(`performance-tab-${nextSection.id}`)?.focus();
+                      }}
+                      className={[
+                        "relative inline-flex h-11 shrink-0 items-center gap-2 px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500",
+                        selected
+                          ? "text-blue-700 after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-blue-600"
+                          : "text-zinc-500 hover:bg-blue-50/60 hover:text-blue-700",
+                      ].join(" ")}
+                    >
+                      <Icon className="h-4 w-4" aria-hidden="true" />
+                      {section.label}
+                    </button>
+                  );
+                })}
+              </nav>
 
-              <div className="mt-4 rounded-xl border border-zinc-200 bg-white px-3 py-1 sm:px-4">
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1 scrollbar-modern">
+              {activeSection === "overview" ? (
+                <div
+                  id="performance-panel-overview"
+                  role="tabpanel"
+                  aria-labelledby="performance-tab-overview"
+                  className="h-full min-h-[22rem] py-4"
+                >
+                  <PerformanceChartSection
+                    activity={selectedActivityCount}
+                    leads={selectedTouchedLeadCount}
+                    manual={selectedManualLeadCount}
+                    kpi={selectedKpiCount}
+                    lightSeconds={versionUsage.light}
+                    heavySeconds={versionUsage.heavy}
+                  />
+                </div>
+              ) : null}
+
+              {activeSection === "members" ? (
+              <div
+                id="performance-panel-members"
+                role="tabpanel"
+                aria-labelledby="performance-tab-members"
+                className="mt-4 rounded-xl border border-zinc-200 bg-white px-3 py-1 sm:px-4"
+              >
                 {perUserPerformance.length ? (
                   perUserPerformance.map((item, index) => (
                     <article key={item.userId} className="border-b border-zinc-100 py-4 last:border-b-0">
@@ -672,8 +874,15 @@ export default function ManagerUserPerformancePage() {
                   </p>
                 )}
               </div>
+              ) : null}
 
-              <div className="mt-5 border-t border-zinc-100 pt-5">
+              {activeSection === "activity" ? (
+              <div
+                id="performance-panel-activity"
+                role="tabpanel"
+                aria-labelledby="performance-tab-activity"
+                className="mt-5"
+              >
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <div>
                     <h3 className="text-sm font-semibold text-slate-900">Recent activity and comments</h3>
@@ -685,7 +894,7 @@ export default function ManagerUserPerformancePage() {
                 </div>
 
                 {activities.length ? (
-                  <div className="max-h-[42rem] space-y-3 overflow-y-auto pr-2 scrollbar-modern">
+                  <div className="space-y-3 pr-1">
                     {activities.map((activity) => (
                       <ActivityRow
                         key={`${activity.type || "activity"}-${activity.id}`}
@@ -698,6 +907,8 @@ export default function ManagerUserPerformancePage() {
                     No activity details for this window.
                   </p>
                 )}
+              </div>
+              ) : null}
               </div>
             </div>
           </div>

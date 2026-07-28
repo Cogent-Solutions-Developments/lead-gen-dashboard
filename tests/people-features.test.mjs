@@ -84,6 +84,7 @@ test("notification polling and stale requests are cleaned up on unmount/logout",
   const center = read("components/notifications/NotificationCenter.tsx");
   const shell = read("components/layout/AppShell.tsx");
   assert.match(center, /setInterval\(\(\) => void load\(\), NOTIFICATION_POLL_MS\)/);
+  assert.match(center, /if \(open\) void load\(\)/);
   assert.match(center, /window\.clearInterval\(interval\)/);
   assert.match(center, /requestRef\.current\?\.abort\(\)/);
   assert.match(shell, /if \(!session\)/);
@@ -104,7 +105,8 @@ test("heartbeat hook has one interval, inactive transitions, keepalive and full 
   assert.match(source, /document\.visibilityState === "visible"/);
   assert.match(source, /document\.hasFocus\(\)/);
   assert.match(source, /report\(false, true\)/);
-  assert.match(source, /sendActivityHeartbeat\(\{ active: false \}, \{ keepalive: true \}\)/);
+  assert.match(source, /\{ active: false, appSurface: "light" \}/);
+  assert.match(source, /\{ keepalive: true \}/);
   assert.match(source, /window\.clearInterval\(interval\)/);
   assert.match(source, /removeEventListener/);
   assert.match(source, /controller\.abort\(\)/);
@@ -116,10 +118,12 @@ test("activity tracking is initialized once in the authenticated shell and exclu
   assert.match(shell, /authChecked && session && !isAuthRoute/);
 });
 
-test("only CEO and super-admin roles can monitor user activity", () => {
+test("CEO, super-admin, and department managers can monitor scoped user activity", () => {
   assert.equal(peopleUtils.canMonitorUserActivity("ceo_user"), true);
   assert.equal(peopleUtils.canMonitorUserActivity("super_admin_user"), true);
-  assert.equal(peopleUtils.canMonitorUserActivity("sales_manager_user"), false);
+  assert.equal(peopleUtils.canMonitorUserActivity("sales_manager_user"), true);
+  assert.equal(peopleUtils.canMonitorUserActivity("delegate_manager_user"), true);
+  assert.equal(peopleUtils.canMonitorUserActivity("production_manager_user"), true);
   assert.equal(peopleUtils.canMonitorUserActivity("sales_user"), false);
 
   const performance = read("app/admin/user-performance/page.tsx");
@@ -177,6 +181,16 @@ test("user activity filter includes departments and individual users", () => {
   }
   assert.match(panel, /selectedDepartment\.roles\.some/);
   assert.match(panel, /selectedDepartment \? 100 : PAGE_SIZE/);
+  assert.match(panel, /managerView \? fetchManagerUserActivity : fetchUserActivity/);
+  assert.match(panel, /FrontendUsageBreakdown/);
+  assert.match(panel, /Light/);
+  assert.match(panel, /Heavy/);
+  assert.match(panel, /tableViewportRef\.current\?\.scrollTo\(\{ top: 0, behavior: "auto" \}\)/);
+  assert.match(panel, /hidden min-h-0 flex-1[\s\S]*overflow-auto/);
+  assert.match(panel, /\[scrollbar-width:none\][\s\S]*\[&::-webkit-scrollbar\]:hidden/);
+  assert.match(panel, /<thead className="sticky top-0 z-10/);
+  assert.match(panel, /snap-y snap-mandatory scroll-pt-10/);
+  assert.match(panel, /snap-start snap-always align-top \[&>td\]:py-3/);
   assert.match(panel, /pb-16[\s\S]*sm:pb-0[\s\S]*sm:pr-16/);
 });
 
@@ -208,16 +222,32 @@ test("manager performance uses the CEO detail hierarchy without redundant report
   assert.match(source, /item\.isActive \? "bg-emerald-500" : "bg-zinc-400"/);
   assert.match(source, /border-blue-200 bg-blue-50/);
   assert.match(source, /function PerformanceChartSection/);
-  assert.match(source, /aria-label=\{`Performance distribution:/);
+  assert.match(source, /useState<PerformanceSection>\("overview"\)/);
+  assert.match(source, /aria-label="Performance sections"[\s\S]*?<PerformanceChartSection/);
+  assert.match(source, /role="tablist"/);
+  assert.match(source, /role="tab"/);
+  assert.match(source, /activeSection === "overview"/);
+  assert.match(source, /activeSection === "members"/);
+  assert.match(source, /activeSection === "activity"/);
+  assert.match(source, /aria-label=\{`Performance:/);
+  assert.match(source, /<BarChart data=\{metrics\}/);
   assert.match(source, /<PieChart>/);
   assert.match(source, /selectedMetric/);
-  assert.match(source, /activePercentage/);
-  assert.match(source, /aria-label="Performance distribution"/);
+  assert.match(source, /selectedVersion/);
+  assert.match(source, /aria-label="Performance and system usage"/);
+  assert.match(source, />System usage</);
+  assert.match(source, /fetchManagerUserActivity/);
+  assert.match(source, /period === "yearly"/);
+  assert.match(source, /period: "monthly" as const/);
+  assert.match(source, /period: window\.period/);
+  assert.match(source, /lightSeconds=\{versionUsage\.light\}/);
+  assert.match(source, /heavySeconds=\{versionUsage\.heavy\}/);
+  assert.doesNotMatch(source, /<UserActivityPanel \/>/);
   assert.doesNotMatch(source, /Select a team member to focus the same report and activity data/);
   assert.doesNotMatch(source, />Performance mix</);
-  assert.match(source, /h-\[clamp\(16rem,60vw,24rem\)\]/);
-  assert.match(source, /innerRadius="53%"/);
-  assert.match(source, /border border-zinc-200 bg-white p-4 shadow/);
+  assert.match(source, /innerRadius="58%"/);
+  assert.match(source, /xl:grid-cols-2/);
+  assert.match(source, /border border-zinc-200 bg-white p-3 shadow/);
   assert.doesNotMatch(source, /bg-slate-950/);
   assert.match(source, /grid-cols-\[2rem_minmax\(0,1fr\)\]/);
   assert.match(source, /if \(normalized === "workflow-status"\) return "Status"/);
@@ -226,7 +256,12 @@ test("manager performance uses the CEO detail hierarchy without redundant report
   assert.match(source, /statusTextClass\(\s*lead\.currentWorkflowStatus\s*\)/);
   assert.doesNotMatch(source, /Department overview/);
   assert.match(source, />Recent activity and comments</);
-  assert.match(source, /max-h-\[42rem\][\s\S]*overflow-y-auto/);
+  assert.match(source, /h-\[calc\(100dvh-3rem\)\]/);
+  assert.match(source, /mt-5 flex min-h-0 flex-1 flex-col overflow-hidden/);
+  assert.match(source, /grid-rows-\[auto_minmax\(0,1fr\)\]/);
+  assert.match(source, /min-h-0 flex-1 overflow-y-auto pr-1 scrollbar-modern/);
+  assert.match(source, /lg:h-full[\s\S]*lg:overflow-y-auto/);
+  assert.match(source, /className="h-full min-h-\[22rem\] py-4"/);
   assert.doesNotMatch(source, /Manager Control/);
   assert.doesNotMatch(source, /<h2[^>]*>Window<\/h2>/);
   assert.doesNotMatch(source, /<h2[^>]*>Scope<\/h2>/);
@@ -256,6 +291,10 @@ test("admin performance stays focused and includes activity context", () => {
   assert.match(source, /selectedCluster\?\.averagePerUser/);
   assert.match(source, /\bDetails\b/);
   assert.match(source, /Department Details/);
+  assert.match(source, /activeView === "activity"[\s\S]*h-\[calc\(100dvh-3rem\)\][\s\S]*overflow-hidden/);
+  assert.match(source, /window\.scrollTo\(\{ top: 0, behavior: "auto" \}\)/);
+  assert.match(source, /document\.documentElement\.style\.overflow = "hidden"/);
+  assert.match(source, /document\.body\.style\.overflow = "hidden"/);
   assert.match(source, /Window overview/);
   assert.match(source, />Period</);
   assert.match(source, />Starts</);

@@ -20,7 +20,13 @@ export function shouldReportActive(input: {
 }
 
 export function canMonitorUserActivity(role: string | null | undefined) {
-  return role === "super_admin_user" || role === "ceo_user";
+  return (
+    role === "super_admin_user" ||
+    role === "ceo_user" ||
+    role === "sales_manager_user" ||
+    role === "delegate_manager_user" ||
+    role === "production_manager_user"
+  );
 }
 
 export function hasRecordedUserActivity(record: {

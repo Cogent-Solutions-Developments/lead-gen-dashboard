@@ -654,6 +654,20 @@ export default function AdminUserPerformancePage() {
     if (canViewActivity && window.location.hash === "#activity") setActiveView("activity");
   }, [canViewActivity]);
 
+  useEffect(() => {
+    if (activeView !== "activity") return;
+    const previousRootOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    const frame = window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.documentElement.style.overflow = previousRootOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+    };
+  }, [activeView]);
+
   const loadPerformance = useCallback(async () => {
     setLoading(true);
     try {
@@ -768,8 +782,12 @@ export default function AdminUserPerformancePage() {
   }, []);
 
   return (
-    <div className="admin-page flex min-h-[calc(100dvh-3rem)] flex-col bg-transparent">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+    <div className={`admin-page flex flex-col bg-transparent ${
+      activeView === "activity"
+        ? "h-[calc(100dvh-3rem)] min-h-0 overflow-hidden"
+        : "min-h-[calc(100dvh-3rem)]"
+    }`}>
+      <motion.div className="shrink-0" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="admin-card p-5">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <h1 className="admin-title">User Performance</h1>
@@ -825,7 +843,7 @@ export default function AdminUserPerformancePage() {
       </motion.div>
 
       {canViewActivity ? (
-        <div className="admin-card mt-5 grid grid-cols-2 gap-1 p-1" role="tablist" aria-label="User performance sections">
+        <div className="admin-card mt-5 grid shrink-0 grid-cols-2 gap-1 p-1" role="tablist" aria-label="User performance sections">
           {[
             { value: "performance" as const, label: "Performance" },
             { value: "activity" as const, label: "User Activity" },

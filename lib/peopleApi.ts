@@ -32,12 +32,14 @@ export type NotificationListResponse = {
 
 export type ActivityHeartbeatRequest = {
   active: boolean;
+  appSurface: "light";
 };
 
 export type ActivityHeartbeatResponse = {
   activity: {
     date: string;
     active: boolean;
+    appSurface: "light" | "heavy" | "unknown";
     engagedSeconds: number;
     incrementedSeconds: number;
     firstSeenAt: string | null;
@@ -48,6 +50,14 @@ export type ActivityHeartbeatResponse = {
 };
 
 export type UserActivityPeriod = "daily" | "weekly" | "monthly";
+export type ManagerUserActivityPeriod = UserActivityPeriod | "yearly";
+
+export type FrontendUsageRecord = {
+  engagedSeconds: number;
+  firstSeenAt: string | null;
+  lastSeenAt: string | null;
+  heartbeatCount: number;
+};
 
 export type UserActivityRecord = {
   userId: string;
@@ -62,6 +72,12 @@ export type UserActivityRecord = {
   firstSeenAt: string | null;
   lastSeenAt: string | null;
   heartbeatCount: number;
+  frontendUsage: {
+    light: FrontendUsageRecord;
+    heavy: FrontendUsageRecord;
+  };
+  lastUsedFrontend: "light" | "heavy" | null;
+  unattributedEngagedSeconds: number;
 };
 
 export type UserActivityResponse = {
@@ -159,6 +175,27 @@ export async function fetchUserActivity(options: {
   signal?: AbortSignal;
 }) {
   const { data } = await apiClient.get<UserActivityResponse>("/api/admin/user-activity", {
+    params: {
+      date: options.date,
+      period: options.period,
+      ...(options.userId ? { userId: options.userId } : {}),
+      limit: options.limit ?? 100,
+      offset: options.offset ?? 0,
+    },
+    signal: options.signal,
+  });
+  return data;
+}
+
+export async function fetchManagerUserActivity(options: {
+  date: string;
+  period: ManagerUserActivityPeriod;
+  userId?: string;
+  limit?: number;
+  offset?: number;
+  signal?: AbortSignal;
+}) {
+  const { data } = await apiClient.get<UserActivityResponse>("/api/manager/user-activity", {
     params: {
       date: options.date,
       period: options.period,

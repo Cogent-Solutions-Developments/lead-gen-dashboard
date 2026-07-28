@@ -30,7 +30,7 @@ export function useActivityTracking(enabled: boolean, sessionKey?: string) {
       if (disposed || (!force && lastReportedActive === active)) return;
       lastReportedActive = active;
       void sendActivityHeartbeat(
-        { active },
+        { active, appSurface: "light" },
         keepalive ? { keepalive: true } : { signal: controller.signal }
       ).catch(() => {
         // Activity reporting is deliberately non-blocking.
@@ -87,7 +87,10 @@ export function useActivityTracking(enabled: boolean, sessionKey?: string) {
 
     return () => {
       if (lastReportedActive !== false) {
-        void sendActivityHeartbeat({ active: false }, { keepalive: true }).catch(() => {});
+        void sendActivityHeartbeat(
+          { active: false, appSurface: "light" },
+          { keepalive: true }
+        ).catch(() => {});
       }
       disposed = true;
       controller.abort();

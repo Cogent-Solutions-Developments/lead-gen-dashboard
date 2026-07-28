@@ -813,6 +813,10 @@ export function MyLeadsWorkspace({
       templateUpload.category.trim()
   );
   const canUseDealBellFlow = role === "sales_user";
+  const isCommentOnly = Boolean(
+    pendingStatusChange &&
+      pendingStatusChange.nextStatus === pendingStatusChange.item.workflowStatus
+  );
   const isDealClosedStatusChange = Boolean(
     pendingStatusChange &&
       canUseDealBellFlow &&
@@ -1175,7 +1179,12 @@ export function MyLeadsWorkspace({
       );
       return true;
     } catch (error: unknown) {
-      toast.error("Failed to update status", { description: getApiErrorMessage(error) });
+      toast.error(
+        nextStatus === item.workflowStatus
+          ? "Failed to add comment"
+          : "Failed to update status",
+        { description: getApiErrorMessage(error) }
+      );
       return false;
     } finally {
       setUpdatingLeadIds((prev) => {
@@ -1189,6 +1198,11 @@ export function MyLeadsWorkspace({
   const handleStatusSelection = (item: MyLeadRow, value: string) => {
     if (value === item.workflowStatus) return;
     setPendingStatusChange({ item, nextStatus: value });
+    setStatusComment("");
+  };
+
+  const openCommentDialog = (item: MyLeadRow) => {
+    setPendingStatusChange({ item, nextStatus: item.workflowStatus });
     setStatusComment("");
   };
 
@@ -1965,20 +1979,18 @@ export function MyLeadsWorkspace({
                                 ? `${item.workflowCommentHistoryCount} comment${item.workflowCommentHistoryCount === 1 ? "" : "s"}`
                                 : "Comment history"}
                             </button>
-                            {!embedded ? (
-                              <button
-                                type="button"
-                                disabled={Boolean(updatingLeadIds[item.id])}
-                                onClick={() => {
-                                  setPendingStatusChange({ item, nextStatus: item.workflowStatus });
-                                  setStatusComment("");
-                                }}
-                                className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-xs font-medium text-blue-600 transition-colors hover:border-blue-700 hover:text-blue-800 disabled:opacity-50"
-                              >
-                                <MessageSquare className="h-3.5 w-3.5" />
-                                Add comment
-                              </button>
-                            ) : null}
+                            <button
+                              type="button"
+                              disabled={Boolean(updatingLeadIds[item.id])}
+                              onClick={() => openCommentDialog(item)}
+                              className={cn(
+                                "inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 font-medium text-blue-600 transition-colors hover:border-blue-700 hover:text-blue-800 disabled:opacity-50",
+                                embedded ? "text-[10px]" : "text-xs"
+                              )}
+                            >
+                              <MessageSquare className="h-3.5 w-3.5" />
+                              Add comment
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -2143,7 +2155,7 @@ export function MyLeadsWorkspace({
         <LeadSheetDialog
           open
           eyebrow=""
-          title="Status Note"
+          title={isCommentOnly ? "Add comment" : "Status Note"}
           description=""
           onClose={closeStatusCommentDialog}
           compactSize={isDealClosedStatusChange ? "wide" : "default"}
@@ -2229,28 +2241,33 @@ export function MyLeadsWorkspace({
               </div>
             ) : (
               <>
-                <div className="rounded-2xl border border-zinc-200 bg-white p-1.5">
-                  <div className="grid gap-1.5 sm:grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] sm:items-stretch">
-                    <div className="rounded-xl bg-zinc-50/80 px-4 py-3">
-                      <p className="truncate text-base font-light text-zinc-950">
-                        {pendingStatusChange.item.workflowStatusLabel || humanizeStatusLabel(pendingStatusChange.item.workflowStatus)}
-                      </p>
-                    </div>
-                    <div className="hidden items-center justify-center text-zinc-300 sm:flex">
-                      <ChevronRight className="h-4 w-4" />
-                    </div>
-                    <div className="rounded-xl border border-blue-500/20 bg-blue-600 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)]">
-                      <p className="truncate text-base font-semibold">
-                        {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
-                          humanizeStatusLabel(pendingStatusChange.nextStatus)}
-                      </p>
+                {!isCommentOnly ? (
+                  <div className="rounded-2xl border border-zinc-200 bg-white p-1.5">
+                    <div className="grid gap-1.5 sm:grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] sm:items-stretch">
+                      <div className="rounded-xl bg-zinc-50/80 px-4 py-3">
+                        <p className="truncate text-base font-light text-zinc-950">
+                          {pendingStatusChange.item.workflowStatusLabel || humanizeStatusLabel(pendingStatusChange.item.workflowStatus)}
+                        </p>
+                      </div>
+                      <div className="hidden items-center justify-center text-zinc-300 sm:flex">
+                        <ChevronRight className="h-4 w-4" />
+                      </div>
+                      <div className="rounded-xl border border-blue-500/20 bg-blue-600 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)]">
+                        <p className="truncate text-base font-semibold">
+                          {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
+                            humanizeStatusLabel(pendingStatusChange.nextStatus)}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : null}
 
                 <label className="block space-y-3">
-                  <span className="text-xs font-medium text-zinc-400">Comment optional</span>
+                  <span className="text-xs font-medium text-zinc-400">
+                    {isCommentOnly ? "Comment" : "Comment optional"}
+                  </span>
                   <Textarea
+                    autoFocus={isCommentOnly}
                     value={statusComment}
                     maxLength={2000}
                     onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
@@ -2275,7 +2292,10 @@ export function MyLeadsWorkspace({
                   <Button
                     type="button"
                     onClick={handleUpdateStatusClick}
-                    disabled={Boolean(updatingLeadIds[pendingStatusChange.item.id])}
+                    disabled={
+                      Boolean(updatingLeadIds[pendingStatusChange.item.id]) ||
+                      (isCommentOnly && !statusComment.trim())
+                    }
                     className="h-11 gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700"
                   >
                     {updatingLeadIds[pendingStatusChange.item.id] ? (
@@ -2283,7 +2303,7 @@ export function MyLeadsWorkspace({
                     ) : (
                       <MessageSquare className="h-4 w-4" />
                     )}
-                    Update Status
+                    {isCommentOnly ? "Add comment" : "Update Status"}
                   </Button>
                 </div>
               </>

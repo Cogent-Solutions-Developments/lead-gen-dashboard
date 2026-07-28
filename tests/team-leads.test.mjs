@@ -418,14 +418,31 @@ test("embedded Team Leads hides the standalone My Leads decorative media", () =>
   assert.match(myLeadsPage, /\{!embedded \? \([\s\S]*?my-leads-side-media[\s\S]*?\) : null\}/);
 });
 
-test("embedded Team Leads hides the standalone Add comment control", () => {
+test("embedded Team Leads exposes the Add comment control", () => {
   const myLeadsPage = read("app/my-leads/page.tsx");
   const addCommentIndex = myLeadsPage.indexOf("Add comment");
-  const embeddedGuardIndex = myLeadsPage.lastIndexOf("{!embedded ? (", addCommentIndex);
 
   assert.notEqual(addCommentIndex, -1);
-  assert.notEqual(embeddedGuardIndex, -1);
-  assert.ok(addCommentIndex - embeddedGuardIndex < 1_000);
+  assert.match(myLeadsPage, /onClick=\{\(\) => openCommentDialog\(item\)\}/);
+  assert.match(myLeadsPage, /embedded \? "text-\[10px\]" : "text-xs"/);
+  assert.doesNotMatch(
+    myLeadsPage.slice(Math.max(0, addCommentIndex - 1_000), addCommentIndex),
+    /\{!embedded \? \(/
+  );
+});
+
+test("comment-only dialog hides status while status changes keep the existing transition", () => {
+  const myLeadsPage = read("app/my-leads/page.tsx");
+
+  assert.match(
+    myLeadsPage,
+    /const isCommentOnly = Boolean\([\s\S]*?nextStatus === pendingStatusChange\.item\.workflowStatus/
+  );
+  assert.match(myLeadsPage, /title=\{isCommentOnly \? "Add comment" : "Status Note"\}/);
+  assert.match(myLeadsPage, /\{!isCommentOnly \? \([\s\S]*?humanizeStatusLabel\(pendingStatusChange\.nextStatus\)/);
+  assert.match(myLeadsPage, /\{isCommentOnly \? "Comment" : "Comment optional"\}/);
+  assert.match(myLeadsPage, /\(isCommentOnly && !statusComment\.trim\(\)\)/);
+  assert.match(myLeadsPage, /\{isCommentOnly \? "Add comment" : "Update Status"\}/);
 });
 
 test("embedded Team Leads supports selectable ranges and scrolls larger lists", () => {

@@ -115,6 +115,10 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
   }, [load, sessionKey]);
 
   useEffect(() => {
+    if (open) void load();
+  }, [load, open]);
+
+  useEffect(() => {
     let timeout = 0;
     const scheduleReset = () => {
       timeout = window.setTimeout(() => {
