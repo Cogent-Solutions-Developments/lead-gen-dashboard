@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { getLocalDevNgrokHeaders } from "@/lib/devNgrok";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +62,7 @@ export async function GET(request: NextRequest) {
     headers: {
       Authorization: authorization,
       "x-api-key": apiKey,
+      ...getLocalDevNgrokHeaders(),
     },
     cache: "no-store",
   });
@@ -72,6 +74,7 @@ export async function GET(request: NextRequest) {
   const usersResponse = await fetch(`${baseUrl}/api/auth/users`, {
     headers: {
       "x-api-key": apiKey,
+      ...getLocalDevNgrokHeaders(),
     },
     cache: "no-store",
   });

@@ -762,12 +762,17 @@ export function getAuthHeader(): Record<string, string> {
 }
 
 export function attachAuthToken(config: InternalAxiosRequestConfig) {
+  const headers = AxiosHeaders.from(config.headers);
+  Object.entries(getLocalDevNgrokHeaders()).forEach(([key, value]) => {
+    headers.set(key, value);
+  });
+
   const token = getAuthToken();
   if (token) {
-    const headers = AxiosHeaders.from(config.headers);
     headers.set("Authorization", `Bearer ${token}`);
-    config.headers = headers;
   }
+
+  config.headers = headers;
   return config;
 }
 

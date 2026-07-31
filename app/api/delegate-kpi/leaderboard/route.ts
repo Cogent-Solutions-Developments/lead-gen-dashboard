@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getLocalDevNgrokHeaders } from "@/lib/devNgrok";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,10 @@ function isConfirmedStatus(value?: string | null) {
 
 async function fetchJson<T>(url: string, apiKey: string): Promise<T> {
   const response = await fetch(url, {
-    headers: { "x-api-key": apiKey },
+    headers: {
+      "x-api-key": apiKey,
+      ...getLocalDevNgrokHeaders(),
+    },
     cache: "no-store",
   });
 
@@ -103,6 +107,7 @@ export async function GET(request: NextRequest) {
     headers: {
       Authorization: authorization,
       "x-api-key": apiKey,
+      ...getLocalDevNgrokHeaders(),
     },
     cache: "no-store",
   });

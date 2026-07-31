@@ -1,3 +1,5 @@
+import { getLocalDevNgrokHeaders } from "@/lib/devNgrok";
+
 export type BackendUser = {
   id: string;
   username: string;
@@ -40,7 +42,10 @@ export class MarathonApiClient {
 
   private async fetchJson<T>(url: string): Promise<T> {
     const response = await fetch(url, {
-      headers: { "x-api-key": this.apiKey },
+      headers: {
+        "x-api-key": this.apiKey,
+        ...getLocalDevNgrokHeaders(),
+      },
       cache: "no-store",
     });
 
@@ -90,6 +95,7 @@ export class MarathonApiClient {
       headers: {
         Authorization: authorization,
         "x-api-key": this.apiKey,
+        ...getLocalDevNgrokHeaders(),
       },
       cache: "no-store",
     });
