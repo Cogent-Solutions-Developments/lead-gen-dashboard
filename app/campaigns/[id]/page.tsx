@@ -84,6 +84,8 @@ type OutreachState = "pending" | "queued" | "sending" | "sent" | "failed";
 type AttachmentChannel = "email" | "whatsapp" | "common";
 type LeadFilterKey = "new" | "sent" | "rejected" | "suppressed";
 type LeadSendAction = "both" | "email" | "whatsapp";
+
+const FOLLOW_UP_STEPS = ["1st follow-up", "2nd follow-up", "3rd follow-up", "Final follow-up"] as const;
 type BulkSendChannel = "email" | "whatsapp";
 type LeadContentSource = "template" | "generated" | "manual" | "empty" | "unknown";
 type ContentGenerationQueueStatus = "idle" | "running" | "stopping" | "paused";
@@ -1135,6 +1137,11 @@ function SuperAdminCampaignDetailPage() {
   const [smsTargetLead, setSmsTargetLead] = useState<Lead | null>(null);
   const [smsMessage, setSmsMessage] = useState("");
   const [isSendingSms, setIsSendingSms] = useState(false);
+  const [followUpTargetLead, setFollowUpTargetLead] = useState<Lead | null>(null);
+  const [followUpStep, setFollowUpStep] = useState(0);
+  const [followUpSubject, setFollowUpSubject] = useState("");
+  const [followUpBody, setFollowUpBody] = useState("");
+  const [isSendingFollowUp, setIsSendingFollowUp] = useState(false);
   const [emailTemplateId, setEmailTemplateId] = useState<string | null>(null);
   const [emailTemplateSubject, setEmailTemplateSubject] = useState("");
   const [emailTemplateBody, setEmailTemplateBody] = useState("");
@@ -2736,6 +2743,80 @@ function SuperAdminCampaignDetailPage() {
     setSmsMessage("");
   };
 
+  const personalizeFollowUpTemplate = (value: string, lead: Lead) => {
+    const firstName = lead.employeeName.trim().split(/\s+/)[0] || "there";
+    return value
+      .replace(/{{\s*(first_name|firstName|name)\s*}}/gi, firstName)
+      .replace(/{{\s*(company|companyName)\s*}}/gi, lead.company || "your company")
+      .replace(/{{\s*campaignName\s*}}/gi, campaign?.name || "our campaign");
+  };
+
+  const openFollowUpComposer = (lead: Lead) => {
+    if (!canManageLeadActions || !isLeadEmailActionCompleted(lead)) return;
+    if (isLeadMarketingOptedOut(lead)) {
+      toast.warning("Action blocked", { description: "This lead is in the opt-out list and cannot receive email." });
+      return;
+    }
+
+    const subject = emailTemplateSubject.trim() || lead.contentEmailSubject || "Following up";
+    const body =
+      emailTemplateBody.trim() ||
+      lead.contentEmail ||
+      "Hi {{first_name}},\n\nI wanted to follow up on my earlier message about {{campaignName}}.\n\nWould you be open to a quick conversation?\n\nBest,";
+
+    setFollowUpStep(0);
+    setFollowUpSubject(personalizeFollowUpTemplate(subject, lead));
+    setFollowUpBody(personalizeFollowUpTemplate(body, lead));
+    setFollowUpTargetLead(lead);
+  };
+
+  const closeFollowUpComposer = () => {
+    if (isSendingFollowUp) return;
+    setFollowUpTargetLead(null);
+    setFollowUpStep(0);
+    setFollowUpSubject("");
+    setFollowUpBody("");
+  };
+
+  const handleSendFollowUp = async () => {
+    if (!followUpTargetLead || isSendingFollowUp) return;
+    const subject = followUpSubject.trim();
+    const body = followUpBody.trim();
+    if (!subject || !body) {
+      toast.error("Follow-up subject and body are required");
+      return;
+    }
+
+    try {
+      setIsSendingFollowUp(true);
+      await api.put(`/api/leads/${followUpTargetLead.id}/content`, {
+        contentEmailSubject: subject,
+        contentEmail: body,
+        contentLinkedin: followUpTargetLead.contentLinkedin || "",
+        contentWhatsapp: followUpTargetLead.contentWhatsapp || "",
+      });
+      await sendLeadEmailOnly(followUpTargetLead.id, commonAttachmentId ?? undefined);
+      setLeads((previous) =>
+        previous.map((lead) =>
+          lead.id === followUpTargetLead.id
+            ? { ...lead, contentEmailSubject: subject, contentEmail: body, contentSource: "manual" }
+            : lead
+        )
+      );
+      toast.success(`${FOLLOW_UP_STEPS[followUpStep]} queued`, {
+        description: `Your follow-up to ${followUpTargetLead.employeeName || "the lead"} is being sent.`,
+      });
+      setFollowUpTargetLead(null);
+      setFollowUpStep(0);
+      setFollowUpSubject("");
+      setFollowUpBody("");
+    } catch (error: any) {
+      toast.error("Could not send follow-up", { description: error?.response?.data?.detail || error?.message });
+    } finally {
+      setIsSendingFollowUp(false);
+    }
+  };
+
   const handleSendAdminSms = async () => {
     if (!canManageLeadActions || !smsTargetLead || isSendingSms) return;
 
@@ -3934,7 +4015,7 @@ function SuperAdminCampaignDetailPage() {
                                 )}
                               </Button>
                             ) : null}
-                            {showEmailAction ? (
+                            {showEmailAction && !isLeadEmailActionCompleted(item) ? (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -3971,6 +4052,30 @@ function SuperAdminCampaignDetailPage() {
                           </>
                         ) : item.approvalStatus === "rejected" ? (
                           <span className="text-xs italic text-zinc-400">Rejected</span>
+                        ) : null}
+                        {isLeadEmailActionCompleted(item) && canSendEmail ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled
+                              title="Initial email sent"
+                              className="h-8 w-8 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 disabled:opacity-100"
+                            >
+                              <Mail className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="h-8 min-w-[5.75rem] rounded-md border border-violet-200 bg-violet-50/80 px-2 text-[11px] font-semibold text-violet-700 shadow-none hover:border-violet-300 hover:bg-violet-100 hover:text-violet-800 disabled:cursor-not-allowed disabled:opacity-45"
+                              onClick={() => openFollowUpComposer(item)}
+                              disabled={isLeadReadOnly}
+                              title={isLeadReadOnly ? "Lead actions are blocked" : "Open manual follow-ups"}
+                            >
+                              <Mail className="mr-1 h-3.5 w-3.5" />
+                              Follow-ups
+                            </Button>
+                          </>
                         ) : null}
                           </div>
                         </td>
@@ -4142,6 +4247,150 @@ function SuperAdminCampaignDetailPage() {
                   ) : (
                     `Send ${bulkSendChannel === "email" ? "Email" : "WhatsApp"}`
                   )}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {canManageLeadActions && followUpTargetLead && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[73] flex items-start justify-center overflow-y-auto bg-zinc-950/50 p-3 backdrop-blur-[3px] sm:items-center sm:p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0, y: 8 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 8 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_24px_40px_-28px_rgba(2,10,27,0.68)] sm:max-h-[calc(100dvh-2rem)]"
+            >
+              <div className="shrink-0 border-b border-zinc-100 px-4 py-3 sm:px-5 sm:py-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md border border-violet-200 bg-violet-50 text-violet-700">
+                        <Mail className="h-4 w-4" />
+                      </div>
+                      <h3 className="text-base font-semibold text-zinc-900">Manual Follow-ups</h3>
+                    </div>
+                    <p className="mt-2 text-sm text-zinc-600">
+                      Continue the conversation with <span className="font-semibold text-zinc-900">{followUpTargetLead.employeeName || "this lead"}</span>.
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-500">{followUpTargetLead.email}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={closeFollowUpComposer}
+                    disabled={isSendingFollowUp}
+                    className="h-8 w-8 rounded-md border border-zinc-300 bg-white text-zinc-400 hover:text-zinc-900"
+                    aria-label="Close follow-up composer"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3 sm:space-y-4 sm:px-5 sm:py-4">
+                <div className="rounded-xl border border-violet-100 bg-[linear-gradient(135deg,rgba(245,243,255,0.9),rgba(255,255,255,0.96))] p-3 sm:p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold text-zinc-900">Follow-up status</p>
+                      <p className="mt-0.5 text-[11px] text-zinc-500">Initial email sent · choose the next manual touchpoint.</p>
+                    </div>
+                    <Badge className="border border-violet-200 bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700 shadow-none">
+                      {FOLLOW_UP_STEPS[followUpStep]}
+                    </Badge>
+                  </div>
+                  <div className="overflow-x-auto pb-1">
+                    <div className="flex min-w-[450px] items-start">
+                      <div className="flex min-w-0 flex-1 items-center">
+                        <div className="flex flex-col items-center gap-1.5">
+                          <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-emerald-300 bg-emerald-100 text-emerald-700 sm:h-9 sm:w-9">
+                            <Mail className="h-4 w-4" />
+                          </span>
+                          <span className="text-center text-[9px] font-semibold leading-tight text-emerald-700">Initial email</span>
+                        </div>
+                        <span className="mx-1 mb-5 h-0.5 min-w-3 flex-1 rounded-full bg-emerald-300" />
+                      </div>
+                      {FOLLOW_UP_STEPS.map((step, index) => {
+                        const isActive = index === followUpStep;
+                        const isComplete = index < followUpStep;
+                        return (
+                          <div key={step} className="flex min-w-0 flex-1 items-center last:flex-none">
+                            <button
+                              type="button"
+                              onClick={() => setFollowUpStep(index)}
+                              className="group flex min-w-0 flex-col items-center gap-1.5"
+                              aria-pressed={isActive}
+                            >
+                              <span className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all sm:h-9 sm:w-9 ${
+                                isActive
+                                  ? "border-violet-600 bg-violet-600 text-white shadow-[0_8px_16px_-10px_rgba(124,58,237,0.9)]"
+                                  : isComplete
+                                    ? "border-violet-300 bg-violet-100 text-violet-700"
+                                    : "border-zinc-200 bg-white text-zinc-400 group-hover:border-violet-300 group-hover:text-violet-600"
+                              }`}>
+                                <Mail className="h-4 w-4" />
+                              </span>
+                              <span className={`max-w-[68px] text-center text-[9px] font-semibold leading-tight ${isActive ? "text-violet-700" : "text-zinc-500"}`}>
+                                {step}
+                              </span>
+                            </button>
+                            {index < FOLLOW_UP_STEPS.length - 1 ? (
+                              <span className={`mx-1 mb-5 h-0.5 min-w-2 flex-1 rounded-full ${isComplete ? "bg-violet-300" : "bg-zinc-200"}`} />
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Subject</label>
+                  <Input
+                    value={followUpSubject}
+                    onChange={(event) => setFollowUpSubject(event.target.value)}
+                    disabled={isSendingFollowUp}
+                    placeholder="Following up"
+                    className="border-zinc-300 bg-white text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Email body</label>
+                  <textarea
+                    value={followUpBody}
+                    onChange={(event) => setFollowUpBody(event.target.value)}
+                    disabled={isSendingFollowUp}
+                    rows={7}
+                    className="w-full resize-y rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm leading-6 text-zinc-800 outline-none transition focus:border-zinc-400 focus:ring-1 focus:ring-zinc-300 disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                </div>
+              </div>
+
+              <div className="flex shrink-0 items-center justify-end gap-2 border-t border-zinc-100 px-4 py-3 sm:px-5 sm:py-4">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={isSendingFollowUp}
+                  onClick={closeFollowUpComposer}
+                  className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-700 hover:bg-zinc-50"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => void handleSendFollowUp()}
+                  disabled={isSendingFollowUp || !followUpSubject.trim() || !followUpBody.trim()}
+                  className="h-9 rounded-md border border-violet-600/75 bg-violet-600 px-3.5 text-white hover:bg-violet-700 disabled:opacity-60"
+                >
+                  {isSendingFollowUp ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Mail className="mr-1.5 h-4 w-4" />}
+                  Send {FOLLOW_UP_STEPS[followUpStep]}
                 </Button>
               </div>
             </motion.div>
