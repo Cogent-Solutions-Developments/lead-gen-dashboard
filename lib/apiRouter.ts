@@ -596,3 +596,17 @@ export const markRead: typeof sales.markRead = (...args) =>
 export function getApiKeyClient(persona?: Persona) {
   return pickModule(persona).api;
 }
+
+export async function saveCampaignHeyReachCampaignId(
+  campaignId: string,
+  heyreachCampaignId: string,
+  persona?: Persona
+) {
+  const selected = persona ?? getPersona();
+  const prefix = selected === "delegates" ? "/api/delegates" : selected === "production" ? "/api/productions" : "/api";
+  const { data } = await getApiKeyClient(selected).post(
+    `${prefix}/campaigns/${encodeURIComponent(campaignId)}/info`,
+    { heyreachCampaignId }
+  );
+  return data as { ok: boolean; info?: { heyreachCampaignId?: string | null } };
+}

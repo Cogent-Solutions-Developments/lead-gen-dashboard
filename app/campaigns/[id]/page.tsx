@@ -44,6 +44,7 @@ import {
   deleteCampaignEmailTemplate,
   generateSelectedCampaignLeadContent,
   getCampaignEmailTemplate,
+  saveCampaignHeyReachCampaignId,
   resetLeadContent,
   resetSelectedCampaignLeadContent,
   type CampaignImportSummary,
@@ -1105,6 +1106,9 @@ function SuperAdminCampaignDetailPage() {
 
   const [campaign, setCampaign] = useState<CampaignDetail | null>(null);
   const [campaignCategory, setCampaignCategory] = useState<string>("");
+  const [heyreachCampaignId, setHeyreachCampaignId] = useState("");
+  const [savedHeyreachCampaignId, setSavedHeyreachCampaignId] = useState("");
+  const [isHeyreachCampaignSaving, setIsHeyreachCampaignSaving] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [leadFilter, setLeadFilter] = useState<LeadFilterKey>("new");
@@ -1601,6 +1605,9 @@ function SuperAdminCampaignDetailPage() {
 
       setCampaign(cRes.data);
       setCampaignCategory(String(infoRes?.data?.info?.category || cRes.data?.category || "").trim());
+      const configuredHeyreachCampaignId = String(infoRes?.data?.info?.heyreachCampaignId || "").trim();
+      setHeyreachCampaignId(configuredHeyreachCampaignId);
+      setSavedHeyreachCampaignId(configuredHeyreachCampaignId);
       const activeTemplate = templateRes?.template ?? null;
       setEmailTemplateId(activeTemplate?.id ?? null);
       setEmailTemplateSubject(activeTemplate?.emailSubject ?? "");
@@ -1675,6 +1682,30 @@ function SuperAdminCampaignDetailPage() {
     });
   const sendLeadWhatsappOnly = async (leadId: string) =>
     api.post(`/api/leads/${leadId}/send-whatsapp`);
+
+  const handleSaveHeyreachCampaignId = async () => {
+    if (!canManageLeadActions || isHeyreachCampaignSaving) return;
+
+    const requestedCampaignId = heyreachCampaignId.trim();
+    if (requestedCampaignId && !/^\d+$/.test(requestedCampaignId)) {
+      toast.error("Invalid HeyReach campaign ID", { description: "HeyReach campaign IDs must contain numbers only." });
+      return;
+    }
+
+    try {
+      setIsHeyreachCampaignSaving(true);
+      const response = await saveCampaignHeyReachCampaignId(campaignId, requestedCampaignId, persona);
+      const savedId = String(response.info?.heyreachCampaignId ?? heyreachCampaignId).trim();
+      setHeyreachCampaignId(savedId);
+      setSavedHeyreachCampaignId(savedId);
+      toast.success(savedId ? "HeyReach campaign connected" : "HeyReach campaign disconnected");
+    } catch (error: unknown) {
+      const description = error instanceof Error ? error.message : "Unable to save the HeyReach campaign ID";
+      toast.error("HeyReach configuration error", { description });
+    } finally {
+      setIsHeyreachCampaignSaving(false);
+    }
+  };
 
 
   const startPollingLead = (
@@ -3185,6 +3216,58 @@ function SuperAdminCampaignDetailPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </Card>
+      ) : null}
+
+      {canManageLeadActions ? (
+        <Card className="relative mt-3 overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(248,251,255,0.92)_0%,rgba(255,255,255,0.84)_58%,rgba(238,246,255,0.68)_100%)] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_12px_24px_-22px_rgba(2,10,27,0.55),inset_0_1px_0_rgba(255,255,255,1)] backdrop-blur-[14px] [backdrop-filter:saturate(168%)_blur(14px)]">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
+            <div className="min-w-0 xl:w-80">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-md border border-[#0A66C2]/25 bg-[#0A66C2]/10">
+                  <LinkedInIcon className="h-4 w-4 text-[#0A66C2]" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-sm font-semibold text-zinc-900">HeyReach LinkedIn Campaign</h2>
+                    <Badge className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide shadow-none ${
+                      savedHeyreachCampaignId
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-zinc-300 bg-white text-zinc-500"
+                    }`}>
+                      {savedHeyreachCampaignId ? "Connected" : "Not Set"}
+                    </Badge>
+                  </div>
+                  <p className="mt-0.5 text-xs text-zinc-500">Choose the HeyReach campaign that will receive approved LinkedIn leads.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                HeyReach Campaign ID
+              </label>
+              <Input
+                value={heyreachCampaignId}
+                onChange={(event) => setHeyreachCampaignId(event.target.value)}
+                disabled={isHeyreachCampaignSaving}
+                inputMode="numeric"
+                placeholder="e.g. 235"
+                className="h-10 border-zinc-300/85 bg-white/90 text-sm text-zinc-900 placeholder:text-zinc-400"
+              />
+              <p className="mt-1 text-xs text-zinc-500">Find this numeric ID in the HeyReach campaign URL or API response. Sending will be enabled in the next step.</p>
+            </div>
+
+            <Button
+              type="button"
+              onClick={() => void handleSaveHeyreachCampaignId()}
+              disabled={isHeyreachCampaignSaving || heyreachCampaignId.trim() === savedHeyreachCampaignId}
+              className="btn-sidebar-noise h-9 shrink-0 px-3.5"
+            >
+              {isHeyreachCampaignSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              Save Campaign ID
+            </Button>
           </div>
         </Card>
       ) : null}

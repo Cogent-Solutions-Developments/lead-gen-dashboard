@@ -635,6 +635,7 @@ export type CampaignInfo = {
   location: string | null;
   category: string | null;
   date: string | null;
+  heyreachCampaignId?: string | null;
   createdAt: string | null;
   updatedAt: string | null;
 };
