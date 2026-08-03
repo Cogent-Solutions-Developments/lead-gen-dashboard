@@ -45,6 +45,7 @@ import {
   generateSelectedCampaignLeadContent,
   getCampaignEmailTemplate,
   saveCampaignHeyReachCampaignId,
+  sendCampaignLeadLinkedin,
   resetLeadContent,
   resetSelectedCampaignLeadContent,
   type CampaignImportSummary,
@@ -84,7 +85,7 @@ type ApprovalStatus = "pending" | "approved" | "rejected" | "suppressed";
 type OutreachState = "pending" | "queued" | "sending" | "sent" | "failed";
 type AttachmentChannel = "email" | "whatsapp" | "common";
 type LeadFilterKey = "new" | "sent" | "rejected" | "suppressed";
-type LeadSendAction = "both" | "email" | "whatsapp";
+type LeadSendAction = "both" | "email" | "linkedin" | "whatsapp";
 
 const FOLLOW_UP_STEPS = ["1st follow-up", "2nd follow-up", "3rd follow-up", "Final follow-up"] as const;
 type FollowUpTemplate = {
@@ -729,6 +730,8 @@ function normalizeChannelCapability(value: unknown) {
     enabled: source.enabled == null ? undefined : parseBoolean(source.enabled),
     templateConfigured:
       source.templateConfigured == null ? undefined : parseBoolean(source.templateConfigured),
+    campaignConfigured:
+      source.campaignConfigured == null ? undefined : parseBoolean(source.campaignConfigured),
   };
 }
 
@@ -737,10 +740,11 @@ function normalizeChannelCapabilities(value: unknown): ChannelCapabilities | nul
   if (!source) return null;
 
   const email = normalizeChannelCapability(source.email);
+  const linkedin = normalizeChannelCapability(source.linkedin);
   const whatsapp = normalizeChannelCapability(source.whatsapp);
 
-  if (!email && !whatsapp) return null;
-  return { email, whatsapp };
+  if (!email && !linkedin && !whatsapp) return null;
+  return { email, linkedin, whatsapp };
 }
 
 function normalizeAttachment(value: unknown): Attachment | null {
@@ -1348,18 +1352,26 @@ function SuperAdminCampaignDetailPage() {
   function leadSupportsWhatsappAction(lead: Lead) {
     return hasText(lead.phone);
   }
+  function leadHasLinkedinProfile(lead: Lead) {
+    return hasText(lead.linkedinUrl);
+  }
   function isLeadEmailActionCompleted(lead: Lead) {
     return isExecutedOutreachState(buildOutreachStatus(lead).email);
   }
   function isLeadWhatsappActionCompleted(lead: Lead) {
     return isExecutedOutreachState(buildOutreachStatus(lead).whatsapp);
   }
+  function isLeadLinkedinActionCompleted(lead: Lead) {
+    return isExecutedOutreachState(buildOutreachStatus(lead).linkedin);
+  }
   function isLeadFullyActioned(lead: Lead) {
     const needsEmail = leadSupportsEmailAction(lead);
+    const needsLinkedin = leadHasLinkedinProfile(lead);
     const needsWhatsapp = leadSupportsWhatsappAction(lead);
 
-    if (!needsEmail && !needsWhatsapp) return false;
+    if (!needsEmail && !needsLinkedin && !needsWhatsapp) return false;
     if (needsEmail && !isLeadEmailActionCompleted(lead)) return false;
+    if (needsLinkedin && !isLeadLinkedinActionCompleted(lead)) return false;
     if (needsWhatsapp && !isLeadWhatsappActionCompleted(lead)) return false;
     return true;
   }
@@ -1389,6 +1401,17 @@ function SuperAdminCampaignDetailPage() {
     if (capability.templateConfigured === false) return "WhatsApp template is not configured.";
     if (capability.sendable === false) return "WhatsApp is not currently sendable for this lead.";
 
+    return null;
+  }
+  function getLinkedinCapabilityDisabledReason(lead: Lead) {
+    if (!hasText(lead.linkedinUrl)) return "Lead has no LinkedIn profile URL.";
+    if (!hasText(lead.contentLinkedin)) return "Generate LinkedIn content before sending.";
+
+    const capability = lead.channelCapabilities?.linkedin;
+    if (!capability) return savedHeyreachCampaignId ? null : "HeyReach campaign ID is not configured.";
+    if (capability.enabled === false) return "HeyReach API is not configured on the server.";
+    if (capability.campaignConfigured === false) return "HeyReach campaign ID is not configured.";
+    if (capability.sendable === false) return "LinkedIn is not currently sendable for this lead.";
     return null;
   }
 
@@ -1762,11 +1785,12 @@ function SuperAdminCampaignDetailPage() {
 
   const startPollingLead = (
     leadId: string,
-    expectedChannels: Array<"email" | "whatsapp"> = ["email", "whatsapp"]
+    expectedChannels: Array<"email" | "linkedin" | "whatsapp"> = ["email", "whatsapp"]
   ) => {
     if (expectedChannels.length === 0) return;
 
     const waitForEmail = expectedChannels.includes("email");
+    const waitForLinkedin = expectedChannels.includes("linkedin");
     const waitForWhatsapp = expectedChannels.includes("whatsapp");
     let tries = 0;
     const maxTries = 40;
@@ -1820,13 +1844,15 @@ function SuperAdminCampaignDetailPage() {
         const s = latestOutreachStatus;
         if (s) {
           const emailDone = !waitForEmail || s.email === "sent" || s.email === "failed";
+          const linkedinDone = !waitForLinkedin || isExecutedOutreachState(s.linkedin) || s.linkedin === "failed";
           const whatsappDone = !waitForWhatsapp || s.whatsapp === "sent" || s.whatsapp === "failed";
-          if (emailDone && whatsappDone) {
+          if (emailDone && linkedinDone && whatsappDone) {
             clearInterval(t);
 
             const emailSent = !waitForEmail || s.email === "sent";
+            const linkedinSent = !waitForLinkedin || isExecutedOutreachState(s.linkedin);
             const whatsappSent = !waitForWhatsapp || s.whatsapp === "sent";
-            if (emailSent && whatsappSent) {
+            if (emailSent && linkedinSent && whatsappSent) {
               toast.success("Outreach sent successfully");
             } else {
               toast.error("Outreach completed with failures");
@@ -1849,7 +1875,7 @@ function SuperAdminCampaignDetailPage() {
     setLeadSendLoading((prev) => {
       const current = prev[leadId] || {};
       const next = { ...current, [action]: value };
-      if (!next.both && !next.email && !next.whatsapp) {
+      if (!next.both && !next.email && !next.linkedin && !next.whatsapp) {
         const clone = { ...prev };
         delete clone[leadId];
         return clone;
@@ -1863,12 +1889,16 @@ function SuperAdminCampaignDetailPage() {
     if (isLeadMarketingOptedOut(lead)) return "This lead is in the opt-out list and cannot receive any messages.";
     if (lead.sendable === false) return "This lead is currently not sendable.";
     const emailCapabilityReason = getEmailCapabilityDisabledReason(lead);
+    const linkedinCapabilityReason = getLinkedinCapabilityDisabledReason(lead);
     const whatsappCapabilityReason = getWhatsappCapabilityDisabledReason(lead);
     if (action === "email" && isExecutedOutreachState(outreachStatus.email)) {
       return "Email already queued or sent.";
     }
     if (action === "whatsapp" && isExecutedOutreachState(outreachStatus.whatsapp)) {
       return "WhatsApp already queued or sent.";
+    }
+    if (action === "linkedin" && isExecutedOutreachState(outreachStatus.linkedin)) {
+      return "LinkedIn already queued or sent.";
     }
     if (
       action === "both" &&
@@ -1880,6 +1910,7 @@ function SuperAdminCampaignDetailPage() {
       return "Attachment is still uploading.";
     }
     if (action === "email") return emailCapabilityReason;
+    if (action === "linkedin") return linkedinCapabilityReason;
     if (action === "whatsapp") return whatsappCapabilityReason;
     if (action === "both" && !hasText(lead.email) && !hasText(lead.phone)) {
       return "Lead has no phone or email.";
@@ -1895,7 +1926,9 @@ function SuperAdminCampaignDetailPage() {
   ) => {
     const previousOutreachStatus = buildOutreachStatus(lead);
     const expectedChannels =
-      action === "both" ? (["email", "whatsapp"] as Array<"email" | "whatsapp">) : ([action] as Array<"email" | "whatsapp">);
+      action === "both"
+        ? (["email", "whatsapp"] as Array<"email" | "linkedin" | "whatsapp">)
+        : ([action] as Array<"email" | "linkedin" | "whatsapp">);
 
     if (options?.manageLoading !== false) {
       setLeadSendActionLoading(lead.id, action, true);
@@ -1907,7 +1940,7 @@ function SuperAdminCampaignDetailPage() {
               ...item,
               outreachStatus: {
                 email: expectedChannels.includes("email") ? "sending" : previousOutreachStatus.email,
-                linkedin: previousOutreachStatus.linkedin,
+                linkedin: expectedChannels.includes("linkedin") ? "sending" : previousOutreachStatus.linkedin,
                 whatsapp: expectedChannels.includes("whatsapp") ? "sending" : previousOutreachStatus.whatsapp,
               },
             }
@@ -1916,16 +1949,17 @@ function SuperAdminCampaignDetailPage() {
     );
 
     try {
-      const queuedChannels: Array<"email" | "whatsapp"> = [];
+      const queuedChannels: Array<"email" | "linkedin" | "whatsapp"> = [];
       const channelErrors: string[] = [];
 
       const appendQueuedChannels = (
         response: { data?: { queuedChannels?: unknown } } | undefined,
-        fallbackChannels: Array<"email" | "whatsapp">
+        fallbackChannels: Array<"email" | "linkedin" | "whatsapp">
       ) => {
         const resolved = Array.isArray(response?.data?.queuedChannels)
           ? (response?.data?.queuedChannels as string[]).filter(
-              (channel): channel is "email" | "whatsapp" => channel === "email" || channel === "whatsapp"
+              (channel): channel is "email" | "linkedin" | "whatsapp" =>
+                channel === "email" || channel === "linkedin" || channel === "whatsapp"
             )
           : fallbackChannels;
 
@@ -1934,19 +1968,21 @@ function SuperAdminCampaignDetailPage() {
         }
       };
 
-      const runChannelSend = async (channel: "email" | "whatsapp") => {
+      const runChannelSend = async (channel: "email" | "linkedin" | "whatsapp") => {
         try {
           const response =
             channel === "email"
               ? await sendLeadEmailOnly(lead.id, commonAttachmentId ?? undefined)
-              : await sendLeadWhatsappOnly(lead.id);
+              : channel === "linkedin"
+                ? await sendCampaignLeadLinkedin(lead.id, persona)
+                : await sendLeadWhatsappOnly(lead.id);
           appendQueuedChannels(response, [channel]);
         } catch (error: any) {
           const detail = String(error?.response?.data?.detail || error?.message || "");
           if (isMarketingOptOutError(detail)) {
             throw error;
           }
-          channelErrors.push(`${channel === "email" ? "Email" : "WhatsApp"}: ${detail || "Failed to queue."}`);
+          channelErrors.push(`${channel === "email" ? "Email" : channel === "linkedin" ? "LinkedIn" : "WhatsApp"}: ${detail || "Failed to queue."}`);
         }
       };
 
@@ -1957,7 +1993,9 @@ function SuperAdminCampaignDetailPage() {
         const response =
           action === "email"
             ? await sendLeadEmailOnly(lead.id, commonAttachmentId ?? undefined)
-            : await sendLeadWhatsappOnly(lead.id);
+            : action === "linkedin"
+              ? await sendCampaignLeadLinkedin(lead.id, persona)
+              : await sendLeadWhatsappOnly(lead.id);
         appendQueuedChannels(response, expectedChannels);
       }
 
@@ -1972,7 +2010,7 @@ function SuperAdminCampaignDetailPage() {
                 ...item,
                 outreachStatus: {
                   email: queuedChannels.includes("email") ? "queued" : previousOutreachStatus.email,
-                  linkedin: previousOutreachStatus.linkedin,
+                  linkedin: queuedChannels.includes("linkedin") ? "queued" : previousOutreachStatus.linkedin,
                   whatsapp: queuedChannels.includes("whatsapp") ? "queued" : previousOutreachStatus.whatsapp,
                 },
               }
@@ -1980,8 +2018,11 @@ function SuperAdminCampaignDetailPage() {
         )
       );
 
-      if (queuedChannels.length > 0) {
-        startPollingLead(lead.id, queuedChannels);
+      const providerDeliveryChannels = queuedChannels.filter(
+        (channel): channel is "email" | "whatsapp" => channel === "email" || channel === "whatsapp"
+      );
+      if (providerDeliveryChannels.length > 0) {
+        startPollingLead(lead.id, providerDeliveryChannels);
       }
 
       if (action === "both" && channelErrors.length > 0) {
@@ -1994,7 +2035,9 @@ function SuperAdminCampaignDetailPage() {
             ? "Outreach queued"
             : action === "email"
               ? "Email queued"
-              : "WhatsApp queued"
+              : action === "linkedin"
+                ? "LinkedIn queued in HeyReach"
+                : "WhatsApp queued"
         );
       }
     } catch (error: any) {
@@ -2024,7 +2067,9 @@ function SuperAdminCampaignDetailPage() {
           ? "Send failed"
           : action === "email"
             ? "Email send failed"
-            : "WhatsApp send failed",
+            : action === "linkedin"
+              ? "LinkedIn queue failed"
+              : "WhatsApp send failed",
         { description: detail || "Please try again." }
       );
     } finally {
@@ -3519,7 +3564,7 @@ function SuperAdminCampaignDetailPage() {
                 placeholder="e.g. 235"
                 className="h-10 border-zinc-300/85 bg-white/90 text-sm text-zinc-900 placeholder:text-zinc-400"
               />
-              <p className="mt-1 text-xs text-zinc-500">Find this numeric ID in the HeyReach campaign URL or API response. Sending will be enabled in the next step.</p>
+              <p className="mt-1 text-xs text-zinc-500">Find this numeric ID in the HeyReach campaign URL or API response. In HeyReach, use the custom field <code>{"{{supernizo_linkedin_message}}"}</code> in the message step.</p>
             </div>
 
             <Button
@@ -4172,16 +4217,20 @@ function SuperAdminCampaignDetailPage() {
                 const isOptedOut = Boolean(optOutEntry);
                 const isLeadReadOnly = isLeadMarketingOptedOut(item);
                 const canSendEmail = leadSupportsEmailAction(item);
+                const canSendLinkedin = leadHasLinkedinProfile(item);
                 const canSendWhatsapp = leadSupportsWhatsappAction(item);
                 const showEmailAction = canSendEmail;
+                const showLinkedinAction = canSendLinkedin;
                 const showWhatsappAction = canSendWhatsapp;
                 const showSendActions =
                   item.approvalStatus !== "rejected" &&
                   item.approvalStatus !== "suppressed" &&
                   !isLeadFullyActioned(item);
                 const sendEmailDisabledReason = getLeadSendActionDisabledReason(item, "email");
+                const sendLinkedinDisabledReason = getLeadSendActionDisabledReason(item, "linkedin");
                 const sendWhatsappDisabledReason = getLeadSendActionDisabledReason(item, "whatsapp");
                 const isSendingEmail = Boolean(leadSendLoading[item.id]?.email);
+                const isSendingLinkedin = Boolean(leadSendLoading[item.id]?.linkedin);
                 const isSendingWhatsapp = Boolean(leadSendLoading[item.id]?.whatsapp);
                 const disableWhatsappAction = (!hasText(item.phone) && !hasText(item.email)) || isOptedOut;
                 const smsDisabledReason = !hasText(item.phone)
@@ -4403,6 +4452,31 @@ function SuperAdminCampaignDetailPage() {
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : (
                                   <WhatsAppIcon className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                            ) : null}
+                            {showLinkedinAction && !isLeadLinkedinActionCompleted(item) ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-md border border-[#0A66C2]/25 bg-[#0A66C2]/5 text-[#0A66C2] hover:border-[#0A66C2]/45 hover:bg-[#0A66C2]/10 disabled:cursor-not-allowed disabled:opacity-45"
+                                onClick={() =>
+                                  void (item.approvalStatus === "pending"
+                                    ? handleApprove(item.id, "linkedin")
+                                    : handleSendLeadAction(item, "linkedin"))
+                                }
+                                disabled={Boolean(sendLinkedinDisabledReason) || isSendingLinkedin}
+                                title={
+                                  sendLinkedinDisabledReason ||
+                                  (item.approvalStatus === "pending"
+                                    ? "Approve and queue in HeyReach"
+                                    : "Queue in HeyReach")
+                                }
+                              >
+                                {isSendingLinkedin ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <LinkedInIcon className="h-3.5 w-3.5" />
                                 )}
                               </Button>
                             ) : null}
@@ -4970,7 +5044,7 @@ function SuperAdminCampaignDetailPage() {
               </div>
 
               <div className="relative z-[2] flex-1 space-y-5 overflow-y-auto scrollbar-hide bg-white p-6">
-                <div className="grid gap-5 xl:h-[24.5rem] xl:grid-cols-1">
+                <div className="grid gap-5 xl:h-[24.5rem] xl:grid-cols-2">
                   <Card className="h-full rounded-2xl border border-zinc-300 bg-white p-5 shadow-sm">
                     <div className="mb-4 flex items-center gap-2">
                       <div className="rounded-md border border-zinc-300 bg-white p-1.5">
@@ -5102,6 +5176,27 @@ function SuperAdminCampaignDetailPage() {
                           onChange={(e) => handleContentChange("contentEmail", e.target.value)}
                         />
                       </div>
+                    </div>
+                  </Card>
+
+                  <Card className="h-full rounded-2xl border border-[#0A66C2]/20 bg-white p-5 shadow-sm">
+                    <div className="mb-4 flex items-center gap-2">
+                      <div className="rounded-md border border-[#0A66C2]/25 bg-[#0A66C2]/5 p-1.5">
+                        <LinkedInIcon className="h-4 w-4 text-[#0A66C2]" />
+                      </div>
+                      <span className="text-sm font-semibold text-zinc-900">LinkedIn Message</span>
+                    </div>
+
+                    <div className="flex h-full min-h-0 flex-col">
+                      <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                        HeyReach message
+                      </label>
+                      <textarea
+                        className="h-full min-h-0 w-full resize-none rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-[#0A66C2]"
+                        value={(editForm.contentLinkedin as string) || ""}
+                        onChange={(e) => handleContentChange("contentLinkedin", e.target.value)}
+                        placeholder="Generate or write a LinkedIn message to queue this lead in HeyReach."
+                      />
                     </div>
                   </Card>
 
