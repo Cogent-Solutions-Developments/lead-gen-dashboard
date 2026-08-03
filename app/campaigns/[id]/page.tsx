@@ -85,6 +85,29 @@ type OutreachState = "pending" | "queued" | "sending" | "sent" | "failed";
 type AttachmentChannel = "email" | "whatsapp" | "common";
 type LeadFilterKey = "new" | "sent" | "rejected" | "suppressed";
 type LeadSendAction = "both" | "email" | "whatsapp";
+
+const FOLLOW_UP_STEPS = ["1st follow-up", "2nd follow-up", "3rd follow-up", "Final follow-up"] as const;
+type FollowUpTemplate = {
+  id?: string;
+  stage: number;
+  subject: string;
+  body: string;
+  isActive: boolean;
+  updatedAt?: string | null;
+};
+type FollowUpHistoryItem = {
+  id: string;
+  stage: number;
+  status: "draft" | "queued" | "sent" | "failed";
+  subject: string;
+  sentAt?: string | null;
+  errorMessage?: string | null;
+};
+
+const createEmptyFollowUpTemplates = (): Record<number, FollowUpTemplate> =>
+  Object.fromEntries(
+    FOLLOW_UP_STEPS.map((_, index) => [index + 1, { stage: index + 1, subject: "", body: "", isActive: true }])
+  ) as Record<number, FollowUpTemplate>;
 type BulkSendChannel = "email" | "whatsapp";
 type LeadContentSource = "template" | "generated" | "manual" | "empty" | "unknown";
 type ContentGenerationQueueStatus = "idle" | "running" | "stopping" | "paused";
@@ -1139,6 +1162,16 @@ function SuperAdminCampaignDetailPage() {
   const [smsTargetLead, setSmsTargetLead] = useState<Lead | null>(null);
   const [smsMessage, setSmsMessage] = useState("");
   const [isSendingSms, setIsSendingSms] = useState(false);
+  const [followUpTargetLead, setFollowUpTargetLead] = useState<Lead | null>(null);
+  const [followUpHistory, setFollowUpHistory] = useState<FollowUpHistoryItem[]>([]);
+  const [followUpStep, setFollowUpStep] = useState(0);
+  const [followUpSubject, setFollowUpSubject] = useState("");
+  const [followUpBody, setFollowUpBody] = useState("");
+  const [isSendingFollowUp, setIsSendingFollowUp] = useState(false);
+  const [quickFollowUpLeadId, setQuickFollowUpLeadId] = useState<string | null>(null);
+  const [followUpTemplates, setFollowUpTemplates] = useState<Record<number, FollowUpTemplate>>(createEmptyFollowUpTemplates);
+  const [selectedFollowUpTemplateStage, setSelectedFollowUpTemplateStage] = useState(1);
+  const [isSavingFollowUpTemplate, setIsSavingFollowUpTemplate] = useState(false);
   const [emailTemplateId, setEmailTemplateId] = useState<string | null>(null);
   const [emailTemplateSubject, setEmailTemplateSubject] = useState("");
   const [emailTemplateBody, setEmailTemplateBody] = useState("");
@@ -1186,6 +1219,7 @@ function SuperAdminCampaignDetailPage() {
   const hasEmailLeads = emailLeadCount > 0;
   const emailTemplateSaveDisabled =
     !hasEmailLeads || isEmailTemplateLoading || isEmailTemplateSaving || isEmailTemplateDeleting;
+  const selectedFollowUpTemplate = followUpTemplates[selectedFollowUpTemplateStage];
 
   const leadFilterTabs = useMemo(
     () => [
@@ -1594,13 +1628,14 @@ function SuperAdminCampaignDetailPage() {
     }
     setIsEmailTemplateLoading(true);
     try {
-      const [cRes, lRes, infoRes, commonRes, optOutRes, templateRes] = await Promise.all([
+      const [cRes, lRes, infoRes, commonRes, optOutRes, templateRes, followUpTemplatesRes] = await Promise.all([
         api.get(`/api/campaigns/${campaignId}`),
         api.get(`/api/campaigns/${campaignId}/leads`, { params: { status: "all" } }),
         api.get(`/api/campaigns/${campaignId}/info`).catch(() => null),
         api.get(`/api/campaigns/${campaignId}/common-attachments`).catch(() => null),
         listWhatsAppOptOuts({ limit: 1000, activeOnly: true }).catch(() => ({ ok: false, items: [] })),
         getCampaignEmailTemplate(campaignId).catch(() => null),
+        api.get(`/api/campaigns/${campaignId}/follow-up-templates`).catch(() => null),
       ]);
 
       setCampaign(cRes.data);
@@ -1613,6 +1648,23 @@ function SuperAdminCampaignDetailPage() {
       setEmailTemplateSubject(activeTemplate?.emailSubject ?? "");
       setEmailTemplateBody(activeTemplate?.emailBody ?? "");
       setEmailTemplateUpdatedAt(activeTemplate?.updatedAt ?? null);
+      const rawFollowUpTemplates = followUpTemplatesRes?.data?.templates ?? followUpTemplatesRes?.data ?? [];
+      if (Array.isArray(rawFollowUpTemplates)) {
+        const nextTemplates = createEmptyFollowUpTemplates();
+        rawFollowUpTemplates.forEach((template: any) => {
+          const stage = Number(template?.stage);
+          if (stage < 1 || stage > FOLLOW_UP_STEPS.length) return;
+          nextTemplates[stage] = {
+            id: template.id ? String(template.id) : undefined,
+            stage,
+            subject: String(template.subject ?? template.emailSubject ?? ""),
+            body: String(template.body ?? template.emailBody ?? ""),
+            isActive: template.isActive !== false,
+            updatedAt: template.updatedAt ?? null,
+          };
+        });
+        setFollowUpTemplates(nextTemplates);
+      }
 
       const mapped: Lead[] = (lRes.data.leads || []).map((x: any) => ({
         id: x.id,
@@ -2767,6 +2819,217 @@ function SuperAdminCampaignDetailPage() {
     setSmsMessage("");
   };
 
+  const personalizeFollowUpTemplate = (value: string, lead: Lead) => {
+    const firstName = lead.employeeName.trim().split(/\s+/)[0] || "there";
+    return value
+      .replace(/{{\s*(first_name|firstName|name)\s*}}/gi, firstName)
+      .replace(/{{\s*(company|companyName)\s*}}/gi, lead.company || "your company")
+      .replace(/{{\s*campaignName\s*}}/gi, campaign?.name || "our campaign");
+  };
+
+  const followUpContentForStage = (stage: number, lead: Lead) => {
+    const template = followUpTemplates[stage];
+    const subject = template?.isActive && template.subject.trim() ? template.subject : "Quick follow-up";
+    const body =
+      template?.isActive && template.body.trim()
+        ? template.body
+        : "Hi {{first_name}},\n\nI wanted to follow up on my earlier email about {{campaignName}}.\n\nWould you be open to a quick conversation?\n\nBest,";
+    return {
+      templateId: template?.isActive ? template.id : undefined,
+      subject: personalizeFollowUpTemplate(subject, lead),
+      body: personalizeFollowUpTemplate(body, lead),
+    };
+  };
+
+  const followUpHistoryFromResponse = (payload: any): FollowUpHistoryItem[] => {
+    const rows = payload?.history ?? payload?.items ?? [];
+    if (!Array.isArray(rows)) return [];
+    return rows
+      .map((row: any) => ({
+        id: String(row?.id || ""),
+        stage: Number(row?.stage),
+        status: String(row?.status || "draft") as FollowUpHistoryItem["status"],
+        subject: String(row?.subject || ""),
+        sentAt: row?.sentAt ?? null,
+        errorMessage: row?.errorMessage ?? null,
+      }))
+      .filter((row) => row.stage >= 1 && row.stage <= FOLLOW_UP_STEPS.length);
+  };
+
+  const openFollowUpComposer = async (lead: Lead) => {
+    if (!canManageLeadActions || !isLeadEmailActionCompleted(lead)) return;
+    if (isLeadMarketingOptedOut(lead)) {
+      toast.warning("Action blocked", { description: "This lead is in the opt-out list and cannot receive email." });
+      return;
+    }
+
+    try {
+      const response = await api.get(`/api/leads/${lead.id}/follow-ups`);
+      const nextStage = Number(response?.data?.nextStage);
+      if (!Number.isInteger(nextStage) || nextStage < 1 || nextStage > FOLLOW_UP_STEPS.length) {
+        toast.info("All follow-ups have already been sent");
+        return;
+      }
+      const content = followUpContentForStage(nextStage, lead);
+      setFollowUpHistory(followUpHistoryFromResponse(response?.data));
+      setFollowUpStep(nextStage - 1);
+      setFollowUpSubject(content.subject);
+      setFollowUpBody(content.body);
+      setFollowUpTargetLead(lead);
+    } catch (error: any) {
+      toast.error("Could not load follow-up history", { description: error?.response?.data?.detail || error?.message });
+    }
+  };
+
+  const selectFollowUpStep = (stepIndex: number) => {
+    if (!followUpTargetLead) return;
+    const stage = stepIndex + 1;
+    const existing = followUpHistory.find((item) => item.stage === stage && (item.status === "queued" || item.status === "sent"));
+    if (existing) {
+      toast.info(`${FOLLOW_UP_STEPS[stepIndex]} is already ${existing.status}`);
+      return;
+    }
+    const content = followUpContentForStage(stage, followUpTargetLead);
+    setFollowUpStep(stepIndex);
+    setFollowUpSubject(content.subject);
+    setFollowUpBody(content.body);
+  };
+
+  const closeFollowUpComposer = () => {
+    if (isSendingFollowUp) return;
+    setFollowUpTargetLead(null);
+    setFollowUpHistory([]);
+    setFollowUpStep(0);
+    setFollowUpSubject("");
+    setFollowUpBody("");
+  };
+
+  const handleSendFollowUp = async () => {
+    if (!followUpTargetLead || isSendingFollowUp) return;
+    const subject = followUpSubject.trim();
+    const body = followUpBody.trim();
+    if (!subject || !body) {
+      toast.error("Follow-up subject and body are required");
+      return;
+    }
+
+    try {
+      setIsSendingFollowUp(true);
+      const stage = followUpStep + 1;
+      const response = await api.post(`/api/leads/${followUpTargetLead.id}/follow-ups`, {
+        stage,
+        templateId: followUpTemplates[stage]?.isActive ? followUpTemplates[stage]?.id : undefined,
+        subject,
+        body,
+        sendNow: true,
+      });
+      setFollowUpHistory(followUpHistoryFromResponse(response?.data));
+      toast.success(`${FOLLOW_UP_STEPS[followUpStep]} queued`, {
+        description: `Your follow-up to ${followUpTargetLead.employeeName || "the lead"} is being sent.`,
+      });
+      setFollowUpTargetLead(null);
+      setFollowUpHistory([]);
+      setFollowUpStep(0);
+      setFollowUpSubject("");
+      setFollowUpBody("");
+    } catch (error: any) {
+      toast.error("Could not send follow-up", { description: error?.response?.data?.detail || error?.message });
+    } finally {
+      setIsSendingFollowUp(false);
+    }
+  };
+
+  const handleSendNextFollowUp = async (lead: Lead) => {
+    if (quickFollowUpLeadId || isLeadMarketingOptedOut(lead)) return;
+    try {
+      setQuickFollowUpLeadId(lead.id);
+      const historyResponse = await api.get(`/api/leads/${lead.id}/follow-ups`);
+      const stage = Number(historyResponse?.data?.nextStage);
+      if (!Number.isInteger(stage) || stage < 1 || stage > FOLLOW_UP_STEPS.length) {
+        toast.info("All follow-ups have already been sent");
+        return;
+      }
+      const content = followUpContentForStage(stage, lead);
+      await api.post(`/api/leads/${lead.id}/follow-ups`, {
+        stage,
+        templateId: content.templateId,
+        subject: content.subject,
+        body: content.body,
+        sendNow: true,
+      });
+      toast.success(`${FOLLOW_UP_STEPS[stage - 1]} queued`);
+    } catch (error: any) {
+      toast.error("Could not send follow-up", { description: error?.response?.data?.detail || error?.message });
+    } finally {
+      setQuickFollowUpLeadId(null);
+    }
+  };
+
+  const handleSaveFollowUpTemplate = async () => {
+    if (!canManageLeadActions || isSavingFollowUpTemplate) return;
+    const template = followUpTemplates[selectedFollowUpTemplateStage];
+    const subject = template.subject.trim();
+    const body = template.body.trim();
+    if (!subject || !body) {
+      toast.error("Follow-up template subject and body are required");
+      return;
+    }
+
+    try {
+      setIsSavingFollowUpTemplate(true);
+      const response = await api.put(
+        `/api/campaigns/${campaignId}/follow-up-templates/${selectedFollowUpTemplateStage}`,
+        { subject, body, isActive: template.isActive }
+      );
+      const saved = response?.data?.template ?? response?.data ?? {};
+      setFollowUpTemplates((previous) => ({
+        ...previous,
+        [selectedFollowUpTemplateStage]: {
+          ...previous[selectedFollowUpTemplateStage],
+          id: saved.id ? String(saved.id) : previous[selectedFollowUpTemplateStage].id,
+          subject: String(saved.subject ?? saved.emailSubject ?? subject),
+          body: String(saved.body ?? saved.emailBody ?? body),
+          isActive: saved.isActive ?? template.isActive,
+          updatedAt: saved.updatedAt ?? new Date().toISOString(),
+        },
+      }));
+      toast.success(`${FOLLOW_UP_STEPS[selectedFollowUpTemplateStage - 1]} template saved`);
+    } catch (error: any) {
+      toast.error("Follow-up template save failed", {
+        description: error?.response?.data?.detail || error?.message || "Please try again.",
+      });
+    } finally {
+      setIsSavingFollowUpTemplate(false);
+    }
+  };
+
+  const handleClearFollowUpTemplate = async () => {
+    if (isSavingFollowUpTemplate) return;
+    const template = followUpTemplates[selectedFollowUpTemplateStage];
+    try {
+      setIsSavingFollowUpTemplate(true);
+      if (template.id) {
+        await api.delete(`/api/campaigns/${campaignId}/follow-up-templates/${selectedFollowUpTemplateStage}`);
+      }
+      setFollowUpTemplates((previous) => ({
+        ...previous,
+        [selectedFollowUpTemplateStage]: {
+          stage: selectedFollowUpTemplateStage,
+          subject: "",
+          body: "",
+          isActive: true,
+        },
+      }));
+      toast.success("Follow-up template cleared");
+    } catch (error: any) {
+      toast.error("Could not clear follow-up template", {
+        description: error?.response?.data?.detail || error?.message || "Please try again.",
+      });
+    } finally {
+      setIsSavingFollowUpTemplate(false);
+    }
+  };
+
   const handleSendAdminSms = async () => {
     if (!canManageLeadActions || !smsTargetLead || isSendingSms) return;
 
@@ -3377,6 +3640,120 @@ function SuperAdminCampaignDetailPage() {
         </Card>
       ) : null}
 
+      {canManageLeadActions ? (
+        <Card className="relative mt-3 overflow-hidden rounded-2xl border border-violet-100 bg-[linear-gradient(160deg,rgba(250,248,255,0.94)_0%,rgba(255,255,255,0.9)_60%,rgba(245,243,255,0.8)_100%)] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_12px_24px_-22px_rgba(76,29,149,0.35)]">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
+            <div className="xl:w-72">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-md border border-violet-200 bg-violet-50">
+                  <Mail className="h-4 w-4 text-violet-700" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-zinc-900">Follow-up Templates</h2>
+                  <p className="mt-0.5 text-xs text-zinc-500">Used only for manual follow-up emails.</p>
+                </div>
+              </div>
+              <p className="mt-4 text-xs leading-relaxed text-zinc-500">
+                Variables: <span className="font-medium text-zinc-700">{"{{first_name}}"}, {"{{company}}"}, {"{{campaignName}}"}</span>
+              </p>
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                {FOLLOW_UP_STEPS.map((label, index) => {
+                  const stage = index + 1;
+                  const isSelected = selectedFollowUpTemplateStage === stage;
+                  const isConfigured = Boolean(followUpTemplates[stage]?.subject.trim() && followUpTemplates[stage]?.body.trim());
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => setSelectedFollowUpTemplateStage(stage)}
+                      className={`rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                        isSelected
+                          ? "border-violet-600 bg-violet-600 text-white"
+                          : "border-violet-200 bg-white/80 text-violet-700 hover:border-violet-300 hover:bg-violet-50"
+                      }`}
+                    >
+                      {label}
+                      {isConfigured ? <span className={`ml-1.5 text-[9px] ${isSelected ? "text-white/75" : "text-emerald-600"}`}>●</span> : null}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="grid gap-3 xl:grid-cols-[minmax(15rem,22rem)_minmax(22rem,1fr)]">
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">Subject</label>
+                  <Input
+                    value={selectedFollowUpTemplate.subject}
+                    onChange={(event) => setFollowUpTemplates((previous) => ({
+                      ...previous,
+                      [selectedFollowUpTemplateStage]: { ...previous[selectedFollowUpTemplateStage], subject: event.target.value },
+                    }))}
+                    disabled={isSavingFollowUpTemplate}
+                    placeholder={`e.g. ${FOLLOW_UP_STEPS[selectedFollowUpTemplateStage - 1]} — {{first_name}}`}
+                    className="h-10 border-violet-200 bg-white/90 text-sm"
+                  />
+                  <label className="mt-3 flex items-center gap-2 text-xs text-zinc-600">
+                    <input
+                      type="checkbox"
+                      checked={selectedFollowUpTemplate.isActive}
+                      onChange={(event) => setFollowUpTemplates((previous) => ({
+                        ...previous,
+                        [selectedFollowUpTemplateStage]: { ...previous[selectedFollowUpTemplateStage], isActive: event.target.checked },
+                      }))}
+                      disabled={isSavingFollowUpTemplate}
+                      className="h-3.5 w-3.5 rounded border-violet-300 text-violet-600 focus:ring-violet-500"
+                    />
+                    Active for manual follow-ups
+                  </label>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">Email body</label>
+                  <textarea
+                    value={selectedFollowUpTemplate.body}
+                    onChange={(event) => setFollowUpTemplates((previous) => ({
+                      ...previous,
+                      [selectedFollowUpTemplateStage]: { ...previous[selectedFollowUpTemplateStage], body: event.target.value },
+                    }))}
+                    disabled={isSavingFollowUpTemplate}
+                    placeholder={"Hi {{first_name}},\n\nI wanted to follow up on my earlier email about {{campaignName}}.\n\nWould you be open to a quick conversation?"}
+                    className="min-h-28 w-full resize-y rounded-md border border-violet-200 bg-white/90 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 flex-wrap gap-2 xl:w-40 xl:flex-col">
+              <Button
+                type="button"
+                onClick={() => void handleSaveFollowUpTemplate()}
+                disabled={isSavingFollowUpTemplate || !selectedFollowUpTemplate.subject.trim() || !selectedFollowUpTemplate.body.trim()}
+                className="h-9 bg-violet-600 px-3.5 text-white hover:bg-violet-700"
+              >
+                {isSavingFollowUpTemplate ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save Template
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => void handleClearFollowUpTemplate()}
+                disabled={isSavingFollowUpTemplate || (!selectedFollowUpTemplate.id && !selectedFollowUpTemplate.subject && !selectedFollowUpTemplate.body)}
+                className="h-9 border border-violet-200 bg-white px-3 text-violet-700 hover:bg-violet-50"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Clear
+              </Button>
+              {selectedFollowUpTemplate.updatedAt ? (
+                <p className="px-1 text-[10px] text-zinc-400">Updated {formatDateTime(selectedFollowUpTemplate.updatedAt)}</p>
+              ) : null}
+            </div>
+          </div>
+        </Card>
+      ) : null}
+
       <Card className="relative isolate mt-3 flex flex-col overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.84)_0%,rgba(250,252,255,0.66)_56%,rgba(240,246,253,0.56)_100%)] backdrop-blur-[16px] [backdrop-filter:saturate(175%)_blur(16px)] shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74),inset_0_0_22px_rgba(255,255,255,0.2)]">
         <div className="pointer-events-none absolute -right-20 -top-24 h-60 w-60 rounded-full bg-gradient-to-br from-sky-300/34 via-blue-500/12 to-blue-700/0 blur-3xl" />
         <div className="pointer-events-none absolute -left-24 -bottom-20 h-56 w-56 rounded-full bg-gradient-to-tr from-blue-300/20 via-sky-200/10 to-transparent blur-3xl" />
@@ -3912,18 +4289,30 @@ function SuperAdminCampaignDetailPage() {
                                 Template fallback
                               </span>
                             ) : null}
-                            <div className="flex flex-wrap items-center gap-1.5">
+                            <div className="inline-flex overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_6px_14px_-12px_rgba(2,10,27,0.45)]">
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className={`h-8 rounded-md border px-2.5 text-xs font-semibold shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] ${contentIndicator.buttonClassName}`}
+                                className={`h-7 rounded-none border-0 border-r border-zinc-200 px-2.5 text-[11px] font-semibold shadow-none ${contentIndicator.buttonClassName}`}
                                 onClick={() => setSelectedLead(item)}
                                 disabled={reviewContentDisabled}
                                 title={reviewContentTitle}
                               >
-                                <Eye className={`mr-2 h-3.5 w-3.5 ${contentIndicator.iconClassName}`} />
-                                Review Content
+                                <Eye className={`mr-1.5 h-3 w-3 ${contentIndicator.iconClassName}`} />
+                                Review
                               </Button>
+                              {isLeadEmailActionCompleted(item) ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 rounded-none border-0 bg-violet-50 px-2.5 text-[11px] font-semibold text-violet-700 shadow-none hover:bg-violet-100"
+                                  onClick={() => void openFollowUpComposer(item)}
+                                  disabled={isLeadReadOnly}
+                                >
+                                  <Mail className="mr-1.5 h-3 w-3" />
+                                  Follow-ups
+                                </Button>
+                              ) : null}
                             </div>
                           </div>
                         </td>
@@ -4017,7 +4406,7 @@ function SuperAdminCampaignDetailPage() {
                                 )}
                               </Button>
                             ) : null}
-                            {showEmailAction ? (
+                            {showEmailAction && !isLeadEmailActionCompleted(item) ? (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -4054,6 +4443,30 @@ function SuperAdminCampaignDetailPage() {
                           </>
                         ) : item.approvalStatus === "rejected" ? (
                           <span className="text-xs italic text-zinc-400">Rejected</span>
+                        ) : null}
+                        {isLeadEmailActionCompleted(item) && canSendEmail ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled
+                              title="Initial email sent"
+                              className="h-8 w-8 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 disabled:opacity-100"
+                            >
+                              <Mail className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-md border border-violet-200 bg-violet-50 text-violet-700 shadow-none hover:border-violet-300 hover:bg-violet-100 hover:text-violet-800 disabled:cursor-not-allowed disabled:opacity-45"
+                              onClick={() => void handleSendNextFollowUp(item)}
+                              disabled={isLeadReadOnly || quickFollowUpLeadId === item.id}
+                              title={isLeadReadOnly ? "Lead actions are blocked" : "Send next follow-up"}
+                            >
+                              {quickFollowUpLeadId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+                            </Button>
+                          </>
                         ) : null}
                           </div>
                         </td>
@@ -4225,6 +4638,152 @@ function SuperAdminCampaignDetailPage() {
                   ) : (
                     `Send ${bulkSendChannel === "email" ? "Email" : "WhatsApp"}`
                   )}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {canManageLeadActions && followUpTargetLead && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[73] flex items-start justify-center overflow-y-auto bg-zinc-950/50 p-3 backdrop-blur-[3px] sm:items-center sm:p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0, y: 8 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 8 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_24px_40px_-28px_rgba(2,10,27,0.68)] sm:max-h-[calc(100dvh-2rem)]"
+            >
+              <div className="shrink-0 border-b border-zinc-100 px-4 py-3 sm:px-5 sm:py-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md border border-violet-200 bg-violet-50 text-violet-700">
+                        <Mail className="h-4 w-4" />
+                      </div>
+                      <h3 className="text-base font-semibold text-zinc-900">Manual Follow-ups</h3>
+                    </div>
+                    <p className="mt-2 text-sm text-zinc-600">
+                      Continue the conversation with <span className="font-semibold text-zinc-900">{followUpTargetLead.employeeName || "this lead"}</span>.
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-500">{followUpTargetLead.email}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={closeFollowUpComposer}
+                    disabled={isSendingFollowUp}
+                    className="h-8 w-8 rounded-md border border-zinc-300 bg-white text-zinc-400 hover:text-zinc-900"
+                    aria-label="Close follow-up composer"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3 sm:space-y-4 sm:px-5 sm:py-4">
+                <div className="rounded-xl border border-violet-100 bg-[linear-gradient(135deg,rgba(245,243,255,0.9),rgba(255,255,255,0.96))] p-3 sm:p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold text-zinc-900">Follow-up status</p>
+                      <p className="mt-0.5 text-[11px] text-zinc-500">Initial email sent · choose the next manual touchpoint.</p>
+                    </div>
+                    <Badge className="border border-violet-200 bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700 shadow-none">
+                      {FOLLOW_UP_STEPS[followUpStep]}
+                    </Badge>
+                  </div>
+                  <div className="overflow-x-auto pb-1">
+                    <div className="flex min-w-[450px] items-start">
+                      <div className="flex min-w-0 flex-1 items-center">
+                        <div className="flex flex-col items-center gap-1.5">
+                          <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-emerald-300 bg-emerald-100 text-emerald-700 sm:h-9 sm:w-9">
+                            <Mail className="h-4 w-4" />
+                          </span>
+                          <span className="text-center text-[9px] font-semibold leading-tight text-emerald-700">Initial email</span>
+                        </div>
+                        <span className="mx-1 mb-5 h-0.5 min-w-3 flex-1 rounded-full bg-emerald-300" />
+                      </div>
+                      {FOLLOW_UP_STEPS.map((step, index) => {
+                        const isActive = index === followUpStep;
+                        const historyStatus = followUpHistory.find((item) => item.stage === index + 1)?.status;
+                        const isComplete = historyStatus === "queued" || historyStatus === "sent";
+                        return (
+                          <div key={step} className="flex min-w-0 flex-1 items-center last:flex-none">
+                            <button
+                              type="button"
+                              onClick={() => selectFollowUpStep(index)}
+                              disabled={isSendingFollowUp || isComplete}
+                              className="group flex min-w-0 flex-col items-center gap-1.5"
+                              aria-pressed={isActive}
+                            >
+                              <span className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all sm:h-9 sm:w-9 ${
+                                isActive
+                                  ? "border-violet-600 bg-violet-600 text-white shadow-[0_8px_16px_-10px_rgba(124,58,237,0.9)]"
+                                  : isComplete
+                                    ? "border-violet-300 bg-violet-100 text-violet-700"
+                                    : "border-zinc-200 bg-white text-zinc-400 group-hover:border-violet-300 group-hover:text-violet-600"
+                              }`}>
+                                <Mail className="h-4 w-4" />
+                              </span>
+                              <span className={`max-w-[68px] text-center text-[9px] font-semibold leading-tight ${isActive ? "text-violet-700" : "text-zinc-500"}`}>
+                                {step}
+                              </span>
+                            </button>
+                            {index < FOLLOW_UP_STEPS.length - 1 ? (
+                              <span className={`mx-1 mb-5 h-0.5 min-w-2 flex-1 rounded-full ${isComplete ? "bg-violet-300" : "bg-zinc-200"}`} />
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Subject</label>
+                  <Input
+                    value={followUpSubject}
+                    onChange={(event) => setFollowUpSubject(event.target.value)}
+                    disabled={isSendingFollowUp}
+                    placeholder="Following up"
+                    className="border-zinc-300 bg-white text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Email body</label>
+                  <textarea
+                    value={followUpBody}
+                    onChange={(event) => setFollowUpBody(event.target.value)}
+                    disabled={isSendingFollowUp}
+                    rows={7}
+                    className="w-full resize-y rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm leading-6 text-zinc-800 outline-none transition focus:border-zinc-400 focus:ring-1 focus:ring-zinc-300 disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                </div>
+              </div>
+
+              <div className="flex shrink-0 items-center justify-end gap-2 border-t border-zinc-100 px-4 py-3 sm:px-5 sm:py-4">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={isSendingFollowUp}
+                  onClick={closeFollowUpComposer}
+                  className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-700 hover:bg-zinc-50"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => void handleSendFollowUp()}
+                  disabled={isSendingFollowUp || !followUpSubject.trim() || !followUpBody.trim()}
+                  className="h-9 rounded-md border border-violet-600/75 bg-violet-600 px-3.5 text-white hover:bg-violet-700 disabled:opacity-60"
+                >
+                  {isSendingFollowUp ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Mail className="mr-1.5 h-4 w-4" />}
+                  Send {FOLLOW_UP_STEPS[followUpStep]}
                 </Button>
               </div>
             </motion.div>
