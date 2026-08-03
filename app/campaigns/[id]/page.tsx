@@ -90,42 +90,6 @@ type ContentGenerationQueueStatus = "idle" | "running" | "stopping" | "paused";
 type GenerationFailureStatus = "validator_rejected" | "qa_failed" | "generation_failed";
 
 const OUTREACH_REQUEST_TIMEOUT_MS = 15_000;
-const OUTREACH_REQUEST_MAX_ATTEMPTS = 2;
-
-const wait = (milliseconds: number) =>
-  new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
-
-const isRetryableOutreachError = (error: any) => {
-  const status = Number(error?.response?.status || error?.status || 0);
-  const code = String(error?.code || "").toUpperCase();
-  const message = String(error?.message || "").toLowerCase();
-  return (
-    code === "ECONNABORTED" ||
-    code === "ETIMEDOUT" ||
-    code === "ERR_NETWORK" ||
-    message.includes("timeout") ||
-    message.includes("network error") ||
-    status === 502 ||
-    status === 503 ||
-    status === 504
-  );
-};
-
-async function retryOutreachRequest<T>(request: () => Promise<T>): Promise<T> {
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= OUTREACH_REQUEST_MAX_ATTEMPTS; attempt += 1) {
-    try {
-      return await request();
-    } catch (error) {
-      lastError = error;
-      if (attempt === OUTREACH_REQUEST_MAX_ATTEMPTS || !isRetryableOutreachError(error)) {
-        throw error;
-      }
-      await wait(400 * attempt);
-    }
-  }
-  throw lastError;
-}
 
 type GenerationFailureInfo = {
   status: GenerationFailureStatus;
@@ -2590,11 +2554,9 @@ function SuperAdminCampaignDetailPage() {
 
     try {
       setLeadSendActionLoading(leadId, action, true);
-      const approveResponse = await retryOutreachRequest(() =>
-        api.put(`/api/leads/${leadId}/approve`, null, {
-          timeout: OUTREACH_REQUEST_TIMEOUT_MS,
-        })
-      );
+      const approveResponse = await api.put(`/api/leads/${leadId}/approve`, null, {
+        timeout: OUTREACH_REQUEST_TIMEOUT_MS,
+      });
       const approvedLead = approveResponse?.data ?? {};
       const resolvedStatus = normalizeApprovalStatus(approvedLead.approvalStatus ?? "approved");
       const resolvedSuppression = normalizeSuppressionMeta(approvedLead.suppression);
