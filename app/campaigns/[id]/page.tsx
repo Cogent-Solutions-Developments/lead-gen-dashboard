@@ -1674,9 +1674,10 @@ function SuperAdminCampaignDetailPage() {
   const sendLeadEmailOnly = async (leadId: string, attachmentId?: string) =>
     api.post(`/api/leads/${leadId}/send-email`, null, {
       params: attachmentId ? { attachment_id: attachmentId } : undefined,
+      timeout: 0,
     });
   const sendLeadWhatsappOnly = async (leadId: string) =>
-    api.post(`/api/leads/${leadId}/send-whatsapp`);
+    api.post(`/api/leads/${leadId}/send-whatsapp`, null, { timeout: 0 });
 
 
   const startPollingLead = (
