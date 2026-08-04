@@ -3,12 +3,21 @@
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+
+const subscribeToHydration = () => () => {};
+const getClientHydrationState = () => true;
+const getServerHydrationState = () => false;
 
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
   const pathname = usePathname();
   const supportsDarkMode = pathname.startsWith("/campaigns");
+  const hasHydrated = useSyncExternalStore(
+    subscribeToHydration,
+    getClientHydrationState,
+    getServerHydrationState
+  );
 
   useEffect(() => {
     if (supportsDarkMode) return;
@@ -16,7 +25,7 @@ export function ThemeToggle() {
     return () => window.cancelAnimationFrame(resetTheme);
   }, [setTheme, supportsDarkMode]);
 
-  if (!supportsDarkMode || !resolvedTheme) return null;
+  if (!supportsDarkMode || !hasHydrated) return null;
   const isDark = resolvedTheme === "dark";
 
   return (
