@@ -112,6 +112,7 @@ type CampaignContentGenerationState = {
 
 type CampaignContentSummary = {
   loading: boolean;
+  loaded: boolean;
   total: number;
   completed: number;
   emptyLeadIds: string[];
@@ -162,6 +163,7 @@ function summarizeCampaignContent(leads: LeadItem[]): CampaignContentSummary {
     .map((lead) => lead.id);
   return {
     loading: false,
+    loaded: true,
     total: eligibleLeads.length,
     completed: Math.max(0, eligibleLeads.length - emptyLeadIds.length),
     emptyLeadIds,
@@ -617,14 +619,19 @@ function SuperAdminCampaignsPage() {
           }
           continue;
         }
-        if (next[campaign.id]?.jobId) {
+        const summary = contentSummaryByCampaign[campaign.id];
+        const summaryConfirmsAllDraftsFilled = Boolean(
+          summary?.loaded && summary.emptyLeadIds.length === 0
+        );
+        const serverJobIsTerminal = Boolean(campaign.contentGenerationJob?.id);
+        if (next[campaign.id]?.jobId && (serverJobIsTerminal || summaryConfirmsAllDraftsFilled)) {
           delete next[campaign.id];
           changed = true;
         }
       }
       return changed ? next : prev;
     });
-  }, [items]);
+  }, [contentSummaryByCampaign, items]);
 
   const rangeStart = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
   const rangeEnd = Math.min((currentPage - 1) * itemsPerPage + visibleItems.length, totalItems);
@@ -704,11 +711,16 @@ function SuperAdminCampaignsPage() {
     setContentSummaryByCampaign((prev) => {
       const next = { ...prev };
       for (const id of ids) {
-        next[id] = {
-          ...(next[id] || { total: 0, completed: 0, emptyLeadIds: [] }),
-          loading: true,
-          error: null,
-        };
+        if (!next[id]) {
+          next[id] = {
+            total: 0,
+            completed: 0,
+            emptyLeadIds: [],
+            loading: true,
+            loaded: false,
+            error: null,
+          };
+        }
       }
       return next;
     });
@@ -718,18 +730,17 @@ function SuperAdminCampaignsPage() {
         ids.map(async (id) => {
           try {
             const response = await getCampaignLeads(id, "all");
-            return [id, summarizeCampaignContent(response.leads || [])] as const;
-          } catch (error: unknown) {
-            return [
+            return {
               id,
-              {
-                loading: false,
-                total: 0,
-                completed: 0,
-                emptyLeadIds: [],
-                error: getErrorMessage(error),
-              } satisfies CampaignContentSummary,
-            ] as const;
+              summary: summarizeCampaignContent(response.leads || []),
+              error: null,
+            };
+          } catch (error: unknown) {
+            return {
+              id,
+              summary: null,
+              error: getErrorMessage(error),
+            };
           }
         })
       );
@@ -738,8 +749,16 @@ function SuperAdminCampaignsPage() {
 
       setContentSummaryByCampaign((prev) => {
         const next = { ...prev };
-        for (const [id, summary] of pairs) {
-          next[id] = summary;
+        for (const result of pairs) {
+          if (result.summary) {
+            next[result.id] = result.summary;
+            continue;
+          }
+          next[result.id] = {
+            ...(next[result.id] || { total: 0, completed: 0, emptyLeadIds: [], loaded: false }),
+            loading: false,
+            error: result.error,
+          };
         }
         return next;
       });
@@ -795,7 +814,7 @@ function SuperAdminCampaignsPage() {
         setContentSummaryByCampaign((prev) => ({
           ...prev,
           [campaignId]: {
-            ...(prev[campaignId] || { total: 0, completed: 0, emptyLeadIds: [] }),
+            ...(prev[campaignId] || { total: 0, completed: 0, emptyLeadIds: [], loaded: false }),
             loading: true,
             error: null,
           },
@@ -812,7 +831,7 @@ function SuperAdminCampaignsPage() {
         setContentSummaryByCampaign((prev) => ({
           ...prev,
           [campaignId]: {
-            ...(prev[campaignId] || { total: 0, completed: 0, emptyLeadIds: [] }),
+            ...(prev[campaignId] || { total: 0, completed: 0, emptyLeadIds: [], loaded: false }),
             loading: false,
             error: message,
           },
@@ -1393,18 +1412,20 @@ function SuperAdminCampaignsPage() {
                     : "";
                 const contentSummaryProgressLabel =
                   contentSummaryTotal > 0 ? `${contentSummaryCompleted}/${contentSummaryTotal}` : "";
+                const hasConfirmedContentSummary = Boolean(contentSummary?.loaded);
+                const allDraftsFilled =
+                  hasConfirmedContentSummary &&
+                  (contentSummaryTotal === 0 || emptyContentCount === 0);
+                const canShowIdleContentAction =
+                  isSuperAdmin &&
+                  !isRunningContent &&
+                  !isContentPaused &&
+                  !allDraftsFilled;
                 const shouldShowGenerateContent =
-                  isSuperAdmin &&
-                  !isRunningContent &&
-                  !isContentPaused &&
-                  !contentSummary?.loading &&
-                  contentSummaryTotal > 0 &&
-                  emptyContentCount === contentSummaryTotal;
+                  canShowIdleContentAction &&
+                  (!hasConfirmedContentSummary || emptyContentCount === contentSummaryTotal);
                 const shouldShowContinueContent =
-                  isSuperAdmin &&
-                  !isRunningContent &&
-                  !isContentPaused &&
-                  !contentSummary?.loading &&
+                  canShowIdleContentAction &&
                   contentSummaryTotal > 0 &&
                   emptyContentCount > 0 &&
                   emptyContentCount < contentSummaryTotal;
@@ -1418,7 +1439,7 @@ function SuperAdminCampaignsPage() {
                     data-campaign-row="true"
                     className="group border-b border-zinc-300/75 transition-colors hover:bg-white/30 last:border-b-0"
                   >
-                    <div className="grid gap-5 px-6 py-4 md:min-h-[9.75rem] md:grid-cols-[minmax(0,2.25fr)_minmax(250px,0.95fr)_minmax(300px,1fr)] md:items-start">
+                    <div className="grid gap-5 px-6 py-4 md:min-h-[9.75rem] md:grid-cols-[minmax(0,1fr)_minmax(250px,0.95fr)_max-content] md:items-start">
                       <div className="min-w-0">
                         <div className="mb-2 flex flex-wrap items-center gap-2">
                           <Badge
@@ -1496,7 +1517,7 @@ function SuperAdminCampaignsPage() {
                       </div>
 
                       <div className="flex min-h-[4.5rem] flex-col gap-3 md:items-end md:pt-8">
-                        <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                        <div className="flex flex-nowrap items-center gap-2 whitespace-nowrap md:justify-end">
                           {isSuperAdmin && isStopAllowed(campaign) ? (
                             <Button
                               onClick={(e) => openDialog("stop", campaign.id, campaign.name, e)}
@@ -1568,9 +1589,16 @@ function SuperAdminCampaignsPage() {
                             <Button
                               type="button"
                               onClick={(e) => handleGenerateCampaignContent(campaign, e)}
-                              title={`Generate personalized content for ${emptyContentCount} empty lead${
-                                emptyContentCount === 1 ? "" : "s"
-                              }`}
+                              title={
+                                contentSummaryTotal > 0
+                                  ? `Generate personalized content for ${emptyContentCount} empty lead${
+                                      emptyContentCount === 1 ? "" : "s"
+                                    }`
+                                  : contentSummary?.loading
+                                    ? "Checking campaign leads for missing draft content"
+                                    : "Generate personalized campaign content"
+                              }
+                              disabled={Boolean(contentSummary?.loading && contentSummaryTotal === 0)}
                               className="h-9 rounded-md border border-violet-200/85 bg-white/82 px-3.5 text-xs font-semibold text-violet-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-violet-300 hover:bg-violet-50 hover:text-violet-800 disabled:cursor-not-allowed disabled:text-zinc-300 disabled:hover:bg-white/82"
                             >
                               <Sparkles className="mr-1.5 h-3.5 w-3.5" />
