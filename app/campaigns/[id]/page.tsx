@@ -3543,17 +3543,17 @@ function SuperAdminCampaignDetailPage() {
       ) : null}
 
       {canManageLeadActions ? (
-        <Card className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_14px_34px_-28px_rgba(15,23,42,0.55)]">
-          <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <Card className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_14px_34px_-28px_rgba(15,23,42,0.55)] transition-colors dark:border-zinc-700 dark:bg-zinc-900 dark:[&_input]:border-zinc-600 dark:[&_input]:bg-zinc-950 dark:[&_input]:text-zinc-100 dark:[&_textarea]:border-zinc-600 dark:[&_textarea]:bg-zinc-950 dark:[&_textarea]:text-zinc-100 dark:[&_h3]:text-zinc-50 dark:[&_p]:text-zinc-400 dark:[&_label]:text-zinc-400 dark:[&_code]:bg-zinc-800 dark:[&_code]:text-zinc-200">
+          <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-4 dark:border-zinc-700 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Campaign outreach</p>
-              <h2 className="mt-1 text-base font-semibold tracking-tight text-slate-950">Set up your delivery channels</h2>
-              <p className="mt-1 text-xs text-slate-500">Choose a channel, configure it, and save when it is ready to use.</p>
+              <h2 className="mt-1 text-base font-semibold tracking-tight text-slate-950 dark:text-zinc-50">Set up your delivery channels</h2>
+              <p className="mt-1 text-xs text-slate-500 dark:text-zinc-400">Choose a channel, configure it, and save when it is ready to use.</p>
             </div>
-            <p className="text-xs text-slate-500">Select a card to configure</p>
+            <p className="text-xs text-slate-500 dark:text-zinc-400">Select a card to configure</p>
           </div>
 
-          <div className="grid gap-3 border-b border-slate-100 bg-slate-50/70 p-4 lg:grid-cols-3">
+          <div className="grid gap-3 border-b border-slate-100 bg-slate-50/70 p-4 dark:border-zinc-700 dark:bg-zinc-950/60 lg:grid-cols-3">
             {[
               {
                 id: "linkedin" as const,
@@ -3592,21 +3592,21 @@ function SuperAdminCampaignDetailPage() {
                   aria-pressed={isActive}
                   className={`group rounded-xl border p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 ${
                     isActive
-                      ? "border-slate-900 bg-white shadow-[0_10px_22px_-18px_rgba(15,23,42,0.65)]"
-                      : "border-slate-200 bg-white/75 hover:border-slate-300 hover:bg-white"
+                      ? "border-slate-900 bg-white shadow-[0_10px_22px_-18px_rgba(15,23,42,0.65)] dark:border-zinc-300 dark:bg-zinc-800"
+                      : "border-slate-200 bg-white/75 hover:border-slate-300 hover:bg-white dark:border-zinc-700 dark:bg-zinc-900/80 dark:hover:border-zinc-500 dark:hover:bg-zinc-800"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className={`flex h-10 w-10 items-center justify-center rounded-lg border ${channel.iconClass}`}>{channel.icon}</div>
                     <Badge className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide shadow-none ${
-                      channel.isConfigured ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-500"
+                      channel.isConfigured ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300" : "border-slate-200 bg-white text-slate-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
                     }`}>
                       {channel.isConfigured ? channel.configuredLabel : "Needs setup"}
                     </Badge>
                   </div>
-                  <h3 className="mt-4 text-sm font-semibold text-slate-950">{channel.title}</h3>
-                  <p className="mt-1 min-h-9 text-xs leading-relaxed text-slate-500">{channel.description}</p>
-                  <span className={`mt-4 inline-flex items-center text-xs font-semibold ${isActive ? "text-slate-950" : "text-slate-600 group-hover:text-slate-950"}`}>
+                  <h3 className="mt-4 text-sm font-semibold text-slate-950 dark:text-zinc-50">{channel.title}</h3>
+                  <p className="mt-1 min-h-9 text-xs leading-relaxed text-slate-500 dark:text-zinc-400">{channel.description}</p>
+                  <span className={`mt-4 inline-flex items-center text-xs font-semibold ${isActive ? "text-slate-950 dark:text-zinc-50" : "text-slate-600 group-hover:text-slate-950 dark:text-zinc-400 dark:group-hover:text-zinc-100"}`}>
                     {isActive ? "Currently editing" : channel.isConfigured ? "Edit setup" : "Set up"}
                     <ChevronRight className="ml-1 h-3.5 w-3.5" />
                   </span>
@@ -3889,13 +3889,13 @@ function SuperAdminCampaignDetailPage() {
         </Card>
       ) : null}
 
-      <Card className="relative isolate mt-3 flex flex-col overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.84)_0%,rgba(250,252,255,0.66)_56%,rgba(240,246,253,0.56)_100%)] backdrop-blur-[16px] [backdrop-filter:saturate(175%)_blur(16px)] shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74),inset_0_0_22px_rgba(255,255,255,0.2)]">
-        <div className="pointer-events-none absolute -right-20 -top-24 h-60 w-60 rounded-full bg-gradient-to-br from-sky-300/34 via-blue-500/12 to-blue-700/0 blur-3xl" />
-        <div className="pointer-events-none absolute -left-24 -bottom-20 h-56 w-56 rounded-full bg-gradient-to-tr from-blue-300/20 via-sky-200/10 to-transparent blur-3xl" />
+      <Card className="campaign-leads-panel relative isolate mt-3 flex flex-col overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.84)_0%,rgba(250,252,255,0.66)_56%,rgba(240,246,253,0.56)_100%)] backdrop-blur-[16px] [backdrop-filter:saturate(175%)_blur(16px)] shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74),inset_0_0_22px_rgba(255,255,255,0.2)]">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-60 w-60 rounded-full bg-gradient-to-br from-sky-300/34 via-blue-500/12 to-blue-700/0 blur-3xl dark:hidden" />
+        <div className="pointer-events-none absolute -left-24 -bottom-20 h-56 w-56 rounded-full bg-gradient-to-tr from-blue-300/20 via-sky-200/10 to-transparent blur-3xl dark:hidden" />
 
         <div className="relative z-[6] flex flex-col gap-2 px-6 pt-0.5 sm:flex-row sm:items-center sm:justify-between">
           {canManageLeadActions ? (
-            <div className="inline-flex flex-wrap items-center rounded-xl border border-zinc-300/90 bg-white/60 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_8px_-10px_rgba(2,10,27,0.34)] backdrop-blur-[6px]">
+            <div className="inline-flex flex-wrap items-center rounded-xl border border-zinc-300/90 bg-white/60 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_8px_-10px_rgba(2,10,27,0.34)] backdrop-blur-[6px] dark:border-zinc-700 dark:bg-zinc-800/90 dark:shadow-none">
               {leadFilterTabs.map((tab) => (
                 <button
                   key={tab.key}
@@ -4255,7 +4255,7 @@ function SuperAdminCampaignDetailPage() {
         <div className="relative z-[2] px-4 pb-2 pt-3">
           <div>
             <table className={canManageLeadActions ? "min-w-[1000px] w-full" : "min-w-[520px] w-full"}>
-            <thead className="border-b border-zinc-100/85 bg-white/70">
+            <thead className="border-b border-zinc-100/85 bg-white/70 dark:border-zinc-700 dark:bg-zinc-800">
               <tr>
                 {canManageLeadActions && bulkSelectMode && (
                   <th className="w-10 px-3 py-3 text-center">
@@ -4285,7 +4285,7 @@ function SuperAdminCampaignDetailPage() {
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-zinc-100/70">
+            <tbody className="divide-y divide-zinc-100/70 dark:divide-zinc-700">
               {paginatedLeads.length === 0 && (
                 <tr>
                   <td colSpan={canManageLeadActions ? (bulkSelectMode ? 8 : 7) : 2} className="px-6 py-10 text-center text-sm text-zinc-500">
