@@ -638,6 +638,7 @@ export type CampaignInfo = {
   category: string | null;
   date: string | null;
   heyreachCampaignId?: string | null;
+  linkedinTemplateBody?: string | null;
   createdAt: string | null;
   updatedAt: string | null;
 };

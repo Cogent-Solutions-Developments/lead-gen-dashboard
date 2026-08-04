@@ -611,6 +611,20 @@ export async function saveCampaignHeyReachCampaignId(
   return data as { ok: boolean; info?: { heyreachCampaignId?: string | null } };
 }
 
+export async function saveCampaignLinkedInSetup(
+  campaignId: string,
+  payload: { heyreachCampaignId: string; linkedinTemplateBody: string },
+  persona?: Persona
+) {
+  const selected = persona ?? getPersona();
+  const prefix = selected === "delegates" ? "/api/delegates" : selected === "production" ? "/api/productions" : "/api";
+  const { data } = await getApiKeyClient(selected).post(
+    `${prefix}/campaigns/${encodeURIComponent(campaignId)}/info`,
+    payload
+  );
+  return data as { ok: boolean; info?: { heyreachCampaignId?: string | null; linkedinTemplateBody?: string | null } };
+}
+
 export async function sendCampaignLeadLinkedin(leadId: string, persona?: Persona) {
   const selected = persona ?? getPersona();
   const prefix = selected === "delegates" ? "/api/delegates" : selected === "production" ? "/api/productions" : "/api";

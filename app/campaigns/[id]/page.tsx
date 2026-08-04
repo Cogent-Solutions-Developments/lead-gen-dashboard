@@ -44,7 +44,7 @@ import {
   deleteCampaignEmailTemplate,
   generateSelectedCampaignLeadContent,
   getCampaignEmailTemplate,
-  saveCampaignHeyReachCampaignId,
+  saveCampaignLinkedInSetup,
   sendCampaignLeadLinkedin,
   resetLeadContent,
   resetSelectedCampaignLeadContent,
@@ -1135,7 +1135,10 @@ function SuperAdminCampaignDetailPage() {
   const [campaignCategory, setCampaignCategory] = useState<string>("");
   const [heyreachCampaignId, setHeyreachCampaignId] = useState("");
   const [savedHeyreachCampaignId, setSavedHeyreachCampaignId] = useState("");
+  const [linkedinTemplateBody, setLinkedinTemplateBody] = useState("");
+  const [savedLinkedinTemplateBody, setSavedLinkedinTemplateBody] = useState("");
   const [isHeyreachCampaignSaving, setIsHeyreachCampaignSaving] = useState(false);
+  const [activeChannelSetup, setActiveChannelSetup] = useState<"linkedin" | "email" | "followups">("linkedin");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [leadFilter, setLeadFilter] = useState<LeadFilterKey>("new");
@@ -1664,8 +1667,11 @@ function SuperAdminCampaignDetailPage() {
       setCampaign(cRes.data);
       setCampaignCategory(String(infoRes?.data?.info?.category || cRes.data?.category || "").trim());
       const configuredHeyreachCampaignId = String(infoRes?.data?.info?.heyreachCampaignId || "").trim();
+      const configuredLinkedinTemplateBody = String(infoRes?.data?.info?.linkedinTemplateBody || "").trim();
       setHeyreachCampaignId(configuredHeyreachCampaignId);
       setSavedHeyreachCampaignId(configuredHeyreachCampaignId);
+      setLinkedinTemplateBody(configuredLinkedinTemplateBody);
+      setSavedLinkedinTemplateBody(configuredLinkedinTemplateBody);
       const activeTemplate = templateRes?.template ?? null;
       setEmailTemplateId(activeTemplate?.id ?? null);
       setEmailTemplateSubject(activeTemplate?.emailSubject ?? "");
@@ -1762,18 +1768,26 @@ function SuperAdminCampaignDetailPage() {
     if (!canManageLeadActions || isHeyreachCampaignSaving) return;
 
     const requestedCampaignId = heyreachCampaignId.trim();
+    const requestedTemplateBody = linkedinTemplateBody.trim();
     if (requestedCampaignId && !/^\d+$/.test(requestedCampaignId)) {
       toast.error("Invalid HeyReach campaign ID", { description: "HeyReach campaign IDs must contain numbers only." });
+      return;
+    }
+    if (!requestedTemplateBody) {
+      toast.error("LinkedIn template is required", { description: "Write the campaign-level LinkedIn message before saving setup." });
       return;
     }
 
     try {
       setIsHeyreachCampaignSaving(true);
-      const response = await saveCampaignHeyReachCampaignId(campaignId, requestedCampaignId, persona);
+      const response = await saveCampaignLinkedInSetup(campaignId, { heyreachCampaignId: requestedCampaignId, linkedinTemplateBody: requestedTemplateBody }, persona);
       const savedId = String(response.info?.heyreachCampaignId ?? heyreachCampaignId).trim();
+      const savedTemplate = String(response.info?.linkedinTemplateBody ?? requestedTemplateBody).trim();
       setHeyreachCampaignId(savedId);
       setSavedHeyreachCampaignId(savedId);
-      toast.success(savedId ? "HeyReach campaign connected" : "HeyReach campaign disconnected");
+      setLinkedinTemplateBody(savedTemplate);
+      setSavedLinkedinTemplateBody(savedTemplate);
+      toast.success("LinkedIn setup saved");
     } catch (error: unknown) {
       const description = error instanceof Error ? error.message : "Unable to save the HeyReach campaign ID";
       toast.error("HeyReach configuration error", { description });
@@ -3529,58 +3543,134 @@ function SuperAdminCampaignDetailPage() {
       ) : null}
 
       {canManageLeadActions ? (
-        <Card className="relative mt-3 overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(248,251,255,0.92)_0%,rgba(255,255,255,0.84)_58%,rgba(238,246,255,0.68)_100%)] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_12px_24px_-22px_rgba(2,10,27,0.55),inset_0_1px_0_rgba(255,255,255,1)] backdrop-blur-[14px] [backdrop-filter:saturate(168%)_blur(14px)]">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
-            <div className="min-w-0 xl:w-80">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-md border border-[#0A66C2]/25 bg-[#0A66C2]/10">
-                  <LinkedInIcon className="h-4 w-4 text-[#0A66C2]" />
-                </div>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-sm font-semibold text-zinc-900">HeyReach LinkedIn Campaign</h2>
+        <Card className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_14px_34px_-28px_rgba(15,23,42,0.55)]">
+          <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Campaign outreach</p>
+              <h2 className="mt-1 text-base font-semibold tracking-tight text-slate-950">Set up your delivery channels</h2>
+              <p className="mt-1 text-xs text-slate-500">Choose a channel, configure it, and save when it is ready to use.</p>
+            </div>
+            <p className="text-xs text-slate-500">Select a card to configure</p>
+          </div>
+
+          <div className="grid gap-3 border-b border-slate-100 bg-slate-50/70 p-4 lg:grid-cols-3">
+            {[
+              {
+                id: "linkedin" as const,
+                title: "LinkedIn setup",
+                description: "Connect HeyReach and set the campaign message template for LinkedIn outreach.",
+                icon: <LinkedInIcon className="h-5 w-5 text-[#0A66C2]" />,
+                iconClass: "border-[#0A66C2]/20 bg-[#0A66C2]/10",
+                isConfigured: Boolean(savedHeyreachCampaignId && savedLinkedinTemplateBody),
+                configuredLabel: "Ready",
+              },
+              {
+                id: "email" as const,
+                title: "Email template",
+                description: "Create fallback email content for contacts with an email address.",
+                icon: <Mail className="h-5 w-5 text-slate-700" />,
+                iconClass: "border-slate-200 bg-white",
+                isConfigured: Boolean(emailTemplateId),
+                configuredLabel: "Active",
+              },
+              {
+                id: "followups" as const,
+                title: "Follow-up templates",
+                description: "Set up the manual email sequence your team can use after outreach.",
+                icon: <MessageSquare className="h-5 w-5 text-violet-700" />,
+                iconClass: "border-violet-200 bg-violet-50",
+                isConfigured: FOLLOW_UP_STEPS.some((_, index) => Boolean(followUpTemplates[index + 1]?.subject.trim() && followUpTemplates[index + 1]?.body.trim())),
+                configuredLabel: "Configured",
+              },
+            ].map((channel) => {
+              const isActive = activeChannelSetup === channel.id;
+              return (
+                <button
+                  key={channel.id}
+                  type="button"
+                  onClick={() => setActiveChannelSetup(channel.id)}
+                  aria-pressed={isActive}
+                  className={`group rounded-xl border p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 ${
+                    isActive
+                      ? "border-slate-900 bg-white shadow-[0_10px_22px_-18px_rgba(15,23,42,0.65)]"
+                      : "border-slate-200 bg-white/75 hover:border-slate-300 hover:bg-white"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg border ${channel.iconClass}`}>{channel.icon}</div>
                     <Badge className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide shadow-none ${
-                      savedHeyreachCampaignId
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                        : "border-zinc-300 bg-white text-zinc-500"
+                      channel.isConfigured ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-500"
                     }`}>
-                      {savedHeyreachCampaignId ? "Connected" : "Not Set"}
+                      {channel.isConfigured ? channel.configuredLabel : "Needs setup"}
                     </Badge>
                   </div>
-                  <p className="mt-0.5 text-xs text-zinc-500">Choose the HeyReach campaign that will receive approved LinkedIn leads.</p>
+                  <h3 className="mt-4 text-sm font-semibold text-slate-950">{channel.title}</h3>
+                  <p className="mt-1 min-h-9 text-xs leading-relaxed text-slate-500">{channel.description}</p>
+                  <span className={`mt-4 inline-flex items-center text-xs font-semibold ${isActive ? "text-slate-950" : "text-slate-600 group-hover:text-slate-950"}`}>
+                    {isActive ? "Currently editing" : channel.isConfigured ? "Edit setup" : "Set up"}
+                    <ChevronRight className="ml-1 h-3.5 w-3.5" />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="p-5">
+            {activeChannelSetup === "linkedin" ? (
+              <div>
+                <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#0A66C2]/20 bg-[#0A66C2]/10"><LinkedInIcon className="h-5 w-5 text-[#0A66C2]" /></div>
+                    <div><h3 className="text-sm font-semibold text-slate-950">LinkedIn campaign setup</h3><p className="mt-0.5 text-xs text-slate-500">Choose where leads are queued and set the fallback LinkedIn message.</p></div>
+                  </div>
+                  <Badge className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide shadow-none ${savedHeyreachCampaignId && savedLinkedinTemplateBody ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-500"}`}>{savedHeyreachCampaignId && savedLinkedinTemplateBody ? "Ready" : "Needs setup"}</Badge>
+                </div>
+                <div className="grid gap-4 xl:grid-cols-[minmax(16rem,0.7fr)_minmax(24rem,1.3fr)_auto] xl:items-end">
+                  <div>
+                    <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">HeyReach campaign ID</label>
+                    <Input value={heyreachCampaignId} onChange={(event) => setHeyreachCampaignId(event.target.value)} disabled={isHeyreachCampaignSaving} inputMode="numeric" placeholder="e.g. 235" className="h-10 border-slate-300 bg-white text-sm text-slate-950 placeholder:text-slate-400" />
+                    <p className="mt-2 text-xs leading-relaxed text-slate-500">Find the numeric ID in the HeyReach campaign URL or API response.</p>
+                  </div>
+                  <div><label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">LinkedIn message template</label><textarea value={linkedinTemplateBody} onChange={(event) => setLinkedinTemplateBody(event.target.value)} disabled={isHeyreachCampaignSaving} placeholder={"Hi {{first_name}},\n\nI wanted to connect about {{campaignName}}."} className="min-h-28 w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#0A66C2] disabled:cursor-not-allowed disabled:opacity-60" /><p className="mt-2 text-xs leading-relaxed text-slate-500">Variables: {"{{first_name}}"}, {"{{last_name}}"}, {"{{company}}"}, {"{{campaignName}}"}. Add <code className="rounded bg-slate-100 px-1 py-0.5 text-slate-700">{"{{supernizo_linkedin_message}}"}</code> to the HeyReach message step.</p></div>
+                  <Button type="button" onClick={() => void handleSaveHeyreachCampaignId()} disabled={isHeyreachCampaignSaving || (heyreachCampaignId.trim() === savedHeyreachCampaignId && linkedinTemplateBody.trim() === savedLinkedinTemplateBody)} className="btn-sidebar-noise h-10 px-4">
+                    {isHeyreachCampaignSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Save LinkedIn setup
+                  </Button>
                 </div>
               </div>
-            </div>
+            ) : null}
 
-            <div className="min-w-0 flex-1">
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                HeyReach Campaign ID
-              </label>
-              <Input
-                value={heyreachCampaignId}
-                onChange={(event) => setHeyreachCampaignId(event.target.value)}
-                disabled={isHeyreachCampaignSaving}
-                inputMode="numeric"
-                placeholder="e.g. 235"
-                className="h-10 border-zinc-300/85 bg-white/90 text-sm text-zinc-900 placeholder:text-zinc-400"
-              />
-              <p className="mt-1 text-xs text-zinc-500">Find this numeric ID in the HeyReach campaign URL or API response. In HeyReach, use the custom field <code>{"{{supernizo_linkedin_message}}"}</code> in the message step.</p>
-            </div>
+            {activeChannelSetup === "email" ? (
+              <div>
+                <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-slate-50"><Mail className="h-5 w-5 text-slate-700" /></div><div><h3 className="text-sm font-semibold text-slate-950">Fallback email template</h3><p className="mt-0.5 text-xs text-slate-500">Used when a lead has an email address but no generated message.</p></div></div>
+                  <Badge className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide shadow-none ${emailTemplateId ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-500"}`}>{emailTemplateId ? "Active" : "Not set"}</Badge>
+                </div>
+                {!hasEmailLeads ? <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Add a lead with an email address to enable this template.</p> : null}
+                <div className="grid gap-4 xl:grid-cols-[minmax(16rem,0.72fr)_minmax(24rem,1.28fr)_auto] xl:items-end">
+                  <div><label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Email subject</label><Input value={emailTemplateSubject} onChange={(event) => setEmailTemplateSubject(event.target.value)} disabled={emailTemplateSaveDisabled} placeholder="e.g. Digital Stadium 2026" className="h-10 border-slate-300 bg-white text-sm text-slate-950 placeholder:text-slate-400" /></div>
+                  <div><label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Email body</label><textarea value={emailTemplateBody} onChange={(event) => setEmailTemplateBody(event.target.value)} disabled={emailTemplateSaveDisabled} placeholder={"Dear {{first_name}},\n\nWrite the fallback email body for leads with email addresses."} className="min-h-28 w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900 disabled:cursor-not-allowed disabled:opacity-60" /></div>
+                  <div className="flex flex-wrap gap-2 xl:w-40 xl:flex-col"><Button type="button" onClick={handleSaveEmailTemplate} disabled={emailTemplateSaveDisabled} className="btn-sidebar-noise h-10 px-3.5" title={hasEmailLeads ? "Save email template" : "No leads with email addresses"}>{isEmailTemplateSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save template</Button><Button type="button" variant="ghost" onClick={handleDeleteEmailTemplate} disabled={isEmailTemplateLoading || isEmailTemplateSaving || isEmailTemplateDeleting || (!emailTemplateId && !emailTemplateSubject && !emailTemplateBody)} className="h-10 rounded-md border border-slate-200 bg-white px-3 text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50">{isEmailTemplateDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}Delete</Button></div>
+                </div>
+                {fallbackDraftSummary ? <p className="mt-3 text-xs text-emerald-700">{formatFallbackDraftSummary(fallbackDraftSummary)}</p> : null}
+              </div>
+            ) : null}
 
-            <Button
-              type="button"
-              onClick={() => void handleSaveHeyreachCampaignId()}
-              disabled={isHeyreachCampaignSaving || heyreachCampaignId.trim() === savedHeyreachCampaignId}
-              className="btn-sidebar-noise h-9 shrink-0 px-3.5"
-            >
-              {isHeyreachCampaignSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              Save Campaign ID
-            </Button>
+            {activeChannelSetup === "followups" ? (
+              <div>
+                <div className="mb-5 flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-lg border border-violet-200 bg-violet-50"><MessageSquare className="h-5 w-5 text-violet-700" /></div><div><h3 className="text-sm font-semibold text-slate-950">Manual follow-up sequence</h3><p className="mt-0.5 text-xs text-slate-500">Variables: {"{{first_name}}"}, {"{{company}}"}, {"{{campaignName}}"}</p></div></div>{selectedFollowUpTemplate.updatedAt ? <p className="text-xs text-slate-400">Updated {formatDateTime(selectedFollowUpTemplate.updatedAt)}</p> : null}</div>
+                <div className="mb-4 flex flex-wrap gap-1.5">{FOLLOW_UP_STEPS.map((label, index) => { const stage = index + 1; const isSelected = selectedFollowUpTemplateStage === stage; const isConfigured = Boolean(followUpTemplates[stage]?.subject.trim() && followUpTemplates[stage]?.body.trim()); return <button key={label} type="button" onClick={() => setSelectedFollowUpTemplateStage(stage)} className={`rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-colors ${isSelected ? "border-violet-600 bg-violet-600 text-white" : "border-violet-200 bg-white text-violet-700 hover:border-violet-300 hover:bg-violet-50"}`}>{label}{isConfigured ? <span className={`ml-1.5 text-[9px] ${isSelected ? "text-white/75" : "text-emerald-600"}`}>●</span> : null}</button>; })}</div>
+                <div className="grid gap-4 xl:grid-cols-[minmax(15rem,0.7fr)_minmax(22rem,1.3fr)_auto] xl:items-end">
+                  <div><label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Subject</label><Input value={selectedFollowUpTemplate.subject} onChange={(event) => setFollowUpTemplates((previous) => ({ ...previous, [selectedFollowUpTemplateStage]: { ...previous[selectedFollowUpTemplateStage], subject: event.target.value } }))} disabled={isSavingFollowUpTemplate} placeholder={`e.g. ${FOLLOW_UP_STEPS[selectedFollowUpTemplateStage - 1]} — {{first_name}}`} className="h-10 border-violet-200 bg-white text-sm" /><label className="mt-3 flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={selectedFollowUpTemplate.isActive} onChange={(event) => setFollowUpTemplates((previous) => ({ ...previous, [selectedFollowUpTemplateStage]: { ...previous[selectedFollowUpTemplateStage], isActive: event.target.checked } }))} disabled={isSavingFollowUpTemplate} className="h-3.5 w-3.5 rounded border-violet-300 text-violet-600 focus:ring-violet-500" />Active for manual follow-ups</label></div>
+                  <div><label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Email body</label><textarea value={selectedFollowUpTemplate.body} onChange={(event) => setFollowUpTemplates((previous) => ({ ...previous, [selectedFollowUpTemplateStage]: { ...previous[selectedFollowUpTemplateStage], body: event.target.value } }))} disabled={isSavingFollowUpTemplate} placeholder={"Hi {{first_name}},\n\nI wanted to follow up on my earlier email about {{campaignName}}.\n\nWould you be open to a quick conversation?"} className="min-h-28 w-full resize-y rounded-md border border-violet-200 bg-white px-3 py-2 text-sm text-slate-950 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:cursor-not-allowed disabled:opacity-60" /></div>
+                  <div className="flex flex-wrap gap-2 xl:w-40 xl:flex-col"><Button type="button" onClick={() => void handleSaveFollowUpTemplate()} disabled={isSavingFollowUpTemplate || !selectedFollowUpTemplate.subject.trim() || !selectedFollowUpTemplate.body.trim()} className="h-10 bg-violet-600 px-3.5 text-white hover:bg-violet-700">{isSavingFollowUpTemplate ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save template</Button><Button type="button" variant="ghost" onClick={() => void handleClearFollowUpTemplate()} disabled={isSavingFollowUpTemplate || (!selectedFollowUpTemplate.id && !selectedFollowUpTemplate.subject && !selectedFollowUpTemplate.body)} className="h-10 border border-violet-200 bg-white px-3 text-violet-700 hover:bg-violet-50"><Trash2 className="mr-2 h-4 w-4" />Clear</Button></div>
+                </div>
+              </div>
+            ) : null}
           </div>
         </Card>
       ) : null}
 
-      {canManageLeadActions ? (
+      {false && canManageLeadActions ? (
         <Card className="relative mt-3 overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.86)_0%,rgba(250,252,255,0.7)_58%,rgba(240,246,253,0.58)_100%)] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_12px_24px_-22px_rgba(2,10,27,0.55),inset_0_1px_0_rgba(255,255,255,1)] backdrop-blur-[14px] [backdrop-filter:saturate(168%)_blur(14px)]">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
             <div className="min-w-0 xl:w-80">
@@ -3616,7 +3706,7 @@ function SuperAdminCampaignDetailPage() {
                 <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/70 px-3 py-2">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Fallback Drafts</p>
                   <p className="mt-1 text-sm font-semibold text-zinc-900">
-                    {formatFallbackDraftSummary(fallbackDraftSummary)}
+                    {formatFallbackDraftSummary(fallbackDraftSummary!)}
                   </p>
                 </div>
               ) : null}
@@ -3685,7 +3775,7 @@ function SuperAdminCampaignDetailPage() {
         </Card>
       ) : null}
 
-      {canManageLeadActions ? (
+      {false && canManageLeadActions ? (
         <Card className="relative mt-3 overflow-hidden rounded-2xl border border-violet-100 bg-[linear-gradient(160deg,rgba(250,248,255,0.94)_0%,rgba(255,255,255,0.9)_60%,rgba(245,243,255,0.8)_100%)] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_12px_24px_-22px_rgba(76,29,149,0.35)]">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
             <div className="xl:w-72">
