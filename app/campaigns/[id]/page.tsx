@@ -89,6 +89,10 @@ type LeadContentSource = "template" | "generated" | "manual" | "empty" | "unknow
 type ContentGenerationQueueStatus = "idle" | "running" | "stopping" | "paused";
 type GenerationFailureStatus = "validator_rejected" | "qa_failed" | "generation_failed";
 
+// const OUTREACH_REQUEST_TIMEOUT_MS = 15_000;
+const OUTREACH_REQUEST_TIMEOUT_MS = 0;
+
+
 type GenerationFailureInfo = {
   status: GenerationFailureStatus;
   stage: string;
@@ -1672,9 +1676,10 @@ function SuperAdminCampaignDetailPage() {
   const sendLeadEmailOnly = async (leadId: string, attachmentId?: string) =>
     api.post(`/api/leads/${leadId}/send-email`, null, {
       params: attachmentId ? { attachment_id: attachmentId } : undefined,
+      timeout: 0,
     });
   const sendLeadWhatsappOnly = async (leadId: string) =>
-    api.post(`/api/leads/${leadId}/send-whatsapp`);
+    api.post(`/api/leads/${leadId}/send-whatsapp`, null, { timeout: 0 });
 
 
   const startPollingLead = (
@@ -2552,7 +2557,9 @@ function SuperAdminCampaignDetailPage() {
 
     try {
       setLeadSendActionLoading(leadId, action, true);
-      const approveResponse = await api.put(`/api/leads/${leadId}/approve`);
+      const approveResponse = await api.put(`/api/leads/${leadId}/approve`, null, {
+        timeout: OUTREACH_REQUEST_TIMEOUT_MS,
+      });
       const approvedLead = approveResponse?.data ?? {};
       const resolvedStatus = normalizeApprovalStatus(approvedLead.approvalStatus ?? "approved");
       const resolvedSuppression = normalizeSuppressionMeta(approvedLead.suppression);
