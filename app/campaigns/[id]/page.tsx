@@ -89,7 +89,9 @@ type LeadContentSource = "template" | "generated" | "manual" | "empty" | "unknow
 type ContentGenerationQueueStatus = "idle" | "running" | "stopping" | "paused";
 type GenerationFailureStatus = "validator_rejected" | "qa_failed" | "generation_failed";
 
-const OUTREACH_REQUEST_TIMEOUT_MS = 15_000;
+// const OUTREACH_REQUEST_TIMEOUT_MS = 15_000;
+const OUTREACH_REQUEST_TIMEOUT_MS = 0;
+
 
 type GenerationFailureInfo = {
   status: GenerationFailureStatus;
