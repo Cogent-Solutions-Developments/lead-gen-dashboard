@@ -241,10 +241,10 @@ type LeadExportRow = {
 };
 
 const approvalStyles = {
-  pending: { bg: "bg-zinc-100 text-zinc-500 border-zinc-300", icon: Clock },
-  approved: { bg: "bg-sidebar-primary/10 text-emerald-900 border-sidebar-primary/20", icon: CheckCircle },
-  rejected: { bg: "bg-white text-zinc-400 border-zinc-300 line-through", icon: XCircle },
-  suppressed: { bg: "bg-rose-50 text-rose-700 border-rose-200", icon: XCircle },
+  pending: { bg: "bg-zinc-100 text-zinc-500 border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300", icon: Clock },
+  approved: { bg: "bg-sidebar-primary/10 text-emerald-900 border-sidebar-primary/20 dark:border-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300", icon: CheckCircle },
+  rejected: { bg: "bg-white text-zinc-400 border-zinc-300 line-through dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300", icon: XCircle },
+  suppressed: { bg: "bg-rose-50 text-rose-700 border-rose-200 dark:border-rose-800 dark:bg-rose-950/70 dark:text-rose-300", icon: XCircle },
 };
 
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
@@ -471,7 +471,7 @@ function getLeadContentIndicator(lead: Lead) {
     return {
       title: lead.generationFailure.reason || "Validator rejected this lead content.",
       buttonClassName:
-        "border-rose-200 bg-rose-50/90 text-rose-800 hover:border-rose-300 hover:bg-rose-100/80 hover:text-rose-900",
+        "border-rose-200 bg-rose-50/90 text-rose-800 hover:border-rose-300 hover:bg-rose-100/80 hover:text-rose-900 dark:border-rose-800 dark:bg-rose-950/70 dark:text-rose-300 dark:hover:bg-rose-950",
       iconClassName: "text-rose-500",
     };
   }
@@ -480,7 +480,7 @@ function getLeadContentIndicator(lead: Lead) {
     return {
       title: lead.generationFailure.reason || "Generated content did not pass QA.",
       buttonClassName:
-        "border-amber-200 bg-amber-50/90 text-amber-800 hover:border-amber-300 hover:bg-amber-100/80 hover:text-amber-900",
+        "border-amber-200 bg-amber-50/90 text-amber-800 hover:border-amber-300 hover:bg-amber-100/80 hover:text-amber-900 dark:border-amber-800 dark:bg-amber-950/70 dark:text-amber-300 dark:hover:bg-amber-950",
       iconClassName: "text-amber-500",
     };
   }
@@ -489,7 +489,7 @@ function getLeadContentIndicator(lead: Lead) {
     return {
       title: lead.generationFailure.reason || "Content generation failed.",
       buttonClassName:
-        "border-amber-200 bg-amber-50/90 text-amber-800 hover:border-amber-300 hover:bg-amber-100/80 hover:text-amber-900",
+        "border-amber-200 bg-amber-50/90 text-amber-800 hover:border-amber-300 hover:bg-amber-100/80 hover:text-amber-900 dark:border-amber-800 dark:bg-amber-950/70 dark:text-amber-300 dark:hover:bg-amber-950",
       iconClassName: "text-amber-500",
     };
   }
@@ -498,7 +498,7 @@ function getLeadContentIndicator(lead: Lead) {
     return {
       title: "Content is available for this lead.",
       buttonClassName:
-        "border-emerald-200 bg-emerald-50/90 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-100/80 hover:text-emerald-900",
+        "border-emerald-200 bg-emerald-50/90 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-100/80 hover:text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 dark:hover:bg-emerald-950",
       iconClassName: "text-emerald-500",
     };
   }
@@ -506,7 +506,7 @@ function getLeadContentIndicator(lead: Lead) {
   return {
     title: "Review email content",
     buttonClassName:
-      "border-zinc-300/80 bg-white/82 text-zinc-700 hover:border-zinc-300 hover:bg-white hover:text-zinc-900",
+      "border-zinc-300/80 bg-white/82 text-zinc-700 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:border-zinc-500 dark:hover:bg-zinc-700",
     iconClassName: "text-zinc-400",
   };
 }
@@ -4428,7 +4428,7 @@ function SuperAdminCampaignDetailPage() {
                                 Template fallback
                               </span>
                             ) : null}
-                            <div className="inline-flex overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_6px_14px_-12px_rgba(2,10,27,0.45)]">
+                            <div className="inline-flex overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_6px_14px_-12px_rgba(2,10,27,0.45)] dark:border-zinc-600 dark:bg-zinc-800 dark:shadow-none">
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -4473,7 +4473,7 @@ function SuperAdminCampaignDetailPage() {
                               </span>
                             ) : null}
                             {item.reviewStatus ? (
-                              <span className="text-[10px] text-zinc-500">Review: {item.reviewStatus}</span>
+                              <span className="text-[10px] text-zinc-500 dark:text-zinc-300">Review: {item.reviewStatus}</span>
                             ) : null}
                           </div>
                         </td>
