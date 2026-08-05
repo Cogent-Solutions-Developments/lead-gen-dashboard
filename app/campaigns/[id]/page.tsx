@@ -3786,12 +3786,19 @@ function SuperAdminCampaignDetailPage() {
                             {titleBucket}
                           </span>
                         ) : null}
-                        {item.companyUrl ? (
-                          <a href={item.companyUrl} target="_blank" rel="noreferrer" className="mt-0.5 w-fit text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
-                            {item.companyUrl}
-                          </a>
-                        ) : item.company ? (
-                          <span className="mt-0.5 w-fit text-xs text-zinc-400">{item.company}</span>
+                        {item.company ? (
+                          item.companyUrl ? (
+                            <a
+                              href={item.companyUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-0.5 w-fit text-xs font-medium text-zinc-500 hover:text-zinc-700 hover:underline"
+                            >
+                              {item.company}
+                            </a>
+                          ) : (
+                            <span className="mt-0.5 w-fit text-xs font-medium text-zinc-500">{item.company}</span>
+                          )
                         ) : null}
                       </div>
                     </td>
