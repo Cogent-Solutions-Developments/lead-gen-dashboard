@@ -7,6 +7,7 @@ import {
   Activity,
   CalendarDays,
   BrainCircuit,
+  ClipboardList,
   FileText,
   HardDrive,
   LayoutDashboard,
@@ -50,6 +51,12 @@ const adminTabs = [
     href: "/admin/events",
     icon: CalendarDays,
     match: (pathname: string) => pathname === "/admin/events",
+  },
+  {
+    name: "Event Submissions",
+    href: "/admin/event-submissions",
+    icon: ClipboardList,
+    match: (pathname: string) => pathname === "/admin/event-submissions",
   },
   {
     name: "Category Registry",

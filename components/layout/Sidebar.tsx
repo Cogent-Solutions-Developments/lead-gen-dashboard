@@ -22,6 +22,7 @@ import {
   LogOut,
   ShieldCheck,
   BellRing,
+  ClipboardList,
   Loader2,
   X,
   type LucideIcon,
@@ -44,6 +45,7 @@ type SidebarNavItem = {
   normalOnly?: boolean;
   managerOnly?: boolean;
   ceoOnly?: boolean;
+  submissionViewerOnly?: boolean;
 };
 
 const navItems: SidebarNavItem[] = [
@@ -57,6 +59,12 @@ const navItems: SidebarNavItem[] = [
   { name: "Team Leads", href: "/team-leads", icon: UsersRound, managerOnly: true },
   { name: "Nizo AI", href: "/nizo-ai", icon: Brain, normalOnly: true },
   { name: "User Performance", href: "/manager/user-performance", icon: ChartNoAxesCombined, managerOnly: true },
+  {
+    name: "Event Submissions",
+    href: "/event-submissions",
+    icon: ClipboardList,
+    submissionViewerOnly: true,
+  },
   { name: "User & Role Management", href: "/admin/users", icon: UserCog, ceoOnly: true },
   { name: "User Performance", href: "/admin/user-performance", icon: ChartBarIncreasing, ceoOnly: true },
   { name: "Knowledge Library", href: "/admin/knowledge", icon: BookOpenText, ceoOnly: true },
@@ -211,6 +219,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
         {(isBusiness ? businessNavItems : navItems)
           .filter((item) => {
             if (isBusiness) return true;
+            if (item.submissionViewerOnly) return !isSuperAdmin && (isCeo || isManager);
             if (isSuperAdmin) return !item.normalOnly && !item.managerOnly && !item.ceoOnly;
             if (isCeo) return !item.superOnly && !item.managerOnly;
             if (item.superOnly) return false;
