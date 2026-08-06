@@ -49,7 +49,11 @@ test("registration categories and sponsor interests remain distinct", () => {
   assert.match(page, /interestedValue:\s*sponsorFilter\?\.value/);
   assert.match(page, /Registration category/);
   assert.match(page, /Sponsor interest/);
-  assert.match(page, /selectionSummary\(submission\)/);
+  assert.match(page, /selectionSummary\(submission\.category\)/);
+  assert.match(page, /<SponsorPackages selections=\{submission\.interested\} \/>/);
+  assert.match(page, />Package description</);
+  assert.match(page, />Package price</);
+  assert.match(page, /aria-label="Sponsor package price"/);
 });
 
 test("submission details hide developer-only metadata", () => {

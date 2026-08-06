@@ -110,17 +110,48 @@ function displayValue(value: JsonValue | undefined): string {
   return "Not provided";
 }
 
-function selectionSummary(submission: EventSubmission) {
-  const selections = submission.submissionType === "registration" ? submission.category : submission.interested;
+function selectionPrice(value: JsonValue) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+  const price = value.price;
+  if (!price || typeof price !== "object" || Array.isArray(price)) return "";
+  if (typeof price.display === "string") return price.display;
+
+  const currency = typeof price.currency === "string" ? price.currency : "";
+  const amount = typeof price.amount === "number" ? formatNumber(price.amount) : "";
+  return [currency, amount].filter(Boolean).join(" ");
+}
+
+function selectionSummary(selections: JsonValue[] | null) {
   if (!selections?.length) return "No selection";
   return selections.map((item) => displayValue(item)).join(" · ");
 }
 
 function clusterPrice(cluster: EventSubmissionCluster) {
-  if (!cluster.value || typeof cluster.value !== "object" || Array.isArray(cluster.value)) return "";
-  const price = cluster.value.price;
-  if (!price || typeof price !== "object" || Array.isArray(price)) return "";
-  return typeof price.display === "string" ? price.display : "";
+  return selectionPrice(cluster.value);
+}
+
+function SponsorPackages({ selections }: { selections: JsonValue[] | null }) {
+  if (!selections?.length) return <p className="mt-2 text-sm text-zinc-400">No selection</p>;
+
+  return (
+    <div className="mt-3 space-y-3">
+      {selections.map((item, index) => {
+        const price = selectionPrice(item);
+        return (
+          <div key={index} className="grid gap-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">Package description</p>
+              <p className="mt-1.5 text-sm font-semibold leading-6 text-zinc-900">{displayValue(item)}</p>
+            </div>
+            <div aria-label="Sponsor package price" className="min-w-40 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 sm:text-right">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-blue-500">Package price</p>
+              <p className="mt-1 text-xl font-bold tracking-tight text-blue-700">{price || "Not provided"}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function DetailValue({ value }: { value: JsonValue }) {
@@ -281,7 +312,11 @@ function DetailDrawer({
 
               <section>
                 <h3 aria-label={submission.submissionType === "registration" ? "Registration category" : "Sponsor interest"} className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{submission.submissionType === "registration" ? "Category" : "Sponsor"}</h3>
-                <p className="mt-2 text-sm font-medium text-zinc-800">{selectionSummary(submission)}</p>
+                {submission.submissionType === "sponsorship" ? (
+                  <SponsorPackages selections={submission.interested} />
+                ) : (
+                  <p className="mt-2 text-sm font-medium text-zinc-800">{selectionSummary(submission.category)}</p>
+                )}
               </section>
 
               {additionalEntries.length ? (
