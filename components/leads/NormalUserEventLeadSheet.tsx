@@ -53,6 +53,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 import { getDailyDealBellMedia } from "@/lib/dealBellMedia";
 import { cn } from "@/lib/utils";
+import { getLeadOriginLabel, LeadOriginTag } from "@/components/leads/LeadOriginTag";
 import type { Persona } from "@/lib/persona";
 import {
   AlertTriangle,
@@ -100,6 +101,7 @@ type LeadSheetRow = {
   workflowCommentUpdatedByUserDisplayName: string;
   workflowCommentHistoryCount: number;
   isManualLead: boolean;
+  manualLeadAddedByUsername: string;
   isSuppressed: boolean;
   contactReadOnly: boolean;
 };
@@ -1010,6 +1012,7 @@ function mapLeadItem(item: EventLeadListItem, labelLookup: Map<string, string>):
     workflowCommentUpdatedByUserDisplayName: asText(item.workflowCommentUpdatedByUserDisplayName),
     workflowCommentHistoryCount: Number(item.workflowCommentHistoryCount || 0),
     isManualLead: Boolean(item.isManualLead),
+    manualLeadAddedByUsername: asText(item.manualLeadAddedByUsername),
     isSuppressed: Boolean(item.isSuppressed),
     contactReadOnly: Boolean(item.contactReadOnly || item.isSuppressed),
   };
@@ -2723,9 +2726,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                             <div className="flex flex-col gap-1.5">
                               <div className="flex items-center gap-5">
                                 <span className="text-xl font-light tracking-tight text-zinc-950">{item.employeeName || "-"}</span>
-                                {item.isManualLead && (
-                                  <span className="rounded-full border border-zinc-300 bg-white px-2 py-0.5 text-xs font-medium text-zinc-500">Manual</span>
-                                )}
+                                <LeadOriginTag label={getLeadOriginLabel(item, isMyLeadsMode ? "My Leads" : "CS Database")} />
                               </div>
                               <span className="max-w-sm text-base font-light leading-relaxed text-zinc-700">{item.title || "-"}</span>
                               <span className="text-xs font-medium text-zinc-400">{item.company || "-"}</span>

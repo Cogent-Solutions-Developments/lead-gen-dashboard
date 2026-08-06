@@ -830,6 +830,7 @@ export default function TeamLeadsPage() {
                       key={teamLeadQueryKey(selectedMember.id, "my-leads-workspace")}
                       embedded
                       teamMemberId={selectedMember.id}
+                      originLabel={`${memberName(selectedMember)}'s My Leads`}
                     />
                   </div>
                 ) : (

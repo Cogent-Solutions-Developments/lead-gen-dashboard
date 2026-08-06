@@ -45,6 +45,7 @@ import {
   teamLeadQueryKey,
 } from "@/lib/teamLeads";
 import { cn } from "@/lib/utils";
+import { LeadOriginTag } from "@/components/leads/LeadOriginTag";
 import {
   addMyEventLead,
   createMyCampaignFromUpload,
@@ -698,11 +699,13 @@ export default function MyLeadsPage() {
 type MyLeadsWorkspaceProps = {
   embedded?: boolean;
   teamMemberId?: string;
+  originLabel?: string;
 };
 
 export function MyLeadsWorkspace({
   embedded = false,
   teamMemberId = "",
+  originLabel = "My Leads",
 }: MyLeadsWorkspaceProps = {}) {
   const router = useRouter();
   const { persona } = usePersona();
@@ -1733,9 +1736,7 @@ export function MyLeadsWorkspace({
                             >
                               {item.employeeName || "-"}
                             </span>
-                            {item.isManualLead ? (
-                              <span className="rounded-full border border-zinc-300 bg-white px-2 py-0.5 text-xs font-medium text-zinc-500">Manual</span>
-                            ) : null}
+                            <LeadOriginTag label={originLabel} />
                           </div>
                           <span
                             className={cn(

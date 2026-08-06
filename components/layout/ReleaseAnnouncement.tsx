@@ -34,7 +34,7 @@ const releaseFeatures = [
   },
   {
     title: "Clearer Shared Records",
-    description: "The shared Lead Sheet page is now called Database, making group records easier to find and separate from personal work.",
+    description: "The shared Lead Sheet page is now called CS Database, making group records easier to find and separate from personal work.",
   },
 ];
 

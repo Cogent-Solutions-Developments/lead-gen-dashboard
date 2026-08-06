@@ -54,7 +54,7 @@ const navItems: SidebarNavItem[] = [
   { name: "New Campaign", href: "/campaigns/new", icon: Plus, superOnly: true },
   { name: "Upload Campaign", href: "/campaigns/upload", icon: Upload, superOnly: true },
   // { name: "Completed", href: "/completed", icon: CheckCircle },
-  { name: "Nizo Finder", normalLabel: "Database", href: "/leads", icon: Database },
+  { name: "CS Database", normalLabel: "CS Database", href: "/leads", icon: Database },
   { name: "My Leads", href: "/my-leads", icon: ContactRound, normalOnly: true },
   { name: "Team Leads", href: "/team-leads", icon: UsersRound, managerOnly: true },
   { name: "Nizo AI", href: "/nizo-ai", icon: Brain, normalOnly: true },

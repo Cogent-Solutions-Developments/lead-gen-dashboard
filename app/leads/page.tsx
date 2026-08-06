@@ -42,6 +42,7 @@ import {
 import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
 import { NormalUserEventLeadSheet } from "@/components/leads/NormalUserEventLeadSheet";
+import { getLeadOriginLabel, LeadOriginTag } from "@/components/leads/LeadOriginTag";
 
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
 const CEO_DEPARTMENT_TABS = [
@@ -1283,7 +1284,7 @@ function SuperAdminTotalLeads() {
         disableTargetLead.id,
         disableReason.trim() || undefined
       );
-      const effectiveReason = disableReason.trim() || "disabled from Nizo Finder";
+      const effectiveReason = disableReason.trim() || "disabled from CS Database";
 
       setLeads((prev) =>
         prev.map((lead) =>
@@ -1435,7 +1436,7 @@ function SuperAdminTotalLeads() {
 
         <div className="relative z-[1] flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">Nizo Finder</h1>
+            <h1 className="text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">CS Database</h1>
             <p className="mt-4 max-w-xl text-lg font-light leading-relaxed text-zinc-500">Professional lead discovery with precision filtering and clean data views.</p>
           </div>
 
@@ -1736,18 +1737,7 @@ function SuperAdminTotalLeads() {
 
                     <td className="px-3 py-3 align-top">
                       <span className="block text-sm font-semibold text-zinc-900">{item.employeeName || "-"}</span>
-                      {item.isManualLead ? (
-                        <div className="mt-1 space-y-1">
-                          <span className="inline-flex w-fit rounded-full border border-zinc-300 bg-zinc-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-                            Manual Lead
-                          </span>
-                          <span className="block text-[11px] text-zinc-400">
-                            {item.manualLeadAddedByUsername
-                              ? `Added by ${item.manualLeadAddedByUsername}`
-                              : "Manually added"}
-                          </span>
-                        </div>
-                      ) : null}
+                      <LeadOriginTag label={getLeadOriginLabel(item)} className="mt-1" />
                     </td>
 
                     <td className="px-3 py-3 align-top">

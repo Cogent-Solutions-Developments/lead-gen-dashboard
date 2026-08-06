@@ -16,6 +16,24 @@ test("normal users see a dedicated My Leads navigation item", () => {
     sidebar,
     /\{\s*name:\s*"My Leads",\s*href:\s*"\/my-leads",[\s\S]*?normalOnly:\s*true\s*\}/
   );
+  assert.match(sidebar, /name:\s*"CS Database",\s*normalLabel:\s*"CS Database",\s*href:\s*"\/leads"/);
+});
+
+test("every lead view shows its data origin", () => {
+  const sharedLeads = read("components/leads/NormalUserEventLeadSheet.tsx");
+  const database = read("app/leads/page.tsx");
+  const myLeads = read("app/my-leads/page.tsx");
+  const teamLeads = read("app/team-leads/page.tsx");
+  const originTag = read("components/leads/LeadOriginTag.tsx");
+
+  assert.match(originTag, /fallback = "CS Database"/);
+  assert.match(originTag, /return `\$\{owner\}'s My Leads`/);
+  assert.match(sharedLeads, /<LeadOriginTag label=\{getLeadOriginLabel\(item,/);
+  assert.match(database, /<LeadOriginTag label=\{getLeadOriginLabel\(item\)\}/);
+  assert.doesNotMatch(database, /Nizo Finder/);
+  assert.match(myLeads, /originLabel = "My Leads"/);
+  assert.match(myLeads, /<LeadOriginTag label=\{originLabel\}/);
+  assert.match(teamLeads, /originLabel=\{`\$\{memberName\(selectedMember\)\}'s My Leads`\}/);
 });
 
 test("shared LeadSheet hides create actions while My Leads enables them", () => {
