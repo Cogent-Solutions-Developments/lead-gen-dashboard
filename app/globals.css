@@ -154,24 +154,7 @@
   --chart-5: oklch(0.645 0.246 16.439);
 }
 
-/* Keep campaign lead controls from retaining their light glass treatment. */
-.dark .campaign-leads-panel {
-  border-color: #52525b !important;
-  background-color: #27272a !important;
-  background-image: none !important;
-  box-shadow: 0 18px 35px -26px rgb(0 0 0 / 0.9) !important;
-}
-
-.dark .campaign-leads-panel [class*="bg-white"],
-.dark .campaign-leads-panel [class*="bg-slate-50"],
-.dark .campaign-leads-panel [class*="bg-zinc-50"] {
-  background-color: #3f3f46 !important;
-}
-
-.dark .campaign-leads-panel thead {
-  background-color: #3f3f46 !important;
-  border-color: #52525b !important;
-}
+/* campaign-leads-panel dark mode overrides are defined near the end of the file to ensure they override the legacy glass utilities. */
 
 /* Let the sidebar inherit the page artwork in dark mode instead of placing
    a solid charcoal rectangle over it. */
