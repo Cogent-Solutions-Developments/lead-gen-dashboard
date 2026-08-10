@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
   ArrowRight,
@@ -124,6 +124,12 @@ function selectionPrice(value: JsonValue) {
 function selectionSummary(selections: JsonValue[] | null) {
   if (!selections?.length) return "No selection";
   return selections.map((item) => displayValue(item)).join(" · ");
+}
+
+function submissionSelectionSummary(submission: EventSubmission) {
+  return selectionSummary(
+    submission.submissionType === "sponsorship" ? submission.interested : submission.category
+  );
 }
 
 function clusterPrice(cluster: EventSubmissionCluster) {
@@ -348,6 +354,7 @@ function DetailDrawer({
 export default function EventSubmissionsPage() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isAdminLike, isSuperAdmin } = useAuth();
   const canView = isAdminLike || isManagerRole(user?.role);
   const isLegacyAdminRoute = isSuperAdmin && pathname === "/event-submissions";
@@ -374,6 +381,7 @@ export default function EventSubmissionsPage() {
   const [selectedId, setSelectedId] = useState("");
   const [selectedSubmission, setSelectedSubmission] = useState<EventSubmission | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const notificationSubmissionId = searchParams.get("submissionId")?.trim() || "";
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -397,6 +405,12 @@ export default function EventSubmissionsPage() {
   useEffect(() => {
     if (isLegacyAdminRoute) router.replace("/admin/event-submissions");
   }, [isLegacyAdminRoute, router]);
+
+  useEffect(() => {
+    if (canView && !isLegacyAdminRoute && notificationSubmissionId) {
+      setSelectedId(notificationSubmissionId);
+    }
+  }, [canView, isLegacyAdminRoute, notificationSubmissionId]);
 
   useEffect(() => {
     if (!canView || isLegacyAdminRoute) return;
@@ -467,6 +481,12 @@ export default function EventSubmissionsPage() {
     setMatchStatus("all"); setFromDate(""); setToDate("");
     setCategoryFilter(null); setSponsorFilter(null); setOffset(0);
   }, []);
+
+  const closeDetail = useCallback(() => {
+    setSelectedId("");
+    setSelectedSubmission(null);
+    if (notificationSubmissionId) router.replace(pathname, { scroll: false });
+  }, [notificationSubmissionId, pathname, router]);
 
   const activeFilterCount = [search, eventName, formType !== "all" ? formType : "", matchStatus !== "all" ? matchStatus : "", fromDate, toDate, categoryFilter, sponsorFilter].filter(Boolean).length;
   const eventOptions = useMemo(
@@ -583,19 +603,19 @@ export default function EventSubmissionsPage() {
               <table className="w-full min-w-[980px] border-collapse text-left">
                 <thead className="bg-zinc-50"><tr className="border-b border-zinc-100 text-[11px] font-bold uppercase tracking-wider text-zinc-400"><th className="px-5 py-3">Contact</th><th className="px-4 py-3">Event</th><th className="px-4 py-3">Form</th><th className="px-4 py-3">Company</th><th className="px-4 py-3">Submitted</th><th className="px-5 py-3 text-right">Details</th></tr></thead>
                 <tbody className="divide-y divide-zinc-100">{items.map((submission) => (
-                  <tr key={submission.id} className="group transition-colors hover:bg-zinc-50"><td className="px-5 py-4"><p className="font-semibold text-zinc-900">{contactName(submission)}</p><p className="mt-1 text-xs text-zinc-500">{submission.contact.workEmail || submission.contact.mobileNumber || "-"}</p></td><td className="max-w-[16rem] px-4 py-4"><p className="truncate text-sm font-medium text-zinc-800">{submission.event.eventName}</p></td><td className="max-w-[20rem] px-4 py-4"><SubmissionTypeBadge type={submission.submissionType} /><p className="mt-2 truncate text-xs text-zinc-500" title={selectionSummary(submission)}>{selectionSummary(submission)}</p></td><td className="max-w-[13rem] px-4 py-4"><p className="truncate text-sm font-medium text-zinc-800">{submission.contact.company || "-"}</p><p className="mt-1 text-xs text-zinc-500">{submission.contact.country || "-"}</p></td><td className="whitespace-nowrap px-4 py-4 text-sm text-zinc-600">{formatDateTime(submission.submittedAt)}</td><td className="px-5 py-4 text-right"><button type="button" onClick={() => setSelectedId(submission.id)} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 transition-colors hover:bg-zinc-50">View <ArrowRight className="h-3.5 w-3.5" /></button></td></tr>
+                  <tr key={submission.id} className="group transition-colors hover:bg-zinc-50"><td className="px-5 py-4"><p className="font-semibold text-zinc-900">{contactName(submission)}</p><p className="mt-1 text-xs text-zinc-500">{submission.contact.workEmail || submission.contact.mobileNumber || "-"}</p></td><td className="max-w-[16rem] px-4 py-4"><p className="truncate text-sm font-medium text-zinc-800">{submission.event.eventName}</p></td><td className="max-w-[20rem] px-4 py-4"><SubmissionTypeBadge type={submission.submissionType} /><p className="mt-2 truncate text-xs text-zinc-500" title={submissionSelectionSummary(submission)}>{submissionSelectionSummary(submission)}</p></td><td className="max-w-[13rem] px-4 py-4"><p className="truncate text-sm font-medium text-zinc-800">{submission.contact.company || "-"}</p><p className="mt-1 text-xs text-zinc-500">{submission.contact.country || "-"}</p></td><td className="whitespace-nowrap px-4 py-4 text-sm text-zinc-600">{formatDateTime(submission.submittedAt)}</td><td className="px-5 py-4 text-right"><button type="button" onClick={() => setSelectedId(submission.id)} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 transition-colors hover:bg-zinc-50">View <ArrowRight className="h-3.5 w-3.5" /></button></td></tr>
                 ))}</tbody>
               </table>
             </div>
             <div className="divide-y divide-zinc-100 lg:hidden">{items.map((submission) => (
-              <button key={submission.id} type="button" onClick={() => setSelectedId(submission.id)} className="block w-full p-5 text-left transition-colors hover:bg-blue-50/35"><div className="flex items-start justify-between gap-4"><div className="min-w-0"><p className="truncate font-semibold text-zinc-900">{contactName(submission)}</p><p className="mt-1 truncate text-xs text-zinc-500">{submission.contact.company || submission.contact.workEmail || "No company provided"}</p></div><SubmissionTypeBadge type={submission.submissionType} /></div><p className="mt-3 truncate text-sm font-medium text-zinc-700">{submission.event.eventName}</p><p className="mt-1 truncate text-xs text-zinc-500">{selectionSummary(submission)}</p><div className="mt-4 flex items-center justify-between text-xs text-zinc-400"><span>{formatDateTime(submission.submittedAt)}</span><span className="inline-flex items-center gap-1 font-semibold text-blue-700">View <ChevronRight className="h-3.5 w-3.5" /></span></div></button>
+              <button key={submission.id} type="button" onClick={() => setSelectedId(submission.id)} className="block w-full p-5 text-left transition-colors hover:bg-blue-50/35"><div className="flex items-start justify-between gap-4"><div className="min-w-0"><p className="truncate font-semibold text-zinc-900">{contactName(submission)}</p><p className="mt-1 truncate text-xs text-zinc-500">{submission.contact.company || submission.contact.workEmail || "No company provided"}</p></div><SubmissionTypeBadge type={submission.submissionType} /></div><p className="mt-3 truncate text-sm font-medium text-zinc-700">{submission.event.eventName}</p><p className="mt-1 truncate text-xs text-zinc-500">{submissionSelectionSummary(submission)}</p><div className="mt-4 flex items-center justify-between text-xs text-zinc-400"><span>{formatDateTime(submission.submittedAt)}</span><span className="inline-flex items-center gap-1 font-semibold text-blue-700">View <ChevronRight className="h-3.5 w-3.5" /></span></div></button>
             ))}</div>
             <footer className="flex flex-col gap-3 border-t border-zinc-100 bg-zinc-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-zinc-500"><strong className="font-semibold text-zinc-800">{firstItem}-{lastItem}</strong> / <strong className="font-semibold text-zinc-800">{formatNumber(total)}</strong></p><div className="flex items-center gap-2"><Button type="button" variant="outline" disabled={offset === 0 || loading} onClick={() => setOffset((current) => Math.max(0, current - PAGE_SIZE))} className="h-9 border-zinc-300 bg-white px-3 text-xs"><ChevronLeft className="mr-1 h-3.5 w-3.5" /> Prev</Button><span className="px-2 text-xs font-medium text-zinc-500">{Math.floor(offset / PAGE_SIZE) + 1}</span><Button type="button" variant="outline" disabled={!hasMore || loading} onClick={() => setOffset((current) => current + PAGE_SIZE)} className="h-9 border-zinc-300 bg-white px-3 text-xs">Next <ChevronRight className="ml-1 h-3.5 w-3.5" /></Button></div></footer>
           </>
         )}
       </section>
 
-      {selectedId ? <DetailDrawer submission={selectedSubmission} loading={detailLoading} onClose={() => { setSelectedId(""); setSelectedSubmission(null); }} /> : null}
+      {selectedId ? <DetailDrawer submission={selectedSubmission} loading={detailLoading} onClose={closeDetail} /> : null}
     </main>
   );
 }

@@ -24,7 +24,7 @@ test("notification helpers preserve records and update unread state", () => {
   assert.ok(peopleUtils.markEveryNotificationRead(records).every((item) => item.isRead));
 });
 
-test("notification helpers keep only the current local-day feed", () => {
+test("notification helpers retain operational history but keep birthdays on the current local day", () => {
   const today = new Date(2026, 6, 21, 10, 0, 0);
   const yesterday = new Date(2026, 6, 20, 10, 0, 0);
   const dateKey = peopleUtils.localCalendarDateKey(today);
@@ -36,7 +36,7 @@ test("notification helpers keep only the current local-day feed", () => {
 
   assert.deepEqual(
     peopleUtils.notificationsForCalendarDate(records, dateKey).map((item) => item.id),
-    ["today-system", "today-birthday"],
+    ["today-system", "old-system", "today-birthday"],
   );
   assert.ok(peopleUtils.millisecondsUntilNextLocalDay(today) > 0);
 });
@@ -56,6 +56,10 @@ test("notification center covers loading, unread count, empty, retry, mark-one, 
   assert.match(source, /Updates from your workspace/);
   assert.match(source, /MessageSquareDot/);
   assert.match(source, /PartyPopper/);
+  assert.match(source, /event_inquiry/);
+  assert.match(source, /View inquiry details/);
+  assert.match(source, /event_agenda_uploaded/);
+  assert.match(source, /Download agenda/);
   assert.doesNotMatch(source, /A birthday wish for you/);
   assert.doesNotMatch(source, /Birthday updates from your team/);
   assert.match(source, /pathname !== "\/dashboard"/);

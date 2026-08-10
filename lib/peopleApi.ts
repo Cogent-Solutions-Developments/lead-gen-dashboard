@@ -9,12 +9,9 @@ export type PeopleNotification = {
   type: PeopleNotificationType;
   title: string;
   message: string;
-  subjectUserId: string;
-  occurrenceDate: string;
-  metadata: {
-    subjectUserId: string;
-    subjectDisplayName: string;
-  };
+  subjectUserId: string | null;
+  occurrenceDate: string | null;
+  metadata: Record<string, unknown>;
   createdAt: string;
   isRead: boolean;
   readAt: string | null;

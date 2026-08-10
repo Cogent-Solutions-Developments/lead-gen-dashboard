@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
-import { CakeSlice, CheckCheck, Gift, Inbox, Loader2, MessageSquareDot, PartyPopper, RefreshCw, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { CakeSlice, CheckCheck, ClipboardList, FileText, Gift, Inbox, Loader2, MessageSquareDot, PartyPopper, RefreshCw, X } from "lucide-react";
 import {
   listNotifications,
   markAllNotificationsRead,
@@ -17,6 +17,7 @@ import {
   notificationCalendarDate,
   notificationsForCalendarDate,
 } from "@/lib/peopleUtils";
+import { downloadEventAgendaFile } from "@/lib/apiRouter";
 
 const NOTIFICATION_POLL_MS = 60_000;
 
@@ -41,8 +42,14 @@ function newestFirst(notifications: PeopleNotification[]) {
   );
 }
 
+function metadataText(notification: PeopleNotification, key: string) {
+  const value = notification.metadata?.[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
 export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<PeopleNotification[]>([]);
   const [birthdayPopup, setBirthdayPopup] = useState<PeopleNotification | null>(null);
@@ -175,26 +182,46 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
   }, [open]);
 
   const selectNotification = async (notification: PeopleNotification) => {
-    if (notification.isRead || updatingIds.has(notification.id)) return;
-    const controller = new AbortController();
-    actionControllersRef.current.add(controller);
-    setUpdatingIds((current) => new Set(current).add(notification.id));
-    const previous = notificationsRef.current;
-    replaceNotifications(markOneNotificationRead(previous, notification.id));
-    try {
-      await markNotificationRead(notification.id, controller.signal);
-    } catch (error) {
-      if (controller.signal.aborted) return;
-      replaceNotifications(previous);
-      setError(errorMessage(error));
-    } finally {
-      actionControllersRef.current.delete(controller);
-      if (!controller.signal.aborted) {
-        setUpdatingIds((current) => {
-          const next = new Set(current);
-          next.delete(notification.id);
-          return next;
-        });
+    if (updatingIds.has(notification.id)) return;
+    if (!notification.isRead) {
+      const controller = new AbortController();
+      actionControllersRef.current.add(controller);
+      setUpdatingIds((current) => new Set(current).add(notification.id));
+      const previous = notificationsRef.current;
+      replaceNotifications(markOneNotificationRead(previous, notification.id));
+      try {
+        await markNotificationRead(notification.id, controller.signal);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        replaceNotifications(previous);
+        setError(errorMessage(error));
+      } finally {
+        actionControllersRef.current.delete(controller);
+        if (!controller.signal.aborted) {
+          setUpdatingIds((current) => {
+            const next = new Set(current);
+            next.delete(notification.id);
+            return next;
+          });
+        }
+      }
+    }
+
+    if (notification.type === "event_inquiry") {
+      const actionHref = metadataText(notification, "actionHref");
+      if (actionHref.startsWith("/event-submissions")) {
+        setOpen(false);
+        router.push(actionHref);
+      }
+    } else if (notification.type === "event_agenda_uploaded") {
+      const agendaId = metadataText(notification, "agendaId");
+      if (agendaId) {
+        try {
+          await downloadEventAgendaFile(agendaId, metadataText(notification, "agendaName") || "agenda.pdf");
+          setOpen(false);
+        } catch (error) {
+          setError(errorMessage(error));
+        }
       }
     }
   };
@@ -325,9 +352,16 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
             ) : (
               <div className="divide-y divide-zinc-100 py-2">
                 {notifications.map((notification) => {
-                  const subjectName = notification.metadata?.subjectDisplayName?.trim();
+                  const subjectName = metadataText(notification, "subjectDisplayName");
                   const isBirthdayWish = notification.type === "birthday_wish";
                   const isMemberBirthday = notification.type === "member_birthday";
+                  const isEventInquiry = notification.type === "event_inquiry";
+                  const isAgendaUpload = notification.type === "event_agenda_uploaded";
+                  const detail = isEventInquiry
+                    ? [metadataText(notification, "contactName"), metadataText(notification, "company")].filter(Boolean).join(" - ")
+                    : isAgendaUpload
+                      ? [metadataText(notification, "agendaName"), metadataText(notification, "uploadedByUsername") ? `Uploaded by ${metadataText(notification, "uploadedByUsername")}` : ""].filter(Boolean).join(" - ")
+                      : "";
                   return (
                     <button
                       key={notification.id}
@@ -342,12 +376,20 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
                           ? "bg-pink-100 text-pink-700"
                           : isMemberBirthday
                             ? "bg-amber-100 text-amber-800"
+                            : isEventInquiry
+                              ? "bg-violet-100 text-violet-700"
+                              : isAgendaUpload
+                                ? "bg-emerald-100 text-emerald-700"
                             : "bg-blue-100 text-blue-700"
                       }`}>
                         {isBirthdayWish ? (
                           <PartyPopper className="h-4 w-4" />
                         ) : isMemberBirthday ? (
                           <CakeSlice className="h-4 w-4" />
+                        ) : isEventInquiry ? (
+                          <ClipboardList className="h-4 w-4" />
+                        ) : isAgendaUpload ? (
+                          <FileText className="h-4 w-4" />
                         ) : (
                           <MessageSquareDot className="h-4 w-4" />
                         )}
@@ -360,7 +402,13 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
                         {isMemberBirthday && subjectName ? (
                           <span className="mt-1 block text-xs font-bold text-amber-900">Birthday: {subjectName}</span>
                         ) : null}
+                        {detail ? <span className="mt-1 block text-xs font-semibold text-zinc-800">{detail}</span> : null}
                         <span className="mt-1 block text-sm leading-5 text-zinc-600">{notification.message}</span>
+                        {isEventInquiry || isAgendaUpload ? (
+                          <span className="mt-1.5 block text-xs font-bold text-blue-700">
+                            {isEventInquiry ? "View inquiry details" : "Download agenda"}
+                          </span>
+                        ) : null}
                         <time className="mt-1.5 block text-xs text-zinc-500" dateTime={notification.createdAt}>
                           {formatNotificationTime(notification.createdAt)}
                         </time>

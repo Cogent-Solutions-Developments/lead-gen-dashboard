@@ -74,7 +74,14 @@ export function notificationsForCalendarDate<T extends {
   occurrenceDate?: string | null;
   createdAt?: string | null;
 }>(items: T[], dateKey: string) {
-  return items.filter((item) => notificationCalendarDate(item) === dateKey);
+  return items.filter((item) => {
+    if (item.type === "birthday_wish" || item.type === "member_birthday") {
+      return notificationCalendarDate(item) === dateKey;
+    }
+    // Operational notifications are durable workspace history. Only birthday
+    // notifications are scoped to the current local calendar day.
+    return true;
+  });
 }
 
 export function millisecondsUntilNextLocalDay(value: Date = new Date()) {

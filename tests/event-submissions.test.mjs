@@ -56,6 +56,12 @@ test("registration categories and sponsor interests remain distinct", () => {
   assert.match(page, /aria-label="Sponsor package price"/);
 });
 
+test("notification links open the exact inquiry detail", () => {
+  assert.match(page, /searchParams\.get\("submissionId"\)/);
+  assert.match(page, /setSelectedId\(notificationSubmissionId\)/);
+  assert.match(page, /router\.replace\(pathname, \{ scroll: false \}\)/);
+});
+
 test("submission details hide developer-only metadata", () => {
   assert.doesNotMatch(page, /Original frontend data/);
   assert.doesNotMatch(page, />Submission ID</);
