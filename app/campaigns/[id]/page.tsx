@@ -1415,7 +1415,7 @@ function SuperAdminCampaignDetailPage() {
     if (!hasText(lead.contentLinkedin)) return "Generate LinkedIn content before sending.";
 
     const capability = lead.channelCapabilities?.linkedin;
-    if (!capability) return savedHeyreachCampaignId ? null : "HeyReach campaign ID is not configured.";
+    if (!capability) return "LinkedIn sending is not supported by the server.";
     if (capability.enabled === false) return "HeyReach API is not configured on the server.";
     if (capability.campaignConfigured === false) return "HeyReach campaign ID is not configured.";
     if (capability.sendable === false) return "LinkedIn is not currently sendable for this lead.";
