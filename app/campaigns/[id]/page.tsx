@@ -1821,6 +1821,7 @@ function SuperAdminCampaignDetailPage() {
       setSavedHeyreachCampaignId(savedId);
       setLinkedinTemplateBody(savedTemplate);
       setSavedLinkedinTemplateBody(savedTemplate);
+      await fetchAll();
       toast.success("LinkedIn setup saved");
     } catch (error: unknown) {
       const description = error instanceof Error ? error.message : "Unable to save the HeyReach campaign ID";
@@ -4189,6 +4190,7 @@ function SuperAdminCampaignDetailPage() {
                 const showEmailAction = canSendEmail;
                 const showLinkedinAction = canSendLinkedin;
                 const showWhatsappAction = canSendWhatsapp;
+                const isLinkedinOutreachCompleted = isLeadLinkedinActionCompleted(item);
                 const showSendActions =
                   item.approvalStatus !== "rejected" &&
                   item.approvalStatus !== "suppressed" &&
@@ -4419,14 +4421,22 @@ function SuperAdminCampaignDetailPage() {
                                 )}
                               </Button>
                             ) : null}
-                            {showLinkedinAction && !isLeadLinkedinActionCompleted(item) ? (
+                            {showLinkedinAction ? (
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 rounded-md border border-[#0A66C2]/25 bg-[#0A66C2]/5 text-[#0A66C2] hover:border-[#0A66C2]/45 hover:bg-[#0A66C2]/10 disabled:cursor-not-allowed disabled:opacity-45"
+                                className={`h-8 w-8 rounded-md border disabled:cursor-not-allowed disabled:opacity-45 ${
+                                  isLinkedinOutreachCompleted
+                                    ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50"
+                                    : "border-[#0A66C2]/25 bg-[#0A66C2]/5 text-[#0A66C2] hover:border-[#0A66C2]/45 hover:bg-[#0A66C2]/10"
+                                }`}
                                 onClick={() => void handleSendLeadAction(item, "linkedin")}
                                 disabled={Boolean(sendLinkedinDisabledReason) || isSendingLinkedin}
-                                title={sendLinkedinDisabledReason || "Queue in HeyReach"}
+                                title={
+                                  isLinkedinOutreachCompleted
+                                    ? "LinkedIn outreach complete"
+                                    : sendLinkedinDisabledReason || "Queue in HeyReach"
+                                }
                               >
                                 {isSendingLinkedin ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
