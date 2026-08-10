@@ -1774,12 +1774,22 @@ function SuperAdminCampaignDetailPage() {
 
     const requestedCampaignId = heyreachCampaignId.trim();
     const requestedTemplateBody = linkedinTemplateBody.trim();
-    if (requestedCampaignId && !/^\d+$/.test(requestedCampaignId)) {
-      toast.error("Invalid HeyReach campaign ID", { description: "HeyReach campaign IDs must contain numbers only." });
+    if (!requestedCampaignId) {
+      toast.error("HeyReach campaign ID is required", {
+        description: "Enter the numeric HeyReach campaign ID before saving setup.",
+      });
+      return;
+    }
+    if (!/^\d+$/.test(requestedCampaignId)) {
+      toast.error("Invalid HeyReach campaign ID", {
+        description: "HeyReach campaign IDs must contain numbers only.",
+      });
       return;
     }
     if (!requestedTemplateBody) {
-      toast.error("LinkedIn template is required", { description: "Write the campaign-level LinkedIn message before saving setup." });
+      toast.error("LinkedIn template is required", {
+        description: "Write the campaign-level LinkedIn message before saving setup.",
+      });
       return;
     }
 
