@@ -82,6 +82,7 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 );
 
 type ApprovalStatus = "pending" | "approved" | "rejected" | "suppressed";
+type ChannelApprovalStatus = "pending" | "approved" | "rejected";
 type OutreachState = "pending" | "queued" | "sending" | "sent" | "failed";
 type AttachmentChannel = "email" | "whatsapp" | "common";
 type LeadFilterKey = "new" | "sent" | "rejected" | "suppressed";
@@ -190,6 +191,7 @@ interface Lead {
 
   reviewStatus?: string | null;
   approvalStatus: ApprovalStatus;
+  channelApprovals?: Partial<Record<"email" | "linkedin", ChannelApprovalStatus>>;
   isSuppressed?: boolean;
   suppression?: SuppressionMeta | null;
   contactReadOnly?: boolean;
@@ -751,6 +753,16 @@ function normalizeChannelCapabilities(value: unknown): ChannelCapabilities | nul
   return { email, linkedin, whatsapp };
 }
 
+function normalizeChannelApprovals(value: unknown): Lead["channelApprovals"] | undefined {
+  const source = asRecord(value);
+  if (!source) return undefined;
+  const normalize = (status: unknown): ChannelApprovalStatus | undefined =>
+    status === "approved" || status === "rejected" || status === "pending" ? status : undefined;
+  const email = normalize(source.email);
+  const linkedin = normalize(source.linkedin);
+  return email || linkedin ? { email, linkedin } : undefined;
+}
+
 function normalizeAttachment(value: unknown): Attachment | null {
   const source = asRecord(value);
   if (!source || !source.id) return null;
@@ -1194,6 +1206,7 @@ function SuperAdminCampaignDetailPage() {
   const leadOrderRef = useRef<Map<string, number>>(new Map());
 
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [reviewChannel, setReviewChannel] = useState<"email" | "linkedin">("email");
   const [editForm, setEditForm] = useState<Partial<Lead>>({});
   const [saving, setSaving] = useState(false);
   const [isResettingContent, setIsResettingContent] = useState(false);
@@ -1398,6 +1411,11 @@ function SuperAdminCampaignDetailPage() {
     }
 
     return null;
+  }
+  function getChannelApprovalStatus(lead: Lead, channel: "email" | "linkedin"): ChannelApprovalStatus {
+    const persisted = lead.channelApprovals?.[channel];
+    if (persisted) return persisted;
+    return lead.approvalStatus === "approved" ? "approved" : "pending";
   }
   function getWhatsappCapabilityDisabledReason(lead: Lead) {
     if (!hasText(lead.phone)) return "Lead has no phone number.";
@@ -1717,6 +1735,7 @@ function SuperAdminCampaignDetailPage() {
 
         reviewStatus: x.reviewStatus ?? null,
         approvalStatus: normalizeApprovalStatus(x.approvalStatus),
+        channelApprovals: normalizeChannelApprovals(x.channelApprovals),
         isSuppressed: parseBoolean(x.isSuppressed),
         suppression: normalizeSuppressionMeta(x.suppression),
         contactReadOnly: parseBoolean(x.contactReadOnly),
@@ -1916,6 +1935,12 @@ function SuperAdminCampaignDetailPage() {
   const getLeadSendActionDisabledReason = (lead: Lead, action: LeadSendAction) => {
     const outreachStatus = buildOutreachStatus(lead);
     if (isLeadMarketingOptedOut(lead)) return "This lead is in the opt-out list and cannot receive any messages.";
+    if (action === "email" && getChannelApprovalStatus(lead, "email") !== "approved") {
+      return "Approve the Cold Email review before sending.";
+    }
+    if (action === "linkedin" && getChannelApprovalStatus(lead, "linkedin") !== "approved") {
+      return "Approve the LinkedIn review before queueing in HeyReach.";
+    }
     if (lead.sendable === false) return "This lead is currently not sendable.";
     const emailCapabilityReason = getEmailCapabilityDisabledReason(lead);
     const linkedinCapabilityReason = getLinkedinCapabilityDisabledReason(lead);
@@ -2110,7 +2135,8 @@ function SuperAdminCampaignDetailPage() {
 
   const handleSendLeadAction = async (lead: Lead, action: LeadSendAction) => {
     if (!canManageLeadActions) return;
-    const disabledReason = getLeadSendActionDisabledReason(lead, action);
+    const disabledReason =
+      action === "email" || action === "linkedin" ? null : getLeadSendActionDisabledReason(lead, action);
     if (disabledReason) {
       toast.warning("Action blocked", { description: disabledReason });
       return;
@@ -2699,7 +2725,8 @@ function SuperAdminCampaignDetailPage() {
     const lead = leadById.get(leadId);
     if (!lead) return;
 
-    const disabledReason = getLeadSendActionDisabledReason(lead, action);
+    const disabledReason =
+      action === "email" || action === "linkedin" ? null : getLeadSendActionDisabledReason(lead, action);
     if (disabledReason) {
       toast.warning("Action blocked", {
         description: disabledReason,
@@ -2709,9 +2736,21 @@ function SuperAdminCampaignDetailPage() {
 
     try {
       setLeadSendActionLoading(leadId, action, true);
-      const approveResponse = await api.put(`/api/leads/${leadId}/approve`, null, {
-        timeout: OUTREACH_REQUEST_TIMEOUT_MS,
-      });
+      const approveResponse = await api.put(
+        `/api/leads/${leadId}/approve`,
+        action === "email" || action === "linkedin"
+          ? {
+              channel: action,
+              content: {
+                contentEmailSubject: editForm.contentEmailSubject,
+                contentEmail: editForm.contentEmail,
+                contentLinkedin: editForm.contentLinkedin,
+                contentWhatsapp: editForm.contentWhatsapp,
+              },
+            }
+          : {},
+        { timeout: OUTREACH_REQUEST_TIMEOUT_MS }
+      );
       const approvedLead = approveResponse?.data ?? {};
       const resolvedStatus = normalizeApprovalStatus(approvedLead.approvalStatus ?? "approved");
       const resolvedSuppression = normalizeSuppressionMeta(approvedLead.suppression);
@@ -2740,17 +2779,47 @@ function SuperAdminCampaignDetailPage() {
                   : suppressedNow
                     ? false
                     : item.sendable,
+              contentEmailSubject: approvedLead.contentEmailSubject ?? item.contentEmailSubject,
+              contentEmail: approvedLead.contentEmail ?? item.contentEmail,
+              contentLinkedin: approvedLead.contentLinkedin ?? item.contentLinkedin,
+              contentWhatsapp: approvedLead.contentWhatsapp ?? item.contentWhatsapp,
+              channelApprovals:
+                approvedLead.channelApprovals === undefined
+                  ? item.channelApprovals
+                  : normalizeChannelApprovals(approvedLead.channelApprovals),
               channelCapabilities:
                 normalizeChannelCapabilities(approvedLead.channelCapabilities) ?? item.channelCapabilities ?? null,
             }
             : item
         )
       );
+      setSelectedLead((current) =>
+        current?.id === leadId
+          ? {
+              ...current,
+              approvalStatus: resolvedStatus,
+              contentEmailSubject: approvedLead.contentEmailSubject ?? current.contentEmailSubject,
+              contentEmail: approvedLead.contentEmail ?? current.contentEmail,
+              contentLinkedin: approvedLead.contentLinkedin ?? current.contentLinkedin,
+              contentWhatsapp: approvedLead.contentWhatsapp ?? current.contentWhatsapp,
+              channelApprovals:
+                approvedLead.channelApprovals === undefined
+                  ? current.channelApprovals
+                  : normalizeChannelApprovals(approvedLead.channelApprovals),
+              channelCapabilities:
+                normalizeChannelCapabilities(approvedLead.channelCapabilities) ?? current.channelCapabilities ?? null,
+            }
+          : current
+      );
 
       if (suppressedNow) {
         toast.warning("Lead suppressed", {
           description: resolvedSuppression?.reason || "This lead is blocked from all marketing messages.",
         });
+        return;
+      }
+      if (action === "email" || action === "linkedin") {
+        toast.success(action === "email" ? "Cold Email approved" : "LinkedIn message approved");
         return;
       }
       if (!resolvedSendable) {
@@ -3272,6 +3341,10 @@ function SuperAdminCampaignDetailPage() {
     contentSource: data.contentSource == null ? "empty" : normalizeContentSource(data.contentSource),
     templateFallback: data.templateFallback == null ? false : parseBoolean(data.templateFallback),
     approvalStatus: (data.approvalStatus ?? lead.approvalStatus ?? "pending") as ApprovalStatus,
+    channelApprovals:
+      data.channelApprovals === undefined
+        ? lead.channelApprovals
+        : normalizeChannelApprovals(data.channelApprovals),
     reviewStatus: data.reviewStatus ?? data.approvalStatus ?? lead.reviewStatus ?? null,
     isSuppressed: data.isSuppressed == null ? lead.isSuppressed : Boolean(data.isSuppressed),
     suppression: data.suppression === undefined ? lead.suppression : data.suppression,
@@ -3396,6 +3469,10 @@ function SuperAdminCampaignDetailPage() {
                   ? l.generationFailure ?? null
                   : deriveGenerationFailure(res.data.draftStatus ?? l.draftStatus, asRecord(res.data.draftMeta) ?? l.draftMeta ?? null),
               reviewStatus: res.data.reviewStatus ?? l.reviewStatus ?? null,
+              channelApprovals:
+                res.data.channelApprovals === undefined
+                  ? l.channelApprovals
+                  : normalizeChannelApprovals(res.data.channelApprovals),
             }
             : l
         )
@@ -3423,6 +3500,8 @@ function SuperAdminCampaignDetailPage() {
     selectedLead?.generationFailure ?? (editForm.generationFailure as GenerationFailureInfo | null | undefined) ?? null;
   const selectedContentEmpty =
     Boolean(selectedLead) && !hasText(editForm.contentEmailSubject) && !hasText(editForm.contentEmail);
+  const selectedChannelApproved =
+    selectedLead && getChannelApprovalStatus(selectedLead, reviewChannel) === "approved";
   const selectedEmptyContentNotice = selectedContentEmpty
     ? {
         title: selectedGenerationFailure?.title || "No generated content available",
@@ -4133,10 +4212,11 @@ function SuperAdminCampaignDetailPage() {
                 const suppressionPhone = suppressionMeta?.phoneE164 || optOutEntry?.phoneE164 || item.phone || null;
                 const suppressionEmail = suppressionMeta?.email || optOutEntry?.email || item.email || null;
                 const showTemplateFallback = shouldShowTemplateFallback(item);
-                const reviewContentDisabled = isLeadReadOnly || !canSendEmail;
+                const canReviewContent = canSendEmail || canSendLinkedin;
+                const reviewContentDisabled = isLeadReadOnly || !canReviewContent;
                 const contentIndicator = getLeadContentIndicator(item);
-                const reviewContentTitle = !canSendEmail
-                  ? "Email content review is available only for leads with email addresses."
+                const reviewContentTitle = !canReviewContent
+                  ? "Review is available only for leads with an email address or LinkedIn profile."
                   : isLeadReadOnly
                     ? "Lead actions are blocked"
                     : contentIndicator.title;
@@ -4231,7 +4311,10 @@ function SuperAdminCampaignDetailPage() {
                                 variant="outline"
                                 size="sm"
                                 className={`h-7 rounded-none border-0 border-r border-zinc-200 px-2.5 text-[11px] font-semibold shadow-none ${contentIndicator.buttonClassName}`}
-                                onClick={() => setSelectedLead(item)}
+                                onClick={() => {
+                                  setReviewChannel(canSendEmail ? "email" : "linkedin");
+                                  setSelectedLead(item);
+                                }}
                                 disabled={reviewContentDisabled}
                                 title={reviewContentTitle}
                               >
@@ -4325,16 +4408,9 @@ function SuperAdminCampaignDetailPage() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 rounded-md border border-zinc-300/80 bg-white/82 text-zinc-500 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-45"
-                                onClick={() =>
-                                  void (item.approvalStatus === "pending"
-                                    ? handleApprove(item.id, "whatsapp")
-                                    : handleSendLeadAction(item, "whatsapp"))
-                                }
+                                onClick={() => void handleSendLeadAction(item, "whatsapp")}
                                 disabled={Boolean(sendWhatsappDisabledReason) || isSendingWhatsapp}
-                                title={
-                                  sendWhatsappDisabledReason ||
-                                  (item.approvalStatus === "pending" ? "Approve and send WhatsApp only" : "Send WhatsApp only")
-                                }
+                                title={sendWhatsappDisabledReason || "Send WhatsApp only"}
                               >
                                 {isSendingWhatsapp ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -4348,18 +4424,9 @@ function SuperAdminCampaignDetailPage() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 rounded-md border border-[#0A66C2]/25 bg-[#0A66C2]/5 text-[#0A66C2] hover:border-[#0A66C2]/45 hover:bg-[#0A66C2]/10 disabled:cursor-not-allowed disabled:opacity-45"
-                                onClick={() =>
-                                  void (item.approvalStatus === "pending"
-                                    ? handleApprove(item.id, "linkedin")
-                                    : handleSendLeadAction(item, "linkedin"))
-                                }
+                                onClick={() => void handleSendLeadAction(item, "linkedin")}
                                 disabled={Boolean(sendLinkedinDisabledReason) || isSendingLinkedin}
-                                title={
-                                  sendLinkedinDisabledReason ||
-                                  (item.approvalStatus === "pending"
-                                    ? "Approve and queue in HeyReach"
-                                    : "Queue in HeyReach")
-                                }
+                                title={sendLinkedinDisabledReason || "Queue in HeyReach"}
                               >
                                 {isSendingLinkedin ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -4373,16 +4440,9 @@ function SuperAdminCampaignDetailPage() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 rounded-md border border-zinc-300/80 bg-white/82 text-zinc-500 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-45"
-                                onClick={() =>
-                                  void (item.approvalStatus === "pending"
-                                    ? handleApprove(item.id, "email")
-                                    : handleSendLeadAction(item, "email"))
-                                }
+                                onClick={() => void handleSendLeadAction(item, "email")}
                                 disabled={Boolean(sendEmailDisabledReason) || isSendingEmail}
-                                title={
-                                  sendEmailDisabledReason ||
-                                  (item.approvalStatus === "pending" ? "Approve and send Email only" : "Send Email only")
-                                }
+                                title={sendEmailDisabledReason || "Send Email only"}
                               >
                                 {isSendingEmail ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -4920,6 +4980,30 @@ function SuperAdminCampaignDetailPage() {
                 </div>
 
                 <div className="flex items-center">
+                  <div className="mr-3 inline-flex rounded-lg border border-zinc-200 bg-zinc-50 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setReviewChannel("email")}
+                      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        reviewChannel === "email"
+                          ? "bg-white text-zinc-900 shadow-sm"
+                          : "text-zinc-500 hover:text-zinc-900"
+                      }`}
+                    >
+                      Cold Email
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReviewChannel("linkedin")}
+                      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        reviewChannel === "linkedin"
+                          ? "bg-[#0A66C2] text-white shadow-sm"
+                          : "text-zinc-500 hover:text-[#0A66C2]"
+                      }`}
+                    >
+                      LinkedIn
+                    </button>
+                  </div>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -4932,7 +5016,8 @@ function SuperAdminCampaignDetailPage() {
               </div>
 
               <div className="relative z-[2] flex-1 space-y-5 overflow-y-auto scrollbar-hide bg-white p-6">
-                <div className="grid gap-5 xl:h-[24.5rem] xl:grid-cols-2">
+                <div className="min-h-[24.5rem]">
+                  {reviewChannel === "email" ? (
                   <Card className="h-full rounded-2xl border border-zinc-300 bg-white p-5 shadow-sm">
                     <div className="mb-4 flex items-center gap-2">
                       <div className="rounded-md border border-zinc-300 bg-white p-1.5">
@@ -5066,7 +5151,7 @@ function SuperAdminCampaignDetailPage() {
                       </div>
                     </div>
                   </Card>
-
+                  ) : (
                   <Card className="h-full rounded-2xl border border-[#0A66C2]/20 bg-white p-5 shadow-sm">
                     <div className="mb-4 flex items-center gap-2">
                       <div className="rounded-md border border-[#0A66C2]/25 bg-[#0A66C2]/5 p-1.5">
@@ -5087,6 +5172,7 @@ function SuperAdminCampaignDetailPage() {
                       />
                     </div>
                   </Card>
+                  )}
 
                   <div className="hidden min-h-0 grid-cols-1 gap-4 xl:h-full xl:grid-rows-2">
                     <AttachmentSection
@@ -5116,7 +5202,9 @@ function SuperAdminCampaignDetailPage() {
 
               <div className="relative z-[2] flex flex-col gap-3 border-t border-zinc-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-1">
-                  <p className="text-xs text-zinc-500">Changes are saved only. No approval or outreach is triggered here.</p>
+                  <p className="text-xs text-zinc-500">
+                    Saving keeps this review editable. Approve the active channel separately to unlock only its outreach action.
+                  </p>
                   {isLeadMarketingOptedOut(selectedLead) ? (
                     <p className="text-xs font-medium text-rose-600">
                       This lead is suppressed for outreach, but content changes can still be saved.
@@ -5128,7 +5216,7 @@ function SuperAdminCampaignDetailPage() {
                   ) : null}
                 </div>
 
-                {selectedLead.approvalStatus === "pending" ? (
+                {!selectedChannelApproved ? (
                   <div className="flex justify-end gap-3">
                     <Button
                       variant="ghost"
@@ -5179,6 +5267,15 @@ function SuperAdminCampaignDetailPage() {
                         <Save className="mr-2 h-4 w-4" />
                       )}
                       Save
+                    </Button>
+
+                    <Button
+                      className="h-9 bg-emerald-700 px-3.5 text-white hover:bg-emerald-800"
+                      disabled={saving || isResettingContent || isLeadMarketingOptedOut(selectedLead)}
+                      onClick={() => void handleApprove(selectedLead.id, reviewChannel)}
+                    >
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      {reviewChannel === "email" ? "Approve Cold Email" : "Approve LinkedIn"}
                     </Button>
                   </div>
                 ) : (
