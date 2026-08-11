@@ -27,6 +27,38 @@ export type DashboardStats = {
   leadsContacted: number;
 };
 
+export type DashboardLeadInventoryDepartment = {
+  rawLeads: number;
+  uniqueLeads: number;
+};
+
+export type DashboardLeadInventoryItem = {
+  canonicalEventKey: string;
+  canonicalEventName: string;
+  eventRegistryId?: string | null;
+  rawLeads: number;
+  uniqueLeads: number;
+  duplicateLeads: number;
+  departments: Record<"sales" | "delegate" | "production", DashboardLeadInventoryDepartment>;
+};
+
+export type DashboardLeadInventory = {
+  totals: {
+    rawLeads: number;
+    uniqueLeads: number;
+    duplicateLeads: number;
+    eventUniqueLeads: number;
+    crossEventRepeats: number;
+    eventCount: number;
+  };
+  items: DashboardLeadInventoryItem[];
+  counting: {
+    uniqueIdentity: string;
+    departmentScope: string;
+  };
+  generatedAt?: string | null;
+};
+
 export type DashboardPersonalStatsItem = {
   event: EventSummaryItem;
   statusCounts: Record<string, number>;
@@ -1185,6 +1217,14 @@ function getWhatsAppHeaders() {
 export async function getDashboardStats() {
   const { data } = await apiClient.get<DashboardStats>("/api/dashboard/stats");
   return data;
+}
+
+export async function getDashboardLeadInventory() {
+  const { data } = await apiClient.get<DashboardLeadInventory>("/api/dashboard/lead-inventory");
+  return {
+    ...data,
+    items: Array.isArray(data.items) ? data.items : [],
+  };
 }
 
 export async function getDashboardPersonalSummary(params?: { date?: string; period?: DashboardPeriod }) {

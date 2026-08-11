@@ -24,10 +24,12 @@ import {
   type DashboardPersonalStatsItem,
   type WorkflowStatusDefinitionItem,
 } from "@/lib/apiRouter";
+import { getDashboardLeadInventory, type DashboardLeadInventory } from "@/lib/api";
 
 
 import { getDailyManifesto } from "@/lib/manifesto";
 import { CampaignHeadsUp } from "@/components/dashboard/CampaignHeadsUp";
+import { LeadInventoryOverview } from "@/components/dashboard/LeadInventoryOverview";
 import { UserAvatar } from "@/components/profile/UserAvatar";
 
 type SalesMarathonRunner = DashboardKpiRunner;
@@ -578,7 +580,7 @@ function ClientDashboard({ user }: { user: ReturnType<typeof useAuth>["user"] })
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, isAdminLike } = useAuth();
   const { persona } = usePersona();
   const period: DashboardPeriod = "daily";
   const [salesRunners, setSalesRunners] = useState<SalesMarathonRunner[]>([]);
@@ -586,6 +588,9 @@ export default function DashboardPage() {
   const [eventHeadsUp, setEventHeadsUp] = useState<EventHeadsUpItem[]>([]);
   const [workflowStatuses, setWorkflowStatuses] = useState<WorkflowStatusDefinitionItem[]>(FALLBACK_WORKFLOW_STATUSES);
   const [loadingEventHeadsUp, setLoadingEventHeadsUp] = useState(true);
+  const [leadInventory, setLeadInventory] = useState<DashboardLeadInventory | null>(null);
+  const [loadingLeadInventory, setLoadingLeadInventory] = useState(true);
+  const [leadInventoryError, setLeadInventoryError] = useState<string | null>(null);
   const userId = user?.id;
   const isClientDashboard = isClientRole(user?.role);
   const displayName = firstName(getDisplayName(user));
@@ -687,6 +692,22 @@ export default function DashboardPage() {
     }
   }, [isClientDashboard, period, persona, userId]);
 
+  const loadLeadInventory = useCallback(async () => {
+    if (!isAdminLike || isClientDashboard) {
+      setLoadingLeadInventory(false);
+      return;
+    }
+    setLoadingLeadInventory(true);
+    try {
+      setLeadInventory(await getDashboardLeadInventory());
+      setLeadInventoryError(null);
+    } catch (error) {
+      setLeadInventoryError(getErrorMessage(error));
+    } finally {
+      setLoadingLeadInventory(false);
+    }
+  }, [isAdminLike, isClientDashboard]);
+
   useEffect(() => {
     void loadSalesMarathon("initial");
   }, [loadSalesMarathon]);
@@ -696,10 +717,15 @@ export default function DashboardPage() {
   }, [loadPersonalStats]);
 
   useEffect(() => {
+    void loadLeadInventory();
+  }, [loadLeadInventory]);
+
+  useEffect(() => {
     const refreshDashboard = () => {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
       void loadSalesMarathon("refresh");
       void loadPersonalStats("refresh");
+      void loadLeadInventory();
     };
 
     const handleVisibilityChange = () => {
@@ -715,7 +741,7 @@ export default function DashboardPage() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.clearInterval(intervalId);
     };
-  }, [loadPersonalStats, loadSalesMarathon]);
+  }, [loadLeadInventory, loadPersonalStats, loadSalesMarathon]);
 
   if (isClientDashboard) {
     return <ClientDashboard user={user} />;
@@ -758,6 +784,14 @@ export default function DashboardPage() {
                 “{manifesto}”
               </span>
             </h1>
+
+            {isAdminLike ? (
+              <LeadInventoryOverview
+                data={leadInventory}
+                loading={loadingLeadInventory}
+                error={leadInventoryError}
+              />
+            ) : null}
 
             <CampaignHeadsUp
               items={eventHeadsUp}
