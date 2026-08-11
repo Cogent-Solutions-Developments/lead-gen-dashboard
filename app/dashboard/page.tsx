@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Building2, CalendarDays, Download, ExternalLink, FileText, Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
@@ -29,8 +30,15 @@ import { getDashboardLeadInventory, type DashboardLeadInventory } from "@/lib/ap
 
 import { getDailyManifesto } from "@/lib/manifesto";
 import { CampaignHeadsUp } from "@/components/dashboard/CampaignHeadsUp";
-import { LeadInventoryOverview } from "@/components/dashboard/LeadInventoryOverview";
 import { UserAvatar } from "@/components/profile/UserAvatar";
+
+const LeadInventoryOverview = dynamic(
+  () => import("@/components/dashboard/LeadInventoryOverview").then((module) => module.LeadInventoryOverview),
+  {
+    ssr: false,
+    loading: () => <div className="mt-8 h-[36rem] animate-pulse border border-zinc-200 bg-white" />,
+  }
+);
 
 type SalesMarathonRunner = DashboardKpiRunner;
 
@@ -620,7 +628,7 @@ export default function DashboardPage() {
       };
 
   const loadSalesMarathon = useCallback(async (mode: "initial" | "refresh") => {
-    if (isClientDashboard) {
+    if (isAdminLike || isClientDashboard) {
       setLoadingSalesMarathon(false);
       return;
     }
@@ -650,10 +658,10 @@ export default function DashboardPage() {
       } finally {
         setLoadingSalesMarathon(false);
       }
-    }, [isClientDashboard, period, persona]);
+    }, [isAdminLike, isClientDashboard, period, persona]);
 
   const loadPersonalStats = useCallback(async (mode: "initial" | "refresh") => {
-    if (isClientDashboard) {
+    if (isAdminLike || isClientDashboard) {
       setLoadingEventHeadsUp(false);
       return;
     }
@@ -690,7 +698,7 @@ export default function DashboardPage() {
     } finally {
       setLoadingEventHeadsUp(false);
     }
-  }, [isClientDashboard, period, persona, userId]);
+  }, [isAdminLike, isClientDashboard, period, persona, userId]);
 
   const loadLeadInventory = useCallback(async () => {
     if (!isAdminLike || isClientDashboard) {
@@ -769,50 +777,52 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="relative z-10 mt-10 grid items-stretch gap-10 text-left xl:grid-cols-[minmax(0,1fr)_26rem]">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-            className="flex flex-col"
-          >
-            <h1 className="max-w-5xl text-zinc-950">
-              <span className="block text-[1.95rem] font-medium leading-[1.08] tracking-[-0.04em] sm:text-[2.45rem]">
-                {greeting}, {displayName}.
-              </span>
-              <span className="mt-4 block max-w-4xl text-[1.55rem] font-light leading-[1.16] tracking-[-0.025em] text-zinc-500 sm:text-[2rem]">
-                “{manifesto}”
-              </span>
-            </h1>
-
-            {isAdminLike ? (
-              <LeadInventoryOverview
-                data={leadInventory}
-                loading={loadingLeadInventory}
-                error={leadInventoryError}
-              />
-            ) : null}
-
-            <CampaignHeadsUp
-              items={eventHeadsUp}
-              statuses={workflowStatuses}
-              loading={loadingEventHeadsUp}
-              period={period}
-            />
-          </motion.div>
-
-          <div>
-            <SalesMarathon
-              runners={salesRunners}
-              currentUser={user}
-              loading={loadingSalesMarathon}
-              title={kpiCopy.title}
-              subtitle={kpiCopy.subtitle}
-              target={kpiCopy.target}
-              footnote={kpiCopy.footnote}
+        {isAdminLike ? (
+          <div className="relative z-10 w-full">
+            <LeadInventoryOverview
+              data={leadInventory}
+              loading={loadingLeadInventory}
+              error={leadInventoryError}
             />
           </div>
-        </div>
+        ) : (
+          <div className="relative z-10 mt-10 grid items-stretch gap-10 text-left xl:grid-cols-[minmax(0,1fr)_26rem]">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+              className="flex flex-col"
+            >
+              <h1 className="max-w-5xl text-zinc-950">
+                <span className="block text-[1.95rem] font-medium leading-[1.08] tracking-[-0.04em] sm:text-[2.45rem]">
+                  {greeting}, {displayName}.
+                </span>
+                <span className="mt-4 block max-w-4xl text-[1.55rem] font-light leading-[1.16] tracking-[-0.025em] text-zinc-500 sm:text-[2rem]">
+                  “{manifesto}”
+                </span>
+              </h1>
+
+              <CampaignHeadsUp
+                items={eventHeadsUp}
+                statuses={workflowStatuses}
+                loading={loadingEventHeadsUp}
+                period={period}
+              />
+            </motion.div>
+
+            <div>
+              <SalesMarathon
+                runners={salesRunners}
+                currentUser={user}
+                loading={loadingSalesMarathon}
+                title={kpiCopy.title}
+                subtitle={kpiCopy.subtitle}
+                target={kpiCopy.target}
+                footnote={kpiCopy.footnote}
+              />
+            </div>
+          </div>
+        )}
       </header>
     </div>
   );
