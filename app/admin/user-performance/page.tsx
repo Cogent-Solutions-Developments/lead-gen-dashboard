@@ -15,7 +15,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { UserActivityPanel } from "@/components/admin/UserActivityPanel";
-import { PeriodDatePicker, anchorDateForPeriod } from "@/components/performance/PeriodDatePicker";
+import { PeriodDatePicker } from "@/components/performance/PeriodDatePicker";
 import {
   fetchAdminUserPerformance,
   fetchManagerPerformance,
@@ -822,7 +822,6 @@ export default function AdminUserPerformancePage() {
                     type="button"
                     onClick={() => {
                       setPeriod(item.value);
-                      setDate((current) => anchorDateForPeriod(current, item.value));
                     }}
                     className={[
                       "h-9 rounded-md px-4 text-sm font-semibold transition-colors",

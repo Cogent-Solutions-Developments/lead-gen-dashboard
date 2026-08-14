@@ -99,6 +99,19 @@ test("manager performance is period-aware and omits inactive users", () => {
   assert.match(adminApi, /revenueUsd: Number\(data\.summary\?\.revenueUsd/);
 });
 
+test("performance charts show only KPI and revenue and preserve dates across period switches", () => {
+  const managerPage = read("app/manager/user-performance/page.tsx");
+  const adminPage = read("app/admin/user-performance/page.tsx");
+
+  assert.match(managerPage, /dataKey="KPI"/);
+  assert.match(managerPage, /dataKey="Revenue"/);
+  assert.doesNotMatch(managerPage, /name: "Activity", value:/);
+  assert.doesNotMatch(managerPage, /name: "Leads", value:/);
+  assert.doesNotMatch(managerPage, /name: "Manual", value:/);
+  assert.doesNotMatch(managerPage, /setDate\(\(current\) => anchorDateForPeriod\(current, item\.value\)\)/);
+  assert.doesNotMatch(adminPage, /setDate\(\(current\) => anchorDateForPeriod\(current, item\.value\)\)/);
+});
+
 test("deal bell identity is verified server-side", () => {
   const route = read("app/api/ring-bell/route.ts");
   const auth = read("lib/server/apiAuth.ts");

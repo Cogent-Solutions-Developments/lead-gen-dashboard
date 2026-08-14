@@ -5,7 +5,6 @@ import {
   Activity,
   BarChart3,
   CalendarDays,
-  DollarSign,
   Loader2,
   RefreshCw,
   Search,
@@ -39,7 +38,7 @@ import {
   fetchManagerUserActivity,
 } from "@/lib/peopleApi";
 import { formatEngagedDuration } from "@/lib/peopleUtils";
-import { PeriodDatePicker, anchorDateForPeriod } from "@/components/performance/PeriodDatePicker";
+import { PeriodDatePicker } from "@/components/performance/PeriodDatePicker";
 import { activePerformanceSummary, managerActivityAttribution } from "@/lib/managerPerformance";
 import { formatUsd } from "@/lib/leadWorkflowHistory";
 
@@ -52,6 +51,12 @@ const PERIOD_OPTIONS: Array<{ value: ManagerPerformancePeriod; label: string }> 
 
 const PERFORMANCE_CARD_CLASS =
   "rounded-lg border border-zinc-200/80 bg-white/95 shadow-[0_22px_46px_-38px_rgba(37,99,235,0.28),inset_0_1px_0_rgba(255,255,255,0.95)]";
+const COMPACT_USD_FORMATTER = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
 
 type VersionUsage = { light: number; heavy: number };
 type VersionUsageByUser = Record<string, VersionUsage>;
@@ -89,6 +94,12 @@ function formatNumber(value: unknown) {
   const number = Number(value || 0);
   if (!Number.isFinite(number)) return "0";
   return number.toLocaleString();
+}
+
+function formatCompactUsd(value: unknown) {
+  const amount = Number(value || 0);
+  if (!Number.isFinite(amount)) return "$0";
+  return COMPACT_USD_FORMATTER.format(amount);
 }
 
 function textValue(value?: string | null, fallback = "-") {
@@ -167,17 +178,11 @@ function statusTextClass(value?: string | null) {
 }
 
 function PerformanceChartSection({
-  activity,
-  leads,
-  manual,
   kpi,
   revenueUsd,
   lightSeconds,
   heavySeconds,
 }: {
-  activity?: number;
-  leads?: number;
-  manual?: number;
   kpi?: number;
   revenueUsd?: number;
   lightSeconds?: number;
@@ -185,12 +190,11 @@ function PerformanceChartSection({
 }) {
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
   const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
-  const metrics = [
-    { name: "Activity", value: Number(activity || 0), color: "#2563eb" },
-    { name: "Leads", value: Number(leads || 0), color: "#8b5cf6" },
-    { name: "Manual", value: Number(manual || 0), color: "#10b981" },
-    { name: "KPI", value: Number(kpi || 0), color: "#f59e0b" },
-  ];
+  const kpiValue = Number(kpi || 0);
+  const revenueValue = Number(revenueUsd || 0);
+  const performanceData = [{ name: "Performance", KPI: kpiValue, Revenue: revenueValue }];
+  const kpiAxisMax = Math.max(1, Math.ceil(kpiValue * 1.2));
+  const revenueAxisMax = Math.max(1, Math.ceil(revenueValue * 1.2));
   const versions = [
     { name: "Light", value: Number(lightSeconds || 0), color: "#2563eb" },
     { name: "Heavy", value: Number(heavySeconds || 0), color: "#8b5cf6" },
@@ -210,36 +214,73 @@ function PerformanceChartSection({
         <article className="flex min-h-[18rem] min-w-0 flex-col rounded-xl border border-zinc-200 bg-zinc-50/40 p-3 sm:p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="text-sm font-semibold text-slate-900">Performance</h3>
-            {Number(revenueUsd || 0) > 0 ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
-                <DollarSign className="h-3.5 w-3.5" />
-                Revenue {formatUsd(revenueUsd)}
-              </span>
-            ) : null}
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold" aria-label="Performance totals">
+              <button
+                type="button"
+                aria-pressed={selectedMetric === "KPI"}
+                onClick={() => setSelectedMetric((current) => (current === "KPI" ? null : "KPI"))}
+                className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-blue-700 transition hover:bg-blue-100"
+              >
+                <span className="h-2 w-2 rounded-full bg-blue-600" />
+                KPI {formatNumber(kpiValue)}
+              </button>
+              <button
+                type="button"
+                aria-pressed={selectedMetric === "Revenue"}
+                onClick={() => setSelectedMetric((current) => (current === "Revenue" ? null : "Revenue"))}
+                className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700 transition hover:bg-emerald-100"
+              >
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                Revenue {formatUsd(revenueValue) || "$0.00"}
+              </button>
+            </div>
           </div>
           <div
             className="mt-3 min-h-60 min-w-0 flex-1"
             role="img"
-            aria-label={`Performance: ${metrics.map((item) => `${item.name} ${item.value}`).join(", ")}`}
+            aria-label={`Performance: KPI ${formatNumber(kpiValue)}, Revenue ${formatUsd(revenueValue) || "$0.00"}`}
           >
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={metrics} margin={{ top: 10, right: 4, left: -20, bottom: 0 }}>
+              <BarChart
+                data={performanceData}
+                barCategoryGap="34%"
+                barGap={12}
+                margin={{ top: 10, right: 6, left: 2, bottom: 0 }}
+              >
                 <CartesianGrid vertical={false} stroke="#e4e4e7" strokeDasharray="3 5" />
                 <XAxis
                   dataKey="name"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: "#71717a", fontSize: 11, fontWeight: 600 }}
+                  tick={false}
+                  height={8}
                 />
                 <YAxis
+                  yAxisId="kpi"
                   allowDecimals={false}
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: "#a1a1aa", fontSize: 10 }}
+                  domain={[0, kpiAxisMax]}
+                  width={32}
+                />
+                <YAxis
+                  yAxisId="revenue"
+                  orientation="right"
+                  allowDecimals={false}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "#a1a1aa", fontSize: 10 }}
+                  tickFormatter={formatCompactUsd}
+                  domain={[0, revenueAxisMax]}
+                  width={44}
                 />
                 <Tooltip
                   cursor={{ fill: "#eff6ff", radius: 8 }}
-                  formatter={(value) => [formatNumber(value), ""]}
+                  formatter={(value, name) => [
+                    name === "Revenue" ? formatUsd(Number(value)) || "$0.00" : formatNumber(value),
+                    name,
+                  ]}
                   contentStyle={{
                     borderRadius: "10px",
                     borderColor: "#dbeafe",
@@ -247,19 +288,26 @@ function PerformanceChartSection({
                     fontSize: "12px",
                   }}
                 />
-                <Bar dataKey="value" radius={[7, 7, 2, 2]} maxBarSize={62}>
-                  {metrics.map((item) => (
-                    <Cell
-                      key={item.name}
-                      fill={item.color}
-                      className="cursor-pointer transition-opacity"
-                      opacity={selectedMetric && selectedMetric !== item.name ? 0.28 : 1}
-                      onClick={() =>
-                        setSelectedMetric((current) => (current === item.name ? null : item.name))
-                      }
-                    />
-                  ))}
-                </Bar>
+                <Bar
+                  yAxisId="kpi"
+                  dataKey="KPI"
+                  fill="#2563eb"
+                  radius={[7, 7, 2, 2]}
+                  maxBarSize={62}
+                  className="cursor-pointer transition-opacity"
+                  opacity={selectedMetric && selectedMetric !== "KPI" ? 0.28 : 1}
+                  onClick={() => setSelectedMetric((current) => (current === "KPI" ? null : "KPI"))}
+                />
+                <Bar
+                  yAxisId="revenue"
+                  dataKey="Revenue"
+                  fill="#10b981"
+                  radius={[7, 7, 2, 2]}
+                  maxBarSize={62}
+                  className="cursor-pointer transition-opacity"
+                  opacity={selectedMetric && selectedMetric !== "Revenue" ? 0.28 : 1}
+                  onClick={() => setSelectedMetric((current) => (current === "Revenue" ? null : "Revenue"))}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -507,19 +555,13 @@ export default function ManagerUserPerformancePage() {
   const activeTotals = useMemo(
     () => perUserPerformance.reduce(
       (totals, item) => ({
-        activity: totals.activity + Number(item.totals.activityCount || 0),
-        leads: totals.leads + Number(item.totals.touchedLeadCount || 0),
-        manual: totals.manual + Number(item.totals.manualLeadCount || 0),
         kpi: totals.kpi + Number(item.totals.kpiCount || 0),
         revenue: totals.revenue + Number(item.totals.revenueUsd || 0),
       }),
-      { activity: 0, leads: 0, manual: 0, kpi: 0, revenue: 0 }
+      { kpi: 0, revenue: 0 }
     ),
     [perUserPerformance]
   );
-  const selectedActivityCount = selectedPerformance?.totals.activityCount ?? activeTotals.activity;
-  const selectedTouchedLeadCount = selectedPerformance?.totals.touchedLeadCount ?? activeTotals.leads;
-  const selectedManualLeadCount = selectedPerformance?.totals.manualLeadCount ?? activeTotals.manual;
   const selectedKpiCount = selectedPerformance?.totals.kpiCount ?? activeTotals.kpi;
   const selectedRevenueUsd = selectedPerformance?.totals.revenueUsd ?? activeTotals.revenue;
   const isSalesPerformance = data?.managerScope?.persona === "sales";
@@ -561,7 +603,6 @@ export default function ManagerUserPerformancePage() {
                   type="button"
                   onClick={() => {
                     setPeriod(item.value);
-                    setDate((current) => anchorDateForPeriod(current, item.value));
                   }}
                   className={[
                     "h-9 min-w-0 rounded-md px-2 text-xs font-semibold transition-colors sm:px-4 sm:text-sm",
@@ -804,9 +845,6 @@ export default function ManagerUserPerformancePage() {
                   className="h-full min-h-[22rem] py-4"
                 >
                   <PerformanceChartSection
-                    activity={selectedActivityCount}
-                    leads={selectedTouchedLeadCount}
-                    manual={selectedManualLeadCount}
                     kpi={selectedKpiCount}
                     revenueUsd={selectedRevenueUsd}
                     lightSeconds={versionUsage.light}

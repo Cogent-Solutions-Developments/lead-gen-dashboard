@@ -234,7 +234,9 @@ test("manager performance uses the CEO detail hierarchy without redundant report
   assert.match(source, /activeSection === "members"/);
   assert.match(source, /activeSection === "activity"/);
   assert.match(source, /aria-label=\{`Performance:/);
-  assert.match(source, /<BarChart data=\{metrics\}/);
+  assert.match(source, /data=\{performanceData\}/);
+  assert.match(source, /dataKey="KPI"/);
+  assert.match(source, /dataKey="Revenue"/);
   assert.match(source, /<PieChart>/);
   assert.match(source, /selectedMetric/);
   assert.match(source, /selectedVersion/);
