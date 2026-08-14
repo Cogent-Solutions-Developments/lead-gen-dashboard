@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -37,7 +38,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
-import { getCachedAuthUserDisplayName, listActiveEventRegistry, personaForRole, type AdminEventItem } from "@/lib/auth";
+import { getAuthHeader, getCachedAuthUserDisplayName, listActiveEventRegistry, personaForRole, type AdminEventItem } from "@/lib/auth";
 import { getDailyDealBellMedia } from "@/lib/dealBellMedia";
 import {
   getTeamLeadErrorMessage,
@@ -45,13 +46,16 @@ import {
   teamLeadQueryKey,
 } from "@/lib/teamLeads";
 import { cn } from "@/lib/utils";
-import { LeadOriginTag } from "@/components/leads/LeadOriginTag";
+import { LeadOriginTags } from "@/components/leads/LeadOriginTag";
+import { LeadHistoryContent } from "@/components/leads/LeadHistoryContent";
+import { LeadUploadDuplicateSummary } from "@/components/leads/LeadUploadDuplicateSummary";
 import {
   addMyEventLead,
   createMyCampaignFromUpload,
   downloadMyLeadTemplateFile,
   generateLeadContent,
   getLeadWorkflowStatusHistory,
+  getLeadOwnerHistory,
   listMyAllLeads,
   listMyEventLeads,
   listMyEvents,
@@ -63,6 +67,8 @@ import {
   type EventSummaryItem,
   type LeadContentGenerationResponse,
   type LeadContentPlatform,
+  type LeadOriginHistoryItem,
+  type LeadOriginSource,
   type LeadTemplateValidationResponse,
   type LeadItem,
   type WorkflowStatus,
@@ -97,6 +103,9 @@ type MyLeadRow = {
   workflowCommentHistoryCount: number;
   canonicalEventName: string;
   isManualLead: boolean;
+  manualLeadAddedByUsername: string;
+  originSources: LeadOriginSource[];
+  originHistory: LeadOriginHistoryItem[];
 };
 
 type TemplateUploadState = {
@@ -110,6 +119,7 @@ type TemplateUploadState = {
 };
 
 type AddLeadFormState = {
+  eventRegistryId: string;
   fullName: string;
   category: string;
   title: string;
@@ -202,6 +212,7 @@ const EMPTY_TEMPLATE_UPLOAD: TemplateUploadState = {
   category: "",
 };
 const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
+  eventRegistryId: "",
   fullName: "",
   category: "",
   title: "",
@@ -311,13 +322,6 @@ function humanizeStatusLabel(value: string) {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
-}
-
-function formatDateTime(value?: string | null) {
-  if (!value) return "";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString();
 }
 
 function normalizeDialPhone(value: string) {
@@ -559,6 +563,9 @@ function mapLeadItemToRow(item: LeadItem | EventLeadListItem): MyLeadRow {
     workflowCommentHistoryCount: Number(item.workflowCommentHistoryCount || 0),
     canonicalEventName: item.canonicalEventName || item.eventName || "",
     isManualLead: Boolean(item.isManualLead),
+    manualLeadAddedByUsername: item.manualLeadAddedByUsername || "",
+    originSources: Array.isArray(item.originSources) ? item.originSources : [],
+    originHistory: "originHistory" in item && Array.isArray(item.originHistory) ? item.originHistory : [],
   };
 }
 
@@ -636,6 +643,7 @@ function LeadSheetDialog({
   children,
   eyebrow = "Lead Sheet Updates",
   compactSize = "default",
+  avoidBottomDock = false,
 }: {
   open: boolean;
   title: string;
@@ -644,11 +652,12 @@ function LeadSheetDialog({
   children: ReactNode;
   eyebrow?: string;
   compactSize?: "default" | "wide";
+  avoidBottomDock?: boolean;
 }) {
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-6">
+  return createPortal(
+    <div className={cn("fixed inset-0 z-[100] flex items-center justify-center p-6", avoidBottomDock && "pb-24 sm:pb-6")}>
       <button
         type="button"
         aria-label="Close dialog"
@@ -656,7 +665,7 @@ function LeadSheetDialog({
         onClick={onClose}
       />
 
-      <div
+      <div role="dialog" aria-modal="true" aria-label={title}
         className={cn(
           "relative z-[1] flex max-h-[calc(100dvh-3rem)] w-full flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]",
           compactSize === "wide" ? "max-w-5xl" : "max-w-2xl"
@@ -688,7 +697,8 @@ function LeadSheetDialog({
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -705,7 +715,6 @@ type MyLeadsWorkspaceProps = {
 export function MyLeadsWorkspace({
   embedded = false,
   teamMemberId = "",
-  originLabel = "My Leads",
 }: MyLeadsWorkspaceProps = {}) {
   const router = useRouter();
   const { persona } = usePersona();
@@ -737,8 +746,11 @@ export function MyLeadsWorkspace({
   const [updatingLeadIds, setUpdatingLeadIds] = useState<Record<string, boolean>>({});
   const [pendingStatusChange, setPendingStatusChange] = useState<PendingStatusChange | null>(null);
   const [statusComment, setStatusComment] = useState("");
+  const [dealAmountUsd, setDealAmountUsd] = useState("");
   const [historyLead, setHistoryLead] = useState<MyLeadRow | null>(null);
+  const [historyKind, setHistoryKind] = useState<"status" | "owner">("status");
   const [historyItems, setHistoryItems] = useState<WorkflowStatusHistoryItem[]>([]);
+  const [ownerHistoryItems, setOwnerHistoryItems] = useState<LeadOriginHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [ringBellConfirmOpen, setRingBellConfirmOpen] = useState(false);
@@ -783,12 +795,16 @@ export function MyLeadsWorkspace({
     () => events.find((item) => item.canonicalEventKey === selectedEventKey) ?? null,
     [events, selectedEventKey]
   );
-  const selectedEventLabel = getDisplayEventName(selectedEvent?.canonicalEventName) || "My Leads";
+  const selectedEventLabel = getDisplayEventName(selectedEvent?.canonicalEventName) || "Leads";
   const activeRegistryEvents = useMemo(
     () => registryEvents.filter((event) => event.isActive),
     [registryEvents]
   );
   const hasActiveRegistryEvents = activeRegistryEvents.length > 0;
+  const selectedAddLeadEvent = useMemo(
+    () => activeRegistryEvents.find((event) => event.id === addLeadForm.eventRegistryId) ?? null,
+    [activeRegistryEvents, addLeadForm.eventRegistryId]
+  );
   const selectedTemplateUploadEvent = useMemo(
     () => registryEvents.find((item) => item.id === templateUpload.selectedEventId) ?? null,
     [registryEvents, templateUpload.selectedEventId]
@@ -845,7 +861,7 @@ export function MyLeadsWorkspace({
     } catch (error: unknown) {
       setEvents([]);
       setSelectedEventKey("");
-      toast.error("Failed to load My Leads events", { description: getApiErrorMessage(error) });
+      toast.error("Failed to load Leads events", { description: getApiErrorMessage(error) });
     } finally {
       setLoadingEvents(false);
     }
@@ -914,7 +930,7 @@ export function MyLeadsWorkspace({
       if (requestId !== rowsRequestRef.current) return;
       setRows([]);
       setLeadListMeta({ total: 0, hasMore: false });
-      toast.error("Failed to load My Leads", { description: getApiErrorMessage(error) });
+      toast.error("Failed to load Leads", { description: getApiErrorMessage(error) });
     }
   }, [events.length, filters, hasPersonaMismatch, isSuperAdmin, loadingEvents, pageOffset, pageSize, role, searchInput, selectedEventKey]);
 
@@ -992,7 +1008,7 @@ export function MyLeadsWorkspace({
     }));
 
     try {
-      const validation = await validateMyLeadTemplateUpload(file);
+      const validation = await validateMyLeadTemplateUpload(file, templateUpload.selectedEventId);
       if (validation.sheetCount !== 1) {
         setTemplateUpload((prev) => ({
           ...prev,
@@ -1106,17 +1122,23 @@ export function MyLeadsWorkspace({
     setAddLeadForm(EMPTY_ADD_LEAD_FORM);
   };
 
+  const openAddLeadDialog = () => {
+    setAddLeadForm(EMPTY_ADD_LEAD_FORM);
+    setAddLeadOpen(true);
+  };
+
   const updateAddLeadField = (field: keyof AddLeadFormState, value: string) => {
     setAddLeadForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const submitAddLead = async () => {
-    if (!selectedEvent) {
-      toast.error("Select an event first");
+    if (!selectedAddLeadEvent) {
+      toast.error("Select an active event first");
       return;
     }
 
     const payload: EventLeadCreateRequest = {
+      eventRegistryId: selectedAddLeadEvent.id,
       fullName: addLeadForm.fullName.trim(),
       category: addLeadForm.category.trim(),
       title: addLeadForm.title.trim(),
@@ -1142,12 +1164,20 @@ export function MyLeadsWorkspace({
 
     setAddingLead(true);
     try {
-      const created = await addMyEventLead(selectedEvent.canonicalEventKey, payload);
+      const created = await addMyEventLead(selectedAddLeadEvent.eventKey, payload);
       closeAddLeadDialog(true);
-      toast.success("Lead added", {
-        description: `${created.employeeName} is now part of ${created.canonicalEventName}.`,
-      });
-      await loadRows();
+      if (created.duplicate) {
+        toast.warning("Existing lead source updated", {
+          description: `${created.employeeName} remains one lead card. Your upload was recorded as source ${created.sourceSequence || created.existingOccurrenceCount || "next"}.`,
+        });
+      } else {
+        toast.success("Lead added", {
+          description: `${created.employeeName} is now part of ${created.canonicalEventName}.`,
+        });
+      }
+      setSelectedEventKey(created.canonicalEventKey || selectedAddLeadEvent.eventKey);
+      setPageOffset(0);
+      await loadEvents();
     } catch (error: unknown) {
       toast.error("Failed to add lead", { description: getApiErrorMessage(error) });
     } finally {
@@ -1155,12 +1185,22 @@ export function MyLeadsWorkspace({
     }
   };
 
-  const handleWorkflowStatusChange = async (item: MyLeadRow, nextStatus: string, comment?: string) => {
+  const handleWorkflowStatusChange = async (
+    item: MyLeadRow,
+    nextStatus: string,
+    comment?: string,
+    closedDealAmount?: string
+  ) => {
     if ((nextStatus === item.workflowStatus && !comment?.trim()) || updatingLeadIds[item.id]) return false;
 
     setUpdatingLeadIds((prev) => ({ ...prev, [item.id]: true }));
     try {
-      const response = await updateLeadWorkflowStatus(item.id, nextStatus as WorkflowStatus, comment);
+      const response = await updateLeadWorkflowStatus(
+        item.id,
+        nextStatus as WorkflowStatus,
+        comment,
+        closedDealAmount
+      );
       const nextLabel =
         asText(response.workflowStatusLabel) ||
         statusOptions.find((option) => option.statusKey === response.workflowStatus)?.label ||
@@ -1202,11 +1242,13 @@ export function MyLeadsWorkspace({
     if (value === item.workflowStatus) return;
     setPendingStatusChange({ item, nextStatus: value });
     setStatusComment("");
+    setDealAmountUsd("");
   };
 
   const openCommentDialog = (item: MyLeadRow) => {
     setPendingStatusChange({ item, nextStatus: item.workflowStatus });
     setStatusComment("");
+    setDealAmountUsd("");
   };
 
   const closeStatusCommentDialog = () => {
@@ -1214,13 +1256,14 @@ export function MyLeadsWorkspace({
     setRingBellConfirmOpen(false);
     setPendingStatusChange(null);
     setStatusComment("");
+    setDealAmountUsd("");
   };
 
   const ringDealBell = async () => {
     const userName = getUserDisplayName(user) || user?.username?.trim() || "A sales user";
     const response = await fetch("/api/ring-bell", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getAuthHeader() },
       body: JSON.stringify({
         userName,
         userId: user?.id || "",
@@ -1242,13 +1285,22 @@ export function MyLeadsWorkspace({
   const submitStatusComment = async (options: { ringBell?: boolean } = {}) => {
     if (!pendingStatusChange) return;
     const shouldRingBell = Boolean(options.ringBell);
+    const normalizedDealAmount = isDealClosedStatusChange ? dealAmountUsd.trim() : undefined;
+    if (isDealClosedStatusChange) {
+      const numericAmount = Number(normalizedDealAmount);
+      if (!normalizedDealAmount || !Number.isFinite(numericAmount) || numericAmount <= 0) {
+        toast.error("Enter a valid deal amount in USD.");
+        return;
+      }
+    }
     if (shouldRingBell) setRingingDealBell(true);
 
     try {
       const updated = await handleWorkflowStatusChange(
         pendingStatusChange.item,
         pendingStatusChange.nextStatus,
-        statusComment.trim() || undefined
+        statusComment.trim() || undefined,
+        normalizedDealAmount
       );
       if (!updated) return;
 
@@ -1269,6 +1321,7 @@ export function MyLeadsWorkspace({
       setRingBellConfirmOpen(false);
       setPendingStatusChange(null);
       setStatusComment("");
+      setDealAmountUsd("");
     } finally {
       if (shouldRingBell) setRingingDealBell(false);
     }
@@ -1434,18 +1487,25 @@ export function MyLeadsWorkspace({
     }
   };
 
-  const openHistory = async (item: MyLeadRow) => {
+  const openHistory = async (item: MyLeadRow, kind: "status" | "owner" = "status") => {
     setHistoryLead(item);
+    setHistoryKind(kind);
     setHistoryItems([]);
+    setOwnerHistoryItems([]);
     setHistoryError(null);
     setHistoryLoading(true);
     try {
-      const response = await getLeadWorkflowStatusHistory(item.id);
-      setHistoryItems(Array.isArray(response.history) ? response.history : []);
+      if (kind === "owner") {
+        const response = await getLeadOwnerHistory(item.id);
+        setOwnerHistoryItems(Array.isArray(response.history) ? response.history : []);
+      } else {
+        const response = await getLeadWorkflowStatusHistory(item.id);
+        setHistoryItems(Array.isArray(response.history) ? response.history : []);
+      }
     } catch (error: unknown) {
       const message = getApiErrorMessage(error);
       setHistoryError(message);
-      toast.error("Failed to load comment history", { description: message });
+      toast.error(`Failed to load ${kind === "owner" ? "source" : "status"} history`, { description: message });
     } finally {
       setHistoryLoading(false);
     }
@@ -1453,7 +1513,9 @@ export function MyLeadsWorkspace({
 
   const closeHistory = () => {
     setHistoryLead(null);
+    setHistoryKind("status");
     setHistoryItems([]);
+    setOwnerHistoryItems([]);
     setHistoryError(null);
   };
 
@@ -1500,7 +1562,7 @@ export function MyLeadsWorkspace({
                 >
                   {events.length === 0 ? (
                     <SelectItem value="my-leads" className={EVENT_SELECT_ITEM_CLASS}>
-                      My Leads
+                      Leads
                     </SelectItem>
                   ) : (
                     events.map((event) => (
@@ -1519,7 +1581,7 @@ export function MyLeadsWorkspace({
                 embedded ? "gap-3 sm:gap-4" : "gap-4 sm:gap-8"
               )}
             >
-              <div className="grid h-12 min-w-0 flex-1 grid-cols-2 items-center gap-1.5 rounded-full border border-zinc-200 bg-white p-1.5 sm:inline-flex sm:flex-none" aria-label="My leads actions">
+              <div className="grid h-12 min-w-0 flex-1 grid-cols-2 items-center gap-1.5 rounded-full border border-zinc-200 bg-white p-1.5 sm:inline-flex sm:flex-none" aria-label="Lead actions">
                 <button
                   type="button"
                   onClick={openTemplateUploadDialog}
@@ -1532,8 +1594,8 @@ export function MyLeadsWorkspace({
 
                 <button
                   type="button"
-                  onClick={() => setAddLeadOpen(true)}
-                  disabled={!selectedEvent}
+                  onClick={openAddLeadDialog}
+                  disabled={!hasActiveRegistryEvents || loadingRegistryEvents}
                   className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-2 text-xs font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:opacity-50 sm:w-40 sm:text-sm"
                 >
                   <Plus className="h-4 w-4" />
@@ -1541,7 +1603,7 @@ export function MyLeadsWorkspace({
                 </button>
               </div>
 
-              <div className="flex shrink-0 items-baseline gap-2 sm:gap-3">
+              <div className="invisible flex shrink-0 items-baseline gap-2 sm:gap-3" aria-hidden="true">
                 <span className="text-xs font-medium text-zinc-400 sm:text-sm">Leads To Cover</span>
                 <span className="text-3xl font-light tabular-nums tracking-tight text-zinc-950 sm:text-4xl">
                   {pageTotal.toLocaleString()}
@@ -1736,7 +1798,7 @@ export function MyLeadsWorkspace({
                             >
                               {item.employeeName || "-"}
                             </span>
-                            <LeadOriginTag label={originLabel} />
+                            <LeadOriginTags originSources={item.originSources} />
                           </div>
                           <span
                             className={cn(
@@ -1980,6 +2042,10 @@ export function MyLeadsWorkspace({
                                 ? `${item.workflowCommentHistoryCount} comment${item.workflowCommentHistoryCount === 1 ? "" : "s"}`
                                 : "Comment history"}
                             </button>
+                            <button type="button" onClick={() => void openHistory(item, "owner")} className={cn("inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950", embedded ? "text-[10px]" : "text-xs")}>
+                              <History className="h-3.5 w-3.5" />
+                              Source timeline
+                            </button>
                             <button
                               type="button"
                               disabled={Boolean(updatingLeadIds[item.id])}
@@ -2201,19 +2267,34 @@ export function MyLeadsWorkspace({
                     </div>
                   </div>
 
-                  <label className="flex min-h-44 flex-col gap-3 lg:min-h-48">
-                    <span className="text-xs font-medium text-zinc-400">Comment optional</span>
+                  <div className="flex min-h-44 flex-col gap-3 lg:min-h-48">
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-medium text-zinc-500">Deal amount (USD) *</span>
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        min="0.01"
+                        step="0.01"
+                        value={dealAmountUsd}
+                        onChange={(event) => setDealAmountUsd(event.target.value)}
+                        placeholder="0.00"
+                        className="h-11 rounded-xl border-zinc-200 bg-white shadow-none focus-visible:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
+                      />
+                    </label>
+                    <label className="flex min-h-0 flex-1 flex-col gap-2">
+                      <span className="text-xs font-medium text-zinc-400">Comment optional</span>
                     <Textarea
                       value={statusComment}
                       maxLength={2000}
                       onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
                       placeholder="Example: Follow up after first call. Asked to reconnect next week."
-                      className="min-h-0 flex-1 resize-none rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-6 shadow-none focus-visible:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
+                      className="min-h-20 flex-1 resize-none rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-6 shadow-none focus-visible:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
                     />
                     <span className="block text-right text-xs font-light text-zinc-400">
                       {2000 - statusComment.length} characters remaining
                     </span>
-                  </label>
+                    </label>
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-3 border-t border-zinc-100 px-4 pb-4 pt-4 sm:flex-row sm:items-center sm:justify-end sm:px-5 sm:pb-5">
@@ -2228,7 +2309,7 @@ export function MyLeadsWorkspace({
                   <Button
                     type="button"
                     onClick={handleUpdateStatusClick}
-                    disabled={Boolean(updatingLeadIds[pendingStatusChange.item.id]) || ringingDealBell}
+                    disabled={Boolean(updatingLeadIds[pendingStatusChange.item.id]) || ringingDealBell || !dealAmountUsd.trim()}
                     className="h-11 gap-2 rounded-full border border-emerald-500/20 bg-[#22c55e] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)] hover:bg-emerald-600"
                   >
                     {updatingLeadIds[pendingStatusChange.item.id] || ringingDealBell ? (
@@ -2481,91 +2562,21 @@ export function MyLeadsWorkspace({
       {historyLead ? (
         <LeadSheetDialog
           open
-          title="Comment History"
+          title={historyKind === "owner" ? "Source Timeline" : "Status History"}
           description=""
           eyebrow=""
           onClose={closeHistory}
         >
-          <div className="space-y-6">
-            <div className="border-b border-zinc-100 pb-6">
-              <p className="text-xs font-medium normal-case tracking-normal text-zinc-400">Selected profile</p>
-              <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
-                {historyLead.employeeName || "-"}
-              </h3>
-              <p className="mt-1 text-sm font-light text-zinc-500">{historyLead.company || "-"}</p>
-            </div>
-
-            {historyLoading ? (
-              <div className="flex h-32 items-center justify-center text-sm font-light text-zinc-400">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Loading history...
-              </div>
-            ) : historyError ? (
-              <div className="border border-red-200 bg-red-50 p-4 text-sm font-light text-red-700">
-                {historyError}
-              </div>
-            ) : historyItems.length === 0 ? (
-              <div className="border border-zinc-200 bg-zinc-50/70 p-6 text-sm font-light text-zinc-500">
-                No comments have been recorded for this lead yet.
-              </div>
-            ) : (
-              <div className="border-y border-zinc-300">
-                <div className="flex items-center justify-between border-b border-zinc-200 py-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-zinc-400">Timeline</span>
-                  </div>
-                  <span className="text-xs font-light text-zinc-400">
-                    {historyItems.length} update{historyItems.length === 1 ? "" : "s"}
-                  </span>
-                </div>
-
-                <div className="max-h-[26rem] overflow-y-auto pr-1 scrollbar-modern">
-                  {historyItems.map((entry) => {
-                    const statusLabel = entry.workflowStatusLabel || humanizeStatusLabel(entry.workflowStatus);
-                    const actorName =
-                      asText(entry.updatedByUserDisplayName) ||
-                      asText(entry.updatedByUsername) ||
-                      "Unknown user";
-
-                    return (
-                      <article
-                        key={entry.id}
-                        className="group grid grid-cols-[2.75rem_minmax(0,1fr)] border-b border-zinc-100 last:border-b-0"
-                      >
-                        <div className="relative flex justify-center">
-                          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-blue-500/35" />
-                          <span className="relative mt-5 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-blue-500 bg-white shadow-[0_0_0_3px_rgba(37,99,235,0.08)]">
-                            <span className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(entry.workflowStatus)}`} />
-                          </span>
-                        </div>
-
-                        <div className="min-w-0 py-5 transition-colors group-hover:bg-zinc-50/40">
-                          <div className="flex flex-wrap items-start justify-between gap-3 pr-1">
-                            <div className="min-w-0">
-                              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                                <h4 className="text-base font-medium tracking-tight text-zinc-950">{statusLabel}</h4>
-                              </div>
-                              <p className="mt-1 text-xs font-light text-zinc-400">Updated by {actorName}</p>
-                            </div>
-
-                            <time className="shrink-0 text-right text-xs font-light leading-5 text-zinc-400">
-                              {formatDateTime(entry.createdAt) || "Time unavailable"}
-                            </time>
-                          </div>
-
-                          <div className="mt-3 max-w-xl border-l border-zinc-200 pl-3">
-                            <p className="whitespace-pre-wrap text-sm font-light leading-6 text-zinc-600">
-                              {entry.comment || "No comment added."}
-                            </p>
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
+          <LeadHistoryContent
+            kind={historyKind}
+            leadName={historyLead.employeeName}
+            company={historyLead.company}
+            statusItems={historyItems}
+            ownerItems={ownerHistoryItems}
+            loading={historyLoading}
+            error={historyError}
+            getStatusDotClass={getStatusDotClass}
+          />
         </LeadSheetDialog>
       ) : null}
 
@@ -2920,6 +2931,7 @@ export function MyLeadsWorkspace({
 
           {templateValidation ? (
             <div className="space-y-5">
+              <LeadUploadDuplicateSummary validation={templateValidation} />
               <div className="border-y border-blue-100 py-5">
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex min-w-0 items-center gap-4">
@@ -3039,8 +3051,33 @@ export function MyLeadsWorkspace({
         description=""
         eyebrow=""
         onClose={closeAddLeadDialog}
+        avoidBottomDock
       >
         <div className="grid gap-x-8 gap-y-8 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="mb-3 block text-xs font-medium text-zinc-400">
+              Related event <span className="text-red-500">*</span>
+            </label>
+            <Select
+              value={addLeadForm.eventRegistryId}
+              onValueChange={(value) => updateAddLeadField("eventRegistryId", value)}
+              disabled={addingLead || loadingRegistryEvents}
+            >
+              <SelectTrigger
+                aria-label="Select lead event"
+                className="!h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-left text-lg font-light text-zinc-950 shadow-none focus:ring-0"
+              >
+                <SelectValue placeholder={loadingRegistryEvents ? "Loading events..." : "Select event"} />
+              </SelectTrigger>
+              <SelectContent className={UPLOAD_EVENT_SELECT_CONTENT_CLASS}>
+                {activeRegistryEvents.map((event) => (
+                  <SelectItem key={event.id} value={event.id} className={UPLOAD_EVENT_SELECT_ITEM_CLASS}>
+                    {getDisplayEventName(event.eventName)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="sm:col-span-2">
             <label htmlFor="my-lead-full-name" className="mb-3 block text-xs font-medium text-zinc-400">
               Full Name <span className="text-red-500">*</span>
@@ -3163,7 +3200,7 @@ export function MyLeadsWorkspace({
             onClick={() => void submitAddLead()}
             disabled={
               addingLead ||
-              !selectedEvent ||
+              !selectedAddLeadEvent ||
               !addLeadForm.fullName.trim() ||
               !addLeadForm.category.trim() ||
               !addLeadForm.title.trim()

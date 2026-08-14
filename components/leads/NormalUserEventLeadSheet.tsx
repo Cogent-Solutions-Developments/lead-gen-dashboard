@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,18 +43,25 @@ import {
   type EventAgendaItem,
   type LeadContentGenerationResponse,
   type LeadContentPlatform,
+  type LeadDepartmentTag,
+  type LeadOriginHistoryItem,
+  type LeadOriginSource,
+  type LeadOwnerSummary,
   type LeadTemplateValidationResponse,
   type WorkflowStatus,
   type WorkflowStatusDefinitionItem,
   type WorkflowStatusHistoryItem,
 } from "@/lib/apiRouter";
-import { createProtectedObjectUrl, getCachedAuthUserDisplayName, listActiveEventRegistry, type AdminEventItem } from "@/lib/auth";
+import { createProtectedObjectUrl, getAuthHeader, getCachedAuthUserDisplayName, listActiveEventRegistry, type AdminEventItem } from "@/lib/auth";
 import { persistCampaignUploadSummary } from "@/lib/campaignUploadSummary";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 import { getDailyDealBellMedia } from "@/lib/dealBellMedia";
 import { cn } from "@/lib/utils";
-import { getLeadOriginLabel, LeadOriginTag } from "@/components/leads/LeadOriginTag";
+import { LeadOriginTags } from "@/components/leads/LeadOriginTag";
+import { LeadHistoryContent } from "@/components/leads/LeadHistoryContent";
+import { LeadUploadDuplicateSummary } from "@/components/leads/LeadUploadDuplicateSummary";
+import { mergeDuplicateEventLeadRows } from "@/lib/leads/mergeEventLeadRows";
 import type { Persona } from "@/lib/persona";
 import {
   AlertTriangle,
@@ -82,6 +90,7 @@ import { toast } from "sonner";
 
 type LeadSheetRow = {
   id: string;
+  mergedLeadIds: string[];
   canonicalEventKey: string;
   canonicalEventName: string;
   leadIdentityKey: string;
@@ -102,6 +111,13 @@ type LeadSheetRow = {
   workflowCommentHistoryCount: number;
   isManualLead: boolean;
   manualLeadAddedByUsername: string;
+  primaryDepartment: string;
+  departments: string[];
+  departmentTags: LeadDepartmentTag[];
+  owners: LeadOwnerSummary[];
+  originSources: LeadOriginSource[];
+  originHistory: LeadOriginHistoryItem[];
+  ownershipCount: number;
   isSuppressed: boolean;
   contactReadOnly: boolean;
 };
@@ -993,6 +1009,7 @@ function mapLeadItem(item: EventLeadListItem, labelLookup: Map<string, string>):
 
   return {
     id: item.id,
+    mergedLeadIds: [item.id],
     canonicalEventKey,
     canonicalEventName: asText(item.canonicalEventName) || asText(item.eventName) || "Unknown Event",
     leadIdentityKey,
@@ -1013,6 +1030,13 @@ function mapLeadItem(item: EventLeadListItem, labelLookup: Map<string, string>):
     workflowCommentHistoryCount: Number(item.workflowCommentHistoryCount || 0),
     isManualLead: Boolean(item.isManualLead),
     manualLeadAddedByUsername: asText(item.manualLeadAddedByUsername),
+    primaryDepartment: asText(item.primaryDepartment),
+    departments: Array.isArray(item.departments) ? item.departments : [],
+    departmentTags: Array.isArray(item.departmentTags) ? item.departmentTags : [],
+    owners: Array.isArray(item.owners) ? item.owners : [],
+    originSources: Array.isArray(item.originSources) ? item.originSources : [],
+    originHistory: Array.isArray(item.originHistory) ? item.originHistory : [],
+    ownershipCount: Number(item.ownershipCount || 0),
     isSuppressed: Boolean(item.isSuppressed),
     contactReadOnly: Boolean(item.contactReadOnly || item.isSuppressed),
   };
@@ -1077,6 +1101,7 @@ function LeadSheetDialog({
   eyebrow = "Lead Sheet Updates",
   compact = false,
   compactSize = "default",
+  avoidBottomDock = false,
 }: {
   open: boolean;
   title: string;
@@ -1087,12 +1112,13 @@ function LeadSheetDialog({
   eyebrow?: string;
   compact?: boolean;
   compactSize?: "default" | "wide";
+  avoidBottomDock?: boolean;
 }) {
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
   if (compact) {
-    return (
-      <div className="fixed inset-0 z-[80] flex items-center justify-center p-6">
+    return createPortal(
+      <div className={cn("fixed inset-0 z-[100] flex items-center justify-center p-6", avoidBottomDock && "pb-24 sm:pb-6")}>
         <button
           type="button"
           aria-label="Close dialog"
@@ -1100,7 +1126,7 @@ function LeadSheetDialog({
           onClick={onClose}
         />
 
-        <div
+        <div role="dialog" aria-modal="true" aria-label={title}
           className={cn(
             "relative z-[1] flex max-h-[calc(100dvh-3rem)] w-full flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]",
             compactSize === "wide" ? "max-w-5xl" : "max-w-2xl"
@@ -1132,12 +1158,13 @@ function LeadSheetDialog({
             {children}
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   }
 
-  return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-6">
+  return createPortal(
+    <div className={cn("fixed inset-0 z-[100] flex items-center justify-center p-6", avoidBottomDock && "pb-24 sm:pb-6")}>
       <button
         type="button"
         aria-label="Close dialog"
@@ -1145,7 +1172,7 @@ function LeadSheetDialog({
         onClick={onClose}
       />
 
-      <div className="relative z-[1] h-[min(42rem,calc(100dvh-3rem))] w-full max-w-3xl overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
+      <div role="dialog" aria-modal="true" aria-label={title} className="relative z-[1] h-[min(42rem,calc(100dvh-3rem))] w-full max-w-3xl overflow-hidden border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
         <div className="relative grid h-full min-h-0 md:grid-cols-[17rem_minmax(0,1fr)]">
           <aside className="relative flex flex-col justify-end overflow-hidden border-b border-zinc-300 bg-zinc-50/70 p-8 md:border-b-0 md:border-r">
             <div className={cn("relative z-10 mt-auto", sidebarContent && "text-zinc-50")}>
@@ -1177,7 +1204,8 @@ function LeadSheetDialog({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -1228,10 +1256,12 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
   const [templateUpload, setTemplateUpload] = useState<TemplateUploadState>(EMPTY_TEMPLATE_UPLOAD);
   const [pendingStatusChange, setPendingStatusChange] = useState<PendingStatusChange | null>(null);
   const [statusComment, setStatusComment] = useState("");
+  const [dealAmountUsd, setDealAmountUsd] = useState("");
   const [ringBellConfirmOpen, setRingBellConfirmOpen] = useState(false);
   const [ringingDealBell, setRingingDealBell] = useState(false);
   const [contactChoiceLead, setContactChoiceLead] = useState<ContactChoiceLead | null>(null);
   const [historyLead, setHistoryLead] = useState<LeadSheetRow | null>(null);
+  const [historyKind, setHistoryKind] = useState<"status" | "owner">("status");
   const [historyItems, setHistoryItems] = useState<WorkflowStatusHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -1268,8 +1298,8 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
               createMyLeadsCampaignFromUpload(payload, effectivePersona),
             addEventLead: (canonicalEventKey: string, payload: EventLeadCreateRequest) =>
               addMyLeadsEventLead(canonicalEventKey, payload, effectivePersona),
-            validateLeadTemplateUpload: (file: File | Blob) =>
-              validateMyLeadsLeadTemplateUpload(file, effectivePersona),
+            validateLeadTemplateUpload: (file: File | Blob, eventRegistryId?: string) =>
+              validateMyLeadsLeadTemplateUpload(file, effectivePersona, eventRegistryId),
             downloadLeadTemplateFile: () => downloadMyLeadsLeadTemplateFile(undefined, effectivePersona),
           }
         : {
@@ -1282,8 +1312,8 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
               createCampaignFromUploadForPersona(effectivePersona, payload),
             addEventLead: (canonicalEventKey: string, payload: EventLeadCreateRequest) =>
               addEventLeadForPersona(effectivePersona, canonicalEventKey, payload),
-            validateLeadTemplateUpload: (file: File | Blob) =>
-              validateLeadTemplateUploadForPersona(effectivePersona, file),
+            validateLeadTemplateUpload: (file: File | Blob, eventRegistryId?: string) =>
+              validateLeadTemplateUploadForPersona(effectivePersona, file, eventRegistryId),
             downloadLeadTemplateFile: () => downloadLeadTemplateFileForPersona(effectivePersona),
           },
     [effectivePersona, isMyLeadsMode]
@@ -1392,7 +1422,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
       );
       setMyLeadCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
     } catch (error: unknown) {
-      toast.error("Failed to load My Leads campaigns", {
+      toast.error("Failed to load Leads campaigns", {
         description: getErrorMessage(error),
       });
       setMyLeadCampaigns([]);
@@ -1681,9 +1711,10 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
   }, [loadSelectedEventAgendas]);
 
   const eventLeads = useMemo(() => {
-    return (activeLeadPage?.items || [])
+    const rows = (activeLeadPage?.items || [])
       .map((item) => mapLeadItem(item, workflowStatusLabelLookup))
       .filter((item): item is LeadSheetRow => Boolean(item));
+    return mergeDuplicateEventLeadRows(rows);
   }, [activeLeadPage, workflowStatusLabelLookup]);
 
   const categoryOptions = useMemo<LeadCategoryOption[]>(() => {
@@ -1756,7 +1787,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
 
   useEffect(() => {
     if (!targetLeadId) return;
-    const targetOnPage = visibleEventLeads.some((lead) => lead.id === targetLeadId);
+    const targetOnPage = visibleEventLeads.some((lead) => lead.mergedLeadIds.includes(targetLeadId));
     if (!targetOnPage) return;
 
     const timer = window.setTimeout(() => {
@@ -1768,8 +1799,8 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
 
   const pageRangeStart = visibleEventLeads.length > 0 ? pageOffset + 1 : 0;
   const pageRangeEnd = pageOffset + visibleEventLeads.length;
-  const pageTotal = activeLeadPage?.total ?? 0;
   const hasMore = Boolean(activeLeadPage?.hasMore);
+  const pageTotal = pageOffset === 0 && !hasMore ? eventLeads.length : (activeLeadPage?.total ?? 0);
   const isLoading = loadingEvents || (loadingLeads && !activeLeadPage && Boolean(selectedEventKey));
   const latestAgenda = agendaState.agendas[0] ?? null;
   const templateUploadErrorCopy = useMemo(
@@ -1843,7 +1874,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
     }));
 
     try {
-      const validation = await leadSheetApi.validateLeadTemplateUpload(file);
+      const validation = await leadSheetApi.validateLeadTemplateUpload(file, templateUpload.selectedEventId);
       setTemplateUpload((prev) => ({
         ...prev,
         validation,
@@ -1994,13 +2025,19 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
   };
 
   const handleWorkflowStatusChange = useCallback(
-    async (item: LeadSheetRow, nextStatus: WorkflowStatus, comment?: string) => {
+    async (item: LeadSheetRow, nextStatus: WorkflowStatus, comment?: string, closedDealAmount?: string) => {
       const updateKey = `${item.canonicalEventKey}::${item.leadIdentityKey}`;
       if ((nextStatus === item.workflowStatus && !comment?.trim()) || updatingKeys[updateKey]) return false;
 
       setUpdatingKeys((prev) => ({ ...prev, [updateKey]: true }));
       try {
-        const response = await updateLeadWorkflowStatusForPersona(effectivePersona, item.id, nextStatus, comment);
+        const response = await updateLeadWorkflowStatusForPersona(
+          effectivePersona,
+          item.id,
+          nextStatus,
+          comment,
+          closedDealAmount
+        );
         invalidateLeadPageCache(cacheScope, mode, effectivePersona, item.canonicalEventKey);
 
         const nextLabel =
@@ -2055,6 +2092,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
     if (value === item.workflowStatus) return;
     setPendingStatusChange({ item, nextStatus: value });
     setStatusComment("");
+    setDealAmountUsd("");
   };
 
   const closeStatusCommentDialog = () => {
@@ -2064,13 +2102,14 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
     setRingBellConfirmOpen(false);
     setPendingStatusChange(null);
     setStatusComment("");
+    setDealAmountUsd("");
   };
 
   const ringDealBell = async () => {
     const userName = getUserDisplayName(user) || user?.username?.trim() || "A sales user";
     const response = await fetch("/api/ring-bell", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getAuthHeader() },
       body: JSON.stringify({
         userName,
         userId: user?.id || "",
@@ -2093,6 +2132,14 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
     if (!pendingStatusChange) return;
     const comment = statusComment.trim();
     const shouldRingBell = Boolean(options.ringBell);
+    const normalizedDealAmount = isDealClosedStatusChange ? dealAmountUsd.trim() : undefined;
+    if (isDealClosedStatusChange) {
+      const numericAmount = Number(normalizedDealAmount);
+      if (!normalizedDealAmount || !Number.isFinite(numericAmount) || numericAmount <= 0) {
+        toast.error("Enter a valid deal amount in USD.");
+        return;
+      }
+    }
 
     if (shouldRingBell) setRingingDealBell(true);
 
@@ -2100,7 +2147,8 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
       const updated = await handleWorkflowStatusChange(
         pendingStatusChange.item,
         pendingStatusChange.nextStatus,
-        comment || undefined
+        comment || undefined,
+        normalizedDealAmount
       );
       if (!updated) return;
 
@@ -2122,6 +2170,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
       setRingBellConfirmOpen(false);
       setPendingStatusChange(null);
       setStatusComment("");
+      setDealAmountUsd("");
     } finally {
       if (shouldRingBell) setRingingDealBell(false);
     }
@@ -2140,10 +2189,15 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
     void submitStatusComment();
   };
 
-  const openHistory = async (item: LeadSheetRow) => {
+  const openHistory = async (item: LeadSheetRow, kind: "status" | "owner" = "status") => {
     setHistoryLead(item);
+    setHistoryKind(kind);
     setHistoryItems([]);
     setHistoryError(null);
+    if (kind === "owner") {
+      setHistoryLoading(false);
+      return;
+    }
     setHistoryLoading(true);
     try {
       const response = await getLeadWorkflowStatusHistoryForPersona(effectivePersona, item.id);
@@ -2159,6 +2213,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
 
   const closeHistory = () => {
     setHistoryLead(null);
+    setHistoryKind("status");
     setHistoryItems([]);
     setHistoryError(null);
   };
@@ -2376,9 +2431,15 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
       const created = await leadSheetApi.addEventLead(selectedEvent.canonicalEventKey, payload);
       invalidateLeadPageCache(cacheScope, mode, effectivePersona, selectedEvent.canonicalEventKey);
       closeAddLeadDialog(true);
-      toast.success("Lead added", {
-        description: `${created.employeeName} is now part of ${created.canonicalEventName}.`,
-      });
+      if (created.duplicate) {
+        toast.warning("Existing lead source updated", {
+          description: `${created.employeeName} remains one lead card. Your upload was recorded as source ${created.sourceSequence || created.existingOccurrenceCount || "next"}.`,
+        });
+      } else {
+        toast.success("Lead added", {
+          description: `${created.employeeName} is now part of ${created.canonicalEventName}.`,
+        });
+      }
       await loadEventPage(selectedEvent.canonicalEventKey, pageOffset, searchQuery, { force: true });
     } catch (error: unknown) {
       toast.error("Failed to add lead", {
@@ -2432,7 +2493,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
             </div>
 
             <div className="ml-auto flex min-w-max flex-nowrap items-center justify-end gap-8">
-              <div className="flex shrink-0 items-baseline gap-3">
+              <div className="invisible flex shrink-0 items-baseline gap-3" aria-hidden="true">
                 <span className="text-sm font-medium text-zinc-400">Leads To Cover</span>
                 <span className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
                   {pageTotal.toLocaleString()}
@@ -2694,7 +2755,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                   <div>
                     {visibleEventLeads.map((item) => {
                       const updateKey = `${item.canonicalEventKey}::${item.leadIdentityKey}`;
-                      const isTargetLead = targetLeadId === item.id;
+                      const isTargetLead = item.mergedLeadIds.includes(targetLeadId);
                       const isUpdating = Boolean(updatingKeys[updateKey]);
                       const selectedStatusValue = statusOptions.some((option) => option.statusKey === item.workflowStatus)
                         ? item.workflowStatus
@@ -2726,7 +2787,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                             <div className="flex flex-col gap-1.5">
                               <div className="flex items-center gap-5">
                                 <span className="text-xl font-light tracking-tight text-zinc-950">{item.employeeName || "-"}</span>
-                                <LeadOriginTag label={getLeadOriginLabel(item, isMyLeadsMode ? "My Leads" : "CS Database")} />
+                                <LeadOriginTags originSources={item.originSources} />
                               </div>
                               <span className="max-w-sm text-base font-light leading-relaxed text-zinc-700">{item.title || "-"}</span>
                               <span className="text-xs font-medium text-zinc-400">{item.company || "-"}</span>
@@ -2866,6 +2927,14 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                                 </button>
                                 <button
                                   type="button"
+                                  onClick={() => void openHistory(item, "owner")}
+                                  className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950"
+                                >
+                                  <History className="h-3.5 w-3.5" />
+                                  Source timeline
+                                </button>
+                                <button
+                                  type="button"
                                   disabled={isUpdating}
                                   onClick={() => {
                                     setPendingStatusChange({ item, nextStatus: item.workflowStatus });
@@ -2971,19 +3040,34 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                     </div>
                   </div>
 
-                  <label className="flex min-h-44 flex-col gap-3 lg:min-h-48">
-                    <span className="text-xs font-medium text-zinc-400">Comment optional</span>
+                  <div className="flex min-h-44 flex-col gap-3 lg:min-h-48">
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-medium text-zinc-500">Deal amount (USD) *</span>
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        min="0.01"
+                        step="0.01"
+                        value={dealAmountUsd}
+                        onChange={(event) => setDealAmountUsd(event.target.value)}
+                        placeholder="0.00"
+                        className="h-11 rounded-xl border-zinc-200 bg-white shadow-none focus-visible:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
+                      />
+                    </label>
+                    <label className="flex min-h-0 flex-1 flex-col gap-2">
+                      <span className="text-xs font-medium text-zinc-400">Comment optional</span>
                     <Textarea
                       value={statusComment}
                       maxLength={2000}
                       onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
                       placeholder="Example: Follow up after first call. Asked to reconnect next week."
-                      className="min-h-0 flex-1 resize-none rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-6 shadow-none focus-visible:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
+                      className="min-h-20 flex-1 resize-none rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-6 shadow-none focus-visible:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
                     />
                     <span className="block text-right text-xs font-light text-zinc-400">
                       {2000 - statusComment.length} characters remaining
                     </span>
-                  </label>
+                    </label>
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-3 border-t border-zinc-100 px-4 pb-4 pt-4 sm:flex-row sm:items-center sm:justify-end sm:px-5 sm:pb-5">
@@ -2998,7 +3082,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                   <Button
                     type="button"
                     onClick={handleUpdateStatusClick}
-                    disabled={Boolean(updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`]) || ringingDealBell}
+                    disabled={Boolean(updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`]) || ringingDealBell || !dealAmountUsd.trim()}
                     className="h-11 gap-2 rounded-full border border-emerald-500/20 bg-[#22c55e] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)] hover:bg-emerald-600"
                   >
                     {updatingKeys[`${pendingStatusChange.item.canonicalEventKey}::${pendingStatusChange.item.leadIdentityKey}`] || ringingDealBell ? (
@@ -3452,92 +3536,22 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
       {historyLead ? (
         <LeadSheetDialog
           open
-          title="Comment History"
+          title={historyKind === "owner" ? "Source Timeline" : "Status History"}
           description=""
           eyebrow=""
           onClose={closeHistory}
           compact
         >
-          <div className="space-y-6">
-            <div className="border-b border-zinc-100 pb-6">
-              <p className="text-xs font-medium normal-case tracking-normal text-zinc-400">Selected profile</p>
-              <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
-                {historyLead.employeeName || "-"}
-              </h3>
-              <p className="mt-1 text-sm font-light text-zinc-500">{historyLead.company || "-"}</p>
-            </div>
-
-            {historyLoading ? (
-              <div className="flex h-32 items-center justify-center text-sm font-light text-zinc-400">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Loading history...
-              </div>
-            ) : historyError ? (
-              <div className="border border-red-200 bg-red-50 p-4 text-sm font-light text-red-700">
-                {historyError}
-              </div>
-            ) : historyItems.length === 0 ? (
-              <div className="border border-zinc-200 bg-zinc-50/70 p-6 text-sm font-light text-zinc-500">
-                No comments have been recorded for this lead yet.
-              </div>
-            ) : (
-              <div className="border-y border-zinc-300">
-                <div className="flex items-center justify-between border-b border-zinc-200 py-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-zinc-400">Timeline</span>
-                  </div>
-                  <span className="text-xs font-light text-zinc-400">
-                    {historyItems.length} update{historyItems.length === 1 ? "" : "s"}
-                  </span>
-                </div>
-
-                <div className="max-h-[26rem] overflow-y-auto pr-1 scrollbar-modern">
-                  {historyItems.map((entry) => {
-                    const statusLabel = entry.workflowStatusLabel || humanizeStatusLabel(entry.workflowStatus);
-                    const actorName =
-                      asText(entry.updatedByUserDisplayName) ||
-                      asText(entry.updatedByUsername) ||
-                      "Unknown user";
-
-                    return (
-                      <article
-                        key={entry.id}
-                        className="group grid grid-cols-[2.75rem_minmax(0,1fr)] border-b border-zinc-100 last:border-b-0"
-                      >
-                        <div className="relative flex justify-center">
-                          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-blue-500/35" />
-                          <span className="relative mt-5 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-blue-500 bg-white shadow-[0_0_0_3px_rgba(37,99,235,0.08)]">
-                            <span className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(entry.workflowStatus)}`} />
-                          </span>
-                        </div>
-
-                        <div className="min-w-0 py-5 transition-colors group-hover:bg-zinc-50/40">
-                          <div className="flex flex-wrap items-start justify-between gap-3 pr-1">
-                            <div className="min-w-0">
-                              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                                <h4 className="text-base font-medium tracking-tight text-zinc-950">{statusLabel}</h4>
-                              </div>
-                              <p className="mt-1 text-xs font-light text-zinc-400">Updated by {actorName}</p>
-                            </div>
-
-                            <time className="shrink-0 text-right text-xs font-light leading-5 text-zinc-400">
-                              {formatDateTime(entry.createdAt) || "Time unavailable"}
-                            </time>
-                          </div>
-
-                          <div className="mt-3 max-w-xl border-l border-zinc-200 pl-3">
-                            <p className="whitespace-pre-wrap text-sm font-light leading-6 text-zinc-600">
-                              {entry.comment || "No comment added."}
-                            </p>
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
+          <LeadHistoryContent
+            kind={historyKind}
+            leadName={historyLead.employeeName}
+            company={historyLead.company}
+            statusItems={historyItems}
+            ownerItems={historyLead.originHistory}
+            loading={historyLoading}
+            error={historyError}
+            getStatusDotClass={getStatusDotClass}
+          />
         </LeadSheetDialog>
       ) : null}
 
@@ -3830,6 +3844,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
 
           {templateValidation ? (
             <div className="space-y-5">
+              <LeadUploadDuplicateSummary validation={templateValidation} />
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="border border-zinc-200 p-4">
                   <p className="text-xs font-medium text-zinc-400">Sheets</p>
@@ -3917,6 +3932,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
         eyebrow=""
         onClose={closeAddLeadDialog}
         compact
+        avoidBottomDock
       >
         <div className="grid gap-x-8 gap-y-8 sm:grid-cols-2">
           <div className="sm:col-span-2">

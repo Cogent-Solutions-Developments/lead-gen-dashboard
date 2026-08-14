@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { UserActivityPanel } from "@/components/admin/UserActivityPanel";
+import { PeriodDatePicker, anchorDateForPeriod } from "@/components/performance/PeriodDatePicker";
 import {
   fetchAdminUserPerformance,
   fetchManagerPerformance,
@@ -36,9 +37,12 @@ import {
   type UserActivityResponse,
 } from "@/lib/peopleApi";
 import { canMonitorUserActivity, formatEngagedDuration, hasRecordedUserActivity } from "@/lib/peopleUtils";
+import { formatUsd } from "@/lib/leadWorkflowHistory";
+import { managerActivityAttribution } from "@/lib/managerPerformance";
 
 const PERIOD_OPTIONS: Array<{ value: AdminUserPerformancePeriod; label: string }> = [
   { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" },
   { value: "yearly", label: "Yearly" },
 ];
@@ -473,12 +477,19 @@ function ActivityList({ activities }: { activities: ManagerUserPerformanceActivi
                     "Contact details unavailable"}
                 </p>
               </div>
-              <span className="text-xs font-semibold text-blue-700">
-                {activity.workflowStatusLabel || activity.workflowStatus || "Updated"}
-              </span>
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-blue-700">
+                  {activity.workflowStatusLabel || activity.workflowStatus || "Updated"}
+                </span>
+                {formatUsd(activity.dealAmountUsd) ? (
+                  <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
+                    {formatUsd(activity.dealAmountUsd)}
+                  </span>
+                ) : null}
+              </div>
             </div>
             <div className="mt-3 grid gap-2 text-xs text-zinc-500 sm:grid-cols-2">
-              <span className="truncate">By {actor.name || "Unknown user"}</span>
+              <span className="truncate">{managerUserActivityAttribution(activity)}</span>
               <span className="truncate sm:text-right">{formatDateTime(activity.updatedAt)}</span>
               <span className="truncate sm:col-span-2">
                 {displayText(event.canonicalEventName) || "No event name"}
@@ -497,6 +508,15 @@ function ActivityList({ activities }: { activities: ManagerUserPerformanceActivi
       })}
     </div>
   );
+}
+
+function managerUserActivityAttribution(activity: ManagerUserPerformanceActivity) {
+  const executor = activity.user?.name || "Unknown user";
+  if (!activity.isTakeoverExecution) return `By ${executor}`;
+  const owner = activity.taskOwnerDisplayName || activity.taskOwnerUsername;
+  if (!owner) return `Task executed by ${executor}.`;
+  if (activity.taskOwnerIsActive === false) return `Task executed by ${executor} for inactive user ${owner}.`;
+  return `Task executed by ${executor} on behalf of ${owner}.`;
 }
 
 function kpiActivityTitle(activity: ManagerPerformanceActivity) {
@@ -575,6 +595,7 @@ function UserKpiDetailDialog({
             <div className="space-y-3 border-l border-blue-100 pl-5">
               {activities.map((activity, index) => {
                 const meta = kpiActivityMeta(activity);
+                const attribution = managerActivityAttribution(activity);
                 return (
                   <div key={activity.id || `${activity.userId}-${activity.createdAt}-${index}`} className="relative rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
                     <span className="absolute -left-[1.68rem] top-5 h-3 w-3 rounded-full border-2 border-white bg-blue-600 shadow-sm" />
@@ -587,6 +608,7 @@ function UserKpiDetailDialog({
                         <p className="mt-1 truncate text-xs text-zinc-500" title={meta || undefined}>
                           {meta || "Contact details unavailable"}
                         </p>
+                        <p className="mt-1 text-xs text-zinc-500">{attribution}</p>
                       </div>
                       <div className="flex shrink-0 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-semibold text-slate-700">
                         <Clock3 className="h-3.5 w-3.5 text-blue-600" />
@@ -798,7 +820,10 @@ export default function AdminUserPerformancePage() {
                   <button
                     key={item.value}
                     type="button"
-                    onClick={() => setPeriod(item.value)}
+                    onClick={() => {
+                      setPeriod(item.value);
+                      setDate((current) => anchorDateForPeriod(current, item.value));
+                    }}
                     className={[
                       "h-9 rounded-md px-4 text-sm font-semibold transition-colors",
                       period === item.value ? "bg-blue-600 text-white shadow-sm shadow-blue-200" : "text-zinc-500 hover:bg-blue-50 hover:text-blue-700",
@@ -809,15 +834,7 @@ export default function AdminUserPerformancePage() {
                 ))}
               </div>
 
-              <label className="relative flex h-11 items-center rounded-lg border border-zinc-200 bg-white pl-4 pr-3 text-sm text-zinc-500 shadow-sm">
-                <CalendarDays className="mr-2 h-4 w-4 text-zinc-400" />
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(event) => setDate(event.target.value)}
-                  className="h-full bg-transparent text-sm font-medium text-zinc-700 outline-none"
-                />
-              </label>
+              <PeriodDatePicker period={period} value={date} onChange={setDate} />
 
               <Button
                 type="button"
@@ -935,11 +952,17 @@ export default function AdminUserPerformancePage() {
                   {chartView === "pie" ? <PieKpiChart cluster={cluster} /> : <SpiderKpiChart cluster={cluster} maxValues={maxValues} />}
                 </div>
 
-                <div className="mt-5 grid grid-cols-3 gap-3 border-t border-zinc-100 pt-5">
+                <div className={`mt-5 grid gap-3 border-t border-zinc-100 pt-5 ${cluster.pipeline === "sales" ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
                   <div>
                     <p className="text-[11px] font-medium text-zinc-400">Active</p>
                     <p className="mt-1 text-xl font-semibold text-slate-900">{formatNumber(cluster.activeUsers)}</p>
                   </div>
+                  {cluster.pipeline === "sales" ? (
+                    <div>
+                      <p className="text-[11px] font-medium text-zinc-400">Revenue</p>
+                      <p className="mt-1 text-base font-semibold text-emerald-700">{formatUsd(cluster.revenueUsd) || "$0.00"}</p>
+                    </div>
+                  ) : null}
                   <div>
                     <p className="text-[11px] font-medium text-zinc-400">Contributors</p>
                     <p className="mt-1 text-xl font-semibold text-slate-900">{formatNumber(cluster.contributors)}</p>
@@ -1029,7 +1052,7 @@ export default function AdminUserPerformancePage() {
                   </div>
                   <h3 className="mt-2 text-base font-semibold text-slate-950">{selectedCluster?.label || "Department"}</h3>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4 xl:w-[30rem]">
+                <div className={`grid grid-cols-2 gap-2 text-center text-xs ${selectedCluster?.pipeline === "sales" ? "sm:grid-cols-5 xl:w-[38rem]" : "sm:grid-cols-4 xl:w-[30rem]"}`}>
                   <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-blue-700">
                     <p className="font-bold">{formatNumber(selectedCluster?.total)}</p>
                     <p>KPI</p>
@@ -1038,6 +1061,12 @@ export default function AdminUserPerformancePage() {
                     <p className="font-bold">{formatNumber(selectedCluster?.activeUsers)}</p>
                     <p>Active</p>
                   </div>
+                  {selectedCluster?.pipeline === "sales" ? (
+                    <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-emerald-700">
+                      <p className="font-bold">{formatUsd(selectedCluster.revenueUsd) || "$0.00"}</p>
+                      <p>Revenue</p>
+                    </div>
+                  ) : null}
                   <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-emerald-700">
                     <p className="font-bold">{formatNumber(selectedCluster?.contributors)}</p>
                     <p>Contrib</p>
@@ -1101,7 +1130,14 @@ export default function AdminUserPerformancePage() {
                             <Eye className="h-3.5 w-3.5" />
                             Details
                           </Button>
-                          <p className="text-right text-base font-bold tabular-nums text-slate-950">{formatNumber(value)}</p>
+                          <div className="text-right">
+                            <p className="text-base font-bold tabular-nums text-slate-950">{formatNumber(value)}</p>
+                            {selectedCluster?.pipeline === "sales" ? (
+                              <p className="text-[11px] font-semibold text-emerald-700">
+                                {formatUsd(runner.revenueUsd) || "$0.00"}
+                              </p>
+                            ) : null}
+                          </div>
                         </div>
                       </article>
                     );

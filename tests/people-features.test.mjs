@@ -344,7 +344,7 @@ test("workflow comment submission trims, validates length, supports comment-only
   for (const relativePath of ["lib/api.ts", "lib/apidele.ts", "lib/apiproduction.ts"]) {
     const source = read(relativePath);
     assert.match(source, /workflow-status/);
-    assert.match(source, /\{ workflowStatus, comment \}/);
+    assert.match(source, /\{ workflowStatus, comment, dealAmountUsd \}/);
   }
 });
 

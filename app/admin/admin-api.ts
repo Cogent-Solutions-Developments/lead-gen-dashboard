@@ -123,6 +123,12 @@ export type ManagerUserPerformanceActivity = {
   commentUpdatedByUsername?: string | null;
   commentUpdatedByUserDisplayName?: string | null;
   commentHistoryCount?: number | null;
+  taskOwnerUserId?: string | null;
+  taskOwnerUsername?: string | null;
+  taskOwnerDisplayName?: string | null;
+  taskOwnerIsActive?: boolean | null;
+  isTakeoverExecution?: boolean | null;
+  dealAmountUsd?: number | string | null;
   updatedAt?: string | null;
   user?: {
     id?: string | null;
@@ -192,6 +198,13 @@ export type ManagerPerformanceActivity = {
   commentUpdatedByUsername?: string | null;
   commentUpdatedByUserDisplayName?: string | null;
   commentHistoryCount?: number | null;
+  updatedByUserIsActive?: boolean | null;
+  taskOwnerUserId?: string | null;
+  taskOwnerUsername?: string | null;
+  taskOwnerDisplayName?: string | null;
+  taskOwnerIsActive?: boolean | null;
+  isTakeoverExecution?: boolean | null;
+  dealAmountUsd?: number | string | null;
   channel?: "email" | "whatsapp" | "phone" | "linkedin" | "website" | null;
   createdAt: string;
 };
@@ -216,6 +229,7 @@ export type ManagerPerformanceTotals = {
   contentGeneratedCount?: number;
   contactActionCount?: number;
   kpiCount: number;
+  revenueUsd?: number;
 };
 
 export type ManagerUserPerformance = {
@@ -250,6 +264,7 @@ export type ManagerPerformanceResponse = {
     contentGeneratedCount?: number;
     contactActionCount?: number;
     kpiTotal: number;
+    revenueUsd?: number;
   };
   perUserPerformance: ManagerUserPerformance[];
   activities: ManagerPerformanceActivity[];
@@ -737,6 +752,7 @@ export async function fetchManagerUserPerformance(options: {
       role: data.teamUsers.find((user) => user.id === item.userId)?.role || "",
       kpiCount: Number(item.totals?.kpiCount || 0),
       total: Number(item.totals?.kpiCount || 0),
+      revenueUsd: Number(item.totals?.revenueUsd || 0),
       rank: 0,
     }))
     .sort((a, b) => Number(b.kpiCount || 0) - Number(a.kpiCount || 0))
@@ -757,6 +773,7 @@ export async function fetchManagerUserPerformance(options: {
     activeUsers,
     contributors,
     averagePerUser: activeUsers ? Number((total / activeUsers).toFixed(2)) : 0,
+    revenueUsd: Number(data.summary?.revenueUsd || 0),
     topUser,
     runners,
   };
@@ -781,6 +798,12 @@ export async function fetchManagerUserPerformance(options: {
       commentUpdatedByUsername: activity.commentUpdatedByUsername,
       commentUpdatedByUserDisplayName: activity.commentUpdatedByUserDisplayName,
       commentHistoryCount: activity.commentHistoryCount,
+      taskOwnerUserId: activity.taskOwnerUserId,
+      taskOwnerUsername: activity.taskOwnerUsername,
+      taskOwnerDisplayName: activity.taskOwnerDisplayName,
+      taskOwnerIsActive: activity.taskOwnerIsActive,
+      isTakeoverExecution: activity.isTakeoverExecution,
+      dealAmountUsd: activity.dealAmountUsd,
       updatedAt: activity.createdAt,
       user: {
         id: activity.userId,

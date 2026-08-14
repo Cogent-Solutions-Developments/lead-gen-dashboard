@@ -291,7 +291,7 @@ export function ReleaseAnnouncement({ session }: { session: AuthSession }) {
                       onClick={dismiss}
                       className="inline-flex h-12 items-center justify-center rounded-full border border-blue-500/20 bg-blue-600 px-7 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_12px_26px_-18px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700"
                     >
-                      Open My Leads
+                      Open Leads
                     </Link>
                   ) : null}
                 </div>

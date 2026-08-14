@@ -57,6 +57,12 @@ export type {
   LeadTemplateCategorySummary,
   LeadTemplateValidationResponse,
   LeadItem,
+  LeadDepartmentTag,
+  LeadOriginHistoryItem,
+  LeadOriginSource,
+  LeadOwnerHistoryResponse,
+  LeadOwnerSummary,
+  LeadUploadDuplicate,
   LeadAttachment,
   MessageStatus,
   NizoAiChatRequest,
@@ -271,9 +277,10 @@ export function createCampaignFromUploadForPersona(
 
 export function validateLeadTemplateUploadForPersona(
   persona: DepartmentPersona,
-  file: File | Blob
+  file: File | Blob,
+  eventRegistryId?: string
 ): ReturnType<typeof sales.validateLeadTemplateUpload> {
-  return pickModule(persona).validateLeadTemplateUpload(file);
+  return pickModule(persona).validateLeadTemplateUpload(file, eventRegistryId);
 }
 
 export function downloadLeadTemplateFileForPersona(
@@ -315,7 +322,11 @@ export async function createMyLeadsCampaignFromUpload(
   return data;
 }
 
-export async function validateMyLeadsLeadTemplateUpload(file: File | Blob, persona?: Persona) {
+export async function validateMyLeadsLeadTemplateUpload(
+  file: File | Blob,
+  persona?: Persona,
+  eventRegistryId?: string
+) {
   const formData = new FormData();
   const fileName =
     typeof File !== "undefined" && file instanceof File && file.name
@@ -323,6 +334,7 @@ export async function validateMyLeadsLeadTemplateUpload(file: File | Blob, perso
       : "lead-upload-template.xlsx";
 
   formData.append("leadSheet", file, fileName);
+  if (eventRegistryId?.trim()) formData.append("eventRegistryId", eventRegistryId.trim());
 
   const { data } = await apiClient.post<sales.LeadTemplateValidationResponse>(
     `${getMyLeadsPrefix(persona)}/lead-template/validate`,
@@ -463,6 +475,9 @@ export const updateLeadWorkflowStatus: typeof sales.updateLeadWorkflowStatus = (
 export const getLeadWorkflowStatusHistory: typeof sales.getLeadWorkflowStatusHistory = (...args) =>
   pickModule().getLeadWorkflowStatusHistory(...args);
 
+export const getLeadOwnerHistory: typeof sales.getLeadOwnerHistory = (...args) =>
+  pickModule().getLeadOwnerHistory(...args);
+
 export function listWorkflowStatusesForPersona(
   persona: DepartmentPersona
 ): ReturnType<typeof sales.listWorkflowStatuses> {
@@ -496,9 +511,10 @@ export function updateLeadWorkflowStatusForPersona(
   persona: DepartmentPersona,
   id: string,
   workflowStatus: sales.WorkflowStatus,
-  comment?: string
+  comment?: string,
+  dealAmountUsd?: string
 ): ReturnType<typeof sales.updateLeadWorkflowStatus> {
-  return pickModule(persona).updateLeadWorkflowStatus(id, workflowStatus, comment);
+  return pickModule(persona).updateLeadWorkflowStatus(id, workflowStatus, comment, dealAmountUsd);
 }
 
 export function getLeadWorkflowStatusHistoryForPersona(
@@ -506,6 +522,13 @@ export function getLeadWorkflowStatusHistoryForPersona(
   id: string
 ): ReturnType<typeof sales.getLeadWorkflowStatusHistory> {
   return pickModule(persona).getLeadWorkflowStatusHistory(id);
+}
+
+export function getLeadOwnerHistoryForPersona(
+  persona: DepartmentPersona,
+  id: string
+): ReturnType<typeof sales.getLeadOwnerHistory> {
+  return pickModule(persona).getLeadOwnerHistory(id);
 }
 
 export const approveAllCampaign: typeof sales.approveAllCampaign = (...args) =>

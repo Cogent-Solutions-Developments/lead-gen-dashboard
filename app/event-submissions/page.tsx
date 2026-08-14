@@ -525,7 +525,7 @@ export default function EventSubmissionsPage() {
       <header className="admin-page-header flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="admin-eyebrow">Admin Control</p>
-          <h1 className="admin-title">Event Submissions</h1>
+          <h1 className="admin-title">Event Inquiries</h1>
           <p className="admin-description">Review registrations and sponsor enquiries.</p>
         </div>
         <Button type="button" variant="outline" onClick={() => setRefreshKey((current) => current + 1)} disabled={loading} className="h-10 self-start border-zinc-300 bg-white px-4 text-zinc-700 hover:bg-zinc-50 xl:self-auto">

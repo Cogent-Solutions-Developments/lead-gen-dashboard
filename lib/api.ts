@@ -229,6 +229,9 @@ export type CampaignImportSummary = {
   companies: number;
   invalidRows: number;
   duplicatesCollapsed: number;
+  duplicateLeads?: number;
+  newLeads?: number;
+  duplicates?: LeadUploadDuplicate[];
   rejectedRows: number;
   categoryCounts?: { category: string; count: number }[];
   categories?: { name: string; rows: number; validRows: number; invalidRows: number }[];
@@ -265,6 +268,9 @@ export type LeadTemplateValidationResponse = {
   importRows: number;
   invalidRows: number;
   duplicatesCollapsed: number;
+  duplicateLeads?: number;
+  newLeads?: number;
+  duplicates?: LeadUploadDuplicate[];
   invalidReasons: string[];
   categories: LeadTemplateCategorySummary[];
   categoryCounts: { category: string; count: number }[];
@@ -684,6 +690,90 @@ export type CampaignInfoResponse = {
 
 export type WorkflowStatus = string;
 
+export type LeadDepartmentTag = {
+  department: string;
+  label: string;
+};
+
+export type LeadOwnerSummary = {
+  ownerType: "system" | "user" | string;
+  ownerUserId?: string | null;
+  ownerUsername?: string | null;
+  ownerDisplayName?: string | null;
+  ownerFirstName?: string | null;
+  label: string;
+};
+
+export type LeadOriginHistoryItem = {
+  sequence: number;
+  isFirst?: boolean;
+  personId?: string | null;
+  icpRunId?: string | null;
+  department: string;
+  departmentLabel?: string | null;
+  sourceType: string;
+  ownerUserId?: string | null;
+  ownerUsername?: string | null;
+  ownerDisplayName?: string | null;
+  ownerFirstName?: string | null;
+  ownerLabel: string;
+  occurredAt?: string | null;
+  sourceEmail?: string | null;
+  sourcePhone?: string | null;
+  sourceLinkedinUrl?: string | null;
+  sourceCompanyUrl?: string | null;
+};
+
+export type LeadOriginSource = {
+  sourceType: string;
+  ownerUserId?: string | null;
+  ownerUsername?: string | null;
+  ownerDisplayName?: string | null;
+  ownerFirstName?: string | null;
+  department?: string | null;
+  departmentLabel?: string | null;
+  firstOwnedAt?: string | null;
+  occurrenceCount?: number | null;
+  label?: string | null;
+};
+
+export type LeadUploadDuplicate = {
+  leadIdentityKey: string;
+  rowNumber: number;
+  employeeName?: string | null;
+  company?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  departments: string[];
+  departmentTags: LeadDepartmentTag[];
+  owners: LeadOwnerSummary[];
+  originSources: LeadOriginSource[];
+  originHistory: LeadOriginHistoryItem[];
+  existingOccurrenceCount: number;
+  nextOwnerSequence: number;
+  uploadOwner?: {
+    ownerUserId?: string | null;
+    ownerUsername?: string | null;
+    ownerDisplayName?: string | null;
+    ownerFirstName?: string | null;
+    department?: string | null;
+  } | null;
+  message: string;
+};
+
+export type LeadOwnerHistoryResponse = {
+  id: string;
+  canonicalEventKey: string;
+  canonicalEventName: string;
+  leadIdentityKey: string;
+  departments: string[];
+  departmentTags: LeadDepartmentTag[];
+  owners: LeadOwnerSummary[];
+  originSources: LeadOriginSource[];
+  history: LeadOriginHistoryItem[];
+  total: number;
+};
+
 export type LeadItem = {
   id: string;
   campaignId?: string | null;
@@ -719,6 +809,7 @@ export type LeadItem = {
   manualLeadAddedByUserId?: string | null;
   manualLeadAddedByUsername?: string | null;
   manualLeadAddedAt?: string | null;
+  originSources?: LeadOriginSource[];
   reviewStatus?: string | null;
   approvalStatus: "pending" | "approved" | "rejected" | "suppressed";
   outreachStatus?: string | Record<string, unknown> | null;
@@ -746,6 +837,7 @@ export type WorkflowStatusUpdateResponse = {
   workflowCommentUpdatedByUsername?: string | null;
   workflowCommentUpdatedByUserDisplayName?: string | null;
   workflowCommentHistoryCount: number;
+  dealAmountUsd?: number | string | null;
   updatedAt?: string | null;
 };
 
@@ -760,6 +852,13 @@ export type WorkflowStatusHistoryItem = {
   updatedByUserId?: string | null;
   updatedByUsername?: string | null;
   updatedByUserDisplayName?: string | null;
+  updatedByUserIsActive?: boolean | null;
+  taskOwnerUserId?: string | null;
+  taskOwnerUsername?: string | null;
+  taskOwnerDisplayName?: string | null;
+  taskOwnerIsActive?: boolean | null;
+  isTakeoverExecution?: boolean | null;
+  dealAmountUsd?: number | string | null;
   createdAt?: string | null;
 };
 
@@ -785,6 +884,9 @@ export type EventSummaryItem = {
   relatedCampaignNames: string[];
   hostIcpRunId?: string | null;
   categoryCounts?: EventLeadCategoryCount[];
+  departments?: string[];
+  departmentTags?: LeadDepartmentTag[];
+  departmentCounts?: Array<{ department: string; label: string; count: number }>;
 };
 
 export type EventLeadCategoryCount = {
@@ -826,6 +928,13 @@ export type EventLeadListItem = {
   manualLeadAddedByUserId?: string | null;
   manualLeadAddedByUsername?: string | null;
   manualLeadAddedAt?: string | null;
+  primaryDepartment?: string | null;
+  departments?: string[];
+  departmentTags?: LeadDepartmentTag[];
+  owners?: LeadOwnerSummary[];
+  originSources?: LeadOriginSource[];
+  originHistory?: LeadOriginHistoryItem[];
+  ownershipCount?: number | null;
 };
 
 export type LeadEmailGenerationRequest = {
@@ -1088,6 +1197,7 @@ export type WorkflowStatusDefinitionsResponse = {
 };
 
 export type EventLeadCreateRequest = {
+  eventRegistryId?: string;
   fullName: string;
   category: string;
   title: string;
@@ -1117,6 +1227,15 @@ export type EventLeadCreateResponse = {
   manualLeadAddedByUserId?: string | null;
   manualLeadAddedByUsername?: string | null;
   manualLeadAddedAt?: string | null;
+  duplicate?: boolean;
+  existingOccurrenceCount?: number | null;
+  sourceSequence?: number | null;
+  departments?: string[];
+  departmentTags?: LeadDepartmentTag[];
+  owners?: LeadOwnerSummary[];
+  originSources?: LeadOriginSource[];
+  originHistory?: LeadOriginHistoryItem[];
+  ownershipCount?: number | null;
 };
 
 export type MessageChannel = "email" | "whatsapp" | "linkedin" | "other";
@@ -1297,7 +1416,7 @@ export async function createCampaignFromUpload(payload: UploadCampaignRequest) {
   return data;
 }
 
-export async function validateLeadTemplateUpload(file: File | Blob) {
+export async function validateLeadTemplateUpload(file: File | Blob, eventRegistryId?: string) {
   const formData = new FormData();
   const fileName =
     typeof File !== "undefined" && file instanceof File && file.name
@@ -1305,6 +1424,7 @@ export async function validateLeadTemplateUpload(file: File | Blob) {
       : "lead-upload-template.xlsx";
 
   formData.append("leadSheet", file, fileName);
+  if (eventRegistryId?.trim()) formData.append("eventRegistryId", eventRegistryId.trim());
 
   const { data } = await apiClient.post<LeadTemplateValidationResponse>(
     "/api/campaigns/lead-template/validate",
@@ -1363,7 +1483,7 @@ export async function createMyCampaignFromUpload(payload: UploadCampaignRequest)
   return data;
 }
 
-export async function validateMyLeadTemplateUpload(file: File | Blob) {
+export async function validateMyLeadTemplateUpload(file: File | Blob, eventRegistryId?: string) {
   const formData = new FormData();
   const fileName =
     typeof File !== "undefined" && file instanceof File && file.name
@@ -1371,6 +1491,7 @@ export async function validateMyLeadTemplateUpload(file: File | Blob) {
       : "lead-upload-template.xlsx";
 
   formData.append("leadSheet", file, fileName);
+  if (eventRegistryId?.trim()) formData.append("eventRegistryId", eventRegistryId.trim());
 
   const { data } = await apiClient.post<LeadTemplateValidationResponse>(
     "/api/my-leads/lead-template/validate",
@@ -1802,10 +1923,15 @@ export async function generateLeadContent(id: string, payload: LeadContentGenera
   return data;
 }
 
-export async function updateLeadWorkflowStatus(id: string, workflowStatus: WorkflowStatus, comment?: string) {
+export async function updateLeadWorkflowStatus(
+  id: string,
+  workflowStatus: WorkflowStatus,
+  comment?: string,
+  dealAmountUsd?: string
+) {
   const { data } = await apiClient.put<WorkflowStatusUpdateResponse>(
     `/api/leads/${id}/workflow-status`,
-    { workflowStatus, comment }
+    { workflowStatus, comment, dealAmountUsd }
   );
   return data;
 }
@@ -1814,6 +1940,11 @@ export async function getLeadWorkflowStatusHistory(id: string) {
   const { data } = await apiClient.get<WorkflowStatusHistoryResponse>(
     `/api/leads/${id}/workflow-status-history`
   );
+  return data;
+}
+
+export async function getLeadOwnerHistory(id: string) {
+  const { data } = await apiClient.get<LeadOwnerHistoryResponse>(`/api/leads/${id}/owner-history`);
   return data;
 }
 
