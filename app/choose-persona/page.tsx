@@ -63,7 +63,7 @@ export default function ChoosePersonaPage() {
     persona === "delegates" || persona === "production" || persona === "sales" ? persona : currentPersona;
   const selectPersona = (next: PersonaValue) => {
     setPersona(next);
-    router.push("/dashboard");
+    router.push("/campaigns");
   };
 
   const handleSignOut = async () => {
@@ -116,11 +116,11 @@ export default function ChoosePersonaPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Link href="/dashboard">
+          <Link href="/campaigns">
             <Button
               variant="outline"
               className="h-10 w-10 rounded-xl border-slate-200 bg-white/90 p-0 text-slate-600 shadow-sm hover:bg-blue-50 hover:text-blue-700"
-              aria-label="Go to dashboard"
+              aria-label="Go to department workspace"
             >
               <Home className="h-4 w-4" />
             </Button>

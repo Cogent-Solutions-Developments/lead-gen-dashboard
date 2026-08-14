@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Building2, CalendarDays, Download, ExternalLink, FileText, Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
@@ -25,20 +24,10 @@ import {
   type DashboardPersonalStatsItem,
   type WorkflowStatusDefinitionItem,
 } from "@/lib/apiRouter";
-import { getDashboardLeadInventory, type DashboardLeadInventory } from "@/lib/api";
-
-
 import { getDailyManifesto } from "@/lib/manifesto";
+import { AdminLeadInventoryDashboard } from "@/components/dashboard/AdminLeadInventoryDashboard";
 import { CampaignHeadsUp } from "@/components/dashboard/CampaignHeadsUp";
 import { UserAvatar } from "@/components/profile/UserAvatar";
-
-const LeadInventoryOverview = dynamic(
-  () => import("@/components/dashboard/LeadInventoryOverview").then((module) => module.LeadInventoryOverview),
-  {
-    ssr: false,
-    loading: () => <div className="mt-8 h-[36rem] animate-pulse border border-zinc-200 bg-white" />,
-  }
-);
 
 type SalesMarathonRunner = DashboardKpiRunner;
 
@@ -596,9 +585,6 @@ export default function DashboardPage() {
   const [eventHeadsUp, setEventHeadsUp] = useState<EventHeadsUpItem[]>([]);
   const [workflowStatuses, setWorkflowStatuses] = useState<WorkflowStatusDefinitionItem[]>(FALLBACK_WORKFLOW_STATUSES);
   const [loadingEventHeadsUp, setLoadingEventHeadsUp] = useState(true);
-  const [leadInventory, setLeadInventory] = useState<DashboardLeadInventory | null>(null);
-  const [loadingLeadInventory, setLoadingLeadInventory] = useState(true);
-  const [leadInventoryError, setLeadInventoryError] = useState<string | null>(null);
   const userId = user?.id;
   const isClientDashboard = isClientRole(user?.role);
   const displayName = firstName(getDisplayName(user));
@@ -700,22 +686,6 @@ export default function DashboardPage() {
     }
   }, [isAdminLike, isClientDashboard, period, persona, userId]);
 
-  const loadLeadInventory = useCallback(async () => {
-    if (!isAdminLike || isClientDashboard) {
-      setLoadingLeadInventory(false);
-      return;
-    }
-    setLoadingLeadInventory(true);
-    try {
-      setLeadInventory(await getDashboardLeadInventory());
-      setLeadInventoryError(null);
-    } catch (error) {
-      setLeadInventoryError(getErrorMessage(error));
-    } finally {
-      setLoadingLeadInventory(false);
-    }
-  }, [isAdminLike, isClientDashboard]);
-
   useEffect(() => {
     void loadSalesMarathon("initial");
   }, [loadSalesMarathon]);
@@ -725,15 +695,10 @@ export default function DashboardPage() {
   }, [loadPersonalStats]);
 
   useEffect(() => {
-    void loadLeadInventory();
-  }, [loadLeadInventory]);
-
-  useEffect(() => {
     const refreshDashboard = () => {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
       void loadSalesMarathon("refresh");
       void loadPersonalStats("refresh");
-      void loadLeadInventory();
     };
 
     const handleVisibilityChange = () => {
@@ -749,10 +714,14 @@ export default function DashboardPage() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.clearInterval(intervalId);
     };
-  }, [loadLeadInventory, loadPersonalStats, loadSalesMarathon]);
+  }, [loadPersonalStats, loadSalesMarathon]);
 
   if (isClientDashboard) {
     return <ClientDashboard user={user} />;
+  }
+
+  if (isAdminLike) {
+    return <AdminLeadInventoryDashboard />;
   }
 
   return (
@@ -777,16 +746,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {isAdminLike ? (
-          <div className="relative z-10 w-full">
-            <LeadInventoryOverview
-              data={leadInventory}
-              loading={loadingLeadInventory}
-              error={leadInventoryError}
-            />
-          </div>
-        ) : (
-          <div className="relative z-10 mt-10 grid items-stretch gap-10 text-left xl:grid-cols-[minmax(0,1fr)_26rem]">
+        <div className="relative z-10 mt-10 grid items-stretch gap-10 text-left xl:grid-cols-[minmax(0,1fr)_26rem]">
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -821,8 +781,7 @@ export default function DashboardPage() {
                 footnote={kpiCopy.footnote}
               />
             </div>
-          </div>
-        )}
+        </div>
       </header>
     </div>
   );

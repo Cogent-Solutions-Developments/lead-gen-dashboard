@@ -220,7 +220,9 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
           .filter((item) => {
             if (isBusiness) return true;
             if (item.submissionViewerOnly) return !isSuperAdmin && (isCeo || isManager);
-            if (isSuperAdmin) return !item.normalOnly && !item.managerOnly && !item.ceoOnly;
+            if (isSuperAdmin) {
+              return item.href !== "/dashboard" && !item.normalOnly && !item.managerOnly && !item.ceoOnly;
+            }
             if (isCeo) return !item.superOnly && !item.managerOnly;
             if (item.superOnly) return false;
             if (item.ceoOnly) return false;

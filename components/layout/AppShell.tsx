@@ -153,6 +153,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    if (isSuperAdmin && pathname === "/dashboard") {
+      router.replace("/campaigns");
+      return;
+    }
+
     if (isClient) {
       if (pathname !== "/dashboard") {
         router.replace("/dashboard");
@@ -234,6 +239,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (isManagerOnlyPath(pathname) && !isManager) return null;
+
+  if (isSuperAdmin && pathname === "/dashboard") return null;
 
   if (!isSuperAdmin && isSuperOnlyPath(pathname) && !(isCeo && isCeoAllowedAdminPath(pathname))) {
     return null;

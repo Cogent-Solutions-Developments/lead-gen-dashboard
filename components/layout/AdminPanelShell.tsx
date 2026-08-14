@@ -29,7 +29,7 @@ import { toast } from "sonner";
 
 const adminTabs = [
   {
-    name: "Admin Dashboard",
+    name: "Dashboard",
     href: "/admin",
     icon: LayoutDashboard,
     match: (pathname: string) => pathname === "/admin",
