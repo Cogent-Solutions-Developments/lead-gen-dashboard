@@ -51,6 +51,24 @@ test("lead creation and uploads require explicit event provenance", () => {
   assert.match(api, /formData\.append\("eventRegistryId", eventRegistryId\.trim\(\)\)/);
 });
 
+test("the Add Lead dialog fits the desktop viewport without internal scrolling", () => {
+  const page = read("app/my-leads/page.tsx");
+  assert.match(page, /fitViewport \? "overflow-hidden px-6 pb-5"/);
+  assert.match(page, /fitViewport\s*\n\s*>\s*\n\s*<div className="grid gap-x-8 gap-y-4/);
+  assert.match(page, /ADD_LEAD_INPUT_CLASS = "h-10/);
+  assert.match(page, /<div className="mt-5 flex items-center justify-between">/);
+});
+
+test("lead row status actions stay on one line inside the row boundary", () => {
+  const myLeads = read("app/my-leads/page.tsx");
+  const sharedLeadSheet = read("components/leads/NormalUserEventLeadSheet.tsx");
+  for (const source of [myLeads, sharedLeadSheet]) {
+    assert.match(source, /minmax\(14rem,0\.95fr\)_19rem/);
+    assert.match(source, /flex flex-nowrap items-center gap-x-1\.5/);
+    assert.match(source, /shrink-0 items-center gap-1 whitespace-nowrap/);
+  }
+});
+
 test("deal-close revenue and source/status histories are wired through the frontend", () => {
   const myLeads = read("app/my-leads/page.tsx");
   const normalLeads = read("components/leads/NormalUserEventLeadSheet.tsx");

@@ -231,7 +231,7 @@ const EmailIcon = ({ className }: { className?: string }) => (
 function LeadSheetRowsSkeleton() {
   return (
     <div className="w-full animate-pulse">
-      <div className="grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-3">
+      <div className="grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_19rem] border-b border-zinc-300 py-3">
         <div className="h-4 w-28 bg-zinc-100" />
         <div className="h-4 w-32 bg-zinc-100" />
         <div className="h-4 w-20 bg-zinc-100" />
@@ -240,7 +240,7 @@ function LeadSheetRowsSkeleton() {
       {Array.from({ length: 6 }).map((_, index) => (
         <div
           key={index}
-          className="grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-6"
+          className="grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_19rem] border-b border-zinc-300 py-6"
         >
           <div className="space-y-3 pr-8">
             <div className="h-6 w-56 bg-zinc-100" />
@@ -2746,7 +2746,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                 </div>
               ) : (
                 <div className="w-full">
-                  <div className="sticky top-0 z-20 grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 bg-[#f7f7f7]/95 py-3 text-sm font-light text-zinc-500 backdrop-blur">
+                  <div className="sticky top-0 z-20 grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_19rem] border-b border-zinc-300 bg-[#f7f7f7]/95 py-3 text-sm font-light text-zinc-500 backdrop-blur">
                     <div>Identity details</div>
                     <div>Contact channels</div>
                     <div>Status</div>
@@ -2779,7 +2779,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                           key={updateKey}
                           ref={isTargetLead ? targetLeadRowRef : undefined}
                           id={`lead-${item.id}`}
-                          className={`group grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-6 transition-all duration-300 ${
+                          className={`group grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_19rem] border-b border-zinc-300 py-6 transition-all duration-300 ${
                             isTargetLead ? "bg-blue-50/35" : "hover:bg-zinc-50/60"
                           }`}
                         >
@@ -2873,7 +2873,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                             </div>
                           </div>
 
-                          <div className="flex h-full flex-col">
+                          <div className="flex h-full min-w-0 flex-col">
                             <div className="flex items-center gap-4">
                               <div className="relative w-full">
                                 <Select
@@ -2916,11 +2916,11 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                                   ) : null}
                                 </button>
                               ) : null}
-                              <div className="flex flex-wrap gap-x-3 gap-y-1">
+                              <div className="flex flex-nowrap items-center gap-x-1.5">
                                 <button
                                   type="button"
                                   onClick={() => void openHistory(item)}
-                                  className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950"
+                                  className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap border-b border-transparent pb-0.5 text-[11px] font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950"
                                 >
                                   <History className="h-3.5 w-3.5" />
                                   {historyCount > 0 ? `${historyCount} comment${historyCount === 1 ? "" : "s"}` : "Comment history"}
@@ -2928,7 +2928,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                                 <button
                                   type="button"
                                   onClick={() => void openHistory(item, "owner")}
-                                  className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950"
+                                  className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap border-b border-transparent pb-0.5 text-[11px] font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950"
                                 >
                                   <History className="h-3.5 w-3.5" />
                                   Source timeline
@@ -2940,7 +2940,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                                     setPendingStatusChange({ item, nextStatus: item.workflowStatus });
                                     setStatusComment("");
                                   }}
-                                  className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-xs font-medium text-blue-600 transition-colors hover:border-blue-700 hover:text-blue-800 disabled:opacity-50"
+                                  className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap border-b border-transparent pb-0.5 text-[11px] font-medium text-blue-600 transition-colors hover:border-blue-700 hover:text-blue-800 disabled:opacity-50"
                                 >
                                   <MessageSquare className="h-3.5 w-3.5" />
                                   Add comment

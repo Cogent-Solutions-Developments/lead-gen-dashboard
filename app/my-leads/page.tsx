@@ -635,6 +635,9 @@ function getUserDisplayName(user: ReturnType<typeof useAuth>["user"]) {
     .find(Boolean) || "";
 }
 
+const ADD_LEAD_LABEL_CLASS = "mb-1.5 block text-xs font-medium text-zinc-400";
+const ADD_LEAD_INPUT_CLASS = "h-10 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-base font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0";
+
 function LeadSheetDialog({
   open,
   title,
@@ -644,6 +647,7 @@ function LeadSheetDialog({
   eyebrow = "Lead Sheet Updates",
   compactSize = "default",
   avoidBottomDock = false,
+  fitViewport = false,
 }: {
   open: boolean;
   title: string;
@@ -653,11 +657,16 @@ function LeadSheetDialog({
   eyebrow?: string;
   compactSize?: "default" | "wide";
   avoidBottomDock?: boolean;
+  fitViewport?: boolean;
 }) {
   if (!open || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className={cn("fixed inset-0 z-[100] flex items-center justify-center p-6", avoidBottomDock && "pb-24 sm:pb-6")}>
+    <div className={cn(
+      "fixed inset-0 z-[100] flex items-center justify-center",
+      fitViewport ? "p-3 sm:p-4" : "p-6",
+      avoidBottomDock && (fitViewport ? "pb-20 sm:pb-4" : "pb-24 sm:pb-6")
+    )}>
       <button
         type="button"
         aria-label="Close dialog"
@@ -667,23 +676,35 @@ function LeadSheetDialog({
 
       <div role="dialog" aria-modal="true" aria-label={title}
         className={cn(
-          "relative z-[1] flex max-h-[calc(100dvh-3rem)] w-full flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]",
+          "relative z-[1] flex w-full flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]",
+          fitViewport ? "max-h-[calc(100dvh-2rem)]" : "max-h-[calc(100dvh-3rem)]",
           compactSize === "wide" ? "max-w-5xl" : "max-w-2xl"
         )}
       >
         <Button
           type="button"
           variant="ghost"
-          className="absolute right-5 top-5 z-20 h-10 w-10 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+          className={cn(
+            "absolute z-20 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950",
+            fitViewport ? "right-4 top-4 h-9 w-9" : "right-5 top-5 h-10 w-10"
+          )}
           onClick={onClose}
         >
           <X className="h-4 w-4" />
         </Button>
 
-        <div className={cn("shrink-0 px-8", compactSize === "wide" ? "pb-4 pt-8" : "pb-5 pt-8")}>
+        <div className={cn(
+          "shrink-0",
+          fitViewport ? "px-6 pb-3 pt-5" : "px-8",
+          !fitViewport && (compactSize === "wide" ? "pb-4 pt-8" : "pb-5 pt-8")
+        )}>
           <div className="max-w-md pr-12">
             {eyebrow ? <p className="text-sm font-medium text-zinc-400">{eyebrow}</p> : null}
-            <h2 className={cn("text-4xl font-light leading-none tracking-tighter text-zinc-950", eyebrow && "mt-4")}>
+            <h2 className={cn(
+              "font-light leading-none tracking-tighter text-zinc-950",
+              fitViewport ? "text-3xl" : "text-4xl",
+              eyebrow && "mt-4"
+            )}>
               {title}
             </h2>
             {description ? (
@@ -693,7 +714,10 @@ function LeadSheetDialog({
             ) : null}
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-8 scrollbar-modern">
+        <div className={cn(
+          "min-h-0 flex-1",
+          fitViewport ? "overflow-hidden px-6 pb-5" : "overflow-y-auto px-8 pb-8 scrollbar-modern"
+        )}>
           {children}
         </div>
       </div>
@@ -1731,7 +1755,7 @@ export function MyLeadsWorkspace({
             >
               {pagedRows.length === 0 ? (
                 <div className="w-full">
-                  <div className="sticky top-0 z-20 hidden grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 bg-[#f7f7f7]/95 py-3 text-sm font-light text-zinc-500 backdrop-blur md:grid">
+                  <div className="sticky top-0 z-20 hidden grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_19rem] border-b border-zinc-300 bg-[#f7f7f7]/95 py-3 text-sm font-light text-zinc-500 backdrop-blur md:grid">
                     <div>Identity details</div>
                     <div>Contact channels</div>
                     <div>Status</div>
@@ -1744,7 +1768,7 @@ export function MyLeadsWorkspace({
                 <div className={cn("w-full", embedded && "flex h-full min-h-0 flex-col")}>
                   <div
                     className={cn(
-                      "sticky top-0 z-20 hidden shrink-0 grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 bg-[#f7f7f7]/95 font-light text-zinc-500 backdrop-blur md:grid",
+                      "sticky top-0 z-20 hidden shrink-0 grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_19rem] border-b border-zinc-300 bg-[#f7f7f7]/95 font-light text-zinc-500 backdrop-blur md:grid",
                       embedded ? "py-2 text-xs" : "py-3 text-sm"
                     )}
                   >
@@ -1783,7 +1807,7 @@ export function MyLeadsWorkspace({
                         <div
                           key={item.id}
                           className={cn(
-                            "group grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm transition-all duration-300 hover:bg-zinc-50/60 md:grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] md:gap-0 md:rounded-none md:border-0 md:border-b md:border-zinc-300 md:bg-transparent md:p-0 md:shadow-none",
+                            "group grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm transition-all duration-300 hover:bg-zinc-50/60 md:grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_19rem] md:gap-0 md:rounded-none md:border-0 md:border-b md:border-zinc-300 md:bg-transparent md:p-0 md:shadow-none",
                             embedded ? "min-h-0 overflow-visible md:py-2" : "md:py-6"
                           )}
                         >
@@ -2035,14 +2059,14 @@ export function MyLeadsWorkspace({
                               ) : null}
                             </button>
                           ) : null}
-                          <div className="flex flex-wrap gap-x-3 gap-y-1">
-                            <button type="button" onClick={() => void openHistory(item)} className={cn("inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950", embedded ? "text-[10px]" : "text-xs")}>
+                          <div className="flex flex-nowrap items-center gap-x-1.5">
+                            <button type="button" onClick={() => void openHistory(item)} className={cn("inline-flex shrink-0 items-center gap-1 whitespace-nowrap border-b border-transparent pb-0.5 font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950", embedded ? "text-[10px]" : "text-[11px]")}>
                               <History className="h-3.5 w-3.5" />
                               {item.workflowCommentHistoryCount > 0
                                 ? `${item.workflowCommentHistoryCount} comment${item.workflowCommentHistoryCount === 1 ? "" : "s"}`
                                 : "Comment history"}
                             </button>
-                            <button type="button" onClick={() => void openHistory(item, "owner")} className={cn("inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950", embedded ? "text-[10px]" : "text-xs")}>
+                            <button type="button" onClick={() => void openHistory(item, "owner")} className={cn("inline-flex shrink-0 items-center gap-1 whitespace-nowrap border-b border-transparent pb-0.5 font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950", embedded ? "text-[10px]" : "text-[11px]")}>
                               <History className="h-3.5 w-3.5" />
                               Source timeline
                             </button>
@@ -2051,8 +2075,8 @@ export function MyLeadsWorkspace({
                               disabled={Boolean(updatingLeadIds[item.id])}
                               onClick={() => openCommentDialog(item)}
                               className={cn(
-                                "inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 font-medium text-blue-600 transition-colors hover:border-blue-700 hover:text-blue-800 disabled:opacity-50",
-                                embedded ? "text-[10px]" : "text-xs"
+                                "inline-flex shrink-0 items-center gap-1 whitespace-nowrap border-b border-transparent pb-0.5 font-medium text-blue-600 transition-colors hover:border-blue-700 hover:text-blue-800 disabled:opacity-50",
+                                embedded ? "text-[10px]" : "text-[11px]"
                               )}
                             >
                               <MessageSquare className="h-3.5 w-3.5" />
@@ -3052,10 +3076,11 @@ export function MyLeadsWorkspace({
         eyebrow=""
         onClose={closeAddLeadDialog}
         avoidBottomDock
+        fitViewport
       >
-        <div className="grid gap-x-8 gap-y-8 sm:grid-cols-2">
+        <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <label className="mb-3 block text-xs font-medium text-zinc-400">
+            <label className={ADD_LEAD_LABEL_CLASS}>
               Related event <span className="text-red-500">*</span>
             </label>
             <Select
@@ -3065,7 +3090,7 @@ export function MyLeadsWorkspace({
             >
               <SelectTrigger
                 aria-label="Select lead event"
-                className="!h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-left text-lg font-light text-zinc-950 shadow-none focus:ring-0"
+                className="!h-10 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-left text-base font-light text-zinc-950 shadow-none focus:ring-0"
               >
                 <SelectValue placeholder={loadingRegistryEvents ? "Loading events..." : "Select event"} />
               </SelectTrigger>
@@ -3079,7 +3104,7 @@ export function MyLeadsWorkspace({
             </Select>
           </div>
           <div className="sm:col-span-2">
-            <label htmlFor="my-lead-full-name" className="mb-3 block text-xs font-medium text-zinc-400">
+            <label htmlFor="my-lead-full-name" className={ADD_LEAD_LABEL_CLASS}>
               Full Name <span className="text-red-500">*</span>
             </label>
             <Input
@@ -3089,12 +3114,12 @@ export function MyLeadsWorkspace({
               placeholder="Lead name"
               required
               aria-required="true"
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className={ADD_LEAD_INPUT_CLASS}
             />
           </div>
 
           <div className="sm:col-span-2">
-            <label htmlFor="my-lead-category" className="mb-3 block text-xs font-medium text-zinc-400">
+            <label htmlFor="my-lead-category" className={ADD_LEAD_LABEL_CLASS}>
               Category <span className="text-red-500">*</span>
             </label>
             <Input
@@ -3104,12 +3129,12 @@ export function MyLeadsWorkspace({
               placeholder="Type category"
               required
               aria-required="true"
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className={ADD_LEAD_INPUT_CLASS}
             />
           </div>
 
           <div className="sm:col-span-2">
-            <label htmlFor="my-lead-title" className="mb-3 block text-xs font-medium text-zinc-400">
+            <label htmlFor="my-lead-title" className={ADD_LEAD_LABEL_CLASS}>
               Title <span className="text-red-500">*</span>
             </label>
             <Input
@@ -3119,72 +3144,72 @@ export function MyLeadsWorkspace({
               placeholder="Job title"
               required
               aria-required="true"
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className={ADD_LEAD_INPUT_CLASS}
             />
           </div>
 
           <div>
-            <label className="mb-3 block text-xs font-medium text-zinc-400">
+            <label className={ADD_LEAD_LABEL_CLASS}>
               Company Name
             </label>
             <Input
               value={addLeadForm.companyName}
               onChange={(event) => updateAddLeadField("companyName", event.target.value)}
               placeholder="Company"
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className={ADD_LEAD_INPUT_CLASS}
             />
           </div>
 
           <div>
-            <label className="mb-3 block text-xs font-medium text-zinc-400">
+            <label className={ADD_LEAD_LABEL_CLASS}>
               Company URL
             </label>
             <Input
               value={addLeadForm.companyUrl}
               onChange={(event) => updateAddLeadField("companyUrl", event.target.value)}
               placeholder="https://company.com"
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className={ADD_LEAD_INPUT_CLASS}
             />
           </div>
 
           <div>
-            <label className="mb-3 block text-xs font-medium text-zinc-400">
+            <label className={ADD_LEAD_LABEL_CLASS}>
               Email
             </label>
             <Input
               value={addLeadForm.email}
               onChange={(event) => updateAddLeadField("email", event.target.value)}
               placeholder="name@company.com"
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className={ADD_LEAD_INPUT_CLASS}
             />
           </div>
 
           <div>
-            <label className="mb-3 block text-xs font-medium text-zinc-400">
+            <label className={ADD_LEAD_LABEL_CLASS}>
               Phone
             </label>
             <Input
               value={addLeadForm.phone}
               onChange={(event) => updateAddLeadField("phone", event.target.value)}
               placeholder="+60 ..."
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className={ADD_LEAD_INPUT_CLASS}
             />
           </div>
 
           <div className="sm:col-span-2">
-            <label className="mb-3 block text-xs font-medium text-zinc-400">
+            <label className={ADD_LEAD_LABEL_CLASS}>
               LinkedIn URL
             </label>
             <Input
               value={addLeadForm.linkedinUrl}
               onChange={(event) => updateAddLeadField("linkedinUrl", event.target.value)}
               placeholder="https://linkedin.com/in/..."
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className={ADD_LEAD_INPUT_CLASS}
             />
           </div>
         </div>
 
-        <div className="mt-8 flex items-center justify-between">
+        <div className="mt-5 flex items-center justify-between">
           <Button
             type="button"
             variant="ghost"

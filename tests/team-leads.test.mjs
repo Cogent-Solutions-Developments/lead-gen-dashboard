@@ -152,7 +152,7 @@ test("desktop Team Leads fits the viewport with a compact title-only header", ()
   assert.match(page, /xl:min-h-0 xl:flex-1 xl:overflow-hidden/);
   assert.match(myLeadsPage, /overflow-visible xl:h-full xl:overflow-hidden/);
   assert.match(page, /sm:flex-row sm:items-center sm:justify-between/);
-  assert.match(myLeadsPage, /md:grid-cols-\[minmax\(0,0\.75fr\)_minmax\(14rem,0\.95fr\)_10rem\]/);
+  assert.match(myLeadsPage, /md:grid-cols-\[minmax\(0,0\.75fr\)_minmax\(14rem,0\.95fr\)_19rem\]/);
   assert.match(myLeadsPage, /md:rounded-none md:border-0/);
 });
 
@@ -424,7 +424,7 @@ test("embedded Team Leads exposes the Add comment control", () => {
 
   assert.notEqual(addCommentIndex, -1);
   assert.match(myLeadsPage, /onClick=\{\(\) => openCommentDialog\(item\)\}/);
-  assert.match(myLeadsPage, /embedded \? "text-\[10px\]" : "text-xs"/);
+  assert.match(myLeadsPage, /embedded \? "text-\[10px\]" : "text-\[11px\]"/);
   assert.doesNotMatch(
     myLeadsPage.slice(Math.max(0, addCommentIndex - 1_000), addCommentIndex),
     /\{!embedded \? \(/
