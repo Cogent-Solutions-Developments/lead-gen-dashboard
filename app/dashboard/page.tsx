@@ -577,7 +577,7 @@ function ClientDashboard({ user }: { user: ReturnType<typeof useAuth>["user"] })
 }
 
 export default function DashboardPage() {
-  const { user, isAdminLike } = useAuth();
+  const { user, isAdminLike, isCeo } = useAuth();
   const { persona } = usePersona();
   const period: DashboardPeriod = "daily";
   const [salesRunners, setSalesRunners] = useState<SalesMarathonRunner[]>([]);
@@ -587,6 +587,7 @@ export default function DashboardPage() {
   const [loadingEventHeadsUp, setLoadingEventHeadsUp] = useState(true);
   const userId = user?.id;
   const isClientDashboard = isClientRole(user?.role);
+  const isAdminDashboard = isAdminLike && !isCeo;
   const displayName = firstName(getDisplayName(user));
   const greeting = getTimeGreeting();
   const manifesto = getDailyManifesto(user?.id || "");
@@ -614,7 +615,7 @@ export default function DashboardPage() {
       };
 
   const loadSalesMarathon = useCallback(async (mode: "initial" | "refresh") => {
-    if (isAdminLike || isClientDashboard) {
+    if (isAdminDashboard || isClientDashboard) {
       setLoadingSalesMarathon(false);
       return;
     }
@@ -644,10 +645,10 @@ export default function DashboardPage() {
       } finally {
         setLoadingSalesMarathon(false);
       }
-    }, [isAdminLike, isClientDashboard, period, persona]);
+    }, [isAdminDashboard, isClientDashboard, period, persona]);
 
   const loadPersonalStats = useCallback(async (mode: "initial" | "refresh") => {
-    if (isAdminLike || isClientDashboard) {
+    if (isAdminDashboard || isClientDashboard) {
       setLoadingEventHeadsUp(false);
       return;
     }
@@ -684,7 +685,7 @@ export default function DashboardPage() {
     } finally {
       setLoadingEventHeadsUp(false);
     }
-  }, [isAdminLike, isClientDashboard, period, persona, userId]);
+  }, [isAdminDashboard, isClientDashboard, period, persona, userId]);
 
   useEffect(() => {
     void loadSalesMarathon("initial");
@@ -720,7 +721,7 @@ export default function DashboardPage() {
     return <ClientDashboard user={user} />;
   }
 
-  if (isAdminLike) {
+  if (isAdminDashboard) {
     return <AdminLeadInventoryDashboard />;
   }
 

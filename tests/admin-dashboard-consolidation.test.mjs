@@ -30,8 +30,14 @@ test("super admins have one dashboard route while department workspaces remain a
   assert.match(sidebar, /name: "Campaigns"[\s\S]*?name: "New Campaign"[\s\S]*?name: "Upload Campaign"[\s\S]*?name: "CS Database"[\s\S]*?name: "Admin Panel"/);
 });
 
-test("the shared dashboard keeps admin-like compatibility for non-super-admin roles", () => {
+test("the CEO dashboard is isolated from the admin inventory dashboard", () => {
   const page = read("app/dashboard/page.tsx");
 
-  assert.match(page, /if \(isAdminLike\) \{\s*return <AdminLeadInventoryDashboard \/>/);
+  assert.match(page, /const \{ user, isAdminLike, isCeo \} = useAuth\(\)/);
+  assert.match(page, /const isAdminDashboard = isAdminLike && !isCeo/);
+  assert.match(page, /if \(isAdminDashboard\) \{\s*return <AdminLeadInventoryDashboard \/>/);
+  assert.match(page, /if \(isAdminDashboard \|\| isClientDashboard\)/);
+  assert.doesNotMatch(page, /CeoWelcomeDashboard|BlockchainEventPromoconverted/);
+  assert.match(page, /<CampaignHeadsUp/);
+  assert.match(page, /<SalesMarathon/);
 });
