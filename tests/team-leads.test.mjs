@@ -71,7 +71,7 @@ test("primary sidebar pages use distinct, purpose-specific icons", () => {
   );
 
   assert.equal(new Set(iconAssignments).size, iconAssignments.length);
-  assert.match(navBlock, /name:\s*"My Leads",[\s\S]*?icon:\s*ContactRound/);
+  assert.match(navBlock, /name:\s*"Leads",[\s\S]*?icon:\s*ContactRound/);
   assert.match(navBlock, /name:\s*"Team Leads",[\s\S]*?icon:\s*UsersRound/);
   assert.match(
     navBlock,

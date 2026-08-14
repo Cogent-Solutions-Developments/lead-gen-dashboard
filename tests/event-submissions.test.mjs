@@ -21,8 +21,8 @@ const dateFilters = await import(
   new URL("../lib/eventSubmissionFilters.ts", import.meta.url).href
 );
 
-test("event submissions live inside the admin panel for super admins", () => {
-  assert.match(adminSidebar, /name:\s*"Event Submissions"/);
+test("event inquiries live inside the admin panel for super admins", () => {
+  assert.match(adminSidebar, /name:\s*"Event Inquiries"/);
   assert.match(adminSidebar, /href:\s*"\/admin\/event-submissions"/);
   assert.match(adminPage, /<EventSubmissionsPage \/>/);
   assert.match(page, /router\.replace\("\/admin\/event-submissions"\)/);

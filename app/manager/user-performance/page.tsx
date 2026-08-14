@@ -5,6 +5,7 @@ import {
   Activity,
   BarChart3,
   CalendarDays,
+  DollarSign,
   Loader2,
   RefreshCw,
   Search,
@@ -38,6 +39,9 @@ import {
   fetchManagerUserActivity,
 } from "@/lib/peopleApi";
 import { formatEngagedDuration } from "@/lib/peopleUtils";
+import { PeriodDatePicker, anchorDateForPeriod } from "@/components/performance/PeriodDatePicker";
+import { activePerformanceSummary, managerActivityAttribution } from "@/lib/managerPerformance";
+import { formatUsd } from "@/lib/leadWorkflowHistory";
 
 const PERIOD_OPTIONS: Array<{ value: ManagerPerformancePeriod; label: string }> = [
   { value: "daily", label: "Daily" },
@@ -167,6 +171,7 @@ function PerformanceChartSection({
   leads,
   manual,
   kpi,
+  revenueUsd,
   lightSeconds,
   heavySeconds,
 }: {
@@ -174,6 +179,7 @@ function PerformanceChartSection({
   leads?: number;
   manual?: number;
   kpi?: number;
+  revenueUsd?: number;
   lightSeconds?: number;
   heavySeconds?: number;
 }) {
@@ -202,7 +208,15 @@ function PerformanceChartSection({
     >
       <div className="grid h-full min-h-0 gap-3 xl:grid-cols-2">
         <article className="flex min-h-[18rem] min-w-0 flex-col rounded-xl border border-zinc-200 bg-zinc-50/40 p-3 sm:p-4">
-          <h3 className="text-sm font-semibold text-slate-900">Performance</h3>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-sm font-semibold text-slate-900">Performance</h3>
+            {Number(revenueUsd || 0) > 0 ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+                <DollarSign className="h-3.5 w-3.5" />
+                Revenue {formatUsd(revenueUsd)}
+              </span>
+            ) : null}
+          </div>
           <div
             className="mt-3 min-h-60 min-w-0 flex-1"
             role="img"
@@ -361,6 +375,7 @@ function ActivityRow({ activity }: { activity: ManagerPerformanceActivity }) {
     activity.commentUpdatedByUserDisplayName,
     textValue(activity.commentUpdatedByUsername, textValue(activity.userDisplayName, activity.username))
   );
+  const revenue = formatUsd(activity.dealAmountUsd);
 
   return (
     <article className="relative rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
@@ -375,12 +390,13 @@ function ActivityRow({ activity }: { activity: ManagerPerformanceActivity }) {
                 {activity.workflowStatusLabel}
               </span>
             ) : null}
+            {revenue ? <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">{revenue}</span> : null}
           </div>
           <p className="mt-1 truncate text-xs text-zinc-500">
             {textValue(snapshot.title, "No title")} {snapshot.company ? `at ${snapshot.company}` : ""}
           </p>
           <p className="mt-1 truncate text-xs text-zinc-500">
-            {activity.canonicalEventName} · {textValue(activity.userDisplayName, activity.username)}
+            {activity.canonicalEventName} · {managerActivityAttribution(activity)}
           </p>
           {activity.comment ? (
             <aside
@@ -467,9 +483,17 @@ export default function ManagerUserPerformancePage() {
   }, [loadVersionUsage]);
 
   const summary = data?.summary;
-  const teamUsers = data?.teamUsers || [];
-  const perUserPerformance = data?.perUserPerformance || [];
-  const activities = data?.activities || [];
+  const activeData = useMemo(() => activePerformanceSummary(data), [data]);
+  const teamUsers = activeData.users;
+  const perUserPerformance = activeData.performance;
+  const activeUserIds = useMemo(() => new Set(teamUsers.map((item) => item.id)), [teamUsers]);
+  const activities = useMemo(
+    () => (data?.activities || []).filter((activity) => activeUserIds.has(activity.userId)),
+    [activeUserIds, data?.activities]
+  );
+  useEffect(() => {
+    if (userId !== "all" && !teamUsers.some((item) => item.id === userId)) setUserId("all");
+  }, [teamUsers, userId]);
   const windowText = useMemo(() => {
     if (!data?.period) return period;
     return `${formatDateTime(data.period.start)} - ${formatDateTime(data.period.end)} ${data.period.timezone}`;
@@ -480,24 +504,37 @@ export default function ManagerUserPerformancePage() {
     userId === "all"
       ? null
       : perUserPerformance.find((item) => item.userId === userId) || null;
-  const selectedActivityCount = selectedPerformance?.totals.activityCount ?? summary?.activityCount;
-  const selectedTouchedLeadCount =
-    selectedPerformance?.totals.touchedLeadCount ?? summary?.touchedLeadCount;
-  const selectedManualLeadCount =
-    selectedPerformance?.totals.manualLeadCount ?? summary?.manualLeadCount;
-  const selectedKpiCount = selectedPerformance?.totals.kpiCount ?? summary?.kpiTotal;
+  const activeTotals = useMemo(
+    () => perUserPerformance.reduce(
+      (totals, item) => ({
+        activity: totals.activity + Number(item.totals.activityCount || 0),
+        leads: totals.leads + Number(item.totals.touchedLeadCount || 0),
+        manual: totals.manual + Number(item.totals.manualLeadCount || 0),
+        kpi: totals.kpi + Number(item.totals.kpiCount || 0),
+        revenue: totals.revenue + Number(item.totals.revenueUsd || 0),
+      }),
+      { activity: 0, leads: 0, manual: 0, kpi: 0, revenue: 0 }
+    ),
+    [perUserPerformance]
+  );
+  const selectedActivityCount = selectedPerformance?.totals.activityCount ?? activeTotals.activity;
+  const selectedTouchedLeadCount = selectedPerformance?.totals.touchedLeadCount ?? activeTotals.leads;
+  const selectedManualLeadCount = selectedPerformance?.totals.manualLeadCount ?? activeTotals.manual;
+  const selectedKpiCount = selectedPerformance?.totals.kpiCount ?? activeTotals.kpi;
+  const selectedRevenueUsd = selectedPerformance?.totals.revenueUsd ?? activeTotals.revenue;
+  const isSalesPerformance = data?.managerScope?.persona === "sales";
   const versionUsage = useMemo(
     () => {
       if (userId !== "all") return versionUsageByUser[userId] || { light: 0, heavy: 0 };
-      return Object.values(versionUsageByUser).reduce(
+      return Object.entries(versionUsageByUser).reduce(
         (totals, item) => ({
-          light: totals.light + item.light,
-          heavy: totals.heavy + item.heavy,
+          light: totals.light + (activeUserIds.has(item[0]) ? item[1].light : 0),
+          heavy: totals.heavy + (activeUserIds.has(item[0]) ? item[1].heavy : 0),
         }),
         { light: 0, heavy: 0 }
       );
     },
-    [userId, versionUsageByUser]
+    [activeUserIds, userId, versionUsageByUser]
   );
 
   return (
@@ -522,7 +559,10 @@ export default function ManagerUserPerformancePage() {
                 <button
                   key={item.value}
                   type="button"
-                  onClick={() => setPeriod(item.value)}
+                  onClick={() => {
+                    setPeriod(item.value);
+                    setDate((current) => anchorDateForPeriod(current, item.value));
+                  }}
                   className={[
                     "h-9 min-w-0 rounded-md px-2 text-xs font-semibold transition-colors sm:px-4 sm:text-sm",
                     period === item.value
@@ -535,15 +575,7 @@ export default function ManagerUserPerformancePage() {
               ))}
             </div>
 
-            <label className="relative flex h-11 min-w-0 items-center rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-500 shadow-sm">
-              <CalendarDays className="mr-2 h-4 w-4 text-zinc-400" />
-              <input
-                type="date"
-                value={date}
-                onChange={(event) => setDate(event.target.value)}
-                className="h-full min-w-0 flex-1 bg-transparent text-sm font-medium text-zinc-700 outline-none"
-              />
-            </label>
+            <PeriodDatePicker period={period} value={date} onChange={setDate} />
 
             <Button
               type="button"
@@ -776,6 +808,7 @@ export default function ManagerUserPerformancePage() {
                     leads={selectedTouchedLeadCount}
                     manual={selectedManualLeadCount}
                     kpi={selectedKpiCount}
+                    revenueUsd={selectedRevenueUsd}
                     lightSeconds={versionUsage.light}
                     heavySeconds={versionUsage.heavy}
                   />
@@ -792,7 +825,7 @@ export default function ManagerUserPerformancePage() {
                 {perUserPerformance.length ? (
                   perUserPerformance.map((item, index) => (
                     <article key={item.userId} className="border-b border-zinc-100 py-4 last:border-b-0">
-                      <div className="grid grid-cols-[2rem_minmax(0,1fr)] gap-3 sm:grid-cols-[2.5rem_minmax(12rem,1fr)_5rem_5rem_5rem] sm:items-center sm:gap-4">
+                      <div className={`grid grid-cols-[2rem_minmax(0,1fr)] gap-3 sm:items-center sm:gap-4 ${isSalesPerformance ? "sm:grid-cols-[2.5rem_minmax(12rem,1fr)_5rem_5rem_5rem_7rem]" : "sm:grid-cols-[2.5rem_minmax(12rem,1fr)_5rem_5rem_5rem]"}`}>
                         <span className="text-sm font-bold tabular-nums text-zinc-400">
                           {String(index + 1).padStart(2, "0")}
                         </span>
@@ -802,13 +835,21 @@ export default function ManagerUserPerformancePage() {
                           </h3>
                           <p className="mt-1 truncate text-xs text-zinc-500">@{item.username}</p>
                         </div>
-                        <div className="col-span-2 grid grid-cols-3 gap-2 border-t border-zinc-100 pt-3 sm:contents">
+                        <div className={`col-span-2 grid gap-2 border-t border-zinc-100 pt-3 sm:contents ${isSalesPerformance ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
                           <div>
                             <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">Activity</p>
                             <p className="mt-1 text-base font-bold text-slate-950">
                               {formatNumber(item.totals.activityCount)}
                             </p>
                           </div>
+                          {isSalesPerformance ? (
+                            <div>
+                              <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">Revenue</p>
+                              <p className="mt-1 text-base font-bold text-emerald-700">
+                                {formatUsd(item.totals.revenueUsd) || "$0.00"}
+                              </p>
+                            </div>
+                          ) : null}
                           <div>
                             <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">Leads</p>
                             <p className="mt-1 text-base font-bold text-slate-950">

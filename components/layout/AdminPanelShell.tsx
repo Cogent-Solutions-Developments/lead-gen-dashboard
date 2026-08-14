@@ -53,7 +53,7 @@ const adminTabs = [
     match: (pathname: string) => pathname === "/admin/events",
   },
   {
-    name: "Event Submissions",
+    name: "Event Inquiries",
     href: "/admin/event-submissions",
     icon: ClipboardList,
     match: (pathname: string) => pathname === "/admin/event-submissions",

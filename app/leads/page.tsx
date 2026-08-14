@@ -38,11 +38,12 @@ import {
   sendAdminLeadSms,
   type EventSummaryItem,
   type LeadItem,
+  type LeadOriginSource,
 } from "@/lib/apiRouter";
 import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
 import { NormalUserEventLeadSheet } from "@/components/leads/NormalUserEventLeadSheet";
-import { getLeadOriginLabel, LeadOriginTag } from "@/components/leads/LeadOriginTag";
+import { LeadOriginTags } from "@/components/leads/LeadOriginTag";
 
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
 const CEO_DEPARTMENT_TABS = [
@@ -125,6 +126,7 @@ interface Lead {
   isManualLead: boolean;
   manualLeadAddedByUsername: string;
   manualLeadAddedAt: string;
+  originSources: LeadOriginSource[];
 }
 
 type GenerationFailureInfo = {
@@ -749,6 +751,7 @@ function mapLeadItemToAdminLead(item: LeadItem): Lead {
     isManualLead: parseBoolean(item.isManualLead),
     manualLeadAddedByUsername: asText(item.manualLeadAddedByUsername),
     manualLeadAddedAt: asText(item.manualLeadAddedAt),
+    originSources: Array.isArray(item.originSources) ? item.originSources : [],
   };
 }
 
@@ -1737,7 +1740,7 @@ function SuperAdminTotalLeads() {
 
                     <td className="px-3 py-3 align-top">
                       <span className="block text-sm font-semibold text-zinc-900">{item.employeeName || "-"}</span>
-                      <LeadOriginTag label={getLeadOriginLabel(item)} className="mt-1" />
+                      <LeadOriginTags originSources={item.originSources} className="mt-1" />
                     </td>
 
                     <td className="px-3 py-3 align-top">
