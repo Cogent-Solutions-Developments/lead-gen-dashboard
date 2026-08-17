@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { apiAuthenticationFailure, verifyBackendUser } from "@/lib/server/apiAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ function getBackendConfig() {
 function jsonResponse(payload: unknown, status: number) {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
   });
 }
 
@@ -24,7 +25,20 @@ export async function GET(request: NextRequest) {
     return jsonResponse({ detail: "NEXT_PUBLIC_API_KEY is not configured." }, 500);
   }
 
+  let user;
+  try {
+    user = await verifyBackendUser(request);
+  } catch (error) {
+    const failure = apiAuthenticationFailure(error);
+    return jsonResponse({ detail: failure.detail }, failure.status);
+  }
+
+  if (user.role !== "super_admin_user") {
+    return jsonResponse({ detail: "Only super admins can access WhatsApp events." }, 403);
+  }
+
   const upstreamUrl = `${baseUrl}/api/whatsapp/events`;
+  const authorization = request.headers.get("authorization") || "";
   const controller = new AbortController();
   request.signal.addEventListener("abort", () => controller.abort(), { once: true });
 
@@ -33,6 +47,7 @@ export async function GET(request: NextRequest) {
       method: "GET",
       headers: {
         Accept: "text/event-stream",
+        Authorization: authorization,
         "x-api-key": apiKey,
       },
       cache: "no-store",

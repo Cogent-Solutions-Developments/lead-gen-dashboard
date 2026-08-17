@@ -10,11 +10,11 @@ function read(relativePath) {
   return readFileSync(resolve(root, relativePath), "utf8");
 }
 
-test("normal users see a dedicated Leads navigation item", () => {
+test("normal users see a dedicated My Leads navigation item", () => {
   const sidebar = read("components/layout/Sidebar.tsx");
   assert.match(
     sidebar,
-    /\{\s*name:\s*"Leads",\s*href:\s*"\/my-leads",[\s\S]*?normalOnly:\s*true\s*\}/
+    /\{\s*name:\s*"My Leads",\s*href:\s*"\/my-leads",[\s\S]*?normalOnly:\s*true\s*\}/
   );
   assert.match(sidebar, /name:\s*"CS Database",\s*normalLabel:\s*"CS Database",\s*href:\s*"\/leads"/);
 });

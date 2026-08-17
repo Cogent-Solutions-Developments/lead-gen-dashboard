@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -9,7 +10,6 @@ import {
   Brain,
   ChartBarIncreasing,
   ChartNoAxesCombined,
-  ContactRound,
   Database,
   BriefcaseBusiness,
   LayoutDashboard,
@@ -433,10 +433,13 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
           <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 sm:px-8 sm:pb-8 scrollbar-modern">
             <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_18px_38px_-34px_rgba(15,23,42,0.6)]">
               <div className="relative h-[min(27rem,calc(100dvh-18rem))] w-full overflow-hidden bg-zinc-950">
-                <img
+                <Image
                   src={dealBellMedia.src}
                   alt=""
                   aria-hidden="true"
+                  fill
+                  sizes="(min-width: 640px) 56rem, calc(100vw - 3rem)"
+                  unoptimized
                   className="h-full w-full object-cover"
                 />
                 <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-zinc-950/30 via-zinc-950/5 to-transparent" />

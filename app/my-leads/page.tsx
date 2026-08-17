@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -2264,10 +2265,13 @@ export function MyLeadsWorkspace({
             {isDealClosedStatusChange ? (
               <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_18px_38px_-34px_rgba(15,23,42,0.6)]">
                 <div className="relative h-[clamp(19rem,40vw,30rem)] w-full overflow-hidden bg-zinc-950">
-                  <img
+                  <Image
                     src={dealBellMedia.src}
                     alt=""
                     aria-hidden="true"
+                    fill
+                    sizes="(min-width: 1024px) 56rem, calc(100vw - 3rem)"
+                    unoptimized
                     className="h-full w-full object-cover"
                   />
                   <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-zinc-950/35 via-zinc-950/8 to-transparent" />
