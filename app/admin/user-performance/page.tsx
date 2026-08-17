@@ -1107,7 +1107,10 @@ export default function AdminUserPerformancePage() {
                           <div>
                             <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">Last active</p>
                             <p className="mt-1 truncate text-xs font-medium text-zinc-700">
-                            {formatActivityDateTime(activityRecord?.lastActiveAt, activityData?.period.timezone)}
+                              {formatActivityDateTime(
+                                activityRecord?.lastActiveAt,
+                                activityRecord?.timeZone || activityData?.period.timezone,
+                              )}
                             </p>
                           </div>
                           <div>

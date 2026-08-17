@@ -29,6 +29,7 @@ export type NotificationListResponse = {
 
 export type ActivityHeartbeatRequest = {
   active: boolean;
+  timeZone?: string;
   appSurface: "light";
 };
 
@@ -43,6 +44,7 @@ export type ActivityHeartbeatResponse = {
     lastSeenAt: string | null;
     lastActiveAt: string | null;
     heartbeatCount: number;
+    timeZone: string;
   };
 };
 
@@ -61,6 +63,7 @@ export type UserActivityRecord = {
   username: string;
   fullName: string;
   role: string;
+  timeZone: string;
   isActive: boolean;
   isOnline: boolean;
   lastActiveAt: string | null;
@@ -83,6 +86,7 @@ export type UserActivityResponse = {
     start: string;
     end: string;
     timezone: string;
+    aggregation?: "user-local-calendar" | string;
   };
   users: UserActivityRecord[];
   pagination: {
@@ -92,6 +96,15 @@ export type UserActivityResponse = {
     hasMore: boolean;
   };
 };
+
+export function getBrowserTimeZone(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export async function listNotifications(options: {
   unreadOnly?: boolean;

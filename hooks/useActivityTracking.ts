@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { sendActivityHeartbeat } from "@/lib/peopleApi";
+import { getBrowserTimeZone, sendActivityHeartbeat } from "@/lib/peopleApi";
 import { ACTIVITY_IDLE_MS, shouldReportActive } from "@/lib/peopleUtils";
 
 export const HEARTBEAT_INTERVAL_MS = 60_000;
@@ -30,7 +30,7 @@ export function useActivityTracking(enabled: boolean, sessionKey?: string) {
       if (disposed || (!force && lastReportedActive === active)) return;
       lastReportedActive = active;
       void sendActivityHeartbeat(
-        { active, appSurface: "light" },
+        { active, timeZone: getBrowserTimeZone(), appSurface: "light" },
         keepalive ? { keepalive: true } : { signal: controller.signal }
       ).catch(() => {
         // Activity reporting is deliberately non-blocking.
@@ -88,7 +88,7 @@ export function useActivityTracking(enabled: boolean, sessionKey?: string) {
     return () => {
       if (lastReportedActive !== false) {
         void sendActivityHeartbeat(
-          { active: false, appSurface: "light" },
+          { active: false, timeZone: getBrowserTimeZone(), appSurface: "light" },
           { keepalive: true }
         ).catch(() => {});
       }
