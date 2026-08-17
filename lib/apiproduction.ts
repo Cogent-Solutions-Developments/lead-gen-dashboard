@@ -39,6 +39,7 @@ import type {
   LeadEmailGenerationResponse,
   LeadTemplateValidationResponse,
   LeadItem,
+  LeadOwnerHistoryResponse,
   MessageStatus,
   NizoAiChatRequest,
   NizoAiChatResponse,
@@ -117,6 +118,7 @@ export type {
   LeadEmailGenerationResponse,
   LeadTemplateValidationResponse,
   LeadItem,
+  LeadOwnerHistoryResponse,
   MessageStatus,
   NizoAiChatRequest,
   NizoAiChatResponse,
@@ -275,7 +277,7 @@ export async function createCampaignFromUpload(payload: UploadCampaignRequest) {
   return data;
 }
 
-export async function validateLeadTemplateUpload(file: File | Blob) {
+export async function validateLeadTemplateUpload(file: File | Blob, eventRegistryId?: string) {
   const formData = new FormData();
   const fileName =
     typeof File !== "undefined" && file instanceof File && file.name
@@ -283,6 +285,7 @@ export async function validateLeadTemplateUpload(file: File | Blob) {
       : "lead-upload-template.xlsx";
 
   formData.append("leadSheet", file, fileName);
+  if (eventRegistryId?.trim()) formData.append("eventRegistryId", eventRegistryId.trim());
 
   const { data } = await apiClientProduction.post<LeadTemplateValidationResponse>(
     "/api/productions/campaigns/lead-template/validate",
@@ -346,7 +349,7 @@ export async function createMyCampaignFromUpload(payload: UploadCampaignRequest)
   return data;
 }
 
-export async function validateMyLeadTemplateUpload(file: File | Blob) {
+export async function validateMyLeadTemplateUpload(file: File | Blob, eventRegistryId?: string) {
   const formData = new FormData();
   const fileName =
     typeof File !== "undefined" && file instanceof File && file.name
@@ -354,6 +357,7 @@ export async function validateMyLeadTemplateUpload(file: File | Blob) {
       : "lead-upload-template.xlsx";
 
   formData.append("leadSheet", file, fileName);
+  if (eventRegistryId?.trim()) formData.append("eventRegistryId", eventRegistryId.trim());
 
   const { data } = await apiClientProduction.post<LeadTemplateValidationResponse>(
     "/api/productions/my-leads/lead-template/validate",
@@ -644,10 +648,15 @@ export async function generateLeadContent(id: string, payload: LeadContentGenera
   return data;
 }
 
-export async function updateLeadWorkflowStatus(id: string, workflowStatus: WorkflowStatus, comment?: string) {
+export async function updateLeadWorkflowStatus(
+  id: string,
+  workflowStatus: WorkflowStatus,
+  comment?: string,
+  dealAmountUsd?: string
+) {
   const { data } = await apiClientProduction.put<WorkflowStatusUpdateResponse>(
     `/api/productions/leads/${id}/workflow-status`,
-    { workflowStatus, comment }
+    { workflowStatus, comment, dealAmountUsd }
   );
   return data;
 }
@@ -655,6 +664,13 @@ export async function updateLeadWorkflowStatus(id: string, workflowStatus: Workf
 export async function getLeadWorkflowStatusHistory(id: string) {
   const { data } = await apiClientProduction.get<WorkflowStatusHistoryResponse>(
     `/api/productions/leads/${id}/workflow-status-history`
+  );
+  return data;
+}
+
+export async function getLeadOwnerHistory(id: string) {
+  const { data } = await apiClientProduction.get<LeadOwnerHistoryResponse>(
+    `/api/productions/leads/${id}/owner-history`
   );
   return data;
 }

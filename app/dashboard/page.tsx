@@ -24,9 +24,8 @@ import {
   type DashboardPersonalStatsItem,
   type WorkflowStatusDefinitionItem,
 } from "@/lib/apiRouter";
-
-
 import { getDailyManifesto } from "@/lib/manifesto";
+import { AdminLeadInventoryDashboard } from "@/components/dashboard/AdminLeadInventoryDashboard";
 import { CampaignHeadsUp } from "@/components/dashboard/CampaignHeadsUp";
 import { UserAvatar } from "@/components/profile/UserAvatar";
 
@@ -578,7 +577,7 @@ function ClientDashboard({ user }: { user: ReturnType<typeof useAuth>["user"] })
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, isAdminLike, isCeo } = useAuth();
   const { persona } = usePersona();
   const period: DashboardPeriod = "daily";
   const [salesRunners, setSalesRunners] = useState<SalesMarathonRunner[]>([]);
@@ -588,6 +587,7 @@ export default function DashboardPage() {
   const [loadingEventHeadsUp, setLoadingEventHeadsUp] = useState(true);
   const userId = user?.id;
   const isClientDashboard = isClientRole(user?.role);
+  const isAdminDashboard = isAdminLike && !isCeo;
   const displayName = firstName(getDisplayName(user));
   const greeting = getTimeGreeting();
   const manifesto = getDailyManifesto(user?.id || "");
@@ -615,7 +615,7 @@ export default function DashboardPage() {
       };
 
   const loadSalesMarathon = useCallback(async (mode: "initial" | "refresh") => {
-    if (isClientDashboard) {
+    if (isAdminDashboard || isClientDashboard) {
       setLoadingSalesMarathon(false);
       return;
     }
@@ -645,10 +645,10 @@ export default function DashboardPage() {
       } finally {
         setLoadingSalesMarathon(false);
       }
-    }, [isClientDashboard, period, persona]);
+    }, [isAdminDashboard, isClientDashboard, period, persona]);
 
   const loadPersonalStats = useCallback(async (mode: "initial" | "refresh") => {
-    if (isClientDashboard) {
+    if (isAdminDashboard || isClientDashboard) {
       setLoadingEventHeadsUp(false);
       return;
     }
@@ -685,7 +685,7 @@ export default function DashboardPage() {
     } finally {
       setLoadingEventHeadsUp(false);
     }
-  }, [isClientDashboard, period, persona, userId]);
+  }, [isAdminDashboard, isClientDashboard, period, persona, userId]);
 
   useEffect(() => {
     void loadSalesMarathon("initial");
@@ -721,6 +721,10 @@ export default function DashboardPage() {
     return <ClientDashboard user={user} />;
   }
 
+  if (isAdminDashboard) {
+    return <AdminLeadInventoryDashboard />;
+  }
+
   return (
     <div className="flex h-screen flex-1 flex-col overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">
       <header className="relative isolate h-full min-h-0 w-full overflow-y-auto px-8 py-7 lg:px-12">
@@ -744,40 +748,40 @@ export default function DashboardPage() {
         </div>
 
         <div className="relative z-10 mt-10 grid items-stretch gap-10 text-left xl:grid-cols-[minmax(0,1fr)_26rem]">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-            className="flex flex-col"
-          >
-            <h1 className="max-w-5xl text-zinc-950">
-              <span className="block text-[1.95rem] font-medium leading-[1.08] tracking-[-0.04em] sm:text-[2.45rem]">
-                {greeting}, {displayName}.
-              </span>
-              <span className="mt-4 block max-w-4xl text-[1.55rem] font-light leading-[1.16] tracking-[-0.025em] text-zinc-500 sm:text-[2rem]">
-                “{manifesto}”
-              </span>
-            </h1>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+              className="flex flex-col"
+            >
+              <h1 className="max-w-5xl text-zinc-950">
+                <span className="block text-[1.95rem] font-medium leading-[1.08] tracking-[-0.04em] sm:text-[2.45rem]">
+                  {greeting}, {displayName}.
+                </span>
+                <span className="mt-4 block max-w-4xl text-[1.55rem] font-light leading-[1.16] tracking-[-0.025em] text-zinc-500 sm:text-[2rem]">
+                  “{manifesto}”
+                </span>
+              </h1>
 
-            <CampaignHeadsUp
-              items={eventHeadsUp}
-              statuses={workflowStatuses}
-              loading={loadingEventHeadsUp}
-              period={period}
-            />
-          </motion.div>
+              <CampaignHeadsUp
+                items={eventHeadsUp}
+                statuses={workflowStatuses}
+                loading={loadingEventHeadsUp}
+                period={period}
+              />
+            </motion.div>
 
-          <div>
-            <SalesMarathon
-              runners={salesRunners}
-              currentUser={user}
-              loading={loadingSalesMarathon}
-              title={kpiCopy.title}
-              subtitle={kpiCopy.subtitle}
-              target={kpiCopy.target}
-              footnote={kpiCopy.footnote}
-            />
-          </div>
+            <div>
+              <SalesMarathon
+                runners={salesRunners}
+                currentUser={user}
+                loading={loadingSalesMarathon}
+                title={kpiCopy.title}
+                subtitle={kpiCopy.subtitle}
+                target={kpiCopy.target}
+                footnote={kpiCopy.footnote}
+              />
+            </div>
         </div>
       </header>
     </div>

@@ -8,13 +8,14 @@ import {
   Clock3,
   Eye,
   Loader2,
+  MessageSquareText,
   RefreshCw,
-  TrendingUp,
-  UsersRound,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { UserActivityPanel } from "@/components/admin/UserActivityPanel";
+import { PeriodDatePicker } from "@/components/performance/PeriodDatePicker";
 import {
   fetchAdminUserPerformance,
   fetchManagerPerformance,
@@ -29,14 +30,25 @@ import {
   type ManagerUserPerformanceActivity,
 } from "../admin-api";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  fetchUserActivity,
+  type UserActivityPeriod,
+  type UserActivityRecord,
+  type UserActivityResponse,
+} from "@/lib/peopleApi";
+import { canMonitorUserActivity, formatEngagedDuration, hasRecordedUserActivity } from "@/lib/peopleUtils";
+import { formatUsd } from "@/lib/leadWorkflowHistory";
+import { managerActivityAttribution } from "@/lib/managerPerformance";
 
 const PERIOD_OPTIONS: Array<{ value: AdminUserPerformancePeriod; label: string }> = [
   { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" },
   { value: "yearly", label: "Yearly" },
 ];
 
 type ChartView = "pie" | "spider";
+type PerformanceView = "performance" | "activity";
 
 type ChartMaxValues = {
   total: number;
@@ -80,6 +92,27 @@ function formatCompactDateTime(value?: string | null) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatActivityDateTime(value?: string | null, timezone?: string) {
+  if (!value) return "No activity recorded";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      timeZone: timezone,
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(parsed);
+  } catch {
+    return formatCompactDateTime(value);
+  }
+}
+
+function activityPeriodForPerformance(period: AdminUserPerformancePeriod): UserActivityPeriod {
+  return period === "daily" ? "daily" : "monthly";
 }
 
 function formatNumber(value: unknown) {
@@ -222,16 +255,6 @@ function buildTeamContributionSegments(cluster: AdminUserPerformanceCluster) {
   }));
 }
 
-function StatBlock({ label, value, note }: { label: string; value: string; note: string }) {
-  return (
-    <div className="rounded-lg border border-zinc-200 bg-white/80 p-4">
-      <p className="text-xs font-semibold uppercase text-zinc-500">{label}</p>
-      <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{value}</p>
-      <p className="mt-2 text-xs text-zinc-500">{note}</p>
-    </div>
-  );
-}
-
 function PieKpiChart({ cluster }: { cluster: AdminUserPerformanceCluster }) {
   const center = 64;
   const outerRadius = 48;
@@ -281,7 +304,6 @@ function PieKpiChart({ cluster }: { cluster: AdminUserPerformanceCluster }) {
       <div className="min-w-0 space-y-3 text-sm">
         <div>
           <p className="text-xs font-semibold uppercase text-zinc-500">Team contribution</p>
-          <p className="mt-1 text-xs text-zinc-500">{cluster.metricLabel} split by contributor.</p>
         </div>
         {slices.length ? (
           <div className="space-y-2.5">
@@ -385,7 +407,6 @@ function SpiderKpiChart({
       <div className="min-w-0 space-y-3 text-sm">
         <div>
           <p className="text-xs font-semibold uppercase text-zinc-500">Department shape</p>
-          <p className="mt-1 text-xs text-zinc-500">Each axis is scaled against the strongest department.</p>
         </div>
         <div className="space-y-3">
           {metrics.map((metric) => (
@@ -404,6 +425,32 @@ function SpiderKpiChart({
         </div>
       </div>
     </div>
+  );
+}
+
+function ProminentKpiComment({
+  comment,
+  author,
+  updatedAt,
+  historyCount,
+}: {
+  comment: string;
+  author: string;
+  updatedAt?: string | null;
+  historyCount?: number | null;
+}) {
+  return (
+    <aside className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 shadow-[inset_3px_0_0_#2563eb]" aria-label="KPI comment">
+      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-blue-700">
+        <MessageSquareText className="h-4 w-4" aria-hidden="true" />
+        Comment
+      </div>
+      <blockquote className="mt-2 text-sm font-semibold leading-6 text-slate-950">{comment}</blockquote>
+      <p className="mt-2 text-xs font-medium text-blue-800">
+        {author} · {formatDateTime(updatedAt)}
+        {(historyCount || 0) > 1 ? ` · ${historyCount} comments in history` : ""}
+      </p>
+    </aside>
   );
 }
 
@@ -430,22 +477,46 @@ function ActivityList({ activities }: { activities: ManagerUserPerformanceActivi
                     "Contact details unavailable"}
                 </p>
               </div>
-              <span className="text-xs font-semibold text-blue-700">
-                {activity.workflowStatusLabel || activity.workflowStatus || "Updated"}
-              </span>
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-blue-700">
+                  {activity.workflowStatusLabel || activity.workflowStatus || "Updated"}
+                </span>
+                {formatUsd(activity.dealAmountUsd) ? (
+                  <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
+                    {formatUsd(activity.dealAmountUsd)}
+                  </span>
+                ) : null}
+              </div>
             </div>
             <div className="mt-3 grid gap-2 text-xs text-zinc-500 sm:grid-cols-2">
-              <span className="truncate">By {actor.name || "Unknown user"}</span>
+              <span className="truncate">{managerUserActivityAttribution(activity)}</span>
               <span className="truncate sm:text-right">{formatDateTime(activity.updatedAt)}</span>
               <span className="truncate sm:col-span-2">
                 {displayText(event.canonicalEventName) || "No event name"}
               </span>
             </div>
+            {activity.comment ? (
+              <ProminentKpiComment
+                comment={activity.comment}
+                author={activity.commentUpdatedByUserDisplayName || activity.commentUpdatedByUsername || actor.name || "Unknown user"}
+                updatedAt={activity.commentUpdatedAt || activity.updatedAt}
+                historyCount={activity.commentHistoryCount}
+              />
+            ) : null}
           </div>
         );
       })}
     </div>
   );
+}
+
+function managerUserActivityAttribution(activity: ManagerUserPerformanceActivity) {
+  const executor = activity.user?.name || "Unknown user";
+  if (!activity.isTakeoverExecution) return `By ${executor}`;
+  const owner = activity.taskOwnerDisplayName || activity.taskOwnerUsername;
+  if (!owner) return `Task executed by ${executor}.`;
+  if (activity.taskOwnerIsActive === false) return `Task executed by ${executor} for inactive user ${owner}.`;
+  return `Task executed by ${executor} on behalf of ${owner}.`;
 }
 
 function kpiActivityTitle(activity: ManagerPerformanceActivity) {
@@ -497,36 +568,18 @@ function UserKpiDetailDialog({
         <div className="shrink-0 border-b border-zinc-100 px-5 py-4">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase text-blue-700">{cluster.label} KPI Records</p>
-              <h2 id="user-kpi-detail-title" className="mt-1 truncate text-xl font-semibold text-slate-900">
+              <h2 id="user-kpi-detail-title" className="truncate text-xl font-semibold text-slate-900">
                 {runnerName(runner)}
               </h2>
               <p className="mt-1 truncate text-sm text-zinc-500">
-                {[runnerUsername(runner), cluster.metricLabel].filter(Boolean).join(" | ")}
+                {[runnerUsername(runner) ? `@${runnerUsername(runner)}` : "", `${formatNumber(metricTotal)} KPI`, loading ? "Loading records" : `${formatNumber(totalRecords)} records`]
+                  .filter(Boolean)
+                  .join(" · ")}
               </p>
             </div>
             <Button type="button" variant="outline" size="icon-sm" className="shrink-0 rounded-lg" onClick={onClose}>
               <X className="h-4 w-4" />
             </Button>
-          </div>
-
-          <div className="mt-4 grid gap-2 sm:grid-cols-4">
-            <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
-              <p className="text-[11px] font-semibold uppercase text-blue-700">User KPI</p>
-              <p className="mt-1 text-lg font-semibold text-slate-900">{formatNumber(metricTotal)}</p>
-            </div>
-            <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2">
-              <p className="text-[11px] font-semibold uppercase text-zinc-500">Records</p>
-              <p className="mt-1 text-lg font-semibold text-slate-900">{loading ? "-" : formatNumber(totalRecords)}</p>
-            </div>
-            <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2">
-              <p className="text-[11px] font-semibold uppercase text-zinc-500">Period</p>
-              <p className="mt-1 text-sm font-semibold capitalize text-slate-900">{data?.period?.key || "-"}</p>
-            </div>
-            <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2">
-              <p className="text-[11px] font-semibold uppercase text-zinc-500">Window</p>
-              <p className="mt-1 text-sm font-semibold text-slate-900">{formatDateTime(data?.period?.start)}</p>
-            </div>
           </div>
         </div>
 
@@ -542,6 +595,7 @@ function UserKpiDetailDialog({
             <div className="space-y-3 border-l border-blue-100 pl-5">
               {activities.map((activity, index) => {
                 const meta = kpiActivityMeta(activity);
+                const attribution = managerActivityAttribution(activity);
                 return (
                   <div key={activity.id || `${activity.userId}-${activity.createdAt}-${index}`} className="relative rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
                     <span className="absolute -left-[1.68rem] top-5 h-3 w-3 rounded-full border-2 border-white bg-blue-600 shadow-sm" />
@@ -554,6 +608,7 @@ function UserKpiDetailDialog({
                         <p className="mt-1 truncate text-xs text-zinc-500" title={meta || undefined}>
                           {meta || "Contact details unavailable"}
                         </p>
+                        <p className="mt-1 text-xs text-zinc-500">{attribution}</p>
                       </div>
                       <div className="flex shrink-0 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-semibold text-slate-700">
                         <Clock3 className="h-3.5 w-3.5 text-blue-600" />
@@ -576,7 +631,14 @@ function UserKpiDetailDialog({
                         <p className="mt-1 font-semibold capitalize text-slate-800">{activity.type || "workflow-status"}</p>
                       </div>
                     </div>
-                    {activity.comment ? <p className="mt-3 rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-800">{activity.comment}</p> : null}
+                    {activity.comment ? (
+                      <ProminentKpiComment
+                        comment={activity.comment}
+                        author={activity.commentUpdatedByUserDisplayName || activity.commentUpdatedByUsername || activity.userDisplayName || activity.username || "Unknown user"}
+                        updatedAt={activity.commentUpdatedAt || activity.createdAt}
+                        historyCount={activity.commentHistoryCount}
+                      />
+                    ) : null}
                   </div>
                 );
               })}
@@ -597,8 +659,10 @@ export default function AdminUserPerformancePage() {
   const [period, setPeriod] = useState<AdminUserPerformancePeriod>("daily");
   const [date, setDate] = useState(todayValue);
   const [data, setData] = useState<AdminUserPerformanceResponse | null>(null);
+  const [activityData, setActivityData] = useState<UserActivityResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [chartView, setChartView] = useState<ChartView>("pie");
+  const [activeView, setActiveView] = useState<PerformanceView>("performance");
   const [selectedPipeline, setSelectedPipeline] = useState("");
   const [detailRunner, setDetailRunner] = useState<AdminUserPerformanceRunner | null>(null);
   const [detailCluster, setDetailCluster] = useState<AdminUserPerformanceCluster | null>(null);
@@ -606,17 +670,48 @@ export default function AdminUserPerformancePage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
   const isManagerView = isManagerRole(user?.role);
+  const canViewActivity = canMonitorUserActivity(user?.role);
+
+  useEffect(() => {
+    if (canViewActivity && window.location.hash === "#activity") setActiveView("activity");
+  }, [canViewActivity]);
+
+  useEffect(() => {
+    if (activeView !== "activity") return;
+    const previousRootOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    const frame = window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.documentElement.style.overflow = previousRootOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+    };
+  }, [activeView]);
 
   const loadPerformance = useCallback(async () => {
     setLoading(true);
     try {
-      const next = isManagerView
-        ? await fetchManagerUserPerformance({ period, date, limit: 300 })
-        : await fetchAdminUserPerformance({ period, date });
-      setData(next);
+      const performanceRequest = isManagerView
+        ? fetchManagerUserPerformance({ period, date, limit: 300 })
+        : fetchAdminUserPerformance({ period, date });
+      const activityRequest = isManagerView
+        ? Promise.resolve(null)
+        : fetchUserActivity({
+            period: activityPeriodForPerformance(period),
+            date,
+            limit: 500,
+            offset: 0,
+          });
+      const [performanceResult, activityResult] = await Promise.allSettled([performanceRequest, activityRequest]);
+      if (performanceResult.status === "rejected") throw performanceResult.reason;
+      setData(performanceResult.value);
+      setActivityData(activityResult.status === "fulfilled" ? activityResult.value : null);
     } catch (error) {
       toast.error("User performance failed to load", { description: getErrorMessage(error) });
       setData(null);
+      setActivityData(null);
     } finally {
       setLoading(false);
     }
@@ -662,6 +757,10 @@ export default function AdminUserPerformancePage() {
     [activities, selectedCluster?.pipeline],
   );
 
+  const activityByUserId = useMemo(
+    () => new Map((activityData?.users || []).map((record) => [record.userId, record])),
+    [activityData?.users],
+  );
   const openRunnerDetails = useCallback(
     async (runner: AdminUserPerformanceRunner, cluster: AdminUserPerformanceCluster) => {
       const userId = runnerUserId(runner);
@@ -704,49 +803,26 @@ export default function AdminUserPerformancePage() {
     setDetailLoading(false);
   }, []);
 
-  const topRunner = selectedRunners[0];
-  const topRunnerValue = topRunner ? runnerValue(topRunner) : 0;
-  const windowDetails = [
-    {
-      label: "Period",
-      value: data?.period || period,
-      note: "Selected KPI grouping",
-      capitalize: true,
-    },
-    {
-      label: "Date",
-      value: data?.date || date,
-      note: "Requested report date",
-    },
-    {
-      label: "Starts",
-      value: formatCompactDateTime(data?.periodStart),
-      note: "Window opening time",
-    },
-    {
-      label: "Ends",
-      value: formatCompactDateTime(data?.periodEnd),
-      note: "Window closing time",
-    },
-  ];
-
   return (
-    <div className="admin-page flex min-h-[calc(100dvh-3rem)] flex-col bg-transparent">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+    <div className={`admin-page flex flex-col bg-transparent ${
+      activeView === "activity"
+        ? "h-[calc(100dvh-3rem)] min-h-0 overflow-hidden"
+        : "min-h-[calc(100dvh-3rem)]"
+    }`}>
+      <motion.div className="shrink-0" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="admin-card p-5">
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
-            <div>
-              <p className="admin-eyebrow">{isManagerView ? "Manager Control" : "Admin Control"}</p>
-              <h1 className="admin-title">User Performance</h1>
-            </div>
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <h1 className="admin-title">User Performance</h1>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            {activeView === "performance" ? <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="inline-flex rounded-lg border border-zinc-200 bg-white p-1 shadow-sm">
                 {PERIOD_OPTIONS.map((item) => (
                   <button
                     key={item.value}
                     type="button"
-                    onClick={() => setPeriod(item.value)}
+                    onClick={() => {
+                      setPeriod(item.value);
+                    }}
                     className={[
                       "h-9 rounded-md px-4 text-sm font-semibold transition-colors",
                       period === item.value ? "bg-blue-600 text-white shadow-sm shadow-blue-200" : "text-zinc-500 hover:bg-blue-50 hover:text-blue-700",
@@ -757,15 +833,7 @@ export default function AdminUserPerformancePage() {
                 ))}
               </div>
 
-              <label className="relative flex h-11 items-center rounded-lg border border-zinc-200 bg-white pl-4 pr-3 text-sm text-zinc-500 shadow-sm">
-                <CalendarDays className="mr-2 h-4 w-4 text-zinc-400" />
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(event) => setDate(event.target.value)}
-                  className="h-full bg-transparent text-sm font-medium text-zinc-700 outline-none"
-                />
-              </label>
+              <PeriodDatePicker period={period} value={date} onChange={setDate} />
 
               <Button
                 type="button"
@@ -776,22 +844,55 @@ export default function AdminUserPerformancePage() {
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                 Refresh
               </Button>
-            </div>
+            </div> : null}
           </div>
 
-          <div className="mt-5 grid gap-3 lg:grid-cols-4">
-            <StatBlock label="Total KPI" value={formatNumber(summary?.totalKpis)} note={`${data?.period || period} window`} />
-            <StatBlock label="Active Users" value={formatNumber(summary?.activeUsers)} note="Pipeline users counted" />
-            <StatBlock label="Contributors" value={formatNumber(summary?.contributors)} note="Users with KPI activity" />
-            <StatBlock label="Average Per User" value={formatNumber(summary?.averagePerUser)} note={`Generated ${formatDateTime(data?.generatedAt)}`} />
-          </div>
+          {activeView === "performance" ? <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 border-t border-zinc-100 pt-4 text-sm">
+            <span className="text-zinc-500">KPI <strong className="ml-1 text-slate-950">{formatNumber(summary?.totalKpis)}</strong></span>
+            <span className="text-zinc-500">Users <strong className="ml-1 text-slate-950">{formatNumber(summary?.activeUsers)}</strong></span>
+            <span className="text-zinc-500">Contributors <strong className="ml-1 text-slate-950">{formatNumber(summary?.contributors)}</strong></span>
+            {activityData?.period ? (
+              <span className="text-zinc-500">Screen-time window <strong className="ml-1 capitalize text-slate-950">{activityData.period.key}</strong></span>
+            ) : null}
+          </div> : null}
         </div>
       </motion.div>
+
+      {canViewActivity ? (
+        <div className="admin-card mt-5 grid shrink-0 grid-cols-2 gap-1 p-1" role="tablist" aria-label="User performance sections">
+          {[
+            { value: "performance" as const, label: "Performance" },
+            { value: "activity" as const, label: "User Activity" },
+          ].map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              role="tab"
+              aria-selected={activeView === item.value}
+              onClick={() => {
+                setActiveView(item.value);
+                window.history.replaceState(null, "", item.value === "activity" ? "#activity" : window.location.pathname);
+              }}
+              className={`h-11 rounded-lg text-sm font-semibold transition-colors ${
+                activeView === item.value
+                  ? "bg-blue-600 text-white shadow-sm shadow-blue-200"
+                  : "text-zinc-600 hover:bg-blue-50 hover:text-blue-700"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {activeView === "activity" && canViewActivity ? (
+        <UserActivityPanel />
+      ) : (
+        <>
 
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-base font-semibold text-slate-900">Pipeline KPI Representation</h2>
-          <p className="mt-1 text-sm text-zinc-500">Switch between pie coverage and spider comparison for each department.</p>
         </div>
         <div className="grid w-full grid-cols-2 rounded-lg border border-zinc-200 bg-white p-1 shadow-sm sm:w-64">
           {[
@@ -801,6 +902,7 @@ export default function AdminUserPerformancePage() {
             <button
               key={item.value}
               type="button"
+              aria-pressed={chartView === item.value}
               onClick={() => setChartView(item.value)}
               className={`h-10 rounded-md text-sm font-semibold transition-colors ${
                 chartView === item.value ? "bg-blue-600 text-white shadow-sm shadow-blue-200" : "text-zinc-600 hover:bg-blue-50 hover:text-blue-700"
@@ -812,7 +914,7 @@ export default function AdminUserPerformancePage() {
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-3">
+      <section className="mt-4 grid gap-4 xl:grid-cols-3" aria-label="Department KPI contribution graphs">
         {loading && !data ? (
           <div className="admin-card col-span-full flex min-h-64 items-center justify-center text-sm text-zinc-500">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -826,7 +928,7 @@ export default function AdminUserPerformancePage() {
             const clusterTopRunnerValue = clusterTopRunner ? runnerValue(clusterTopRunner) : 0;
 
             return (
-              <motion.section
+              <motion.article
                 key={cluster.pipeline}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -849,11 +951,17 @@ export default function AdminUserPerformancePage() {
                   {chartView === "pie" ? <PieKpiChart cluster={cluster} /> : <SpiderKpiChart cluster={cluster} maxValues={maxValues} />}
                 </div>
 
-                <div className="mt-5 grid grid-cols-3 gap-3 border-t border-zinc-100 pt-5">
+                <div className={`mt-5 grid gap-3 border-t border-zinc-100 pt-5 ${cluster.pipeline === "sales" ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
                   <div>
                     <p className="text-[11px] font-medium text-zinc-400">Active</p>
                     <p className="mt-1 text-xl font-semibold text-slate-900">{formatNumber(cluster.activeUsers)}</p>
                   </div>
+                  {cluster.pipeline === "sales" ? (
+                    <div>
+                      <p className="text-[11px] font-medium text-zinc-400">Revenue</p>
+                      <p className="mt-1 text-base font-semibold text-emerald-700">{formatUsd(cluster.revenueUsd) || "$0.00"}</p>
+                    </div>
+                  ) : null}
                   <div>
                     <p className="text-[11px] font-medium text-zinc-400">Contributors</p>
                     <p className="mt-1 text-xl font-semibold text-slate-900">{formatNumber(cluster.contributors)}</p>
@@ -873,7 +981,7 @@ export default function AdminUserPerformancePage() {
                     <span className="shrink-0 text-sm font-semibold text-blue-700">{formatNumber(clusterTopRunnerValue)}</span>
                   </div>
                 </div>
-              </motion.section>
+              </motion.article>
             );
           })
         ) : (
@@ -881,186 +989,176 @@ export default function AdminUserPerformancePage() {
             No user performance data returned for this window.
           </div>
         )}
-      </div>
+      </section>
 
       <section className="admin-card mt-5 overflow-hidden">
-        <div className="flex items-center justify-between gap-4 border-b border-zinc-100 px-5 py-4">
-          <div>
-            <h2 className="text-base font-semibold text-slate-900">Department Details</h2>
-            <p className="mt-1 text-sm text-zinc-500">Leaderboard, activity, and window metadata by department.</p>
+        <div className="border-b border-zinc-100 px-4 py-4 sm:px-5">
+          <h2 className="text-base font-semibold text-slate-950">Department Details</h2>
+        </div>
+        {loading && !data ? (
+          <div className="flex min-h-64 items-center justify-center text-sm text-zinc-500">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Loading user performance...
           </div>
-          <UsersRound className="h-5 w-5 text-blue-600" />
-        </div>
+        ) : clusters.length ? (
+          <div className="grid overflow-hidden lg:grid-cols-[16rem_minmax(0,1fr)]">
+            <aside className="border-b border-zinc-100 bg-zinc-50/70 p-3 lg:border-b-0 lg:border-r" aria-label="Departments">
+              <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] lg:flex-col lg:overflow-x-hidden [&::-webkit-scrollbar]:hidden">
+                {clusters.map((cluster) => {
+                const selected = selectedCluster?.pipeline === cluster.pipeline;
+                return (
+                  <button
+                    key={cluster.pipeline}
+                    type="button"
+                    onClick={() => setSelectedPipeline(cluster.pipeline)}
+                    className={`inline-flex min-w-52 items-center gap-3 rounded-lg border px-3 py-3 text-sm font-semibold transition-colors lg:w-full lg:min-w-0 ${
+                      selected
+                        ? "border-blue-200 bg-blue-50 text-blue-800 shadow-sm"
+                        : "border-transparent bg-transparent text-zinc-600 hover:border-blue-100 hover:bg-white hover:text-blue-700"
+                    }`}
+                  >
+                    <span
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white shadow-sm"
+                      style={{ backgroundColor: pipelineAccent(cluster) }}
+                      aria-hidden="true"
+                    >
+                      <Activity className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 flex-1 text-left">
+                      <span className="block truncate font-semibold">{cluster.label}</span>
+                      <span className="mt-0.5 block truncate text-xs font-normal text-zinc-500">
+                        {formatNumber(cluster.total)} KPI, {formatNumber(cluster.contributors)} contributors
+                      </span>
+                    </span>
+                  </button>
+                );
+                })}
+              </div>
+            </aside>
 
-        <div className="grid overflow-hidden lg:max-h-[42rem] lg:grid-cols-[16rem_minmax(0,1fr)]">
-          {loading && !data ? (
-            <div className="flex min-h-48 items-center justify-center text-sm text-zinc-500 lg:col-span-2">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Loading details...
-            </div>
-          ) : clusters.length ? (
-            <>
-              <aside className="min-h-0 overflow-hidden border-b border-zinc-100 bg-zinc-50/70 p-3 lg:border-b-0 lg:border-r">
-                <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] lg:h-full lg:flex-col lg:overflow-x-hidden lg:overflow-y-auto [&::-webkit-scrollbar]:hidden">
-                  {clusters.map((cluster) => {
-                    const selected = selectedCluster?.pipeline === cluster.pipeline;
+            <div className="min-w-0 p-4">
+              <div className="mb-4 flex flex-col gap-4 border-b border-zinc-100 pb-4 xl:flex-row xl:items-start xl:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-zinc-500">
+                    <span className="inline-flex items-center gap-1.5 font-bold uppercase tracking-wide text-blue-700">
+                      <CalendarDays className="h-4 w-4" />
+                      Window overview
+                    </span>
+                    <span><span className="mr-1 text-[10px] font-bold uppercase tracking-wide text-zinc-400">Period</span><strong className="capitalize text-slate-900">{data?.period || period}</strong></span>
+                    <span><span className="mr-1 text-[10px] font-bold uppercase tracking-wide text-zinc-400">Date</span><strong className="text-slate-900">{data?.date || date}</strong></span>
+                    <span><span className="mr-1 text-[10px] font-bold uppercase tracking-wide text-zinc-400">Starts</span><strong className="text-slate-900">{formatCompactDateTime(data?.periodStart)}</strong></span>
+                    <span><span className="mr-1 text-[10px] font-bold uppercase tracking-wide text-zinc-400">Ends</span><strong className="text-slate-900">{formatCompactDateTime(data?.periodEnd)}</strong></span>
+                  </div>
+                  <h3 className="mt-2 text-base font-semibold text-slate-950">{selectedCluster?.label || "Department"}</h3>
+                </div>
+                <div className={`grid grid-cols-2 gap-2 text-center text-xs ${selectedCluster?.pipeline === "sales" ? "sm:grid-cols-5 xl:w-[38rem]" : "sm:grid-cols-4 xl:w-[30rem]"}`}>
+                  <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-blue-700">
+                    <p className="font-bold">{formatNumber(selectedCluster?.total)}</p>
+                    <p>KPI</p>
+                  </div>
+                  <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-zinc-600">
+                    <p className="font-bold">{formatNumber(selectedCluster?.activeUsers)}</p>
+                    <p>Active</p>
+                  </div>
+                  {selectedCluster?.pipeline === "sales" ? (
+                    <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-emerald-700">
+                      <p className="font-bold">{formatUsd(selectedCluster.revenueUsd) || "$0.00"}</p>
+                      <p>Revenue</p>
+                    </div>
+                  ) : null}
+                  <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-emerald-700">
+                    <p className="font-bold">{formatNumber(selectedCluster?.contributors)}</p>
+                    <p>Contrib</p>
+                  </div>
+                  <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-zinc-600">
+                    <p className="font-bold">{formatNumber(selectedCluster?.averagePerUser)}</p>
+                    <p>Avg</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-zinc-200 bg-white px-4 py-1">
+                {selectedRunners.length ? (
+                  selectedRunners.map((runner, index) => {
+                    const userId = runnerUserId(runner);
+                    const activityRecord: UserActivityRecord | undefined = activityByUserId.get(userId);
+                    const recorded = activityRecord ? hasRecordedUserActivity(activityRecord) : false;
+                    const canOpenDetails = Boolean(selectedCluster && userId);
+                    const value = runnerValue(runner);
                     return (
-                      <button
-                        key={cluster.pipeline}
-                        type="button"
-                        onClick={() => setSelectedPipeline(cluster.pipeline)}
-                        className={`flex min-w-52 items-center gap-3 rounded-md border px-3 py-3 text-left transition-colors lg:min-w-0 ${
-                          selected
-                            ? "border-blue-200 bg-blue-50 text-blue-800 shadow-sm"
-                            : "border-transparent bg-transparent text-zinc-600 hover:border-blue-100 hover:bg-white hover:text-blue-700"
-                        }`}
+                      <article
+                        key={`${runner.userId || runner.id || runner.username || index}`}
+                        className="border-b border-zinc-100 py-4 last:border-b-0"
                       >
-                        <span
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/70 bg-white text-white"
-                          style={{ backgroundColor: pipelineAccent(cluster) }}
-                        >
-                          <Activity className="h-4 w-4" />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-semibold">{cluster.label}</span>
-                          <span className="mt-0.5 block text-xs text-zinc-500">
-                            {formatNumber(cluster.total)} KPI, {formatNumber(cluster.contributors)} contributors
-                          </span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </aside>
-
-              <section className="flex min-h-0 min-w-0 flex-col">
-                <div className="shrink-0 border-b border-zinc-100 px-4 py-3">
-                  <div className="grid gap-3 2xl:grid-cols-[minmax(0,1fr)_auto] 2xl:items-start">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                        <div className="flex items-center gap-2 font-semibold uppercase text-blue-700">
-                          <CalendarDays className="h-4 w-4" />
-                          <span>Window overview</span>
-                        </div>
-                        {windowDetails.map((item) => (
-                          <div
-                            key={item.label}
-                            className="inline-flex max-w-full items-baseline gap-1.5"
-                            title={`${item.note}: ${item.value}`}
-                          >
-                            <span className="shrink-0 text-[10px] font-semibold uppercase leading-4 text-zinc-400">{item.label}</span>
-                            <span className={`truncate font-semibold text-slate-900 ${item.capitalize ? "capitalize" : ""}`}>
-                              {item.value}
-                            </span>
+                        <div className="grid gap-3 sm:grid-cols-[2.5rem_minmax(12rem,1fr)_minmax(10rem,0.8fr)_8rem_auto_3rem] sm:items-center sm:gap-4">
+                          <span className="text-sm font-bold tabular-nums text-zinc-400">{String(index + 1).padStart(2, "0")}</span>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="truncate text-sm font-semibold text-slate-950">{runnerName(runner)}</p>
+                              {activityRecord ? (
+                                <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${activityRecord.isOnline ? "text-emerald-700" : "text-zinc-500"}`}>
+                                  <span className={`h-1.5 w-1.5 rounded-full ${activityRecord.isOnline ? "bg-emerald-500" : "bg-zinc-400"}`} aria-hidden="true" />
+                                  {activityRecord.isOnline ? "Online" : "Offline"}
+                                </span>
+                              ) : null}
+                            </div>
+                            {runnerUsername(runner) ? <p className="mt-1 truncate text-xs text-zinc-500">@{runnerUsername(runner)}</p> : null}
                           </div>
-                        ))}
-                      </div>
-                      <h3 className="mt-1 text-base font-semibold text-slate-900">{selectedCluster?.label || "Department"}</h3>
-                      <p className="mt-1 text-sm text-zinc-500">
-                        {selectedCluster?.metricLabel || "KPI metric"} performance inside the selected {data?.period || period} KPI window.
-                      </p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4 2xl:w-[30rem]">
-                      <div className="rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-blue-700">
-                        <p className="font-semibold">{formatNumber(selectedCluster?.total)}</p>
-                        <p>KPI</p>
-                      </div>
-                      <div className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-zinc-600">
-                        <p className="font-semibold">{formatNumber(selectedCluster?.activeUsers)}</p>
-                        <p>Active</p>
-                      </div>
-                      <div className="rounded-md border border-emerald-100 bg-emerald-50 px-3 py-2 text-emerald-700">
-                        <p className="font-semibold">{formatNumber(selectedCluster?.contributors)}</p>
-                        <p>Contrib</p>
-                      </div>
-                      <div className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-zinc-600">
-                        <p className="font-semibold">{formatNumber(selectedCluster?.averagePerUser)}</p>
-                        <p>Avg</p>
-                      </div>
-                    </div>
-                  </div>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">Last active</p>
+                            <p className="mt-1 truncate text-xs font-medium text-zinc-700">
+                            {formatActivityDateTime(activityRecord?.lastActiveAt, activityData?.period.timezone)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">Screen time</p>
+                            <p className="mt-1 text-xs font-bold text-slate-900">
+                              {recorded && activityRecord ? formatEngagedDuration(activityRecord.engagedSeconds) : "No activity recorded"}
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={!canOpenDetails || detailLoading}
+                            onClick={() => {
+                              if (selectedCluster) void openRunnerDetails(runner, selectedCluster);
+                            }}
+                            className="h-8 justify-self-start rounded-lg border-blue-100 px-3 text-xs font-semibold text-blue-700 hover:bg-blue-50 hover:text-blue-800 sm:justify-self-end"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            Details
+                          </Button>
+                          <div className="text-right">
+                            <p className="text-base font-bold tabular-nums text-slate-950">{formatNumber(value)}</p>
+                            {selectedCluster?.pipeline === "sales" ? (
+                              <p className="text-[11px] font-semibold text-emerald-700">
+                                {formatUsd(runner.revenueUsd) || "$0.00"}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })
+                ) : (
+                  <div className="py-12 text-center text-sm text-zinc-500">No contributors for this department.</div>
+                )}
+              </div>
+
+              {selectedActivities.length ? (
+                <div className="mt-4 border-t border-zinc-100 pt-5">
+                  <h2 className="mb-4 text-sm font-semibold text-slate-900">Recent activity and comments</h2>
+                  <ActivityList activities={selectedActivities} />
                 </div>
-
-                <div className="min-h-0 flex-1 overflow-y-auto p-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  <div className={isManagerView ? "grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(19rem,0.72fr)]" : "grid gap-4"}>
-                    <div className="flex min-h-0 max-h-[28rem] flex-col rounded-lg border border-zinc-200 bg-white p-4">
-                      <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
-                        <div>
-                          <h3 className="text-sm font-semibold text-slate-900">Top Contributors</h3>
-                          <p className="mt-1 text-xs text-zinc-500">Managers and admins can compare the selected department here.</p>
-                        </div>
-                        <TrendingUp className="h-4 w-4 text-blue-600" />
-                      </div>
-
-                      <div className="min-h-0 flex-1 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                        <div className="space-y-3 pb-1">
-                        {selectedRunners.length ? (
-                          selectedRunners.map((runner, index) => {
-                            const value = runnerValue(runner);
-                            const progress = clampRatio(value / Math.max(1, topRunnerValue)) * 100;
-                            const canOpenDetails = Boolean(selectedCluster && runnerUserId(runner));
-                            return (
-                              <div key={`${runner.userId || runner.id || runner.username || index}`} className="border-b border-zinc-100 pb-3 last:border-b-0">
-                                <div className="grid gap-3 sm:grid-cols-[2.5rem_minmax(0,1fr)_auto_5rem] sm:items-center">
-                                  <span className="text-sm font-semibold tabular-nums text-zinc-400">
-                                    {String(index + 1).padStart(2, "0")}
-                                  </span>
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-semibold text-slate-900">{runnerName(runner)}</p>
-                                    <p className="mt-1 text-xs text-zinc-500">{selectedCluster?.metricLabel || "KPI"}</p>
-                                  </div>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={!canOpenDetails || detailLoading}
-                                    onClick={() => {
-                                      if (selectedCluster) void openRunnerDetails(runner, selectedCluster);
-                                    }}
-                                    className="h-8 rounded-md border-blue-100 px-3 text-xs font-semibold text-blue-700 hover:bg-blue-50 hover:text-blue-800"
-                                  >
-                                    <Eye className="h-3.5 w-3.5" />
-                                    Details
-                                  </Button>
-                                  <p className="text-right text-lg font-semibold tabular-nums text-slate-900">{formatNumber(value)}</p>
-                                </div>
-                                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-100">
-                                  <div
-                                    className="h-full rounded-full"
-                                    style={{ width: `${progress}%`, backgroundColor: selectedCluster ? pipelineAccent(selectedCluster) : "#2563eb" }}
-                                  />
-                                </div>
-                              </div>
-                            );
-                          })
-                        ) : (
-                          <div className="py-10 text-center text-sm text-zinc-500">No contributors for this department.</div>
-                        )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {isManagerView ? (
-                      <div className="rounded-lg border border-zinc-200 bg-white p-4">
-                        <div className="mb-4">
-                          <h3 className="text-sm font-semibold text-slate-900">Activity Details</h3>
-                          <p className="mt-1 text-xs text-zinc-500">
-                            {formatNumber(selectedActivities.length)} matching actions in this department.
-                          </p>
-                        </div>
-                        <ActivityList activities={selectedActivities} />
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              </section>
-            </>
-          ) : (
-            <div className="flex items-center justify-center p-8 text-center text-sm text-zinc-500 lg:col-span-2">
-              No department details for this window.
+              ) : null}
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="flex min-h-48 items-center justify-center p-8 text-center text-sm text-zinc-500">
+            No user performance data returned for this window.
+          </div>
+        )}
       </section>
 
       {detailRunner && detailCluster ? (
@@ -1073,6 +1171,8 @@ export default function AdminUserPerformancePage() {
           onClose={closeRunnerDetails}
         />
       ) : null}
+        </>
+      )}
     </div>
   );
 }

@@ -793,6 +793,40 @@ const buildOutreachStatus = (lead: Lead): Required<NonNullable<Lead["outreachSta
   return { email: "pending", linkedin: "pending", whatsapp: "pending" };
 };
 
+function leadSupportsEmailAction(lead: Lead) {
+  return hasText(lead.email);
+}
+
+function leadSupportsWhatsappAction(lead: Lead) {
+  return hasText(lead.phone);
+}
+
+function isLeadEmailActionCompleted(lead: Lead) {
+  return isExecutedOutreachState(buildOutreachStatus(lead).email);
+}
+
+function isLeadWhatsappActionCompleted(lead: Lead) {
+  return isExecutedOutreachState(buildOutreachStatus(lead).whatsapp);
+}
+
+function isLeadFullyActioned(lead: Lead) {
+  const needsEmail = leadSupportsEmailAction(lead);
+  const needsWhatsapp = leadSupportsWhatsappAction(lead);
+
+  if (!needsEmail && !needsWhatsapp) return false;
+  if (needsEmail && !isLeadEmailActionCompleted(lead)) return false;
+  if (needsWhatsapp && !isLeadWhatsappActionCompleted(lead)) return false;
+  return true;
+}
+
+function isLeadInNewBucket(lead: Lead) {
+  return lead.approvalStatus !== "rejected" && lead.approvalStatus !== "suppressed" && !isLeadFullyActioned(lead);
+}
+
+function isLeadInSentBucket(lead: Lead) {
+  return lead.approvalStatus !== "rejected" && lead.approvalStatus !== "suppressed" && isLeadFullyActioned(lead);
+}
+
 const OutreachStatusIcons = ({ status }: { status: Required<NonNullable<Lead["outreachStatus"]>> }) => {
   const whatsappSent = status.whatsapp === "sent";
   const emailSent = status.email === "sent";
@@ -1067,30 +1101,6 @@ const AttachmentSection = ({
   );
 };
 
-// -----------------------------
-// Attachment API (channel aware)
-// -----------------------------
-async function uploadLeadAttachment(
-  api: AxiosInstance,
-  leadId: string,
-  channel: AttachmentChannel,
-  file: File
-): Promise<Attachment> {
-  if (channel !== "email") {
-    throw new Error("WhatsApp attachments are not available yet.");
-  }
-
-  const form = new FormData();
-  form.append("file", file);
-
-  const res = await api.post(`/api/leads/${leadId}/attachments`, form, {
-    params: { channel }, // ✅ channel=email|whatsapp
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-
-  return res.data as Attachment;
-}
-
 async function deleteLeadAttachment(
   api: AxiosInstance,
   leadId: string,
@@ -1307,33 +1317,6 @@ function SuperAdminCampaignDetailPage() {
   }
   function isLeadSelectionBlocked(lead: Lead) {
     return isLeadMarketingOptedOut(lead);
-  }
-  function leadSupportsEmailAction(lead: Lead) {
-    return hasText(lead.email);
-  }
-  function leadSupportsWhatsappAction(lead: Lead) {
-    return hasText(lead.phone);
-  }
-  function isLeadEmailActionCompleted(lead: Lead) {
-    return isExecutedOutreachState(buildOutreachStatus(lead).email);
-  }
-  function isLeadWhatsappActionCompleted(lead: Lead) {
-    return isExecutedOutreachState(buildOutreachStatus(lead).whatsapp);
-  }
-  function isLeadFullyActioned(lead: Lead) {
-    const needsEmail = leadSupportsEmailAction(lead);
-    const needsWhatsapp = leadSupportsWhatsappAction(lead);
-
-    if (!needsEmail && !needsWhatsapp) return false;
-    if (needsEmail && !isLeadEmailActionCompleted(lead)) return false;
-    if (needsWhatsapp && !isLeadWhatsappActionCompleted(lead)) return false;
-    return true;
-  }
-  function isLeadInNewBucket(lead: Lead) {
-    return lead.approvalStatus !== "rejected" && lead.approvalStatus !== "suppressed" && !isLeadFullyActioned(lead);
-  }
-  function isLeadInSentBucket(lead: Lead) {
-    return lead.approvalStatus !== "rejected" && lead.approvalStatus !== "suppressed" && isLeadFullyActioned(lead);
   }
   function getEmailCapabilityDisabledReason(lead: Lead) {
     if (!hasText(lead.email)) return "Lead has no email address.";

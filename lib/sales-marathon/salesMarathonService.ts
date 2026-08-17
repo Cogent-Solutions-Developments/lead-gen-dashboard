@@ -1,5 +1,5 @@
 import { MarathonApiClient } from "./marathonApiClient";
-import { MarathonPolicy, SalesUser } from "./marathonPolicy";
+import { MarathonPolicy } from "./marathonPolicy";
 
 export type Runner = {
   id: string;

@@ -4,6 +4,8 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ReleaseAnnouncement } from "@/components/layout/ReleaseAnnouncement";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { useActivityTracking } from "@/hooks/useActivityTracking";
 import { clearPersona, getStoredPersona, hasPersona, onPersonaChange, setPersona } from "@/lib/persona";
 import {
   canRoleUsePersona,
@@ -42,7 +44,12 @@ function isAdminAreaPath(pathname: string) {
 }
 
 function isManagerOnlyPath(pathname: string) {
-  return pathname === "/manager" || pathname.startsWith("/manager/");
+  return (
+    pathname === "/manager" ||
+    pathname.startsWith("/manager/") ||
+    pathname === "/team-leads" ||
+    pathname.startsWith("/team-leads/")
+  );
 }
 
 function isCeoAllowedAdminPath(pathname: string) {
@@ -77,6 +84,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isCeoWorkspaceAdminRoute = isCeo && isCeoAllowedAdminPath(pathname);
   const isAdminAreaRoute = isAdminAreaPath(pathname) && !isCeoWorkspaceAdminRoute;
   const sidebarExpanded = sidebarHovered;
+
+  useActivityTracking(Boolean(authChecked && session && !isAuthRoute), session?.user.id);
 
   useEffect(() => {
     const unsubscribe = onPersonaChange(() => setSelected(hasPersona()));
@@ -141,6 +150,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
     if (isAuthRoute) {
       router.replace(getAuthLandingPath(role));
+      return;
+    }
+
+    if (isSuperAdmin && pathname === "/dashboard") {
+      router.replace("/campaigns");
       return;
     }
 
@@ -226,6 +240,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (isManagerOnlyPath(pathname) && !isManager) return null;
 
+  if (isSuperAdmin && pathname === "/dashboard") return null;
+
   if (!isSuperAdmin && isSuperOnlyPath(pathname) && !(isCeo && isCeoAllowedAdminPath(pathname))) {
     return null;
   }
@@ -237,7 +253,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (isClient) {
     if (pathname !== "/dashboard") return null;
-    return <main className="min-h-screen bg-transparent">{children}</main>;
+    return (
+      <>
+        <main className="min-h-screen bg-transparent">{children}</main>
+        <NotificationCenter sessionKey={session.user.id} />
+      </>
+    );
   }
 
   if (isBusiness) {
@@ -257,6 +278,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
         <ReleaseAnnouncement session={session} />
+        <NotificationCenter sessionKey={session.user.id} />
       </>
     );
   }
@@ -268,6 +290,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <>
         <main className="min-h-screen bg-transparent">{children}</main>
         {!isAuthRoute ? <ReleaseAnnouncement session={session} /> : null}
+        {!isAuthRoute ? <NotificationCenter sessionKey={session.user.id} /> : null}
       </>
     );
   }
@@ -277,6 +300,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <>
         {children}
         <ReleaseAnnouncement session={session} />
+        <NotificationCenter sessionKey={session.user.id} />
       </>
     );
   }
@@ -298,6 +322,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <ReleaseAnnouncement session={session} />
+      <NotificationCenter sessionKey={session.user.id} />
     </>
   );
 }

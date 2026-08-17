@@ -353,7 +353,7 @@ export function NormalUserEventsPage() {
             {loading ? (
               <HeaderMetricSkeleton />
             ) : (
-              <div className="flex items-baseline gap-4">
+              <div className="invisible flex items-baseline gap-4" aria-hidden="true">
                 <p className="text-sm font-medium text-zinc-400">Leads To Cover</p>
                 <p className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
                   {totalLeadCount.toLocaleString()}
@@ -412,7 +412,7 @@ export function NormalUserEventsPage() {
                           <EventMetaChips item={item} />
                         </div>
 
-                        <div className="shrink-0 sm:justify-self-center">
+                        <div className="invisible shrink-0 sm:justify-self-center" aria-hidden="true">
                           <span className="text-sm font-medium text-zinc-400">To Cover</span>
                           <div className="mt-1 flex items-baseline gap-2">
                             <span className="text-3xl font-light tabular-nums tracking-tight text-zinc-900 2xl:text-4xl">
@@ -457,7 +457,7 @@ export function NormalUserEventsPage() {
                       </div>
 
                       <div className="mt-auto flex items-end justify-between gap-4 pt-5">
-                        <div>
+                        <div className="invisible" aria-hidden="true">
                           <span className="text-sm font-medium text-zinc-400">To Cover</span>
                           <div className="mt-1 flex items-baseline gap-2">
                             <span className="text-2xl font-light tabular-nums tracking-tight text-zinc-900 2xl:text-3xl">

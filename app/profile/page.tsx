@@ -20,6 +20,12 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+
+function svgImageDataUrl(value: string) {
+  const svg = value.trim();
+  if (!/^<svg(?:\s|>)/i.test(svg)) return "";
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
 import { UserAvatar } from "@/components/profile/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -498,6 +504,7 @@ export default function ProfilePage() {
   const [themeDialogOpen, setThemeDialogOpen] = useState(false);
   const [mfaStatus, setMfaStatus] = useState<MfaStatus | null>(null);
   const [mfaSetup, setMfaSetup] = useState<MfaTotpSetup | null>(null);
+  const mfaQrImageUrl = mfaSetup?.qrSvg ? svgImageDataUrl(mfaSetup.qrSvg) : "";
   const [mfaConfirmCode, setMfaConfirmCode] = useState("");
   const [mfaRecoveryCodes, setMfaRecoveryCodes] = useState<string[]>([]);
   const [mfaRegenerateCode, setMfaRegenerateCode] = useState("");
@@ -960,10 +967,19 @@ export default function ProfilePage() {
 
                     {mfaSetup ? (
                       <div className="mt-5 grid gap-5 md:grid-cols-[12rem_minmax(0,1fr)] md:items-start">
-                        <div
-                          className="flex h-48 w-48 items-center justify-center rounded-2xl border border-zinc-200 bg-white p-3"
-                          dangerouslySetInnerHTML={{ __html: mfaSetup.qrSvg }}
-                        />
+                        {mfaQrImageUrl ? (
+                          // The SVG stays in an image context, so backend markup cannot execute in the page DOM.
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={mfaQrImageUrl}
+                            alt="Authenticator setup QR code"
+                            className="h-48 w-48 rounded-2xl border border-zinc-200 bg-white object-contain p-3"
+                          />
+                        ) : (
+                          <div className="flex h-48 w-48 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-50 p-3 text-center text-xs text-zinc-500">
+                            QR code unavailable
+                          </div>
+                        )}
                         <div className="space-y-4">
                           <div>
                             <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-400">
