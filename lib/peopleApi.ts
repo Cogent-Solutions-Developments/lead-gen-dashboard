@@ -48,8 +48,8 @@ export type ActivityHeartbeatResponse = {
   };
 };
 
-export type UserActivityPeriod = "daily" | "weekly" | "monthly";
-export type ManagerUserActivityPeriod = UserActivityPeriod | "yearly";
+export type UserActivityPeriod = "daily" | "weekly" | "monthly" | "yearly";
+export type ManagerUserActivityPeriod = UserActivityPeriod;
 
 export type FrontendUsageRecord = {
   engagedSeconds: number;

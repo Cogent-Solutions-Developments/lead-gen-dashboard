@@ -122,6 +122,7 @@ function IsometricCardBackground({ statusKey }: { statusKey: string }) {
 }
 
 function achievedHeading(period: DashboardPeriod = "daily") {
+  if (period === "weekly") return "Here's what you've achieved this week";
   if (period === "monthly") return "Here's what you've achieved this month";
   if (period === "yearly") return "Here's what you've achieved this year";
   return "Here's what you've achieved today";

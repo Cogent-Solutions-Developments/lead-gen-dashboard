@@ -32,7 +32,6 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import {
   fetchUserActivity,
-  type UserActivityPeriod,
   type UserActivityRecord,
   type UserActivityResponse,
 } from "@/lib/peopleApi";
@@ -109,10 +108,6 @@ function formatActivityDateTime(value?: string | null, timezone?: string) {
   } catch {
     return formatCompactDateTime(value);
   }
-}
-
-function activityPeriodForPerformance(period: AdminUserPerformancePeriod): UserActivityPeriod {
-  return period === "daily" ? "daily" : "monthly";
 }
 
 function formatNumber(value: unknown) {
@@ -699,7 +694,7 @@ export default function AdminUserPerformancePage() {
       const activityRequest = isManagerView
         ? Promise.resolve(null)
         : fetchUserActivity({
-            period: activityPeriodForPerformance(period),
+            period,
             date,
             limit: 500,
             offset: 0,

@@ -147,6 +147,12 @@ test("user activity is merged into user performance", () => {
   assert.doesNotMatch(sidebar, /href: "\/admin\/user-activity"/);
   assert.match(performance, /<UserActivityPanel \/>/);
   assert.match(performance, /label: "User Activity"/);
+  assert.match(performance, /fetchUserActivity\(\{[\s\S]*period,/);
+  assert.doesNotMatch(performance, /activityPeriodForPerformance/);
+  assert.match(read("components/admin/UserActivityPanel.tsx"), /value: "yearly", label: "Yearly"/);
+  const managerPerformance = read("app/manager/user-performance/page.tsx");
+  assert.match(managerPerformance, /fetchManagerUserActivity\(\{[\s\S]*period,/);
+  assert.doesNotMatch(managerPerformance, /period === "yearly"[\s\S]*period: "monthly"/);
   assert.match(legacyRoute, /redirect\("\/admin\/user-performance#activity"\)/);
 });
 
@@ -262,9 +268,8 @@ test("manager performance uses the CEO detail hierarchy without redundant report
   assert.match(source, /aria-label="Performance and system usage"/);
   assert.match(source, />System usage</);
   assert.match(source, /fetchManagerUserActivity/);
-  assert.match(source, /period === "yearly"/);
-  assert.match(source, /period: "monthly" as const/);
-  assert.match(source, /period: window\.period/);
+  assert.match(source, /date: dateValue,[\s\S]*period,/);
+  assert.doesNotMatch(source, /period: "monthly" as const/);
   assert.match(source, /lightSeconds=\{versionUsage\.light\}/);
   assert.match(source, /heavySeconds=\{versionUsage\.heavy\}/);
   assert.doesNotMatch(source, /<UserActivityPanel \/>/);

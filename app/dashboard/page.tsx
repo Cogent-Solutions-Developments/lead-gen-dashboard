@@ -170,12 +170,14 @@ function getLocalDateParam() {
 }
 
 function periodLabel(period: DashboardPeriod) {
+  if (period === "weekly") return "Weekly";
   if (period === "monthly") return "Monthly";
   if (period === "yearly") return "Yearly";
   return "Daily";
 }
 
 function periodPhrase(period: DashboardPeriod) {
+  if (period === "weekly") return "this week";
   if (period === "monthly") return "this month";
   if (period === "yearly") return "this year";
   return "today";
@@ -183,6 +185,7 @@ function periodPhrase(period: DashboardPeriod) {
 
 function daysInCurrentPeriod(period: DashboardPeriod) {
   const now = new Date();
+  if (period === "weekly") return 7;
   if (period === "yearly") {
     const start = new Date(now.getFullYear(), 0, 1);
     const end = new Date(now.getFullYear() + 1, 0, 1);
