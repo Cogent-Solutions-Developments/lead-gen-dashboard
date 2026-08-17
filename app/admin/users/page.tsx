@@ -23,6 +23,7 @@ import {
   UserCog,
   UserPlus,
   UserRound,
+  UserX,
   UsersRound,
   X,
 } from "lucide-react";
@@ -43,6 +44,7 @@ import {
   listAdminClientCredentials,
   listAdminEvents,
   listAuthUsers,
+  permanentlyDeleteAuthUser,
   recoverAuthUserAccount,
   revokeAdminClientCredential,
   resetAuthUserMfa,
@@ -57,7 +59,7 @@ import {
 } from "../admin-api";
 
 type AdminUsersTab = "users" | "add-user" | "client-access";
-type UserStatusValue = "active" | "inactive";
+type UserStatusValue = "active" | "inactive" | "resigned" | "terminated";
 
 type UserFormState = {
   username: string;
@@ -65,6 +67,7 @@ type UserFormState = {
   role: AuthRole | "";
   password: string;
   status: UserStatusValue | "";
+  deactivationReason: string;
 };
 
 type DepartmentDefinition = {
@@ -81,6 +84,7 @@ const blankForm: UserFormState = {
   role: "",
   password: "",
   status: "",
+  deactivationReason: "",
 };
 
 const departmentDefinitions: DepartmentDefinition[] = [
@@ -168,6 +172,21 @@ function isManagerRole(role: AuthRole) {
   return role === "super_admin_user" || role === "ceo_user" || role.includes("_manager_");
 }
 
+function userLifecycleStatus(item: AuthUser): UserStatusValue {
+  if (
+    item.lifecycleStatus === "inactive" ||
+    item.lifecycleStatus === "resigned" ||
+    item.lifecycleStatus === "terminated"
+  ) {
+    return item.lifecycleStatus;
+  }
+  return item.isActive === false ? "inactive" : "active";
+}
+
+function lifecycleStatusLabel(value: UserStatusValue) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 function selectPrimaryClientCredential(credentials: AdminClientCredential[]) {
   return (
     credentials.find((credential) => credential.isUsable) ||
@@ -194,6 +213,8 @@ function UserCard({
   onResetMfa,
   onRecover,
   onDelete,
+  canPermanentlyDelete,
+  onPermanentDelete,
 }: {
   item: AuthUser;
   isSelf: boolean;
@@ -204,6 +225,8 @@ function UserCard({
   onResetMfa: () => void;
   onRecover: () => void;
   onDelete: () => void;
+  canPermanentlyDelete: boolean;
+  onPermanentDelete: () => void;
 }) {
   const manager = isManagerRole(item.role);
   const clientCredential =
@@ -243,8 +266,8 @@ function UserCard({
               {manager ? "Manager" : "Normal User"}
             </span>
             <span className="text-zinc-300">|</span>
-            <span className={`font-semibold ${item.isActive === false ? "text-zinc-400" : "text-emerald-700"}`}>
-              {item.isActive === false ? "Inactive" : "Active"}
+            <span className={`font-semibold ${userLifecycleStatus(item) === "active" ? "text-emerald-700" : "text-zinc-500"}`}>
+              {lifecycleStatusLabel(userLifecycleStatus(item))}
             </span>
             <span className="text-zinc-300">|</span>
             <span className={`font-semibold ${item.mfaEnabled ? "text-emerald-700" : "text-zinc-400"}`}>
@@ -253,6 +276,11 @@ function UserCard({
           </div>
 
           <p className="mt-3 text-xs text-zinc-500">Last login: {formatDateTime(item.lastLoginAt)}</p>
+          {item.deactivationReason && userLifecycleStatus(item) !== "active" ? (
+            <p className="mt-2 text-xs text-zinc-500">
+              Deactivation reason: {item.deactivationReason}
+            </p>
+          ) : null}
           {showClientAccess && item.role === "client_user" ? (
             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-blue-100 bg-blue-50/70 px-3 py-2 text-xs text-blue-900">
               <CalendarClock className="h-3.5 w-3.5 text-blue-700" />
@@ -316,11 +344,27 @@ function UserCard({
             variant="ghost"
             disabled={isSelf}
             onClick={onDelete}
-            className="h-8 rounded-md border border-red-200 bg-white px-2 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label={`Delete ${item.username}`}
+            className="h-8 rounded-md border border-amber-200 bg-white px-3 text-xs text-amber-700 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label={`Deactivate ${item.username}`}
+            title="Deactivate account"
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <UserX className="mr-1.5 h-3.5 w-3.5" />
+            Deactivate
           </Button>
+          {canPermanentlyDelete ? (
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={isSelf}
+              onClick={onPermanentDelete}
+              className="h-8 rounded-md border border-red-200 bg-white px-3 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label={`Delete ${item.username} permanently`}
+              title="Delete account permanently"
+            >
+              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+              Delete
+            </Button>
+          ) : null}
         </div>
       </div>
     </div>
@@ -328,7 +372,7 @@ function UserCard({
 }
 
 export default function AdminUsersPage() {
-  const { isCeo, user: currentUser } = useAuth();
+  const { isCeo, isSuperAdmin, user: currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<AdminUsersTab>("users");
   const [activeDepartmentId, setActiveDepartmentId] = useState(departmentDefinitions[0]?.id || "");
   const [users, setUsers] = useState<AuthUser[]>([]);
@@ -344,6 +388,8 @@ export default function AdminUsersPage() {
   const [recoveryTarget, setRecoveryTarget] = useState<AuthUser | null>(null);
   const [recoveryPassword, setRecoveryPassword] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<AuthUser | null>(null);
+  const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<AuthUser | null>(null);
+  const [permanentDeleteConfirmation, setPermanentDeleteConfirmation] = useState("");
 
   const [events, setEvents] = useState<AdminEventItem[]>([]);
   const [credentials, setCredentials] = useState<AdminClientCredential[]>([]);
@@ -541,7 +587,8 @@ export default function AdminUsersPage() {
       fullName: item.fullName || "",
       role: item.role,
       password: "",
-      status: item.isActive === false ? "inactive" : "active",
+      status: userLifecycleStatus(item),
+      deactivationReason: item.deactivationReason || "",
     });
     setEditingCredentialId(primaryCredential?.id || "");
     setEditingCredentialExpiry(toDateInputValue(primaryCredential?.expiresAt));
@@ -583,7 +630,9 @@ export default function AdminUsersPage() {
           username,
           fullName: form.fullName.trim(),
           role: isSelf ? undefined : form.role,
-          isActive: isSelf ? undefined : form.status === "active",
+          lifecycleStatus: isSelf ? undefined : form.status,
+          deactivationReason:
+            isSelf || form.status === "active" ? undefined : form.deactivationReason.trim(),
         });
         setUsers((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
         if (isSelf) updateStoredAuthUser(updated);
@@ -655,13 +704,51 @@ export default function AdminUsersPage() {
     if (!deleteTarget) return;
     setSaving(true);
     try {
-      await deleteAuthUser(deleteTarget.id);
-      setUsers((prev) => prev.filter((item) => item.id !== deleteTarget.id));
-      toast.success("User deleted", { description: deleteTarget.username });
-      if (editingId === deleteTarget.id) resetForm();
+      const result = await deleteAuthUser(deleteTarget.id);
+      setUsers((prev) =>
+        prev.map((item) => (item.id === result.user.id ? result.user : item))
+      );
+      toast.success("Account deactivated", {
+        description: result.retained
+          ? `${deleteTarget.username}'s account and retained leads were preserved.`
+          : deleteTarget.username,
+      });
+      if (editingId === deleteTarget.id) startEdit(result.user);
       setDeleteTarget(null);
     } catch (error) {
-      toast.error("Delete failed", { description: getErrorMessage(error) });
+      toast.error("Deactivation failed", { description: getErrorMessage(error) });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const closePermanentDelete = () => {
+    setPermanentDeleteTarget(null);
+    setPermanentDeleteConfirmation("");
+  };
+
+  const confirmPermanentDelete = async () => {
+    if (!permanentDeleteTarget || permanentDeleteConfirmation !== "delete") return;
+    setSaving(true);
+    try {
+      const result = await permanentlyDeleteAuthUser(
+        permanentDeleteTarget.id,
+        permanentDeleteConfirmation
+      );
+      setUsers((prev) => prev.filter((item) => item.id !== result.user.id));
+      setClientCredentials((prev) =>
+        prev.filter((credential) => credential.userId !== result.user.id)
+      );
+      setCredentials((prev) =>
+        prev.filter((credential) => credential.userId !== result.user.id)
+      );
+      if (editingId === result.user.id) resetForm();
+      toast.success("Account permanently deleted", {
+        description: `${permanentDeleteTarget.username} can no longer be recovered.`,
+      });
+      closePermanentDelete();
+    } catch (error) {
+      toast.error("Permanent deletion failed", { description: getErrorMessage(error) });
     } finally {
       setSaving(false);
     }
@@ -994,6 +1081,11 @@ export default function AdminUsersPage() {
                             setRecoveryPassword("");
                           }}
                           onDelete={() => setDeleteTarget(item)}
+                          canPermanentlyDelete={isSuperAdmin}
+                          onPermanentDelete={() => {
+                            setPermanentDeleteTarget(item);
+                            setPermanentDeleteConfirmation("");
+                          }}
                         />
                       ))
                     ) : (
@@ -1398,9 +1490,31 @@ export default function AdminUsersPage() {
                   <SelectContent className="border-zinc-300 bg-white">
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="resigned">Resigned</SelectItem>
+                    <SelectItem value="terminated">Terminated</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {form.status !== "active" ? (
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="text-xs font-semibold uppercase text-zinc-500">Deactivation Reason</label>
+                  <Input
+                    name="admin-user-deactivation-reason"
+                    value={form.deactivationReason}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, deactivationReason: event.target.value }))
+                    }
+                    placeholder="For example: Employment ended"
+                    maxLength={500}
+                    className="h-10 border-zinc-300 bg-white"
+                    autoComplete="off"
+                  />
+                  <p className="text-xs text-zinc-400">
+                    This reason is retained with the account and is visible to authorized managers.
+                  </p>
+                </div>
+              ) : null}
 
               {form.role === "client_user" ? (
                 <div className="space-y-4 rounded-lg border border-blue-100 bg-blue-50/70 p-4 md:col-span-2">
@@ -1626,9 +1740,10 @@ export default function AdminUsersPage() {
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-blue-950/35 p-4 backdrop-blur-[3px]">
           <Card className="admin-modal-panel w-full max-w-md overflow-hidden rounded-2xl border border-zinc-300 bg-white">
             <div className="border-b border-zinc-100 px-5 py-4">
-              <h3 className="text-base font-semibold text-slate-900">Delete User</h3>
+              <h3 className="text-base font-semibold text-slate-900">Deactivate account</h3>
               <p className="mt-1 text-sm text-zinc-500">
-                Delete {deleteTarget.username}? This cannot be undone.
+                Deactivate {deleteTarget.username}? They will no longer be able to sign in, but their account and
+                retained leads will be preserved.
               </p>
             </div>
             <div className="flex justify-end gap-2 px-5 py-4">
@@ -1648,7 +1763,69 @@ export default function AdminUsersPage() {
                 className="h-9 rounded-md border border-red-700 bg-red-600 px-3.5 text-white hover:bg-red-700"
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                Delete User
+                Deactivate account
+              </Button>
+            </div>
+          </Card>
+        </div>
+      ) : null}
+
+      {permanentDeleteTarget ? (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-blue-950/35 p-4 backdrop-blur-[3px]"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="permanent-delete-title"
+          aria-describedby="permanent-delete-description"
+        >
+          <Card className="admin-modal-panel w-full max-w-md overflow-hidden rounded-2xl border border-red-200 bg-white">
+            <div className="border-b border-red-100 px-5 py-4">
+              <h3 id="permanent-delete-title" className="text-base font-semibold text-slate-900">
+                Delete account permanently
+              </h3>
+              <p id="permanent-delete-description" className="mt-1 text-sm text-zinc-600">
+                This permanently removes {permanentDeleteTarget.username}&apos;s account, sign-in credentials, MFA,
+                and private user activity. Shared audit and business records may remain without an account association.
+                This action cannot be undone.
+              </p>
+            </div>
+            <div className="space-y-2 px-5 py-4">
+              <label
+                htmlFor="permanent-delete-confirmation"
+                className="text-xs font-semibold uppercase text-zinc-600"
+              >
+                Type <span className="font-mono text-red-700">delete</span> to confirm
+              </label>
+              <Input
+                id="permanent-delete-confirmation"
+                name="permanent-delete-confirmation"
+                value={permanentDeleteConfirmation}
+                onChange={(event) => setPermanentDeleteConfirmation(event.target.value)}
+                placeholder="delete"
+                className="h-10 border-red-200 bg-white focus-visible:ring-red-500"
+                autoComplete="off"
+                autoFocus
+                spellCheck={false}
+              />
+            </div>
+            <div className="flex justify-end gap-2 border-t border-zinc-100 px-5 py-4">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={saving}
+                onClick={closePermanentDelete}
+                className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-700 hover:bg-zinc-50"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={saving || permanentDeleteConfirmation !== "delete"}
+                onClick={confirmPermanentDelete}
+                className="h-9 rounded-md border border-red-700 bg-red-600 px-3.5 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:border-red-200 disabled:bg-red-100 disabled:text-red-400"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                Delete permanently
               </Button>
             </div>
           </Card>

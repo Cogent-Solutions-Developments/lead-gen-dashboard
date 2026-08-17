@@ -1,6 +1,11 @@
 import { AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import { getLocalDevNgrokHeaders } from "@/lib/devNgrok";
 import type { Persona } from "@/lib/persona";
+import {
+  attachTeamLeadRequestHeaders,
+  clearTeamLeadRequestScope,
+  type TeamLeadLifecycleStatus,
+} from "@/lib/teamLeads";
 
 export type AuthRole =
   | "super_admin_user"
@@ -36,6 +41,9 @@ export type AuthUser = {
   updatedAt?: string;
   lastLoginAt?: string | null;
   mfaEnabled?: boolean;
+  lifecycleStatus?: TeamLeadLifecycleStatus;
+  deactivatedAt?: string | null;
+  deactivationReason?: string;
 };
 
 export type AuthSession = {
@@ -82,6 +90,8 @@ export type AuthUserCreateInput = {
   role: AuthRole;
   fullName?: string;
   isActive?: boolean;
+  lifecycleStatus?: TeamLeadLifecycleStatus;
+  deactivationReason?: string;
 };
 
 export type AuthUserUpdateInput = {
@@ -506,7 +516,7 @@ export type SystemMonitorSnapshot = {
   warnings?: SystemMonitorWarning[];
 };
 
-export type AdminUserPerformancePeriod = "daily" | "monthly" | "yearly";
+export type AdminUserPerformancePeriod = "daily" | "weekly" | "monthly" | "yearly";
 
 export type AdminUserPerformanceRunner = {
   userId?: string | null;
@@ -526,6 +536,7 @@ export type AdminUserPerformanceRunner = {
   metricValue?: number;
   metric_value?: number;
   rank?: number;
+  revenueUsd?: number;
 };
 
 export type AdminUserPerformanceCluster = {
@@ -540,6 +551,7 @@ export type AdminUserPerformanceCluster = {
   activeUsers: number;
   contributors: number;
   averagePerUser: number;
+  revenueUsd?: number;
   topUser?: AdminUserPerformanceRunner | Record<string, unknown> | null;
   runners: AdminUserPerformanceRunner[];
 };
@@ -551,6 +563,7 @@ export type AdminUserPerformanceSummary = {
   averagePerUser: number;
   topPipeline?: AdminUserPerformanceCluster | Record<string, unknown> | null;
   topUser?: AdminUserPerformanceRunner | Record<string, unknown> | null;
+  revenueUsd?: number;
 };
 
 export type ManagerUserPerformanceActivity = {
@@ -558,6 +571,18 @@ export type ManagerUserPerformanceActivity = {
   pipeline: string;
   workflowStatus?: string | null;
   workflowStatusLabel?: string | null;
+  comment?: string | null;
+  commentUpdatedAt?: string | null;
+  commentUpdatedByUserId?: string | null;
+  commentUpdatedByUsername?: string | null;
+  commentUpdatedByUserDisplayName?: string | null;
+  commentHistoryCount?: number | null;
+  taskOwnerUserId?: string | null;
+  taskOwnerUsername?: string | null;
+  taskOwnerDisplayName?: string | null;
+  taskOwnerIsActive?: boolean | null;
+  isTakeoverExecution?: boolean | null;
+  dealAmountUsd?: number | string | null;
   updatedAt?: string | null;
   user?: {
     id?: string | null;
@@ -625,10 +650,22 @@ export type ManagerPerformanceActivity = {
   canonicalEventKey: string;
   canonicalEventName: string;
   leadSnapshot: ManagerPerformanceLeadSnapshot;
-  type: "workflow-status" | "manual-lead" | "content-generation" | "contact-action" | string;
+  type?: "workflow-status" | "manual-lead" | "content-generation" | "contact-action" | string | null;
   workflowStatus?: string | null;
   workflowStatusLabel?: string | null;
   comment?: string | null;
+  commentUpdatedAt?: string | null;
+  commentUpdatedByUserId?: string | null;
+  commentUpdatedByUsername?: string | null;
+  commentUpdatedByUserDisplayName?: string | null;
+  commentHistoryCount?: number | null;
+  updatedByUserIsActive?: boolean | null;
+  taskOwnerUserId?: string | null;
+  taskOwnerUsername?: string | null;
+  taskOwnerDisplayName?: string | null;
+  taskOwnerIsActive?: boolean | null;
+  isTakeoverExecution?: boolean | null;
+  dealAmountUsd?: number | string | null;
   channel?: "email" | "whatsapp" | "phone" | "linkedin" | "website" | null;
   createdAt: string;
 };
@@ -653,6 +690,7 @@ export type ManagerPerformanceTotals = {
   contentGeneratedCount?: number;
   contactActionCount?: number;
   kpiCount: number;
+  revenueUsd?: number;
 };
 
 export type ManagerUserPerformance = {
@@ -687,6 +725,7 @@ export type ManagerPerformanceResponse = {
     contentGeneratedCount?: number;
     contactActionCount?: number;
     kpiTotal: number;
+    revenueUsd?: number;
   };
   perUserPerformance: ManagerUserPerformance[];
   activities: ManagerPerformanceActivity[];
@@ -938,6 +977,9 @@ function normalizeUser(raw: unknown): AuthUser {
   const updatedAt = source.updatedAt ?? source.updated_at;
   const lastLoginAt = source.lastLoginAt ?? source.last_login_at;
   const mfaEnabled = source.mfaEnabled ?? source.mfa_enabled;
+  const lifecycleStatus = source.lifecycleStatus ?? source.lifecycle_status;
+  const deactivatedAt = source.deactivatedAt ?? source.deactivated_at;
+  const deactivationReason = source.deactivationReason ?? source.deactivation_reason;
 
   return {
     id: String(source.id || ""),
@@ -959,6 +1001,14 @@ function normalizeUser(raw: unknown): AuthUser {
     updatedAt: updatedAt == null ? undefined : String(updatedAt),
     lastLoginAt: lastLoginAt == null ? null : String(lastLoginAt),
     mfaEnabled: typeof mfaEnabled === "boolean" ? mfaEnabled : undefined,
+    lifecycleStatus:
+      lifecycleStatus === "inactive" || lifecycleStatus === "resigned" || lifecycleStatus === "terminated"
+        ? lifecycleStatus
+        : isActive === false
+          ? "inactive"
+          : "active",
+    deactivatedAt: deactivatedAt == null ? null : String(deactivatedAt),
+    deactivationReason: deactivationReason == null ? "" : String(deactivationReason),
   };
 }
 
@@ -1086,6 +1136,7 @@ export function updateStoredAuthUser(user: AuthUser) {
 
 export function clearAuthSession() {
   if (typeof window === "undefined") return;
+  clearTeamLeadRequestScope();
   window.localStorage.removeItem(STORAGE_KEY);
   emitAuthChange();
 }
@@ -1117,12 +1168,12 @@ export function getAuthHeader(): Record<string, string> {
 
 export function attachAuthToken(config: InternalAxiosRequestConfig) {
   const token = getAuthToken();
+  const headers = AxiosHeaders.from(config.headers);
   if (token) {
-    const headers = AxiosHeaders.from(config.headers);
     headers.set("Authorization", `Bearer ${token}`);
-    config.headers = headers;
   }
-  return config;
+  config.headers = headers;
+  return attachTeamLeadRequestHeaders(config);
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {
@@ -2011,7 +2062,7 @@ export async function fetchManagerUserPerformance(options: {
   if (options.date) params.set("date", options.date);
   if (options.limit) params.set("limit", String(options.limit));
   const suffix = params.toString() ? `?${params.toString()}` : "";
-  const data = await authRequest<ManagerPerformanceResponse>(`/api/manager/performance${suffix}`);
+  const data = await authRequest<ManagerPerformanceResponse>(`/api/manager/user-performance${suffix}`);
   const pipeline = managerPerformancePipeline(data.managerScope?.persona);
   const metric = managerPerformanceMetric(pipeline);
   const runners = [...(data.perUserPerformance || [])]
@@ -2024,6 +2075,7 @@ export async function fetchManagerUserPerformance(options: {
       role: data.teamUsers.find((user) => user.id === item.userId)?.role || "",
       kpiCount: Number(item.totals?.kpiCount || 0),
       total: Number(item.totals?.kpiCount || 0),
+      revenueUsd: Number(item.totals?.revenueUsd || 0),
       rank: 0,
     }))
     .sort((a, b) => Number(b.kpiCount || 0) - Number(a.kpiCount || 0))
@@ -2044,6 +2096,7 @@ export async function fetchManagerUserPerformance(options: {
     activeUsers,
     contributors,
     averagePerUser: activeUsers ? Number((total / activeUsers).toFixed(2)) : 0,
+    revenueUsd: Number(data.summary?.revenueUsd || 0),
     topUser,
     runners,
   };
@@ -2062,6 +2115,18 @@ export async function fetchManagerUserPerformance(options: {
       pipeline,
       workflowStatus: activity.workflowStatus,
       workflowStatusLabel: activity.workflowStatusLabel,
+      comment: activity.comment,
+      commentUpdatedAt: activity.commentUpdatedAt,
+      commentUpdatedByUserId: activity.commentUpdatedByUserId,
+      commentUpdatedByUsername: activity.commentUpdatedByUsername,
+      commentUpdatedByUserDisplayName: activity.commentUpdatedByUserDisplayName,
+      commentHistoryCount: activity.commentHistoryCount,
+      taskOwnerUserId: activity.taskOwnerUserId,
+      taskOwnerUsername: activity.taskOwnerUsername,
+      taskOwnerDisplayName: activity.taskOwnerDisplayName,
+      taskOwnerIsActive: activity.taskOwnerIsActive,
+      isTakeoverExecution: activity.isTakeoverExecution,
+      dealAmountUsd: activity.dealAmountUsd,
       updatedAt: activity.createdAt,
       user: {
         id: activity.userId,
@@ -2096,6 +2161,7 @@ export async function fetchManagerUserPerformance(options: {
       averagePerUser: cluster.averagePerUser,
       topPipeline: cluster,
       topUser,
+      revenueUsd: Number(data.summary?.revenueUsd || 0),
     },
     clusters: [cluster],
     activities,
