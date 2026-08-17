@@ -8,6 +8,7 @@ import { getRoleLabel, isManagerRole, normalizeAuthRole } from "@/lib/auth";
 import {
   fetchManagerUserActivity,
   fetchUserActivity,
+  getBrowserTimeZone,
   type UserActivityPeriod,
   type UserActivityRecord,
   type UserActivityResponse,
@@ -56,6 +57,18 @@ function formatDateTime(value: string | null, timezone?: string) {
   } catch {
     return date.toLocaleString();
   }
+}
+
+function userDisplayTimeZone(
+  activityUser: UserActivityRecord,
+  viewerUserId?: string,
+  browserTimeZone?: string,
+  reportTimeZone?: string,
+) {
+  if (viewerUserId && activityUser.userId === viewerUserId && browserTimeZone) {
+    return browserTimeZone;
+  }
+  return activityUser.timeZone || reportTimeZone || browserTimeZone;
 }
 
 function ActivityState({ user }: { user: UserActivityRecord }) {
@@ -111,6 +124,7 @@ function MobileUserCard({ user, timezone }: { user: UserActivityRecord; timezone
         <div className="min-w-0">
           <h2 className="truncate font-semibold text-zinc-950">{user.fullName || user.username}</h2>
           <p className="truncate text-sm text-zinc-500">@{user.username} · {getRoleLabel(normalizeAuthRole(user.role))}</p>
+          {timezone ? <p className="mt-1 truncate text-xs text-zinc-400">{timezone}</p> : null}
         </div>
         <ActivityState user={user} />
       </div>
@@ -128,6 +142,7 @@ function MobileUserCard({ user, timezone }: { user: UserActivityRecord; timezone
 
 export function UserActivityPanel() {
   const { user } = useAuth();
+  const [browserTimeZone] = useState(getBrowserTimeZone);
   const managerView = isManagerRole(user?.role);
   const authorized = canMonitorUserActivity(user?.role);
   const [date, setDate] = useState(todayValue);
@@ -194,10 +209,18 @@ export function UserActivityPanel() {
     return () => controllerRef.current?.abort();
   }, [load]);
 
-  const timezone = data?.period.timezone;
+  const reportTimeZone = data?.period.timezone;
+  const displayTimeZone = useCallback(
+    (activityUser: UserActivityRecord) =>
+      userDisplayTimeZone(activityUser, user?.id, browserTimeZone, reportTimeZone),
+    [browserTimeZone, reportTimeZone, user?.id],
+  );
   const reportWindow = useMemo(() => {
     if (!data) return "";
-    return `${data.period.start} – ${data.period.end} (${data.period.timezone})`;
+    const basis = data.period.aggregation === "user-local-calendar"
+      ? "each user's local calendar"
+      : data.period.timezone;
+    return `${data.period.start} – ${data.period.end} (${basis})`;
   }, [data]);
   const visibleUsers = useMemo(
     () =>
@@ -266,14 +289,44 @@ export function UserActivityPanel() {
           <div className="admin-card border-dashed px-6 py-14 text-center"><Activity className="mx-auto h-8 w-8 text-zinc-300" /><p className="mt-3 font-semibold text-zinc-900">No activity recorded</p><p className="mt-1 text-sm text-zinc-500">There are no {selectedDepartment ? `${selectedDepartment.label} department ` : ""}user activity records for this reporting window.</p></div>
         ) : (
           <>
-            <div className="space-y-3 md:hidden">{visibleUsers.map((user) => <MobileUserCard key={user.userId} user={user} timezone={timezone} />)}</div>
+            <div className="space-y-3 md:hidden">
+              {visibleUsers.map((activityUser) => (
+                <MobileUserCard
+                  key={activityUser.userId}
+                  user={activityUser}
+                  timezone={displayTimeZone(activityUser)}
+                />
+              ))}
+            </div>
             <div
               ref={tableViewportRef}
               className="admin-card hidden min-h-0 flex-1 snap-y snap-mandatory scroll-pt-10 overflow-auto overscroll-contain [scrollbar-width:none] md:block [&::-webkit-scrollbar]:hidden"
             >
               <table className="w-full min-w-[86rem] text-left text-sm">
                 <thead className="sticky top-0 z-10 border-b border-zinc-200 bg-zinc-50 text-xs uppercase text-zinc-500 shadow-[0_1px_0_rgba(228,228,231,1)]"><tr><th className="px-4 py-3">User</th><th className="px-4 py-3">Presence</th><th className="px-4 py-3">Last active</th><th className="px-4 py-3">Last login</th><th className="px-4 py-3">Screen time</th><th className="px-4 py-3">Frontend usage</th><th className="px-4 py-3">First seen</th><th className="px-4 py-3">Last seen</th><th className="px-4 py-3">Account</th></tr></thead>
-                <tbody className="divide-y divide-zinc-100">{visibleUsers.map((user) => { const recorded = hasRecordedUserActivity(user); return <tr key={user.userId} className="snap-start snap-always align-top [&>td]:py-3"><td className="px-4 py-4"><p className="font-semibold text-zinc-950">{user.fullName || user.username}</p><p className="mt-1 text-xs text-zinc-500">@{user.username} · {getRoleLabel(user.role as never)}</p></td><td className="px-4 py-4"><ActivityState user={user} /></td><td className="px-4 py-4 text-zinc-700">{formatDateTime(user.lastActiveAt, timezone)}</td><td className="px-4 py-4 text-zinc-700"><span className="sr-only">Last login: </span>{user.lastLoginAt ? formatDateTime(user.lastLoginAt, timezone) : "No login recorded"}</td><td className="px-4 py-4 font-semibold text-zinc-900">{recorded ? formatEngagedDuration(user.engagedSeconds) : "No activity recorded"}</td><td className="px-4 py-4"><FrontendUsageBreakdown user={user} /></td><td className="px-4 py-4 text-zinc-700">{formatDateTime(user.firstSeenAt, timezone)}</td><td className="px-4 py-4 text-zinc-700">{formatDateTime(user.lastSeenAt, timezone)}</td><td className="px-4 py-4"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${user.isActive ? "bg-blue-100 text-blue-900" : "bg-zinc-200 text-zinc-800"}`}>{user.isActive ? "Active" : "Inactive"}</span></td></tr>; })}</tbody>
+                <tbody className="divide-y divide-zinc-100">
+                  {visibleUsers.map((activityUser) => {
+                    const recorded = hasRecordedUserActivity(activityUser);
+                    const timezone = displayTimeZone(activityUser);
+                    return (
+                      <tr key={activityUser.userId} className="snap-start snap-always align-top [&>td]:py-3">
+                        <td className="px-4 py-4">
+                          <p className="font-semibold text-zinc-950">{activityUser.fullName || activityUser.username}</p>
+                          <p className="mt-1 text-xs text-zinc-500">@{activityUser.username} · {getRoleLabel(activityUser.role as never)}</p>
+                          {timezone ? <p className="mt-1 text-xs text-zinc-400">{timezone}</p> : null}
+                        </td>
+                        <td className="px-4 py-4"><ActivityState user={activityUser} /></td>
+                        <td className="px-4 py-4 text-zinc-700">{formatDateTime(activityUser.lastActiveAt, timezone)}</td>
+                        <td className="px-4 py-4 text-zinc-700"><span className="sr-only">Last login: </span>{activityUser.lastLoginAt ? formatDateTime(activityUser.lastLoginAt, timezone) : "No login recorded"}</td>
+                        <td className="px-4 py-4 font-semibold text-zinc-900">{recorded ? formatEngagedDuration(activityUser.engagedSeconds) : "No activity recorded"}</td>
+                        <td className="px-4 py-4"><FrontendUsageBreakdown user={activityUser} /></td>
+                        <td className="px-4 py-4 text-zinc-700">{formatDateTime(activityUser.firstSeenAt, timezone)}</td>
+                        <td className="px-4 py-4 text-zinc-700">{formatDateTime(activityUser.lastSeenAt, timezone)}</td>
+                        <td className="px-4 py-4"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${activityUser.isActive ? "bg-blue-100 text-blue-900" : "bg-zinc-200 text-zinc-800"}`}>{activityUser.isActive ? "Active" : "Inactive"}</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
               </table>
             </div>
           </>

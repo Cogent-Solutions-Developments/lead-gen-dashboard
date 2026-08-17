@@ -109,7 +109,9 @@ test("heartbeat hook has one interval, inactive transitions, keepalive and full 
   assert.match(source, /document\.visibilityState === "visible"/);
   assert.match(source, /document\.hasFocus\(\)/);
   assert.match(source, /report\(false, true\)/);
-  assert.match(source, /\{ active: false, appSurface: "light" \}/);
+  assert.match(source, /getBrowserTimeZone/);
+  assert.match(source, /\{ active, timeZone: getBrowserTimeZone\(\), appSurface: "light" \}/);
+  assert.match(source, /\{ active: false, timeZone: getBrowserTimeZone\(\), appSurface: "light" \}/);
   assert.match(source, /\{ keepalive: true \}/);
   assert.match(source, /window\.clearInterval\(interval\)/);
   assert.match(source, /removeEventListener/);
@@ -174,6 +176,23 @@ test("null activity timestamps produce the no-activity state", () => {
   assert.match(page, /No activity recorded/);
   assert.match(page, /Last login/);
   assert.doesNotMatch(page, /lastLoginAt[^\n]*Last online/i);
+});
+
+test("activity times use each user's recorded browser timezone", () => {
+  const panel = read("components/admin/UserActivityPanel.tsx");
+  const api = read("lib/peopleApi.ts");
+  const auth = read("lib/auth.ts");
+  const performance = read("app/admin/user-performance/page.tsx");
+
+  assert.match(api, /timeZone\?: string/);
+  assert.match(api, /typeof window === "undefined"/);
+  assert.match(api, /Intl\.DateTimeFormat\(\)\.resolvedOptions\(\)\.timeZone/);
+  assert.match(api, /export type UserActivityRecord[\s\S]*?timeZone: string/);
+  assert.match(auth, /export type AuthUser[\s\S]*?timeZone\?: string/);
+  assert.match(auth, /source\.timeZone \?\? source\.time_zone/);
+  assert.match(panel, /activityUser\.timeZone \|\| reportTimeZone \|\| browserTimeZone/);
+  assert.match(panel, /each user's local calendar/);
+  assert.match(performance, /activityRecord\?\.timeZone \|\| activityData\?\.period\.timezone/);
 });
 
 test("user activity filter includes departments and individual users", () => {

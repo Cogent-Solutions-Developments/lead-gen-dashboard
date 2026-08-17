@@ -40,6 +40,7 @@ export type AuthUser = {
   createdAt?: string;
   updatedAt?: string;
   lastLoginAt?: string | null;
+  timeZone?: string;
   mfaEnabled?: boolean;
   lifecycleStatus?: TeamLeadLifecycleStatus;
   deactivatedAt?: string | null;
@@ -256,6 +257,7 @@ export type MyProfileUpdateInput = {
   address?: string;
   companyJoinedDate?: string | null;
   bio?: string;
+  timeZone?: string;
 };
 
 export type AdminStorageObjectItem = {
@@ -976,6 +978,7 @@ function normalizeUser(raw: unknown): AuthUser {
   const createdAt = source.createdAt ?? source.created_at;
   const updatedAt = source.updatedAt ?? source.updated_at;
   const lastLoginAt = source.lastLoginAt ?? source.last_login_at;
+  const timeZone = source.timeZone ?? source.time_zone;
   const mfaEnabled = source.mfaEnabled ?? source.mfa_enabled;
   const lifecycleStatus = source.lifecycleStatus ?? source.lifecycle_status;
   const deactivatedAt = source.deactivatedAt ?? source.deactivated_at;
@@ -1000,6 +1003,7 @@ function normalizeUser(raw: unknown): AuthUser {
     createdAt: createdAt == null ? undefined : String(createdAt),
     updatedAt: updatedAt == null ? undefined : String(updatedAt),
     lastLoginAt: lastLoginAt == null ? null : String(lastLoginAt),
+    timeZone: timeZone == null ? undefined : String(timeZone),
     mfaEnabled: typeof mfaEnabled === "boolean" ? mfaEnabled : undefined,
     lifecycleStatus:
       lifecycleStatus === "inactive" || lifecycleStatus === "resigned" || lifecycleStatus === "terminated"
