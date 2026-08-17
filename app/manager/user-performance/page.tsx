@@ -111,33 +111,18 @@ async function fetchManagerVersionUsage(
   dateValue: string,
   period: ManagerPerformancePeriod
 ): Promise<VersionUsageByUser> {
-  const year = Number(dateValue.slice(0, 4)) || new Date().getFullYear();
-  const windows =
-    period === "yearly"
-      ? Array.from({ length: 12 }, (_, index) => ({
-          date: `${year}-${String(index + 1).padStart(2, "0")}-01`,
-          period: "monthly" as const,
-        }))
-      : [{ date: dateValue, period }];
-  const responses = await Promise.all(
-    windows.map((window) =>
-      fetchManagerUserActivity({
-        date: window.date,
-        period: window.period,
-        limit: 500,
-        offset: 0,
-      })
-    )
-  );
+  const response = await fetchManagerUserActivity({
+    date: dateValue,
+    period,
+    limit: 500,
+    offset: 0,
+  });
 
-  return responses.reduce<VersionUsageByUser>((usageByUser, response) => {
-    response.users.forEach((item) => {
-      const current = usageByUser[item.userId] || { light: 0, heavy: 0 };
-      usageByUser[item.userId] = {
-        light: current.light + Number(item.frontendUsage?.light?.engagedSeconds || 0),
-        heavy: current.heavy + Number(item.frontendUsage?.heavy?.engagedSeconds || 0),
-      };
-    });
+  return response.users.reduce<VersionUsageByUser>((usageByUser, item) => {
+    usageByUser[item.userId] = {
+      light: Number(item.frontendUsage?.light?.engagedSeconds || 0),
+      heavy: Number(item.frontendUsage?.heavy?.engagedSeconds || 0),
+    };
     return usageByUser;
   }, {});
 }

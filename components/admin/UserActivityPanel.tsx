@@ -20,6 +20,7 @@ const PERIODS: Array<{ value: UserActivityPeriod; label: string }> = [
   { value: "daily", label: "Daily" },
   { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" },
+  { value: "yearly", label: "Yearly" },
 ];
 
 const DEPARTMENTS = [

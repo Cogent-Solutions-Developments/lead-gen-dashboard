@@ -64,7 +64,7 @@ export type DashboardPersonalStatsItem = {
   statusCounts: Record<string, number>;
 };
 
-export type DashboardPeriod = "daily" | "monthly" | "yearly";
+export type DashboardPeriod = "daily" | "weekly" | "monthly" | "yearly";
 
 export type DashboardPersonalSummary = {
   pipeline?: string;
