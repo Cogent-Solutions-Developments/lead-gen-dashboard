@@ -88,6 +88,8 @@ import {
   Search,
   SlidersHorizontal,
   UploadCloud,
+  UserRound,
+  Users,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -1283,7 +1285,8 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
     delegateList: EventDocumentItem | null;
     error: string;
     downloadingId: string;
-  }>({ loading: false, speakerList: null, delegateList: null, error: "", downloadingId: "" });
+    viewingId: string;
+  }>({ loading: false, speakerList: null, delegateList: null, error: "", downloadingId: "", viewingId: "" });
   const targetLeadRowRef = useRef<HTMLDivElement | null>(null);
   const emailGenerationRequestRef = useRef(0);
   const previousSelectedEventKeyRef = useRef("");
@@ -2085,6 +2088,23 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
     }
   };
 
+  const handleEventListView = async (document: EventDocumentItem, label: string) => {
+    if (!document.id) return;
+    setEventListState((current) => ({ ...current, viewingId: document.id }));
+    try {
+      const endpoint = "/api/event-documents/" + encodeURIComponent(document.id) + "/download";
+      const objectUrl = await createProtectedObjectUrl(endpoint, endpoint + "-url");
+      window.open(objectUrl.url, "_blank", "noopener,noreferrer");
+      if (!objectUrl.direct) {
+        window.setTimeout(() => objectUrl.revoke(), 60_000);
+      }
+    } catch (error: unknown) {
+      toast.error(`Failed to open ${label.toLowerCase()}`, { description: getErrorMessage(error) });
+    } finally {
+      setEventListState((current) => ({ ...current, viewingId: "" }));
+    }
+  };
+
   const handleWorkflowStatusChange = useCallback(
     async (item: LeadSheetRow, nextStatus: WorkflowStatus, comment?: string, closedDealAmount?: string) => {
       const updateKey = `${item.canonicalEventKey}::${item.leadIdentityKey}`;
@@ -2727,34 +2747,88 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-medium text-zinc-400">Confirmed event lists</label>
-                <div className="mt-3 grid gap-2">
-                  {([
-                    ["Confirmed speakers", eventListState.speakerList],
-                    ["Confirmed delegates", eventListState.delegateList],
-                  ] as const).map(([label, document]) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => document && void handleEventListDownload(document, label)}
-                      disabled={eventListState.loading || !document || Boolean(eventListState.downloadingId)}
-                      title={document?.name || `${label} list has not been uploaded`}
-                      className="inline-flex h-10 w-full items-center justify-between gap-3 rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-700 transition-colors hover:border-zinc-900 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <span className="min-w-0 truncate">Download {label.toLowerCase()}</span>
-                      {document && eventListState.downloadingId === document.id ? (
-                        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
-                      ) : (
-                        <Download className="h-3.5 w-3.5 shrink-0" />
-                      )}
-                    </button>
-                  ))}
-                  {eventListState.error ? (
-                    <p className="text-xs text-zinc-400">Event lists are temporarily unavailable.</p>
-                  ) : null}
+              {([
+                {
+                  key: "speaker-list",
+                  label: "Invited and confirmed speaker list",
+                  emptyLabel: "No invited and confirmed speaker list has been uploaded for this event yet.",
+                  loadingLabel: "Loading speaker list",
+                  document: eventListState.speakerList,
+                  icon: UserRound,
+                },
+                {
+                  key: "delegate-list",
+                  label: "Invited and confirmed delegate list",
+                  emptyLabel: "No invited and confirmed delegate list has been uploaded for this event yet.",
+                  loadingLabel: "Loading delegate list",
+                  document: eventListState.delegateList,
+                  icon: Users,
+                },
+              ] as const).map(({ key, label, emptyLabel, loadingLabel, document, icon: Icon }) => (
+                <div key={key} className="border-t border-zinc-100 pt-6">
+                  <div className="flex items-center gap-2">
+                    <Icon className="h-3.5 w-3.5 text-zinc-400" />
+                    <label className="text-xs font-medium text-zinc-400">{label}</label>
+                  </div>
+                  <div className="mt-5">
+                    {eventListState.loading ? (
+                      <div className="flex items-center gap-2.5 py-2 text-sm font-light text-zinc-400">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {loadingLabel}
+                      </div>
+                    ) : eventListState.error ? (
+                      <div className="text-sm font-light leading-6 text-zinc-400">
+                        This document is temporarily unavailable.
+                      </div>
+                    ) : document ? (
+                      <div className="space-y-3">
+                        <div className="min-w-0">
+                          <p className="min-w-0 text-base font-medium leading-5 text-zinc-950">
+                            {document.name}
+                          </p>
+                          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-zinc-400">
+                            <span>{formatBytes(document.sizeBytes)}</span>
+                            <span className="h-1 w-1 rounded-full bg-zinc-300" />
+                            <span className="min-w-0 truncate">{formatDateTime(document.createdAt) || "Time unavailable"}</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-nowrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void handleEventListView(document, label)}
+                            disabled={eventListState.viewingId === document.id}
+                            className="inline-flex h-9 min-w-24 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-4 text-xs font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:opacity-60"
+                          >
+                            {eventListState.viewingId === document.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Eye className="h-3.5 w-3.5" />
+                            )}
+                            View
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleEventListDownload(document, label)}
+                            disabled={eventListState.downloadingId === document.id}
+                            className="inline-flex h-9 min-w-36 items-center justify-center gap-2 rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-700 transition-colors hover:border-zinc-900 hover:text-zinc-950 disabled:opacity-60"
+                          >
+                            {eventListState.downloadingId === document.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Download className="h-3.5 w-3.5" />
+                            )}
+                            Download latest
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-sm font-light leading-6 text-zinc-400">
+                        {emptyLabel}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              ))}
 
               <div className="mt-8">
                 <label className="mb-4 block text-xs font-medium text-zinc-400">Search intelligence</label>

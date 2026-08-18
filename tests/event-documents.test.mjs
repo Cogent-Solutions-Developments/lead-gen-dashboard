@@ -31,10 +31,13 @@ test("admin library provides isolated agenda, speaker, and delegate version tabs
   assert.match(shell, /name: "Event Documents"/);
 });
 
-test("normal and manager lead sheets expose the two confirmed-list downloads under agenda", () => {
+test("normal and manager lead sheets render isolated agenda-pattern speaker and delegate cards", () => {
   const page = read("components/leads/NormalUserEventLeadSheet.tsx");
   assert.match(page, /documentType: "speaker_list"/);
   assert.match(page, /documentType: "delegate_list"/);
-  assert.match(page, /Confirmed event lists/);
-  assert.match(page, /Download \{label\.toLowerCase\(\)\}/);
+  assert.match(page, /Invited and confirmed speaker list/);
+  assert.match(page, /Invited and confirmed delegate list/);
+  assert.match(page, /handleEventListView/);
+  assert.match(page, /Download latest/);
+  assert.doesNotMatch(page, /Confirmed event lists/);
 });
