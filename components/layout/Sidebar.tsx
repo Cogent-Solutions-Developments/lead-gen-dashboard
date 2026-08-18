@@ -1,22 +1,28 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
+  BookOpenText,
   Brain,
+  ChartBarIncreasing,
+  ChartNoAxesCombined,
   Database,
   BriefcaseBusiness,
   LayoutDashboard,
   Rocket,
   Plus,
   Upload,
+  UserCog,
   UserRound,
   UsersRound,
   LogOut,
   ShieldCheck,
   BellRing,
+  ClipboardList,
   Loader2,
   X,
   type LucideIcon,
@@ -24,7 +30,7 @@ import {
 import { useMemo, useState } from "react";
 import { clearPersona } from "@/lib/persona";
 import { usePersona } from "@/hooks/usePersona";
-import { businessWorkspaceForRole, clearAuthSession, isBusinessRole, isManagerRole } from "@/lib/auth";
+import { businessWorkspaceForRole, clearAuthSession, getAuthHeader, isBusinessRole, isManagerRole } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { UserAvatar } from "@/components/profile/UserAvatar";
 import { toast } from "sonner";
@@ -39,6 +45,7 @@ type SidebarNavItem = {
   normalOnly?: boolean;
   managerOnly?: boolean;
   ceoOnly?: boolean;
+  submissionViewerOnly?: boolean;
 };
 
 const navItems: SidebarNavItem[] = [
@@ -47,13 +54,20 @@ const navItems: SidebarNavItem[] = [
   { name: "New Campaign", href: "/campaigns/new", icon: Plus, superOnly: true },
   { name: "Upload Campaign", href: "/campaigns/upload", icon: Upload, superOnly: true },
   // { name: "Completed", href: "/completed", icon: CheckCircle },
-  { name: "Nizo Finder", normalLabel: "Database", href: "/leads", icon: Database },
+  { name: "CS Database", normalLabel: "CS Database", href: "/leads", icon: Database },
   { name: "My Leads", href: "/my-leads", icon: UserRound, normalOnly: true },
+  { name: "Team Leads", href: "/team-leads", icon: UsersRound, managerOnly: true },
   { name: "Nizo AI", href: "/nizo-ai", icon: Brain, normalOnly: true },
-  { name: "User Performance", href: "/manager/user-performance", icon: UsersRound, managerOnly: true },
-  { name: "User & Role Management", href: "/admin/users", icon: ShieldCheck, ceoOnly: true },
-  { name: "User Performance", href: "/admin/user-performance", icon: UsersRound, ceoOnly: true },
-  { name: "Knowledge Library", href: "/admin/knowledge", icon: Brain, ceoOnly: true },
+  { name: "User Performance", href: "/manager/user-performance", icon: ChartNoAxesCombined, managerOnly: true },
+  {
+    name: "Event Inquiries",
+    href: "/event-submissions",
+    icon: ClipboardList,
+    submissionViewerOnly: true,
+  },
+  { name: "User & Role Management", href: "/admin/users", icon: UserCog, ceoOnly: true },
+  { name: "User Performance", href: "/admin/user-performance", icon: ChartBarIncreasing, ceoOnly: true },
+  { name: "Knowledge Library", href: "/admin/knowledge", icon: BookOpenText, ceoOnly: true },
   { name: "System Monitor", href: "/settings/system-monitor", icon: Activity, ceoOnly: true },
   { name: "Admin Panel", href: "/admin", icon: ShieldCheck, superOnly: true },
 ];
@@ -117,7 +131,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
     try {
       const response = await fetch("/api/ring-bell", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({
           userName,
           userId: user?.id || "",
@@ -205,7 +219,10 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
         {(isBusiness ? businessNavItems : navItems)
           .filter((item) => {
             if (isBusiness) return true;
-            if (isSuperAdmin) return !item.normalOnly && !item.managerOnly && !item.ceoOnly;
+            if (item.submissionViewerOnly) return !isSuperAdmin && (isCeo || isManager);
+            if (isSuperAdmin) {
+              return item.href !== "/dashboard" && !item.normalOnly && !item.managerOnly && !item.ceoOnly;
+            }
             if (isCeo) return !item.superOnly && !item.managerOnly;
             if (item.superOnly) return false;
             if (item.ceoOnly) return false;
@@ -416,10 +433,13 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
           <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 sm:px-8 sm:pb-8 scrollbar-modern">
             <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_18px_38px_-34px_rgba(15,23,42,0.6)]">
               <div className="relative h-[min(27rem,calc(100dvh-18rem))] w-full overflow-hidden bg-zinc-950">
-                <img
+                <Image
                   src={dealBellMedia.src}
                   alt=""
                   aria-hidden="true"
+                  fill
+                  sizes="(min-width: 640px) 56rem, calc(100vw - 3rem)"
+                  unoptimized
                   className="h-full w-full object-cover"
                 />
                 <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-zinc-950/30 via-zinc-950/5 to-transparent" />

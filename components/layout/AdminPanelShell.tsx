@@ -7,9 +7,9 @@ import {
   Activity,
   CalendarDays,
   BrainCircuit,
+  ClipboardList,
   FileText,
   HardDrive,
-  KeyRound,
   LayoutDashboard,
   LogOut,
   MessageSquare,
@@ -29,7 +29,7 @@ import { toast } from "sonner";
 
 const adminTabs = [
   {
-    name: "Admin Dashboard",
+    name: "Dashboard",
     href: "/admin",
     icon: LayoutDashboard,
     match: (pathname: string) => pathname === "/admin",
@@ -39,12 +39,6 @@ const adminTabs = [
     href: "/admin/users",
     icon: ShieldCheck,
     match: (pathname: string) => pathname === "/admin/users",
-  },
-  {
-    name: "Client Access",
-    href: "/admin/client-access",
-    icon: KeyRound,
-    match: (pathname: string) => pathname === "/admin/client-access",
   },
   {
     name: "User Performance",
@@ -57,6 +51,12 @@ const adminTabs = [
     href: "/admin/events",
     icon: CalendarDays,
     match: (pathname: string) => pathname === "/admin/events",
+  },
+  {
+    name: "Event Inquiries",
+    href: "/admin/event-submissions",
+    icon: ClipboardList,
+    match: (pathname: string) => pathname === "/admin/event-submissions",
   },
   {
     name: "Category Registry",

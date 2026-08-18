@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -37,15 +39,24 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
-import { getCachedAuthUserDisplayName, listActiveEventRegistry, personaForRole, type AdminEventItem } from "@/lib/auth";
+import { getAuthHeader, getCachedAuthUserDisplayName, listActiveEventRegistry, personaForRole, type AdminEventItem } from "@/lib/auth";
 import { getDailyDealBellMedia } from "@/lib/dealBellMedia";
+import {
+  getTeamLeadErrorMessage,
+  getTeamLeadRequestScope,
+  teamLeadQueryKey,
+} from "@/lib/teamLeads";
 import { cn } from "@/lib/utils";
+import { LeadOriginTags } from "@/components/leads/LeadOriginTag";
+import { LeadHistoryContent } from "@/components/leads/LeadHistoryContent";
+import { LeadUploadDuplicateSummary } from "@/components/leads/LeadUploadDuplicateSummary";
 import {
   addMyEventLead,
   createMyCampaignFromUpload,
   downloadMyLeadTemplateFile,
   generateLeadContent,
   getLeadWorkflowStatusHistory,
+  getLeadOwnerHistory,
   listMyAllLeads,
   listMyEventLeads,
   listMyEvents,
@@ -57,6 +68,8 @@ import {
   type EventSummaryItem,
   type LeadContentGenerationResponse,
   type LeadContentPlatform,
+  type LeadOriginHistoryItem,
+  type LeadOriginSource,
   type LeadTemplateValidationResponse,
   type LeadItem,
   type WorkflowStatus,
@@ -91,6 +104,9 @@ type MyLeadRow = {
   workflowCommentHistoryCount: number;
   canonicalEventName: string;
   isManualLead: boolean;
+  manualLeadAddedByUsername: string;
+  originSources: LeadOriginSource[];
+  originHistory: LeadOriginHistoryItem[];
 };
 
 type TemplateUploadState = {
@@ -104,6 +120,7 @@ type TemplateUploadState = {
 };
 
 type AddLeadFormState = {
+  eventRegistryId: string;
   fullName: string;
   category: string;
   title: string;
@@ -144,7 +161,10 @@ type ContactDropdownState = {
   kind: "email" | "phone";
 };
 
-const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
+const PAGE_SIZE_OPTIONS = [5, 50, 100, 200] as const;
+const EMBEDDED_PAGE_SIZE = 5;
+const CONTACT_DROPDOWN_TRIGGER_CLASS =
+  "inline-flex h-7 w-8 items-center justify-center rounded-full border border-white/80 bg-white/60 text-zinc-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_8px_20px_-12px_rgba(15,23,42,0.5)] backdrop-blur-md transition-all hover:border-white hover:bg-white/85 hover:text-zinc-950 hover:shadow-[inset_0_1px_0_rgba(255,255,255,1),0_10px_24px_-12px_rgba(15,23,42,0.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60";
 
 const SALES_STATUSES: MyLeadStatus[] = [
   { statusKey: "new", label: "New" },
@@ -193,6 +213,7 @@ const EMPTY_TEMPLATE_UPLOAD: TemplateUploadState = {
   category: "",
 };
 const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
+  eventRegistryId: "",
   fullName: "",
   category: "",
   title: "",
@@ -304,13 +325,6 @@ function humanizeStatusLabel(value: string) {
     .join(" ");
 }
 
-function formatDateTime(value?: string | null) {
-  if (!value) return "";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString();
-}
-
 function normalizeDialPhone(value: string) {
   const digits = value.replace(/\D/g, "");
   return digits.length >= 8 ? `900${digits}` : "";
@@ -364,6 +378,8 @@ function errorValueToText(value: unknown): string {
 }
 
 function getApiErrorMessage(error: unknown) {
+  if (getTeamLeadRequestScope()) return getTeamLeadErrorMessage(error);
+
   const data = error && typeof error === "object" && "data" in error
     ? (error as { data?: unknown }).data
     : null;
@@ -548,6 +564,9 @@ function mapLeadItemToRow(item: LeadItem | EventLeadListItem): MyLeadRow {
     workflowCommentHistoryCount: Number(item.workflowCommentHistoryCount || 0),
     canonicalEventName: item.canonicalEventName || item.eventName || "",
     isManualLead: Boolean(item.isManualLead),
+    manualLeadAddedByUsername: item.manualLeadAddedByUsername || "",
+    originSources: Array.isArray(item.originSources) ? item.originSources : [],
+    originHistory: "originHistory" in item && Array.isArray(item.originHistory) ? item.originHistory : [],
   };
 }
 
@@ -617,6 +636,9 @@ function getUserDisplayName(user: ReturnType<typeof useAuth>["user"]) {
     .find(Boolean) || "";
 }
 
+const ADD_LEAD_LABEL_CLASS = "mb-1.5 block text-xs font-medium text-zinc-400";
+const ADD_LEAD_INPUT_CLASS = "h-10 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-base font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0";
+
 function LeadSheetDialog({
   open,
   title,
@@ -625,6 +647,8 @@ function LeadSheetDialog({
   children,
   eyebrow = "Lead Sheet Updates",
   compactSize = "default",
+  avoidBottomDock = false,
+  fitViewport = false,
 }: {
   open: boolean;
   title: string;
@@ -633,11 +657,17 @@ function LeadSheetDialog({
   children: ReactNode;
   eyebrow?: string;
   compactSize?: "default" | "wide";
+  avoidBottomDock?: boolean;
+  fitViewport?: boolean;
 }) {
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-6">
+  return createPortal(
+    <div className={cn(
+      "fixed inset-0 z-[100] flex items-center justify-center",
+      fitViewport ? "p-3 sm:p-4" : "p-6",
+      avoidBottomDock && (fitViewport ? "pb-20 sm:pb-4" : "pb-24 sm:pb-6")
+    )}>
       <button
         type="button"
         aria-label="Close dialog"
@@ -645,25 +675,37 @@ function LeadSheetDialog({
         onClick={onClose}
       />
 
-      <div
+      <div role="dialog" aria-modal="true" aria-label={title}
         className={cn(
-          "relative z-[1] flex max-h-[calc(100dvh-3rem)] w-full flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]",
+          "relative z-[1] flex w-full flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]",
+          fitViewport ? "max-h-[calc(100dvh-2rem)]" : "max-h-[calc(100dvh-3rem)]",
           compactSize === "wide" ? "max-w-5xl" : "max-w-2xl"
         )}
       >
         <Button
           type="button"
           variant="ghost"
-          className="absolute right-5 top-5 z-20 h-10 w-10 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
+          className={cn(
+            "absolute z-20 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950",
+            fitViewport ? "right-4 top-4 h-9 w-9" : "right-5 top-5 h-10 w-10"
+          )}
           onClick={onClose}
         >
           <X className="h-4 w-4" />
         </Button>
 
-        <div className={cn("shrink-0 px-8", compactSize === "wide" ? "pb-4 pt-8" : "pb-5 pt-8")}>
+        <div className={cn(
+          "shrink-0",
+          fitViewport ? "px-6 pb-3 pt-5" : "px-8",
+          !fitViewport && (compactSize === "wide" ? "pb-4 pt-8" : "pb-5 pt-8")
+        )}>
           <div className="max-w-md pr-12">
             {eyebrow ? <p className="text-sm font-medium text-zinc-400">{eyebrow}</p> : null}
-            <h2 className={cn("text-4xl font-light leading-none tracking-tighter text-zinc-950", eyebrow && "mt-4")}>
+            <h2 className={cn(
+              "font-light leading-none tracking-tighter text-zinc-950",
+              fitViewport ? "text-3xl" : "text-4xl",
+              eyebrow && "mt-4"
+            )}>
               {title}
             </h2>
             {description ? (
@@ -673,15 +715,32 @@ function LeadSheetDialog({
             ) : null}
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-8 scrollbar-modern">
+        <div className={cn(
+          "min-h-0 flex-1",
+          fitViewport ? "overflow-hidden px-6 pb-5" : "overflow-y-auto px-8 pb-8 scrollbar-modern"
+        )}>
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
 export default function MyLeadsPage() {
+  return <MyLeadsWorkspace />;
+}
+
+type MyLeadsWorkspaceProps = {
+  embedded?: boolean;
+  teamMemberId?: string;
+  originLabel?: string;
+};
+
+export function MyLeadsWorkspace({
+  embedded = false,
+  teamMemberId = "",
+}: MyLeadsWorkspaceProps = {}) {
   const router = useRouter();
   const { persona } = usePersona();
   const { isSuperAdmin, role, user } = useAuth();
@@ -712,8 +771,11 @@ export default function MyLeadsPage() {
   const [updatingLeadIds, setUpdatingLeadIds] = useState<Record<string, boolean>>({});
   const [pendingStatusChange, setPendingStatusChange] = useState<PendingStatusChange | null>(null);
   const [statusComment, setStatusComment] = useState("");
+  const [dealAmountUsd, setDealAmountUsd] = useState("");
   const [historyLead, setHistoryLead] = useState<MyLeadRow | null>(null);
+  const [historyKind, setHistoryKind] = useState<"status" | "owner">("status");
   const [historyItems, setHistoryItems] = useState<WorkflowStatusHistoryItem[]>([]);
+  const [ownerHistoryItems, setOwnerHistoryItems] = useState<LeadOriginHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [ringBellConfirmOpen, setRingBellConfirmOpen] = useState(false);
@@ -722,7 +784,7 @@ export default function MyLeadsPage() {
   const [filters, setFilters] = useState<MyLeadFilterState>(EMPTY_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
   const [pageOffset, setPageOffset] = useState(0);
-  const [pageSize, setPageSize] = useState<number>(100);
+  const [pageSize, setPageSize] = useState<number>(embedded ? EMBEDDED_PAGE_SIZE : 100);
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -758,12 +820,16 @@ export default function MyLeadsPage() {
     () => events.find((item) => item.canonicalEventKey === selectedEventKey) ?? null,
     [events, selectedEventKey]
   );
-  const selectedEventLabel = getDisplayEventName(selectedEvent?.canonicalEventName) || "My Leads";
+  const selectedEventLabel = getDisplayEventName(selectedEvent?.canonicalEventName) || "Leads";
   const activeRegistryEvents = useMemo(
     () => registryEvents.filter((event) => event.isActive),
     [registryEvents]
   );
   const hasActiveRegistryEvents = activeRegistryEvents.length > 0;
+  const selectedAddLeadEvent = useMemo(
+    () => activeRegistryEvents.find((event) => event.id === addLeadForm.eventRegistryId) ?? null,
+    [activeRegistryEvents, addLeadForm.eventRegistryId]
+  );
   const selectedTemplateUploadEvent = useMemo(
     () => registryEvents.find((item) => item.id === templateUpload.selectedEventId) ?? null,
     [registryEvents, templateUpload.selectedEventId]
@@ -791,8 +857,15 @@ export default function MyLeadsPage() {
       templateUpload.category.trim()
   );
   const canUseDealBellFlow = role === "sales_user";
+  const isCommentOnly = Boolean(
+    pendingStatusChange &&
+      pendingStatusChange.nextStatus === pendingStatusChange.item.workflowStatus
+  );
   const isDealClosedStatusChange = Boolean(
-    pendingStatusChange && canUseDealBellFlow && pendingStatusChange.nextStatus === "deal-closed"
+    pendingStatusChange &&
+      canUseDealBellFlow &&
+      pendingStatusChange.nextStatus === "deal-closed" &&
+      pendingStatusChange.item.workflowStatus !== "deal-closed"
   );
 
   const loadEvents = useCallback(async () => {
@@ -813,7 +886,7 @@ export default function MyLeadsPage() {
     } catch (error: unknown) {
       setEvents([]);
       setSelectedEventKey("");
-      toast.error("Failed to load My Leads events", { description: getApiErrorMessage(error) });
+      toast.error("Failed to load Leads events", { description: getApiErrorMessage(error) });
     } finally {
       setLoadingEvents(false);
     }
@@ -882,7 +955,7 @@ export default function MyLeadsPage() {
       if (requestId !== rowsRequestRef.current) return;
       setRows([]);
       setLeadListMeta({ total: 0, hasMore: false });
-      toast.error("Failed to load My Leads", { description: getApiErrorMessage(error) });
+      toast.error("Failed to load Leads", { description: getApiErrorMessage(error) });
     }
   }, [events.length, filters, hasPersonaMismatch, isSuperAdmin, loadingEvents, pageOffset, pageSize, role, searchInput, selectedEventKey]);
 
@@ -898,7 +971,9 @@ export default function MyLeadsPage() {
     selectedEventKey || searchInput.trim().length > 0 || filters.status !== "all" || filters.contact !== "all"
   );
   const visibleRows = useMemo(() => filterRows(rows, searchInput, filters), [filters, rows, searchInput]);
-  const pagedRows = usesServerPagination ? visibleRows : visibleRows.slice(pageOffset, pageOffset + pageSize);
+  const pagedRows = usesServerPagination
+    ? visibleRows
+    : visibleRows.slice(pageOffset, pageOffset + pageSize);
   const activeFilterCount = [filters.status !== "all", filters.contact !== "all"].filter(Boolean).length;
   const pageTotal = usesServerPagination ? leadListMeta.total : visibleRows.length;
   const pageRangeStart = pagedRows.length > 0 ? pageOffset + 1 : 0;
@@ -958,7 +1033,7 @@ export default function MyLeadsPage() {
     }));
 
     try {
-      const validation = await validateMyLeadTemplateUpload(file);
+      const validation = await validateMyLeadTemplateUpload(file, templateUpload.selectedEventId);
       if (validation.sheetCount !== 1) {
         setTemplateUpload((prev) => ({
           ...prev,
@@ -1072,17 +1147,23 @@ export default function MyLeadsPage() {
     setAddLeadForm(EMPTY_ADD_LEAD_FORM);
   };
 
+  const openAddLeadDialog = () => {
+    setAddLeadForm(EMPTY_ADD_LEAD_FORM);
+    setAddLeadOpen(true);
+  };
+
   const updateAddLeadField = (field: keyof AddLeadFormState, value: string) => {
     setAddLeadForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const submitAddLead = async () => {
-    if (!selectedEvent) {
-      toast.error("Select an event first");
+    if (!selectedAddLeadEvent) {
+      toast.error("Select an active event first");
       return;
     }
 
     const payload: EventLeadCreateRequest = {
+      eventRegistryId: selectedAddLeadEvent.id,
       fullName: addLeadForm.fullName.trim(),
       category: addLeadForm.category.trim(),
       title: addLeadForm.title.trim(),
@@ -1108,12 +1189,20 @@ export default function MyLeadsPage() {
 
     setAddingLead(true);
     try {
-      const created = await addMyEventLead(selectedEvent.canonicalEventKey, payload);
+      const created = await addMyEventLead(selectedAddLeadEvent.eventKey, payload);
       closeAddLeadDialog(true);
-      toast.success("Lead added", {
-        description: `${created.employeeName} is now part of ${created.canonicalEventName}.`,
-      });
-      await loadRows();
+      if (created.duplicate) {
+        toast.warning("Existing lead source updated", {
+          description: `${created.employeeName} remains one lead card. Your upload was recorded as source ${created.sourceSequence || created.existingOccurrenceCount || "next"}.`,
+        });
+      } else {
+        toast.success("Lead added", {
+          description: `${created.employeeName} is now part of ${created.canonicalEventName}.`,
+        });
+      }
+      setSelectedEventKey(created.canonicalEventKey || selectedAddLeadEvent.eventKey);
+      setPageOffset(0);
+      await loadEvents();
     } catch (error: unknown) {
       toast.error("Failed to add lead", { description: getApiErrorMessage(error) });
     } finally {
@@ -1121,12 +1210,22 @@ export default function MyLeadsPage() {
     }
   };
 
-  const handleWorkflowStatusChange = async (item: MyLeadRow, nextStatus: string, comment?: string) => {
-    if (nextStatus === item.workflowStatus || updatingLeadIds[item.id]) return false;
+  const handleWorkflowStatusChange = async (
+    item: MyLeadRow,
+    nextStatus: string,
+    comment?: string,
+    closedDealAmount?: string
+  ) => {
+    if ((nextStatus === item.workflowStatus && !comment?.trim()) || updatingLeadIds[item.id]) return false;
 
     setUpdatingLeadIds((prev) => ({ ...prev, [item.id]: true }));
     try {
-      const response = await updateLeadWorkflowStatus(item.id, nextStatus as WorkflowStatus, comment);
+      const response = await updateLeadWorkflowStatus(
+        item.id,
+        nextStatus as WorkflowStatus,
+        comment,
+        closedDealAmount
+      );
       const nextLabel =
         asText(response.workflowStatusLabel) ||
         statusOptions.find((option) => option.statusKey === response.workflowStatus)?.label ||
@@ -1148,7 +1247,12 @@ export default function MyLeadsPage() {
       );
       return true;
     } catch (error: unknown) {
-      toast.error("Failed to update status", { description: getApiErrorMessage(error) });
+      toast.error(
+        nextStatus === item.workflowStatus
+          ? "Failed to add comment"
+          : "Failed to update status",
+        { description: getApiErrorMessage(error) }
+      );
       return false;
     } finally {
       setUpdatingLeadIds((prev) => {
@@ -1163,6 +1267,13 @@ export default function MyLeadsPage() {
     if (value === item.workflowStatus) return;
     setPendingStatusChange({ item, nextStatus: value });
     setStatusComment("");
+    setDealAmountUsd("");
+  };
+
+  const openCommentDialog = (item: MyLeadRow) => {
+    setPendingStatusChange({ item, nextStatus: item.workflowStatus });
+    setStatusComment("");
+    setDealAmountUsd("");
   };
 
   const closeStatusCommentDialog = () => {
@@ -1170,13 +1281,14 @@ export default function MyLeadsPage() {
     setRingBellConfirmOpen(false);
     setPendingStatusChange(null);
     setStatusComment("");
+    setDealAmountUsd("");
   };
 
   const ringDealBell = async () => {
     const userName = getUserDisplayName(user) || user?.username?.trim() || "A sales user";
     const response = await fetch("/api/ring-bell", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getAuthHeader() },
       body: JSON.stringify({
         userName,
         userId: user?.id || "",
@@ -1198,15 +1310,29 @@ export default function MyLeadsPage() {
   const submitStatusComment = async (options: { ringBell?: boolean } = {}) => {
     if (!pendingStatusChange) return;
     const shouldRingBell = Boolean(options.ringBell);
+    const normalizedDealAmount = isDealClosedStatusChange ? dealAmountUsd.trim() : undefined;
+    if (isDealClosedStatusChange) {
+      const numericAmount = Number(normalizedDealAmount);
+      if (!normalizedDealAmount || !Number.isFinite(numericAmount) || numericAmount <= 0) {
+        toast.error("Enter a valid deal amount in USD.");
+        return;
+      }
+    }
     if (shouldRingBell) setRingingDealBell(true);
 
     try {
       const updated = await handleWorkflowStatusChange(
         pendingStatusChange.item,
         pendingStatusChange.nextStatus,
-        statusComment.trim() || undefined
+        statusComment.trim() || undefined,
+        normalizedDealAmount
       );
       if (!updated) return;
+
+      toast.success(
+        pendingStatusChange.nextStatus === pendingStatusChange.item.workflowStatus ? "Comment added" : "Status updated",
+        { description: pendingStatusChange.item.employeeName || "Lead updated successfully." }
+      );
 
       if (shouldRingBell) {
         try {
@@ -1220,6 +1346,7 @@ export default function MyLeadsPage() {
       setRingBellConfirmOpen(false);
       setPendingStatusChange(null);
       setStatusComment("");
+      setDealAmountUsd("");
     } finally {
       if (shouldRingBell) setRingingDealBell(false);
     }
@@ -1385,18 +1512,25 @@ export default function MyLeadsPage() {
     }
   };
 
-  const openHistory = async (item: MyLeadRow) => {
+  const openHistory = async (item: MyLeadRow, kind: "status" | "owner" = "status") => {
     setHistoryLead(item);
+    setHistoryKind(kind);
     setHistoryItems([]);
+    setOwnerHistoryItems([]);
     setHistoryError(null);
     setHistoryLoading(true);
     try {
-      const response = await getLeadWorkflowStatusHistory(item.id);
-      setHistoryItems(Array.isArray(response.history) ? response.history : []);
+      if (kind === "owner") {
+        const response = await getLeadOwnerHistory(item.id);
+        setOwnerHistoryItems(Array.isArray(response.history) ? response.history : []);
+      } else {
+        const response = await getLeadWorkflowStatusHistory(item.id);
+        setHistoryItems(Array.isArray(response.history) ? response.history : []);
+      }
     } catch (error: unknown) {
       const message = getApiErrorMessage(error);
       setHistoryError(message);
-      toast.error("Failed to load comment history", { description: message });
+      toast.error(`Failed to load ${kind === "owner" ? "source" : "status"} history`, { description: message });
     } finally {
       setHistoryLoading(false);
     }
@@ -1404,22 +1538,44 @@ export default function MyLeadsPage() {
 
   const closeHistory = () => {
     setHistoryLead(null);
+    setHistoryKind("status");
     setHistoryItems([]);
+    setOwnerHistoryItems([]);
     setHistoryError(null);
   };
 
   return (
     <>
-      <div className="flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1 font-sans">
-        <header className="min-h-[6.25rem] shrink-0 border-b border-zinc-300 pb-11">
-          <div className="flex min-w-0 items-center gap-7 whitespace-nowrap overflow-hidden">
+      <div
+        data-team-lead-query-key={
+          teamMemberId ? teamLeadQueryKey(teamMemberId, "my-leads") : undefined
+        }
+        className={cn(
+          "flex min-h-0 min-w-0 flex-col bg-transparent p-1 font-sans",
+          embedded
+            ? "overflow-visible xl:h-full xl:overflow-hidden"
+            : "h-[calc(100dvh-3rem)] overflow-hidden"
+        )}
+      >
+        <header
+          className={cn(
+            "shrink-0 border-b border-zinc-300",
+            embedded ? "pb-3" : "min-h-[6.25rem] pb-11"
+          )}
+        >
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-5 xl:gap-7 xl:whitespace-nowrap xl:overflow-hidden">
             <div className="min-w-0 flex-1">
               <Select value={selectedEventKey || "my-leads"} onValueChange={handleEventChange}>
                 <SelectTrigger
                   aria-label="Select lead source"
                   className="group !h-auto w-fit max-w-full justify-start gap-4 whitespace-normal rounded-none border-0 bg-transparent p-0 text-left text-zinc-950 shadow-none transition-colors hover:text-blue-700 focus:ring-0 focus-visible:ring-0 [&>svg]:mt-1 [&>svg]:h-7 [&>svg]:w-7 [&>svg]:opacity-40 [&>svg]:transition-colors [&>svg]:group-hover:opacity-70"
                 >
-                  <span className="line-clamp-2 min-w-0 text-3xl font-light leading-[1.12] tracking-[-0.025em] sm:text-4xl 2xl:text-5xl">
+                  <span
+                    className={cn(
+                      "line-clamp-2 min-w-0 font-light leading-[1.12] tracking-[-0.025em]",
+                      embedded ? "text-2xl sm:text-3xl" : "text-3xl sm:text-4xl 2xl:text-5xl"
+                    )}
+                  >
                     {selectedEventLabel}
                   </span>
                 </SelectTrigger>
@@ -1431,7 +1587,7 @@ export default function MyLeadsPage() {
                 >
                   {events.length === 0 ? (
                     <SelectItem value="my-leads" className={EVENT_SELECT_ITEM_CLASS}>
-                      My Leads
+                      Leads
                     </SelectItem>
                   ) : (
                     events.map((event) => (
@@ -1444,13 +1600,18 @@ export default function MyLeadsPage() {
               </Select>
             </div>
 
-            <div className="ml-auto flex min-w-max flex-nowrap items-center justify-end gap-8">
-              <div className="inline-flex h-12 shrink-0 items-center gap-1.5 rounded-full border border-zinc-200 bg-white p-1.5" aria-label="My leads actions">
+            <div
+              className={cn(
+                "flex w-full min-w-0 flex-wrap items-center justify-between sm:ml-auto sm:w-auto sm:flex-nowrap sm:justify-end",
+                embedded ? "gap-3 sm:gap-4" : "gap-4 sm:gap-8"
+              )}
+            >
+              <div className="grid h-12 min-w-0 flex-1 grid-cols-2 items-center gap-1.5 rounded-full border border-zinc-200 bg-white p-1.5 sm:inline-flex sm:flex-none" aria-label="Lead actions">
                 <button
                   type="button"
                   onClick={openTemplateUploadDialog}
                   disabled={loadingRegistryEvents || !hasActiveRegistryEvents}
-                  className="inline-flex h-9 w-40 items-center justify-center gap-2.5 rounded-full text-sm font-semibold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-50"
+                  className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full px-2 text-xs font-semibold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-50 sm:w-40 sm:text-sm"
                 >
                   <FileUp className="h-4 w-4" />
                   Upload leads
@@ -1458,18 +1619,18 @@ export default function MyLeadsPage() {
 
                 <button
                   type="button"
-                  onClick={() => setAddLeadOpen(true)}
-                  disabled={!selectedEvent}
-                  className="inline-flex h-9 w-40 items-center justify-center gap-2.5 rounded-full border border-blue-500/20 bg-blue-600 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:opacity-50"
+                  onClick={openAddLeadDialog}
+                  disabled={!hasActiveRegistryEvents || loadingRegistryEvents}
+                  className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-2 text-xs font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:opacity-50 sm:w-40 sm:text-sm"
                 >
                   <Plus className="h-4 w-4" />
                   Add a lead
                 </button>
               </div>
 
-              <div className="flex shrink-0 items-baseline gap-3">
-                <span className="text-sm font-medium text-zinc-400">Leads To Cover</span>
-                <span className="text-4xl font-light tabular-nums tracking-tight text-zinc-950">
+              <div className="invisible flex shrink-0 items-baseline gap-2 sm:gap-3" aria-hidden="true">
+                <span className="text-xs font-medium text-zinc-400 sm:text-sm">Leads To Cover</span>
+                <span className="text-3xl font-light tabular-nums tracking-tight text-zinc-950 sm:text-4xl">
                   {pageTotal.toLocaleString()}
                 </span>
               </div>
@@ -1477,8 +1638,15 @@ export default function MyLeadsPage() {
           </div>
         </header>
 
-        <div className="grid min-h-0 flex-1 gap-12 overflow-hidden pt-10 xl:grid-cols-[19rem_minmax(0,1fr)]">
-          <aside className="relative min-h-0 shrink-0 overflow-hidden pr-2">
+        <div
+          className={cn(
+            "grid min-h-0 min-w-0 flex-1",
+            embedded
+              ? "gap-4 overflow-visible pt-4 xl:grid-cols-[17rem_minmax(0,1fr)] xl:gap-6 xl:overflow-hidden"
+              : "gap-6 overflow-hidden pt-6 xl:grid-cols-[19rem_minmax(0,1fr)] xl:gap-12 xl:pt-10"
+          )}
+        >
+          <aside className="relative min-h-0 min-w-0 shrink-0 overflow-hidden xl:pr-2">
             <div className="relative z-20 space-y-6 bg-[#f7f7f7] pb-6 pr-1">
               <div>
                 <div className="relative h-11 w-full rounded-full border border-zinc-300 bg-white px-4 shadow-[0_22px_60px_-52px_rgba(2,10,27,0.42)] transition-colors focus-within:border-zinc-400">
@@ -1531,7 +1699,9 @@ export default function MyLeadsPage() {
                     </span>
                   </div>
                   <div className="flex items-center justify-between border-b border-zinc-100 py-4">
-                    <span className="text-sm font-light text-zinc-500">Visible range</span>
+                    <span className="text-sm font-light text-zinc-500">
+                      {embedded ? "Leads per page" : "Visible range"}
+                    </span>
                     <Select
                       value={String(pageSize)}
                       onValueChange={(value) => {
@@ -1539,7 +1709,7 @@ export default function MyLeadsPage() {
                         setPageOffset(0);
                       }}
                     >
-                      <SelectTrigger className="h-9 w-16 justify-end gap-1 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-xl font-light tabular-nums tracking-tight text-zinc-950 shadow-none transition-colors focus:border-blue-600 focus:ring-0 [&>svg]:ml-0">
+                      <SelectTrigger className="h-9 w-20 justify-end gap-1 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-xl font-light tabular-nums tracking-tight text-zinc-950 shadow-none transition-colors focus:border-blue-600 focus:ring-0 [&>svg]:ml-0">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent align="end" className="rounded-none border-zinc-300 shadow-xl">
@@ -1554,21 +1724,39 @@ export default function MyLeadsPage() {
                 </div>
               </div>
             </div>
-            <div className="my-leads-side-media pointer-events-none fixed bottom-0 z-0 hidden w-[19rem] overflow-hidden xl:block" aria-hidden="true">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/videos/BlockchainEventPromoconverted_1-ezgif.com-optimize%20(1).gif"
-                alt=""
-                className="my-leads-side-media__image absolute bottom-0 left-1/2 max-w-none -translate-x-1/2 object-contain"
-              />
-            </div>
+            {!embedded ? (
+              <div
+                className="my-leads-side-media pointer-events-none fixed bottom-0 z-0 hidden w-[19rem] overflow-hidden xl:block"
+                aria-hidden="true"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/videos/BlockchainEventPromoconverted_1-ezgif.com-optimize%20(1).gif"
+                  alt=""
+                  className="my-leads-side-media__image absolute bottom-0 left-1/2 max-w-none -translate-x-1/2 object-contain"
+                />
+              </div>
+            ) : null}
           </aside>
 
-          <main className="flex min-h-0 flex-col overflow-hidden xl:border-l xl:border-zinc-300 xl:pl-16">
-            <div className="min-h-0 flex-1 overflow-auto pr-4 scrollbar-modern">
+          <main
+            className={cn(
+              "flex min-h-0 min-w-0 flex-col xl:border-l xl:border-zinc-300",
+              embedded ? "overflow-visible xl:overflow-hidden" : "overflow-hidden",
+              embedded ? "xl:pl-8" : "xl:pl-16"
+            )}
+          >
+            <div
+              className={cn(
+                "min-h-0 min-w-0 flex-1 scrollbar-modern xl:pr-4",
+                embedded && pageSize === EMBEDDED_PAGE_SIZE
+                  ? "overflow-visible xl:overflow-hidden"
+                  : "overflow-auto"
+              )}
+            >
               {pagedRows.length === 0 ? (
                 <div className="w-full">
-                  <div className="sticky top-0 z-20 grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 bg-[#f7f7f7]/95 py-3 text-sm font-light text-zinc-500 backdrop-blur">
+                  <div className="sticky top-0 z-20 hidden grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_19rem] border-b border-zinc-300 bg-[#f7f7f7]/95 py-3 text-sm font-light text-zinc-500 backdrop-blur md:grid">
                     <div>Identity details</div>
                     <div>Contact channels</div>
                     <div>Status</div>
@@ -1578,13 +1766,25 @@ export default function MyLeadsPage() {
                   </div>
                 </div>
               ) : (
-                <div className="w-full">
-                  <div className="sticky top-0 z-20 grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 bg-[#f7f7f7]/95 py-3 text-sm font-light text-zinc-500 backdrop-blur">
+                <div className={cn("w-full", embedded && "flex h-full min-h-0 flex-col")}>
+                  <div
+                    className={cn(
+                      "sticky top-0 z-20 hidden shrink-0 grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_19rem] border-b border-zinc-300 bg-[#f7f7f7]/95 font-light text-zinc-500 backdrop-blur md:grid",
+                      embedded ? "py-2 text-xs" : "py-3 text-sm"
+                    )}
+                  >
                     <div>Identity details</div>
                     <div>Contact channels</div>
                     <div>Status</div>
                   </div>
-                  {pagedRows.map((item) => {
+                  <div
+                    className={cn(
+                      embedded &&
+                        pageSize === EMBEDDED_PAGE_SIZE &&
+                        "xl:grid xl:min-h-0 xl:flex-1 xl:grid-rows-5"
+                    )}
+                  >
+                    {pagedRows.map((item) => {
                     const primaryEmail = item.emails[0] || "";
                     const primaryPhone = item.phones[0] || "";
                     const emailDropdownOpen = contactDropdown?.leadId === item.id && contactDropdown.kind === "email";
@@ -1604,23 +1804,43 @@ export default function MyLeadsPage() {
                       );
                     };
 
-                    return (
-                      <div key={item.id} className="group grid grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_10rem] border-b border-zinc-300 py-6 transition-all duration-300 hover:bg-zinc-50/60">
-                      <div className="pr-8">
-                        <div className="flex flex-col gap-1.5">
+                      return (
+                        <div
+                          key={item.id}
+                          className={cn(
+                            "group grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm transition-all duration-300 hover:bg-zinc-50/60 md:grid-cols-[minmax(0,0.75fr)_minmax(14rem,0.95fr)_19rem] md:gap-0 md:rounded-none md:border-0 md:border-b md:border-zinc-300 md:bg-transparent md:p-0 md:shadow-none",
+                            embedded ? "min-h-0 overflow-visible md:py-2" : "md:py-6"
+                          )}
+                        >
+                      <div className={cn("min-w-0", embedded ? "md:pr-4" : "md:pr-8")}>
+                        <div className={cn("flex flex-col", embedded ? "gap-0.5" : "gap-1.5")}>
                           <div className="flex items-center gap-5">
-                            <span className="text-xl font-light tracking-tight text-zinc-950">{item.employeeName || "-"}</span>
-                            {item.isManualLead ? (
-                              <span className="rounded-full border border-zinc-300 bg-white px-2 py-0.5 text-xs font-medium text-zinc-500">Manual</span>
-                            ) : null}
+                            <span
+                              className={cn(
+                                "truncate font-light tracking-tight text-zinc-950",
+                                embedded ? "text-sm font-medium" : "text-xl"
+                              )}
+                            >
+                              {item.employeeName || "-"}
+                            </span>
+                            <LeadOriginTags originSources={item.originSources} />
                           </div>
-                          <span className="max-w-sm text-base font-light leading-relaxed text-zinc-700">{item.title || "-"}</span>
-                          <span className="text-xs font-medium text-zinc-400">{item.company || "-"}</span>
+                          <span
+                            className={cn(
+                              "max-w-sm truncate font-light text-zinc-700",
+                              embedded ? "text-xs leading-4" : "text-base leading-relaxed"
+                            )}
+                          >
+                            {item.title || "-"}
+                          </span>
+                          <span className={cn("truncate font-medium text-zinc-400", embedded ? "text-[11px]" : "text-xs")}>
+                            {item.company || "-"}
+                          </span>
                         </div>
                       </div>
 
-                      <div className="pr-8">
-                        <div className="flex flex-col gap-2">
+                      <div className={cn("min-w-0", embedded ? "md:pr-4" : "md:pr-8")}>
+                        <div className={cn("flex flex-col", embedded ? "gap-0.5" : "gap-2")}>
                           <div className="space-y-1.5">
                             {primaryEmail ? (
                               <div className="relative flex min-w-0 items-center gap-2" data-contact-dropdown-root>
@@ -1637,14 +1857,17 @@ export default function MyLeadsPage() {
                                 title="Choose contact method"
                               >
                                 <EmailIcon className="h-3.5 w-3.5 shrink-0 text-[#EF4444]" />
-                                  <span className="truncate text-sm font-light tracking-tight text-zinc-700 transition-colors hover:text-zinc-950">{primaryEmail}</span>
+                                  <span className={cn("truncate font-light tracking-tight text-zinc-700 transition-colors hover:text-zinc-950", embedded ? "text-xs" : "text-sm")}>{primaryEmail}</span>
                               </button>
                                 {item.emails.length > 1 ? (
                                   <div className="relative shrink-0">
                                     <button
                                       type="button"
                                       onClick={() => toggleContactDropdown("email")}
-                                      className="inline-flex h-6 w-7 items-center justify-center rounded-lg border border-white/10 bg-zinc-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_10px_18px_-15px_rgba(2,10,27,0.9)] transition-colors hover:bg-zinc-700"
+                                      className={cn(
+                                        CONTACT_DROPDOWN_TRIGGER_CLASS,
+                                        emailDropdownOpen && "border-blue-200/80 bg-blue-50/75 text-blue-700"
+                                      )}
                                       aria-label="Show all email addresses"
                                       aria-expanded={emailDropdownOpen}
                                     >
@@ -1697,14 +1920,17 @@ export default function MyLeadsPage() {
                                 title="Choose contact method"
                               >
                                 <PhoneIcon className="h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
-                                  <span className="truncate text-sm font-light text-zinc-500 transition-colors hover:text-zinc-950">{primaryPhone}</span>
+                                  <span className={cn("truncate font-light text-zinc-500 transition-colors hover:text-zinc-950", embedded ? "text-xs" : "text-sm")}>{primaryPhone}</span>
                               </button>
                                 {item.phones.length > 1 ? (
                                   <div className="relative shrink-0">
                                     <button
                                       type="button"
                                       onClick={() => toggleContactDropdown("phone")}
-                                      className="inline-flex h-6 w-7 items-center justify-center rounded-lg border border-white/10 bg-zinc-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_10px_18px_-15px_rgba(2,10,27,0.9)] transition-colors hover:bg-zinc-700"
+                                      className={cn(
+                                        CONTACT_DROPDOWN_TRIGGER_CLASS,
+                                        phoneDropdownOpen && "border-blue-200/80 bg-blue-50/75 text-blue-700"
+                                      )}
                                       aria-label="Show all phone numbers"
                                       aria-expanded={phoneDropdownOpen}
                                     >
@@ -1741,7 +1967,12 @@ export default function MyLeadsPage() {
                               <span className="text-sm font-light text-zinc-500">-</span>
                             )}
                           </div>
-                          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-3">
+                          <div
+                            className={cn(
+                              "flex flex-wrap items-center",
+                              embedded ? "gap-x-3 gap-y-0.5 pt-1" : "gap-x-5 gap-y-2 pt-3"
+                            )}
+                          >
                             {item.linkedinUrl ? (
                               <a href={item.linkedinUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950">
                                 <LinkedInIcon className="h-3.5 w-3.5 text-[#0A66C2]" />
@@ -1777,13 +2008,18 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
 
-                      <div className="flex h-full flex-col">
+                      <div className="flex h-full min-w-0 flex-col border-t border-zinc-100 pt-2 md:border-t-0 md:pt-0">
                         <Select
                           value={selectedStatusValue}
                           onValueChange={(value) => handleStatusSelection(item, value)}
                           disabled={Boolean(updatingLeadIds[item.id])}
                         >
-                          <SelectTrigger className="h-10 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-base font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0 disabled:opacity-50">
+                          <SelectTrigger
+                            className={cn(
+                              "w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0 disabled:opacity-50",
+                              embedded ? "h-8 text-sm" : "h-10 text-base"
+                            )}
+                          >
                             <SelectValue placeholder={item.workflowStatusLabel} />
                           </SelectTrigger>
                           <SelectContent className="rounded-none border-zinc-300 shadow-2xl">
@@ -1803,36 +2039,69 @@ export default function MyLeadsPage() {
                             Updating status
                           </span>
                         ) : null}
-                        <div className="mt-auto pt-3">
+                        <div className={cn("mt-auto", embedded ? "pt-1" : "pt-3")}>
                           {item.workflowComment ? (
-                            <button type="button" onClick={() => void openHistory(item)} className="mb-2 block w-full border-l border-zinc-300 pl-3 text-left transition-colors hover:border-zinc-900">
-                              <span className="line-clamp-2 text-xs font-light leading-relaxed text-zinc-500">
+                            <button
+                              type="button"
+                              onClick={() => void openHistory(item)}
+                              className={cn(
+                                "block w-full border-l border-zinc-300 text-left transition-colors hover:border-zinc-900",
+                                embedded ? "mb-1 pl-2" : "mb-2 pl-3"
+                              )}
+                            >
+                              <span className={cn("font-light text-zinc-500", embedded ? "line-clamp-1 text-[10px] leading-4" : "line-clamp-2 text-xs leading-relaxed")}>
                                 {item.workflowComment}
                               </span>
                               {item.workflowCommentUpdatedAt ? (
-                                <span className="mt-1 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+                                <span className={cn("mt-1 items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400", embedded ? "hidden" : "flex")}>
                                   <Clock3 className="h-3 w-3" />
                                   {item.workflowCommentUpdatedAt}
                                 </span>
                               ) : null}
                             </button>
                           ) : null}
-                          <button type="button" onClick={() => void openHistory(item)} className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950">
-                            <History className="h-3.5 w-3.5" />
-                            {item.workflowCommentHistoryCount > 0
-                              ? `${item.workflowCommentHistoryCount} comment${item.workflowCommentHistoryCount === 1 ? "" : "s"}`
-                              : "Comment history"}
-                          </button>
+                          <div className="flex flex-nowrap items-center gap-x-1.5">
+                            <button type="button" onClick={() => void openHistory(item)} className={cn("inline-flex shrink-0 items-center gap-1 whitespace-nowrap border-b border-transparent pb-0.5 font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950", embedded ? "text-[10px]" : "text-[11px]")}>
+                              <History className="h-3.5 w-3.5" />
+                              {item.workflowCommentHistoryCount > 0
+                                ? `${item.workflowCommentHistoryCount} comment${item.workflowCommentHistoryCount === 1 ? "" : "s"}`
+                                : "Comment history"}
+                            </button>
+                            <button type="button" onClick={() => void openHistory(item, "owner")} className={cn("inline-flex shrink-0 items-center gap-1 whitespace-nowrap border-b border-transparent pb-0.5 font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950", embedded ? "text-[10px]" : "text-[11px]")}>
+                              <History className="h-3.5 w-3.5" />
+                              Source timeline
+                            </button>
+                            <button
+                              type="button"
+                              disabled={Boolean(updatingLeadIds[item.id])}
+                              onClick={() => openCommentDialog(item)}
+                              className={cn(
+                                "inline-flex shrink-0 items-center gap-1 whitespace-nowrap border-b border-transparent pb-0.5 font-medium text-blue-600 transition-colors hover:border-blue-700 hover:text-blue-800 disabled:opacity-50",
+                                embedded ? "text-[10px]" : "text-[11px]"
+                              )}
+                            >
+                              <MessageSquare className="h-3.5 w-3.5" />
+                              Add comment
+                            </button>
+                          </div>
                         </div>
                       </div>
-                      </div>
-                    );
-                  })}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
 
-            <footer className="mt-6 flex shrink-0 flex-col gap-5 border-t border-zinc-100 pb-4 pt-8 sm:flex-row sm:items-center sm:justify-between">
+            <footer
+              className={cn(
+                "flex shrink-0 flex-col border-t border-zinc-100 sm:flex-row sm:items-center sm:justify-between",
+                embedded
+                  ? "mt-2 gap-3 py-2 sm:pr-20"
+                  : "mt-6 gap-5 pb-20 pt-8 sm:pb-4 sm:pr-16"
+              )}
+            >
               <div className="space-y-1">
                 <p className="text-xs font-medium text-zinc-400">Lead sheet range</p>
                 <p className="text-lg font-light tabular-nums tracking-tight text-zinc-950">
@@ -1978,7 +2247,7 @@ export default function MyLeadsPage() {
         <LeadSheetDialog
           open
           eyebrow=""
-          title="Status Note"
+          title={isCommentOnly ? "Add comment" : "Status Note"}
           description=""
           onClose={closeStatusCommentDialog}
           compactSize={isDealClosedStatusChange ? "wide" : "default"}
@@ -1996,10 +2265,13 @@ export default function MyLeadsPage() {
             {isDealClosedStatusChange ? (
               <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_18px_38px_-34px_rgba(15,23,42,0.6)]">
                 <div className="relative h-[clamp(19rem,40vw,30rem)] w-full overflow-hidden bg-zinc-950">
-                  <img
+                  <Image
                     src={dealBellMedia.src}
                     alt=""
                     aria-hidden="true"
+                    fill
+                    sizes="(min-width: 1024px) 56rem, calc(100vw - 3rem)"
+                    unoptimized
                     className="h-full w-full object-cover"
                   />
                   <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-zinc-950/35 via-zinc-950/8 to-transparent" />
@@ -2023,18 +2295,34 @@ export default function MyLeadsPage() {
                     </div>
                   </div>
 
-                  <label className="flex min-h-44 flex-col gap-3 lg:min-h-48">
-                    <span className="text-xs font-medium text-zinc-400">Comment optional</span>
+                  <div className="flex min-h-44 flex-col gap-3 lg:min-h-48">
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-medium text-zinc-500">Deal amount (USD) *</span>
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        min="0.01"
+                        step="0.01"
+                        value={dealAmountUsd}
+                        onChange={(event) => setDealAmountUsd(event.target.value)}
+                        placeholder="0.00"
+                        className="h-11 rounded-xl border-zinc-200 bg-white shadow-none focus-visible:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
+                      />
+                    </label>
+                    <label className="flex min-h-0 flex-1 flex-col gap-2">
+                      <span className="text-xs font-medium text-zinc-400">Comment optional</span>
                     <Textarea
                       value={statusComment}
+                      maxLength={2000}
                       onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
                       placeholder="Example: Follow up after first call. Asked to reconnect next week."
-                      className="min-h-0 flex-1 resize-none rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-6 shadow-none focus-visible:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
+                      className="min-h-20 flex-1 resize-none rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-6 shadow-none focus-visible:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
                     />
                     <span className="block text-right text-xs font-light text-zinc-400">
-                      {statusComment.length}/2000
+                      {2000 - statusComment.length} characters remaining
                     </span>
-                  </label>
+                    </label>
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-3 border-t border-zinc-100 px-4 pb-4 pt-4 sm:flex-row sm:items-center sm:justify-end sm:px-5 sm:pb-5">
@@ -2049,7 +2337,7 @@ export default function MyLeadsPage() {
                   <Button
                     type="button"
                     onClick={handleUpdateStatusClick}
-                    disabled={Boolean(updatingLeadIds[pendingStatusChange.item.id]) || ringingDealBell}
+                    disabled={Boolean(updatingLeadIds[pendingStatusChange.item.id]) || ringingDealBell || !dealAmountUsd.trim()}
                     className="h-11 gap-2 rounded-full border border-emerald-500/20 bg-[#22c55e] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)] hover:bg-emerald-600"
                   >
                     {updatingLeadIds[pendingStatusChange.item.id] || ringingDealBell ? (
@@ -2063,35 +2351,41 @@ export default function MyLeadsPage() {
               </div>
             ) : (
               <>
-                <div className="rounded-2xl border border-zinc-200 bg-white p-1.5">
-                  <div className="grid gap-1.5 sm:grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] sm:items-stretch">
-                    <div className="rounded-xl bg-zinc-50/80 px-4 py-3">
-                      <p className="truncate text-base font-light text-zinc-950">
-                        {pendingStatusChange.item.workflowStatusLabel || humanizeStatusLabel(pendingStatusChange.item.workflowStatus)}
-                      </p>
-                    </div>
-                    <div className="hidden items-center justify-center text-zinc-300 sm:flex">
-                      <ChevronRight className="h-4 w-4" />
-                    </div>
-                    <div className="rounded-xl border border-blue-500/20 bg-blue-600 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)]">
-                      <p className="truncate text-base font-semibold">
-                        {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
-                          humanizeStatusLabel(pendingStatusChange.nextStatus)}
-                      </p>
+                {!isCommentOnly ? (
+                  <div className="rounded-2xl border border-zinc-200 bg-white p-1.5">
+                    <div className="grid gap-1.5 sm:grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] sm:items-stretch">
+                      <div className="rounded-xl bg-zinc-50/80 px-4 py-3">
+                        <p className="truncate text-base font-light text-zinc-950">
+                          {pendingStatusChange.item.workflowStatusLabel || humanizeStatusLabel(pendingStatusChange.item.workflowStatus)}
+                        </p>
+                      </div>
+                      <div className="hidden items-center justify-center text-zinc-300 sm:flex">
+                        <ChevronRight className="h-4 w-4" />
+                      </div>
+                      <div className="rounded-xl border border-blue-500/20 bg-blue-600 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)]">
+                        <p className="truncate text-base font-semibold">
+                          {statusOptions.find((option) => option.statusKey === pendingStatusChange.nextStatus)?.label ||
+                            humanizeStatusLabel(pendingStatusChange.nextStatus)}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : null}
 
                 <label className="block space-y-3">
-                  <span className="text-xs font-medium text-zinc-400">Comment optional</span>
+                  <span className="text-xs font-medium text-zinc-400">
+                    {isCommentOnly ? "Comment" : "Comment optional"}
+                  </span>
                   <Textarea
+                    autoFocus={isCommentOnly}
                     value={statusComment}
+                    maxLength={2000}
                     onChange={(event) => setStatusComment(event.target.value.slice(0, 2000))}
                     placeholder="Example: Follow up after first call. Asked to reconnect next week."
                     className="min-h-32 rounded-2xl border-zinc-200 bg-white px-4 py-3 text-sm font-light leading-6 shadow-none focus-visible:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500"
                   />
                   <span className="block text-right text-xs font-light text-zinc-400">
-                    {statusComment.length}/2000
+                    {2000 - statusComment.length} characters remaining
                   </span>
                 </label>
 
@@ -2108,7 +2402,10 @@ export default function MyLeadsPage() {
                   <Button
                     type="button"
                     onClick={handleUpdateStatusClick}
-                    disabled={Boolean(updatingLeadIds[pendingStatusChange.item.id])}
+                    disabled={
+                      Boolean(updatingLeadIds[pendingStatusChange.item.id]) ||
+                      (isCommentOnly && !statusComment.trim())
+                    }
                     className="h-11 gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700"
                   >
                     {updatingLeadIds[pendingStatusChange.item.id] ? (
@@ -2116,7 +2413,7 @@ export default function MyLeadsPage() {
                     ) : (
                       <MessageSquare className="h-4 w-4" />
                     )}
-                    Update Status
+                    {isCommentOnly ? "Add comment" : "Update Status"}
                   </Button>
                 </div>
               </>
@@ -2293,91 +2590,21 @@ export default function MyLeadsPage() {
       {historyLead ? (
         <LeadSheetDialog
           open
-          title="Comment History"
+          title={historyKind === "owner" ? "Source Timeline" : "Status History"}
           description=""
           eyebrow=""
           onClose={closeHistory}
         >
-          <div className="space-y-6">
-            <div className="border-b border-zinc-100 pb-6">
-              <p className="text-xs font-medium normal-case tracking-normal text-zinc-400">Selected profile</p>
-              <h3 className="mt-2 text-2xl font-light tracking-tight text-zinc-950">
-                {historyLead.employeeName || "-"}
-              </h3>
-              <p className="mt-1 text-sm font-light text-zinc-500">{historyLead.company || "-"}</p>
-            </div>
-
-            {historyLoading ? (
-              <div className="flex h-32 items-center justify-center text-sm font-light text-zinc-400">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Loading history...
-              </div>
-            ) : historyError ? (
-              <div className="border border-red-200 bg-red-50 p-4 text-sm font-light text-red-700">
-                {historyError}
-              </div>
-            ) : historyItems.length === 0 ? (
-              <div className="border border-zinc-200 bg-zinc-50/70 p-6 text-sm font-light text-zinc-500">
-                No comments have been recorded for this lead yet.
-              </div>
-            ) : (
-              <div className="border-y border-zinc-300">
-                <div className="flex items-center justify-between border-b border-zinc-200 py-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-zinc-400">Timeline</span>
-                  </div>
-                  <span className="text-xs font-light text-zinc-400">
-                    {historyItems.length} update{historyItems.length === 1 ? "" : "s"}
-                  </span>
-                </div>
-
-                <div className="max-h-[26rem] overflow-y-auto pr-1 scrollbar-modern">
-                  {historyItems.map((entry) => {
-                    const statusLabel = entry.workflowStatusLabel || humanizeStatusLabel(entry.workflowStatus);
-                    const actorName =
-                      asText(entry.updatedByUserDisplayName) ||
-                      asText(entry.updatedByUsername) ||
-                      "Unknown user";
-
-                    return (
-                      <article
-                        key={entry.id}
-                        className="group grid grid-cols-[2.75rem_minmax(0,1fr)] border-b border-zinc-100 last:border-b-0"
-                      >
-                        <div className="relative flex justify-center">
-                          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-blue-500/35" />
-                          <span className="relative mt-5 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-blue-500 bg-white shadow-[0_0_0_3px_rgba(37,99,235,0.08)]">
-                            <span className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(entry.workflowStatus)}`} />
-                          </span>
-                        </div>
-
-                        <div className="min-w-0 py-5 transition-colors group-hover:bg-zinc-50/40">
-                          <div className="flex flex-wrap items-start justify-between gap-3 pr-1">
-                            <div className="min-w-0">
-                              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                                <h4 className="text-base font-medium tracking-tight text-zinc-950">{statusLabel}</h4>
-                              </div>
-                              <p className="mt-1 text-xs font-light text-zinc-400">Updated by {actorName}</p>
-                            </div>
-
-                            <time className="shrink-0 text-right text-xs font-light leading-5 text-zinc-400">
-                              {formatDateTime(entry.createdAt) || "Time unavailable"}
-                            </time>
-                          </div>
-
-                          <div className="mt-3 max-w-xl border-l border-zinc-200 pl-3">
-                            <p className="whitespace-pre-wrap text-sm font-light leading-6 text-zinc-600">
-                              {entry.comment || "No comment added."}
-                            </p>
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
+          <LeadHistoryContent
+            kind={historyKind}
+            leadName={historyLead.employeeName}
+            company={historyLead.company}
+            statusItems={historyItems}
+            ownerItems={ownerHistoryItems}
+            loading={historyLoading}
+            error={historyError}
+            getStatusDotClass={getStatusDotClass}
+          />
         </LeadSheetDialog>
       ) : null}
 
@@ -2732,6 +2959,7 @@ export default function MyLeadsPage() {
 
           {templateValidation ? (
             <div className="space-y-5">
+              <LeadUploadDuplicateSummary validation={templateValidation} />
               <div className="border-y border-blue-100 py-5">
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex min-w-0 items-center gap-4">
@@ -2851,10 +3079,36 @@ export default function MyLeadsPage() {
         description=""
         eyebrow=""
         onClose={closeAddLeadDialog}
+        avoidBottomDock
+        fitViewport
       >
-        <div className="grid gap-x-8 gap-y-8 sm:grid-cols-2">
+        <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <label htmlFor="my-lead-full-name" className="mb-3 block text-xs font-medium text-zinc-400">
+            <label className={ADD_LEAD_LABEL_CLASS}>
+              Related event <span className="text-red-500">*</span>
+            </label>
+            <Select
+              value={addLeadForm.eventRegistryId}
+              onValueChange={(value) => updateAddLeadField("eventRegistryId", value)}
+              disabled={addingLead || loadingRegistryEvents}
+            >
+              <SelectTrigger
+                aria-label="Select lead event"
+                className="!h-10 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-left text-base font-light text-zinc-950 shadow-none focus:ring-0"
+              >
+                <SelectValue placeholder={loadingRegistryEvents ? "Loading events..." : "Select event"} />
+              </SelectTrigger>
+              <SelectContent className={UPLOAD_EVENT_SELECT_CONTENT_CLASS}>
+                {activeRegistryEvents.map((event) => (
+                  <SelectItem key={event.id} value={event.id} className={UPLOAD_EVENT_SELECT_ITEM_CLASS}>
+                    {getDisplayEventName(event.eventName)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="sm:col-span-2">
+            <label htmlFor="my-lead-full-name" className={ADD_LEAD_LABEL_CLASS}>
               Full Name <span className="text-red-500">*</span>
             </label>
             <Input
@@ -2864,12 +3118,12 @@ export default function MyLeadsPage() {
               placeholder="Lead name"
               required
               aria-required="true"
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className={ADD_LEAD_INPUT_CLASS}
             />
           </div>
 
           <div className="sm:col-span-2">
-            <label htmlFor="my-lead-category" className="mb-3 block text-xs font-medium text-zinc-400">
+            <label htmlFor="my-lead-category" className={ADD_LEAD_LABEL_CLASS}>
               Category <span className="text-red-500">*</span>
             </label>
             <Input
@@ -2879,12 +3133,12 @@ export default function MyLeadsPage() {
               placeholder="Type category"
               required
               aria-required="true"
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className={ADD_LEAD_INPUT_CLASS}
             />
           </div>
 
           <div className="sm:col-span-2">
-            <label htmlFor="my-lead-title" className="mb-3 block text-xs font-medium text-zinc-400">
+            <label htmlFor="my-lead-title" className={ADD_LEAD_LABEL_CLASS}>
               Title <span className="text-red-500">*</span>
             </label>
             <Input
@@ -2894,72 +3148,72 @@ export default function MyLeadsPage() {
               placeholder="Job title"
               required
               aria-required="true"
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className={ADD_LEAD_INPUT_CLASS}
             />
           </div>
 
           <div>
-            <label className="mb-3 block text-xs font-medium text-zinc-400">
+            <label className={ADD_LEAD_LABEL_CLASS}>
               Company Name
             </label>
             <Input
               value={addLeadForm.companyName}
               onChange={(event) => updateAddLeadField("companyName", event.target.value)}
               placeholder="Company"
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className={ADD_LEAD_INPUT_CLASS}
             />
           </div>
 
           <div>
-            <label className="mb-3 block text-xs font-medium text-zinc-400">
+            <label className={ADD_LEAD_LABEL_CLASS}>
               Company URL
             </label>
             <Input
               value={addLeadForm.companyUrl}
               onChange={(event) => updateAddLeadField("companyUrl", event.target.value)}
               placeholder="https://company.com"
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className={ADD_LEAD_INPUT_CLASS}
             />
           </div>
 
           <div>
-            <label className="mb-3 block text-xs font-medium text-zinc-400">
+            <label className={ADD_LEAD_LABEL_CLASS}>
               Email
             </label>
             <Input
               value={addLeadForm.email}
               onChange={(event) => updateAddLeadField("email", event.target.value)}
               placeholder="name@company.com"
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className={ADD_LEAD_INPUT_CLASS}
             />
           </div>
 
           <div>
-            <label className="mb-3 block text-xs font-medium text-zinc-400">
+            <label className={ADD_LEAD_LABEL_CLASS}>
               Phone
             </label>
             <Input
               value={addLeadForm.phone}
               onChange={(event) => updateAddLeadField("phone", event.target.value)}
               placeholder="+60 ..."
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className={ADD_LEAD_INPUT_CLASS}
             />
           </div>
 
           <div className="sm:col-span-2">
-            <label className="mb-3 block text-xs font-medium text-zinc-400">
+            <label className={ADD_LEAD_LABEL_CLASS}>
               LinkedIn URL
             </label>
             <Input
               value={addLeadForm.linkedinUrl}
               onChange={(event) => updateAddLeadField("linkedinUrl", event.target.value)}
               placeholder="https://linkedin.com/in/..."
-              className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 shadow-none placeholder:text-zinc-300 focus:border-blue-600 focus:ring-0"
+              className={ADD_LEAD_INPUT_CLASS}
             />
           </div>
         </div>
 
-        <div className="mt-8 flex items-center justify-between">
+        <div className="mt-5 flex items-center justify-between">
           <Button
             type="button"
             variant="ghost"
@@ -2975,7 +3229,7 @@ export default function MyLeadsPage() {
             onClick={() => void submitAddLead()}
             disabled={
               addingLead ||
-              !selectedEvent ||
+              !selectedAddLeadEvent ||
               !addLeadForm.fullName.trim() ||
               !addLeadForm.category.trim() ||
               !addLeadForm.title.trim()
