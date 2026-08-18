@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { CakeSlice, CheckCheck, ClipboardList, FileText, Gift, Inbox, Loader2, MessageSquareDot, PartyPopper, RefreshCw, X } from "lucide-react";
+import { CakeSlice, CheckCheck, ClipboardList, FileSpreadsheet, FileText, Gift, Inbox, Loader2, MessageSquareDot, PartyPopper, RefreshCw, X } from "lucide-react";
 import {
   listNotifications,
   markAllNotificationsRead,
@@ -17,7 +17,7 @@ import {
   notificationCalendarDate,
   notificationsForCalendarDate,
 } from "@/lib/peopleUtils";
-import { downloadEventAgendaFile } from "@/lib/apiRouter";
+import { downloadEventAgendaFile, downloadEventDocumentFile } from "@/lib/apiRouter";
 
 const NOTIFICATION_POLL_MS = 60_000;
 
@@ -45,6 +45,46 @@ function newestFirst(notifications: PeopleNotification[]) {
 function metadataText(notification: PeopleNotification, key: string) {
   const value = notification.metadata?.[key];
   return typeof value === "string" ? value.trim() : "";
+}
+
+type EventDocumentNotificationConfig = {
+  documentType: "agenda" | "speaker_list" | "delegate_list";
+  categoryLabel: string;
+  actionLabel: string;
+  fallbackName: string;
+};
+
+const EVENT_DOCUMENT_NOTIFICATION_CONFIG: Record<string, EventDocumentNotificationConfig> = {
+  event_agenda_uploaded: {
+    documentType: "agenda",
+    categoryLabel: "Event agenda",
+    actionLabel: "Download agenda",
+    fallbackName: "agenda.pdf",
+  },
+  event_speaker_list_uploaded: {
+    documentType: "speaker_list",
+    categoryLabel: "Confirmed speakers",
+    actionLabel: "Download speaker list",
+    fallbackName: "confirmed-speakers",
+  },
+  event_delegate_list_uploaded: {
+    documentType: "delegate_list",
+    categoryLabel: "Confirmed delegates",
+    actionLabel: "Download delegate list",
+    fallbackName: "confirmed-delegates",
+  },
+};
+
+function eventDocumentNotification(notification: PeopleNotification): EventDocumentNotificationConfig | undefined {
+  return EVENT_DOCUMENT_NOTIFICATION_CONFIG[notification.type];
+}
+
+function eventDocumentId(notification: PeopleNotification) {
+  return metadataText(notification, "documentId") || metadataText(notification, "agendaId");
+}
+
+function eventDocumentName(notification: PeopleNotification, fallbackName: string) {
+  return metadataText(notification, "documentName") || metadataText(notification, "agendaName") || fallbackName;
 }
 
 export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
@@ -213,11 +253,17 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
         setOpen(false);
         router.push(actionHref);
       }
-    } else if (notification.type === "event_agenda_uploaded") {
-      const agendaId = metadataText(notification, "agendaId");
-      if (agendaId) {
+    } else {
+      const documentNotification = eventDocumentNotification(notification);
+      const documentId = eventDocumentId(notification);
+      if (documentNotification && documentId) {
+        const fileName = eventDocumentName(notification, documentNotification.fallbackName);
         try {
-          await downloadEventAgendaFile(agendaId, metadataText(notification, "agendaName") || "agenda.pdf");
+          if (documentNotification.documentType === "agenda") {
+            await downloadEventAgendaFile(documentId, fileName);
+          } else {
+            await downloadEventDocumentFile(documentId, fileName);
+          }
           setOpen(false);
         } catch (error) {
           setError(errorMessage(error));
@@ -356,11 +402,12 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
                   const isBirthdayWish = notification.type === "birthday_wish";
                   const isMemberBirthday = notification.type === "member_birthday";
                   const isEventInquiry = notification.type === "event_inquiry";
-                  const isAgendaUpload = notification.type === "event_agenda_uploaded";
+                  const documentNotification = eventDocumentNotification(notification);
+                  const isEventDocumentUpload = Boolean(documentNotification);
                   const detail = isEventInquiry
                     ? [metadataText(notification, "contactName"), metadataText(notification, "company")].filter(Boolean).join(" - ")
-                    : isAgendaUpload
-                      ? [metadataText(notification, "agendaName"), metadataText(notification, "uploadedByUsername") ? `Uploaded by ${metadataText(notification, "uploadedByUsername")}` : ""].filter(Boolean).join(" - ")
+                    : documentNotification
+                      ? [eventDocumentName(notification, documentNotification.fallbackName), metadataText(notification, "uploadedByUsername") ? `Uploaded by ${metadataText(notification, "uploadedByUsername")}` : ""].filter(Boolean).join(" - ")
                       : "";
                   return (
                     <button
@@ -378,7 +425,7 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
                             ? "bg-amber-100 text-amber-800"
                             : isEventInquiry
                               ? "bg-violet-100 text-violet-700"
-                              : isAgendaUpload
+                              : isEventDocumentUpload
                                 ? "bg-emerald-100 text-emerald-700"
                             : "bg-blue-100 text-blue-700"
                       }`}>
@@ -388,8 +435,10 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
                           <CakeSlice className="h-4 w-4" />
                         ) : isEventInquiry ? (
                           <ClipboardList className="h-4 w-4" />
-                        ) : isAgendaUpload ? (
+                        ) : documentNotification?.documentType === "agenda" ? (
                           <FileText className="h-4 w-4" />
+                        ) : isEventDocumentUpload ? (
+                          <FileSpreadsheet className="h-4 w-4" />
                         ) : (
                           <MessageSquareDot className="h-4 w-4" />
                         )}
@@ -404,9 +453,14 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
                         ) : null}
                         {detail ? <span className="mt-1 block text-xs font-semibold text-zinc-800">{detail}</span> : null}
                         <span className="mt-1 block text-sm leading-5 text-zinc-600">{notification.message}</span>
-                        {isEventInquiry || isAgendaUpload ? (
+                        {isEventDocumentUpload ? (
+                          <span className="mt-1 block text-[0.65rem] font-bold uppercase tracking-[0.12em] text-emerald-700">
+                            {documentNotification?.categoryLabel}
+                          </span>
+                        ) : null}
+                        {isEventInquiry || isEventDocumentUpload ? (
                           <span className="mt-1.5 block text-xs font-bold text-blue-700">
-                            {isEventInquiry ? "View inquiry details" : "Download agenda"}
+                            {isEventInquiry ? "View inquiry details" : documentNotification?.actionLabel}
                           </span>
                         ) : null}
                         <time className="mt-1.5 block text-xs text-zinc-500" dateTime={notification.createdAt}>

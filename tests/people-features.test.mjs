@@ -60,6 +60,11 @@ test("notification center covers loading, unread count, empty, retry, mark-one, 
   assert.match(source, /View inquiry details/);
   assert.match(source, /event_agenda_uploaded/);
   assert.match(source, /Download agenda/);
+  assert.match(source, /event_speaker_list_uploaded/);
+  assert.match(source, /Download speaker list/);
+  assert.match(source, /event_delegate_list_uploaded/);
+  assert.match(source, /Download delegate list/);
+  assert.match(source, /downloadEventDocumentFile/);
   assert.doesNotMatch(source, /A birthday wish for you/);
   assert.doesNotMatch(source, /Birthday updates from your team/);
   assert.match(source, /pathname !== "\/dashboard"/);
