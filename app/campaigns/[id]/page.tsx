@@ -1382,26 +1382,18 @@ function SuperAdminCampaignDetailPage() {
   function leadSupportsWhatsappAction(lead: Lead) {
     return hasText(lead.phone);
   }
-  function leadHasLinkedinProfile(lead: Lead) {
-    return hasText(lead.linkedinUrl);
-  }
   function isLeadEmailActionCompleted(lead: Lead) {
     return isExecutedOutreachState(buildOutreachStatus(lead).email);
   }
   function isLeadWhatsappActionCompleted(lead: Lead) {
     return isExecutedOutreachState(buildOutreachStatus(lead).whatsapp);
   }
-  function isLeadLinkedinActionCompleted(lead: Lead) {
-    return isExecutedOutreachState(buildOutreachStatus(lead).linkedin);
-  }
   function isLeadFullyActioned(lead: Lead) {
     const needsEmail = leadSupportsEmailAction(lead);
-    const needsLinkedin = leadHasLinkedinProfile(lead);
     const needsWhatsapp = leadSupportsWhatsappAction(lead);
 
-    if (!needsEmail && !needsLinkedin && !needsWhatsapp) return false;
+    if (!needsEmail && !needsWhatsapp) return false;
     if (needsEmail && !isLeadEmailActionCompleted(lead)) return false;
-    if (needsLinkedin && !isLeadLinkedinActionCompleted(lead)) return false;
     if (needsWhatsapp && !isLeadWhatsappActionCompleted(lead)) return false;
     return true;
   }
