@@ -13,15 +13,37 @@ function read(relativePath) {
 const peopleUtils = await import(pathToFileURL(resolve(root, "lib/peopleUtils.ts")).href);
 
 test("notification helpers preserve records and update unread state", () => {
+  const readAt = "2026-07-21T10:00:00.000Z";
   const records = [
     { id: "one", isRead: false, title: "One" },
     { id: "two", isRead: false, title: "Two" },
   ];
-  const oneRead = peopleUtils.markOneNotificationRead(records, "one");
+  const oneRead = peopleUtils.markOneNotificationRead(records, "one", readAt);
   assert.equal(oneRead[0].isRead, true);
+  assert.equal(oneRead[0].readAt, readAt);
   assert.equal(oneRead[1].isRead, false);
   assert.equal(records[0].isRead, false, "optimistic state is immutable");
-  assert.ok(peopleUtils.markEveryNotificationRead(records).every((item) => item.isRead));
+  assert.ok(peopleUtils.markEveryNotificationRead(records, readAt).every((item) => item.readAt === readAt));
+});
+
+test("read notifications leave every notification UI use case after 24 hours", () => {
+  const now = new Date("2026-07-22T12:00:00.000Z");
+  const records = [
+    { id: "unread-old", type: "system_update", isRead: false, readAt: "2026-07-01T00:00:00.000Z" },
+    { id: "recent-agenda", type: "event_agenda_uploaded", isRead: true, readAt: "2026-07-21T12:00:01.000Z" },
+    { id: "expired-inquiry", type: "event_inquiry", isRead: true, readAt: "2026-07-21T12:00:00.000Z" },
+    { id: "expired-birthday", type: "member_birthday", isRead: true, readAt: "2026-07-20T11:59:59.000Z" },
+    { id: "legacy-read", type: "system_update", isRead: true, readAt: null },
+  ];
+
+  assert.deepEqual(
+    peopleUtils.notificationsWithinReadRetention(records, now).map((item) => item.id),
+    ["unread-old", "recent-agenda", "legacy-read"],
+  );
+  assert.equal(
+    peopleUtils.millisecondsUntilNextReadNotificationExpiry([records[1]], now),
+    1000,
+  );
 });
 
 test("notification helpers retain operational history but keep birthdays on the current local day", () => {
@@ -72,6 +94,9 @@ test("notification center covers loading, unread count, empty, retry, mark-one, 
   assert.match(source, /birthday-popup:last-shown:\$\{sessionKey\}/);
   assert.match(source, /aria-labelledby="birthday-popup-title"/);
   assert.match(source, /millisecondsUntilNextLocalDay/);
+  assert.match(source, /millisecondsUntilNextReadNotificationExpiry/);
+  assert.match(source, /notificationsWithinReadRetention/);
+  assert.match(source, /nextNotificationOffsetRef/);
 });
 
 test("notification trigger follows the Pro inbox pattern without overlapping page headers", () => {

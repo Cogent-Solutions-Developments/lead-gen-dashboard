@@ -14,8 +14,10 @@ import {
   markEveryNotificationRead,
   markOneNotificationRead,
   millisecondsUntilNextLocalDay,
+  millisecondsUntilNextReadNotificationExpiry,
   notificationCalendarDate,
   notificationsForCalendarDate,
+  notificationsWithinReadRetention,
 } from "@/lib/peopleUtils";
 import { downloadEventAgendaFile, downloadEventDocumentFile } from "@/lib/apiRouter";
 
@@ -105,6 +107,7 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
   const actionControllersRef = useRef<Set<AbortController>>(new Set());
   const notificationsRef = useRef<PeopleNotification[]>([]);
   const notificationCountRef = useRef(0);
+  const nextNotificationOffsetRef = useRef(0);
   notificationCountRef.current = notifications.length;
 
   const replaceNotifications = useCallback((next: PeopleNotification[]) => {
@@ -122,23 +125,32 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
     else setLoading((current) => current || notificationCountRef.current === 0);
     setError("");
     try {
+      const offset = append ? nextNotificationOffsetRef.current : 0;
       const response = await listNotifications({
         unreadOnly: false,
         limit: 50,
-        offset: append ? notificationCountRef.current : 0,
+        offset,
         signal: controller.signal,
       });
       if (controller.signal.aborted) return;
-      const today = localCalendarDateKey();
-      const dailyNotifications = notificationsForCalendarDate(response.notifications, today);
-      const current = notificationsForCalendarDate(notificationsRef.current, today);
+      const now = new Date();
+      const today = localCalendarDateKey(now);
+      const dailyNotifications = notificationsWithinReadRetention(
+        notificationsForCalendarDate(response.notifications, today),
+        now,
+      );
+      const current = notificationsWithinReadRetention(
+        notificationsForCalendarDate(notificationsRef.current, today),
+        now,
+      );
       const next = newestFirst(
         append
           ? [...current, ...dailyNotifications.filter((item) => !current.some((old) => old.id === item.id))]
           : dailyNotifications,
       );
+      nextNotificationOffsetRef.current = offset + response.notifications.length;
       replaceNotifications(next);
-      setHasMore(response.pagination.hasMore && dailyNotifications.length === response.notifications.length);
+      setHasMore(response.pagination.hasMore);
     } catch (error) {
       if (!controller.signal.aborted) setError(errorMessage(error));
     } finally {
@@ -164,6 +176,15 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
   useEffect(() => {
     if (open) void load();
   }, [load, open]);
+
+  useEffect(() => {
+    const delay = millisecondsUntilNextReadNotificationExpiry(notifications);
+    if (delay == null) return;
+    const timeout = window.setTimeout(() => {
+      replaceNotifications(notificationsWithinReadRetention(notificationsRef.current));
+    }, delay);
+    return () => window.clearTimeout(timeout);
+  }, [notifications, replaceNotifications]);
 
   useEffect(() => {
     let timeout = 0;
