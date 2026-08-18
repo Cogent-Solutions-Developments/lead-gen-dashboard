@@ -722,6 +722,9 @@ export type LeadOriginHistoryItem = {
   sourcePhone?: string | null;
   sourceLinkedinUrl?: string | null;
   sourceCompanyUrl?: string | null;
+  leadRequestId?: string | null;
+  leadRequestEventName?: string | null;
+  leadRequestUploadedByDisplayName?: string | null;
 };
 
 export type LeadOriginSource = {

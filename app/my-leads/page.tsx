@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  ClipboardPlus,
   Copy,
   Download,
   FileUp,
@@ -50,6 +51,7 @@ import { cn } from "@/lib/utils";
 import { LeadOriginTags } from "@/components/leads/LeadOriginTag";
 import { LeadHistoryContent } from "@/components/leads/LeadHistoryContent";
 import { LeadUploadDuplicateSummary } from "@/components/leads/LeadUploadDuplicateSummary";
+import { LeadRequestDialog } from "@/components/leads/LeadRequestDialog";
 import {
   addMyEventLead,
   createMyCampaignFromUpload,
@@ -760,6 +762,7 @@ export function MyLeadsWorkspace({
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [loadingRegistryEvents, setLoadingRegistryEvents] = useState(true);
   const [templateUploadOpen, setTemplateUploadOpen] = useState(false);
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [templateUpload, setTemplateUpload] = useState<TemplateUploadState>(EMPTY_TEMPLATE_UPLOAD);
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [addLeadForm, setAddLeadForm] = useState<AddLeadFormState>(EMPTY_ADD_LEAD_FORM);
@@ -1606,12 +1609,21 @@ export function MyLeadsWorkspace({
                 embedded ? "gap-3 sm:gap-4" : "gap-4 sm:gap-8"
               )}
             >
-              <div className="grid h-12 min-w-0 flex-1 grid-cols-2 items-center gap-1.5 rounded-full border border-zinc-200 bg-white p-1.5 sm:inline-flex sm:flex-none" aria-label="Lead actions">
+              <div className="grid h-12 min-w-0 flex-1 grid-cols-3 items-center gap-1.5 rounded-full border border-zinc-200 bg-white p-1.5 sm:inline-flex sm:flex-none" aria-label="Lead actions">
+                <button
+                  type="button"
+                  onClick={() => setRequestDialogOpen(true)}
+                  disabled={loadingRegistryEvents || !hasActiveRegistryEvents || Boolean(teamMemberId)}
+                  className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full px-2 text-xs font-semibold text-zinc-500 transition-colors hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50 sm:w-36 sm:text-sm"
+                >
+                  <ClipboardPlus className="h-4 w-4" />
+                  Request leads
+                </button>
                 <button
                   type="button"
                   onClick={openTemplateUploadDialog}
                   disabled={loadingRegistryEvents || !hasActiveRegistryEvents}
-                  className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full px-2 text-xs font-semibold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-50 sm:w-40 sm:text-sm"
+                  className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full px-2 text-xs font-semibold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-50 sm:w-36 sm:text-sm"
                 >
                   <FileUp className="h-4 w-4" />
                   Upload leads
@@ -1621,7 +1633,7 @@ export function MyLeadsWorkspace({
                   type="button"
                   onClick={openAddLeadDialog}
                   disabled={!hasActiveRegistryEvents || loadingRegistryEvents}
-                  className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-2 text-xs font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:opacity-50 sm:w-40 sm:text-sm"
+                  className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-2 text-xs font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:opacity-50 sm:w-36 sm:text-sm"
                 >
                   <Plus className="h-4 w-4" />
                   Add a lead
@@ -3249,6 +3261,11 @@ export function MyLeadsWorkspace({
           </Button>
         </div>
       </LeadSheetDialog>
+      <LeadRequestDialog
+        open={requestDialogOpen}
+        onOpenChange={setRequestDialogOpen}
+        events={registryEvents}
+      />
     </>
   );
 }

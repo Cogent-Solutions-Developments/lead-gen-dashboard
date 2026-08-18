@@ -223,6 +223,12 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
           setError(errorMessage(error));
         }
       }
+    } else if (notification.type === "lead_request_created" || notification.type === "lead_request_updated") {
+      const actionHref = metadataText(notification, "actionHref");
+      if (actionHref.startsWith("/")) {
+        setOpen(false);
+        router.push(actionHref);
+      }
     }
   };
 
@@ -357,10 +363,13 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
                   const isMemberBirthday = notification.type === "member_birthday";
                   const isEventInquiry = notification.type === "event_inquiry";
                   const isAgendaUpload = notification.type === "event_agenda_uploaded";
+                  const isLeadRequest = notification.type === "lead_request_created" || notification.type === "lead_request_updated";
                   const detail = isEventInquiry
                     ? [metadataText(notification, "contactName"), metadataText(notification, "company")].filter(Boolean).join(" - ")
                     : isAgendaUpload
                       ? [metadataText(notification, "agendaName"), metadataText(notification, "uploadedByUsername") ? `Uploaded by ${metadataText(notification, "uploadedByUsername")}` : ""].filter(Boolean).join(" - ")
+                      : isLeadRequest
+                        ? [metadataText(notification, "eventName"), metadataText(notification, "requesterName")].filter(Boolean).join(" - ")
                       : "";
                   return (
                     <button
@@ -404,9 +413,9 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
                         ) : null}
                         {detail ? <span className="mt-1 block text-xs font-semibold text-zinc-800">{detail}</span> : null}
                         <span className="mt-1 block text-sm leading-5 text-zinc-600">{notification.message}</span>
-                        {isEventInquiry || isAgendaUpload ? (
+                        {isEventInquiry || isAgendaUpload || isLeadRequest ? (
                           <span className="mt-1.5 block text-xs font-bold text-blue-700">
-                            {isEventInquiry ? "View inquiry details" : "Download agenda"}
+                            {isEventInquiry ? "View inquiry details" : isAgendaUpload ? "Download agenda" : notification.type === "lead_request_created" ? "Manage request" : "Open My Leads"}
                           </span>
                         ) : null}
                         <time className="mt-1.5 block text-xs text-zinc-500" dateTime={notification.createdAt}>
