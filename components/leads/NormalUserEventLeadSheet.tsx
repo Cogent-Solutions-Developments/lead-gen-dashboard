@@ -24,9 +24,11 @@ import {
   downloadMyLeadsLeadTemplateFile,
   createWorkflowStatusForPersona,
   downloadEventAgendaFile,
+  downloadEventDocumentFile,
   generateLeadContentForPersona,
   getLeadWorkflowStatusHistoryForPersona,
   listEventAgendas,
+  listEventDocuments,
   listEventLeadsForPersona,
   listEventsForPersona,
   listMyLeadsCampaigns,
@@ -42,6 +44,7 @@ import {
   type EventLeadListResponse,
   type EventSummaryItem,
   type EventAgendaItem,
+  type EventDocumentItem,
   type LeadContentGenerationResponse,
   type LeadContentPlatform,
   type LeadDepartmentTag,
@@ -1274,6 +1277,13 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
     downloadingId: string;
     viewingId: string;
   }>({ loading: false, agendas: [], error: "", downloadingId: "", viewingId: "" });
+  const [eventListState, setEventListState] = useState<{
+    loading: boolean;
+    speakerList: EventDocumentItem | null;
+    delegateList: EventDocumentItem | null;
+    error: string;
+    downloadingId: string;
+  }>({ loading: false, speakerList: null, delegateList: null, error: "", downloadingId: "" });
   const targetLeadRowRef = useRef<HTMLDivElement | null>(null);
   const emailGenerationRequestRef = useRef(0);
   const previousSelectedEventKeyRef = useRef("");
@@ -1707,9 +1717,46 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
     }
   }, [selectedAgendaEventId, selectedAgendaEventKey]);
 
+  const loadSelectedEventLists = useCallback(async () => {
+    if (!selectedAgendaEventId && !selectedAgendaEventKey) {
+      setEventListState((current) => ({
+        ...current,
+        loading: false,
+        speakerList: null,
+        delegateList: null,
+        error: "",
+      }));
+      return;
+    }
+
+    setEventListState((current) => ({ ...current, loading: true, error: "" }));
+    const query = {
+      eventId: selectedAgendaEventId || undefined,
+      eventKey: selectedAgendaEventId ? undefined : selectedAgendaEventKey,
+    };
+    const [speakers, delegates] = await Promise.allSettled([
+      listEventDocuments({ ...query, documentType: "speaker_list" }),
+      listEventDocuments({ ...query, documentType: "delegate_list" }),
+    ]);
+    setEventListState((current) => ({
+      ...current,
+      loading: false,
+      speakerList: speakers.status === "fulfilled" ? speakers.value.latest ?? null : null,
+      delegateList: delegates.status === "fulfilled" ? delegates.value.latest ?? null : null,
+      error:
+        speakers.status === "rejected" && delegates.status === "rejected"
+          ? getErrorMessage(speakers.reason)
+          : "",
+    }));
+  }, [selectedAgendaEventId, selectedAgendaEventKey]);
+
   useEffect(() => {
     void loadSelectedEventAgendas();
   }, [loadSelectedEventAgendas]);
+
+  useEffect(() => {
+    void loadSelectedEventLists();
+  }, [loadSelectedEventLists]);
 
   const eventLeads = useMemo(() => {
     const rows = (activeLeadPage?.items || [])
@@ -1816,9 +1863,9 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
     await loadMyLeadCampaigns();
     if (selectedEventKey) {
       await loadEventPage(selectedEventKey, pageOffset, searchQuery, { force: true });
-      await loadSelectedEventAgendas();
+      await Promise.all([loadSelectedEventAgendas(), loadSelectedEventLists()]);
     }
-  }, [cacheScope, effectivePersona, loadEventPage, loadInitialData, loadMyLeadCampaigns, loadSelectedEventAgendas, mode, pageOffset, searchQuery, selectedEventKey]);
+  }, [cacheScope, effectivePersona, loadEventPage, loadInitialData, loadMyLeadCampaigns, loadSelectedEventAgendas, loadSelectedEventLists, mode, pageOffset, searchQuery, selectedEventKey]);
 
   const clearUploadRouteFlag = useCallback(() => {
     if (uploadParam !== "1") return;
@@ -2022,6 +2069,19 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
       toast.error("Failed to open agenda", { description: getErrorMessage(error) });
     } finally {
       setAgendaState((current) => ({ ...current, viewingId: "" }));
+    }
+  };
+
+  const handleEventListDownload = async (document: EventDocumentItem, label: string) => {
+    if (!document.id) return;
+    setEventListState((current) => ({ ...current, downloadingId: document.id }));
+    try {
+      await downloadEventDocumentFile(document.id, document.name || label);
+      toast.success(`${label} download started`);
+    } catch (error: unknown) {
+      toast.error(`Failed to download ${label.toLowerCase()}`, { description: getErrorMessage(error) });
+    } finally {
+      setEventListState((current) => ({ ...current, downloadingId: "" }));
     }
   };
 
@@ -2664,6 +2724,35 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                       No agenda has been uploaded for this event yet.
                     </div>
                   )}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-zinc-400">Confirmed event lists</label>
+                <div className="mt-3 grid gap-2">
+                  {([
+                    ["Confirmed speakers", eventListState.speakerList],
+                    ["Confirmed delegates", eventListState.delegateList],
+                  ] as const).map(([label, document]) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => document && void handleEventListDownload(document, label)}
+                      disabled={eventListState.loading || !document || Boolean(eventListState.downloadingId)}
+                      title={document?.name || `${label} list has not been uploaded`}
+                      className="inline-flex h-10 w-full items-center justify-between gap-3 rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-700 transition-colors hover:border-zinc-900 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <span className="min-w-0 truncate">Download {label.toLowerCase()}</span>
+                      {document && eventListState.downloadingId === document.id ? (
+                        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                      ) : (
+                        <Download className="h-3.5 w-3.5 shrink-0" />
+                      )}
+                    </button>
+                  ))}
+                  {eventListState.error ? (
+                    <p className="text-xs text-zinc-400">Event lists are temporarily unavailable.</p>
+                  ) : null}
                 </div>
               </div>
 
