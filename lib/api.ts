@@ -978,9 +978,12 @@ export type LeadContentGenerationResponse = {
   } | null;
 };
 
-export type EventAgendaItem = {
+export type EventDocumentType = "agenda" | "speaker_list" | "delegate_list";
+
+export type EventDocumentItem = {
   id: string;
   eventRegistryId: string;
+  documentType: EventDocumentType;
   eventKey?: string | null;
   eventName?: string | null;
   name: string;
@@ -992,6 +995,8 @@ export type EventAgendaItem = {
   createdAt?: string | null;
   isLatest?: boolean;
 };
+
+export type EventAgendaItem = EventDocumentItem;
 
 export type EventAgendaListResponse = {
   event?: {
@@ -1015,6 +1020,25 @@ export type EventAgendaUploadResponse = {
 export type EventAgendaDeleteResponse = {
   ok: boolean;
   agenda: EventAgendaItem;
+  fileDeleted?: boolean;
+};
+
+export type EventDocumentListResponse = {
+  event?: EventAgendaListResponse["event"];
+  documentType: EventDocumentType;
+  latest?: EventDocumentItem | null;
+  documents: EventDocumentItem[];
+  total: number;
+};
+
+export type EventDocumentUploadResponse = {
+  event: NonNullable<EventDocumentListResponse["event"]>;
+  document: EventDocumentItem;
+};
+
+export type EventDocumentDeleteResponse = {
+  ok: boolean;
+  document: EventDocumentItem;
   fileDeleted?: boolean;
 };
 
@@ -1673,11 +1697,18 @@ export async function listEventLeads(canonicalEventKey: string, params?: EventLe
   return data;
 }
 
-function normalizeEventAgenda(raw: unknown): EventAgendaItem {
+function normalizeEventDocument(
+  raw: unknown,
+  fallbackType: EventDocumentType = "agenda"
+): EventDocumentItem {
   const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const rawType = String(source.documentType || fallbackType);
+  const documentType: EventDocumentType =
+    rawType === "speaker_list" || rawType === "delegate_list" ? rawType : "agenda";
   return {
     id: String(source.id || ""),
     eventRegistryId: String(source.eventRegistryId || ""),
+    documentType,
     eventKey: source.eventKey == null ? null : String(source.eventKey),
     eventName: source.eventName == null ? null : String(source.eventName),
     name: String(source.name || "Agenda.pdf"),
@@ -1689,6 +1720,10 @@ function normalizeEventAgenda(raw: unknown): EventAgendaItem {
     createdAt: source.createdAt == null ? null : String(source.createdAt),
     isLatest: Boolean(source.isLatest),
   };
+}
+
+function normalizeEventAgenda(raw: unknown): EventAgendaItem {
+  return normalizeEventDocument(raw, "agenda");
 }
 
 export async function listEventAgendas(params: { eventId?: string | null; eventKey?: string | null }) {
@@ -1748,6 +1783,74 @@ export async function downloadEventAgendaFile(agendaId: string, fileName = "agen
     "/api/event-agendas/" + encodeURIComponent(agendaId) + "/download",
     fileName || "agenda.pdf",
     "/api/event-agendas/" + encodeURIComponent(agendaId) + "/download-url"
+  );
+}
+
+export async function listEventDocuments(params: {
+  eventId?: string | null;
+  eventKey?: string | null;
+  documentType: EventDocumentType;
+}) {
+  const query = new URLSearchParams({ documentType: params.documentType });
+  const eventId = String(params.eventId || "").trim();
+  const eventKey = String(params.eventKey || "").trim();
+  if (eventId) query.set("eventId", eventId);
+  if (!eventId && eventKey) query.set("eventKey", eventKey);
+  const { data } = await apiClient.get<EventDocumentListResponse>(
+    "/api/event-documents?" + query.toString()
+  );
+  const documents = Array.isArray(data.documents)
+    ? data.documents.map((item) => normalizeEventDocument(item, params.documentType))
+    : [];
+  return {
+    ...data,
+    documentType: params.documentType,
+    documents,
+    latest: data.latest
+      ? normalizeEventDocument(data.latest, params.documentType)
+      : documents[0] ?? null,
+    total: Number(data.total ?? documents.length),
+  };
+}
+
+export async function uploadEventDocument(
+  eventId: string,
+  documentType: EventDocumentType,
+  file: File
+) {
+  const formData = new FormData();
+  formData.append("eventId", eventId);
+  formData.append("documentType", documentType);
+  formData.append("file", file);
+  const { data } = await apiClient.post<EventDocumentUploadResponse>(
+    "/api/admin/event-documents",
+    formData,
+    { timeout: getAgendaUploadTimeoutMs(file) }
+  );
+  return {
+    ...data,
+    document: normalizeEventDocument(data.document, documentType),
+  };
+}
+
+export async function deleteEventDocument(documentId: string) {
+  const { data } = await apiClient.delete<EventDocumentDeleteResponse>(
+    "/api/admin/event-documents/" + encodeURIComponent(documentId)
+  );
+  return {
+    ...data,
+    document: normalizeEventDocument(data.document),
+  };
+}
+
+export async function downloadEventDocumentFile(
+  documentId: string,
+  fileName = "event-document"
+) {
+  await downloadProtectedFile(
+    "/api/event-documents/" + encodeURIComponent(documentId) + "/download",
+    fileName || "event-document",
+    "/api/event-documents/" + encodeURIComponent(documentId) + "/download-url"
   );
 }
 
