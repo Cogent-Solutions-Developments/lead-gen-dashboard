@@ -65,10 +65,10 @@ const adminTabs = [
     match: (pathname: string) => pathname === "/admin/categories",
   },
   {
-    name: "Agenda Library",
-    href: "/admin/agendas",
+    name: "Event Documents",
+    href: "/admin/event-documents",
     icon: FileText,
-    match: (pathname: string) => pathname === "/admin/agendas",
+    match: (pathname: string) => pathname === "/admin/event-documents" || pathname === "/admin/agendas",
   },
   {
     name: "Knowledge Library",
