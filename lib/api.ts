@@ -728,6 +728,11 @@ export type LeadOriginHistoryItem = {
   occurredAt?: string | null;
   editVersion?: number | null;
   changedFields?: string[];
+  fieldChanges?: Array<{
+    field: string;
+    oldValue?: string | null;
+    newValue?: string | null;
+  }>;
   sourceEmail?: string | null;
   sourcePhone?: string | null;
   sourceLinkedinUrl?: string | null;

@@ -89,9 +89,13 @@ test("Source timeline renders append-only lead edit records", () => {
 
   assert.match(api, /eventType\?: "lead_source_recorded" \| "lead_profile_updated" \| string/);
   assert.match(api, /changedFields\?: string\[\]/);
+  assert.match(api, /fieldChanges\?: Array/);
   assert.match(originHistory, /Lead profile updated/);
   assert.match(originHistory, /Edited by \$\{actor\}/);
-  assert.match(originHistory, /Version \{entry\.editVersion\}/);
+  assert.doesNotMatch(originHistory, />Version \{entry\.editVersion\}</);
+  assert.match(originHistory, /\[\{change\.label\}\]/);
+  assert.match(originHistory, /\{oldValue\}/);
+  assert.match(originHistory, /\{newValue\}/);
   assert.match(originHistory, /EDIT_FIELD_LABELS/);
   assert.match(originHistory, /phone2: "Mobile number 2"/);
 });
