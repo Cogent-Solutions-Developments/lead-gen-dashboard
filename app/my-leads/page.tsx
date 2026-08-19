@@ -19,6 +19,7 @@ import {
   Loader2,
   Mail,
   MessageSquare,
+  Pencil,
   Plus,
   RefreshCcw,
   Search,
@@ -50,6 +51,7 @@ import { cn } from "@/lib/utils";
 import { LeadOriginTags } from "@/components/leads/LeadOriginTag";
 import { LeadHistoryContent } from "@/components/leads/LeadHistoryContent";
 import { LeadUploadDuplicateSummary } from "@/components/leads/LeadUploadDuplicateSummary";
+import { MyLeadEditForm } from "@/components/leads/MyLeadEditForm";
 import {
   addMyEventLead,
   createMyCampaignFromUpload,
@@ -61,6 +63,7 @@ import {
   listMyEventLeads,
   listMyEvents,
   searchMyLeads,
+  updateMyLead,
   updateLeadWorkflowStatus,
   validateMyLeadTemplateUpload,
   type EventLeadCreateRequest,
@@ -72,6 +75,8 @@ import {
   type LeadOriginSource,
   type LeadTemplateValidationResponse,
   type LeadItem,
+  type MyLeadUpdateRequest,
+  type MyLeadUpdateResponse,
   type WorkflowStatus,
   type WorkflowStatusHistoryItem,
 } from "@/lib/apiRouter";
@@ -97,6 +102,10 @@ type MyLeadRow = {
   phones: string[];
   linkedinUrl: string;
   companyUrl: string;
+  category: string;
+  leadEditVersion: number;
+  canEdit: boolean;
+  canDelete: boolean;
   workflowStatus: string;
   workflowStatusLabel: string;
   workflowComment: string;
@@ -557,6 +566,10 @@ function mapLeadItemToRow(item: LeadItem | EventLeadListItem): MyLeadRow {
     phones,
     linkedinUrl: item.linkedinUrl || "",
     companyUrl: item.companyUrl || "",
+    category: item.category || "",
+    leadEditVersion: Number(item.leadEditVersion || 0),
+    canEdit: Boolean(item.leadPermissions?.canEdit),
+    canDelete: Boolean(item.leadPermissions?.canDelete),
     workflowStatus,
     workflowStatusLabel: item.workflowStatusLabel || workflowStatus,
     workflowComment: item.workflowComment || "",
@@ -567,6 +580,42 @@ function mapLeadItemToRow(item: LeadItem | EventLeadListItem): MyLeadRow {
     manualLeadAddedByUsername: item.manualLeadAddedByUsername || "",
     originSources: Array.isArray(item.originSources) ? item.originSources : [],
     originHistory: "originHistory" in item && Array.isArray(item.originHistory) ? item.originHistory : [],
+  };
+}
+
+function replacePrimaryContact(
+  contacts: string[],
+  previousPrimary: string,
+  nextPrimary: string,
+  normalize: (value: string) => string
+) {
+  const previousKey = normalize(previousPrimary);
+  const nextKey = normalize(nextPrimary);
+  const alternates = contacts.filter((value) => {
+    const key = normalize(value);
+    return key && key !== previousKey && key !== nextKey;
+  });
+  return nextPrimary ? [nextPrimary, ...alternates] : alternates;
+}
+
+function mergeMyLeadUpdate(row: MyLeadRow, update: MyLeadUpdateResponse): MyLeadRow {
+  const email = asText(update.email);
+  const phone = asText(update.phone);
+  return {
+    ...row,
+    employeeName: asText(update.employeeName),
+    title: asText(update.title),
+    company: asText(update.company),
+    companyUrl: asText(update.companyUrl),
+    email,
+    phone,
+    emails: replacePrimaryContact(row.emails, row.email, email, (value) => value.trim().toLowerCase()),
+    phones: replacePrimaryContact(row.phones, row.phone, phone, (value) => value.replace(/\s+/g, "").trim()),
+    linkedinUrl: asText(update.linkedinUrl),
+    category: asText(update.category),
+    leadEditVersion: Number(update.leadEditVersion || 0),
+    canEdit: Boolean(update.leadPermissions?.canEdit),
+    canDelete: Boolean(update.leadPermissions?.canDelete),
   };
 }
 
@@ -785,6 +834,7 @@ export function MyLeadsWorkspace({
   const [filterOpen, setFilterOpen] = useState(false);
   const [pageOffset, setPageOffset] = useState(0);
   const [pageSize, setPageSize] = useState<number>(embedded ? EMBEDDED_PAGE_SIZE : 100);
+  const [editingLeadId, setEditingLeadId] = useState("");
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -979,6 +1029,10 @@ export function MyLeadsWorkspace({
   const pageRangeStart = pagedRows.length > 0 ? pageOffset + 1 : 0;
   const pageRangeEnd = pageOffset + pagedRows.length;
   const hasMore = usesServerPagination ? leadListMeta.hasMore : pageOffset + pageSize < pageTotal;
+  const editingLead = useMemo(
+    () => rows.find((row) => row.id === editingLeadId) || null,
+    [editingLeadId, rows]
+  );
 
   if (!role || isSuperAdmin || hasPersonaMismatch) return null;
 
@@ -1132,6 +1186,29 @@ export function MyLeadsWorkspace({
   const resetFilters = () => {
     setFilters(EMPTY_FILTERS);
     setPageOffset(0);
+  };
+
+  const submitLeadEdit = async (payload: MyLeadUpdateRequest) => {
+    if (!editingLead) throw new Error("This lead is no longer available.");
+    try {
+      const response = await updateMyLead(editingLead.id, payload);
+      setRows((current) =>
+        current.map((row) => (row.id === response.id ? mergeMyLeadUpdate(row, response) : row))
+      );
+      setEditingLeadId("");
+      toast.success("Lead updated", {
+        description: response.contentReviewRequired
+          ? "The profile was saved. Review the existing outreach content before sending."
+          : "The uploaded lead profile is now up to date.",
+      });
+      void loadRows();
+    } catch (error: unknown) {
+      const status = Number((error as { response?: { status?: number } })?.response?.status || 0);
+      if (status === 409) await loadRows();
+      const message = getApiErrorMessage(error);
+      toast.error("Lead update failed", { description: message });
+      throw new Error(message);
+    }
   };
 
   const handleEventChange = (value: string) => {
@@ -1985,6 +2062,19 @@ export function MyLeadsWorkspace({
                                 <span className="text-xs font-medium">Website</span>
                               </a>
                             ) : null}
+                            {item.canEdit ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setContactDropdown(null);
+                                  setEditingLeadId(item.id);
+                                }}
+                                className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-blue-600 transition-colors hover:border-blue-700 hover:text-blue-800"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                                <span className="text-xs font-medium">Edit</span>
+                              </button>
+                            ) : null}
                             <button type="button" onClick={() => void copyLeadDetails(item)} className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950">
                               <Copy className="h-3.5 w-3.5" />
                               <span className="text-xs font-medium">{copiedLeadId === item.id ? "Copied" : "Copy lead"}</span>
@@ -2241,6 +2331,24 @@ export function MyLeadsWorkspace({
             </div>
           </div>
         </div>
+      ) : null}
+
+      {editingLead ? (
+        <LeadSheetDialog
+          open
+          eyebrow="My Leads"
+          title="Edit uploaded lead"
+          description="Change the profile details used across this lead's workflow and outreach drafts."
+          onClose={() => setEditingLeadId("")}
+          compactSize="wide"
+        >
+          <MyLeadEditForm
+            lead={editingLead}
+            requireContact={persona === "sales"}
+            onCancel={() => setEditingLeadId("")}
+            onSubmit={submitLeadEdit}
+          />
+        </LeadSheetDialog>
       ) : null}
 
       {pendingStatusChange ? (

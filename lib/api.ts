@@ -785,6 +785,7 @@ export type LeadItem = {
   phone: string | null;
   linkedinUrl: string | null;
   companyUrl: string | null;
+  category?: string | null;
   contentEmailSubject: string | null;
   contentEmail: string | null;
   contentLinkedin: string | null;
@@ -822,6 +823,45 @@ export type LeadItem = {
   whatsappAttachments?: LeadAttachment[];
   contentSource?: EmailTemplateContentSource | string | null;
   templateFallback?: boolean | null;
+  leadEditVersion?: number | null;
+  leadPermissions?: MyLeadEditPermissions | null;
+};
+
+export type MyLeadEditPermissions = {
+  canEdit: boolean;
+  canDelete: boolean;
+};
+
+export type MyLeadUpdateRequest = {
+  expectedVersion: number;
+  fullName?: string;
+  title?: string;
+  companyName?: string;
+  companyUrl?: string;
+  email?: string;
+  phone?: string;
+  linkedinUrl?: string;
+  category?: string;
+};
+
+export type MyLeadUpdateResponse = {
+  id: string;
+  campaignId: string;
+  employeeName: string;
+  title?: string | null;
+  company?: string | null;
+  companyUrl?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  linkedinUrl?: string | null;
+  category?: string | null;
+  leadIdentityKey: string;
+  previousLeadIdentityKey: string;
+  leadEditVersion: number;
+  leadPermissions: MyLeadEditPermissions;
+  changedFields: string[];
+  contentReviewRequired: boolean;
+  updatedAt: string;
 };
 
 export type WorkflowStatusUpdateResponse = {
@@ -935,6 +975,8 @@ export type EventLeadListItem = {
   originSources?: LeadOriginSource[];
   originHistory?: LeadOriginHistoryItem[];
   ownershipCount?: number | null;
+  leadEditVersion?: number | null;
+  leadPermissions?: MyLeadEditPermissions | null;
 };
 
 export type LeadEmailGenerationRequest = {

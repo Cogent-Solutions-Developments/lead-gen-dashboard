@@ -54,6 +54,21 @@ test("My Leads endpoints resolve to the correct pipeline prefixes", () => {
   assert.match(apiRouter, /`\$\{getMyLeadsPrefix\(persona\)\}\/events\/\$\{encodeURIComponent\(canonicalEventKey\)\}\/leads`/);
   assert.match(apiRouter, /export async function listMyLeadsEventLeads/);
   assert.match(apiRouter, /export async function downloadMyLeadsCampaignExport/);
+  assert.match(apiRouter, /export async function updateMyLead/);
+  assert.match(apiRouter, /apiClient\.patch<sales\.MyLeadUpdateResponse>/);
+  assert.match(apiRouter, /`\$\{getMyLeadsPrefix\(persona\)\}\/leads\/\$\{encodeURIComponent\(id\)\}`/);
+});
+
+test("My Leads edit is capability gated and never exposes delete", () => {
+  const page = read("app/my-leads/page.tsx");
+  const editForm = read("components/leads/MyLeadEditForm.tsx");
+
+  assert.match(page, /item\.canEdit \? \(/);
+  assert.match(page, /setEditingLeadId\(item\.id\)/);
+  assert.match(page, /<MyLeadEditForm/);
+  assert.match(editForm, /expectedVersion: lead\.leadEditVersion/);
+  assert.match(editForm, /Deletion is intentionally unavailable/);
+  assert.doesNotMatch(page, /deleteMyLead|deleteUploadedLead/);
 });
 
 test("normal upload entry points route to My Leads upload", () => {
