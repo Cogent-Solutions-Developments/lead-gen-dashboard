@@ -745,6 +745,9 @@ export type LeadOriginHistoryItem = {
   leadType?: import("@/lib/leads/leadTypes").LeadType | null;
   leadTypeLabel?: string | null;
   isMediaPartner?: boolean;
+  leadRequestId?: string | null;
+  leadRequestEventName?: string | null;
+  leadRequestUploadedByDisplayName?: string | null;
 };
 
 export type LeadOriginSource = {
@@ -1130,6 +1133,7 @@ export type EventLeadListParams = {
   limit?: number;
   offset?: number;
   search?: string;
+  department?: "sales" | "delegate" | "production";
   workflowStatus?: WorkflowStatus;
   category?: string;
   includeManual?: boolean;
@@ -1693,6 +1697,7 @@ export async function listMyEventLeads(canonicalEventKey: string, params?: Event
         limit: params?.limit,
         offset: params?.offset,
         search: params?.search,
+        department: params?.department,
         workflowStatus: params?.workflowStatus,
         category: params?.category,
         includeManual: params?.includeManual,
@@ -1786,6 +1791,7 @@ export async function listEventLeads(canonicalEventKey: string, params?: EventLe
         limit: params?.limit,
         offset: params?.offset,
         search: params?.search,
+        department: params?.department,
         workflowStatus: params?.workflowStatus,
         category: params?.category,
         includeManual: params?.includeManual,

@@ -436,6 +436,7 @@ export async function listMyLeadsEventLeads(
         limit: params?.limit,
         offset: params?.offset,
         search: params?.search,
+        department: params?.department,
         workflowStatus: params?.workflowStatus,
         category: params?.category,
         includeManual: params?.includeManual,

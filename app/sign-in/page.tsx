@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +35,7 @@ export default function SignInPage() {
   const prefersReducedMotion = useReducedMotion();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [mfaCode, setMfaCode] = useState("");
   const [mfaRecoveryCode, setMfaRecoveryCode] = useState("");
   const [useRecoveryCode, setUseRecoveryCode] = useState(false);
@@ -417,17 +418,30 @@ export default function SignInPage() {
               </div>
 
               <div>
-                <label className="mb-3 block text-xs font-medium text-zinc-400">
+                <label htmlFor="sign-in-password" className="mb-3 block text-xs font-medium text-zinc-400">
                   Password
                 </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Access key"
-                  autoComplete="current-password"
-                  className="h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light tracking-tight text-zinc-950 placeholder:text-zinc-300 outline-none transition-colors duration-200 focus:border-blue-600"
-                />
+                <div className="relative">
+                  <input
+                    id="sign-in-password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Access key"
+                    autoComplete="current-password"
+                    className="h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 pr-12 text-lg font-light tracking-tight text-zinc-950 placeholder:text-zinc-300 outline-none transition-colors duration-200 focus:border-blue-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((visible) => !visible)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-pressed={showPassword}
+                    title={showPassword ? "Hide password" : "Show password"}
+                    className="absolute right-0 top-0 flex h-12 w-11 items-center justify-center text-zinc-400 transition-colors hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" aria-hidden="true" /> : <Eye className="h-5 w-5" aria-hidden="true" />}
+                  </button>
+                </div>
               </div>
 
               <Button

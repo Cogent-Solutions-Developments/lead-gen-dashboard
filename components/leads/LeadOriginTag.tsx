@@ -229,6 +229,7 @@ export function LeadOwnershipHistory({
         const isProfileEdit = entry.eventType === "lead_profile_updated";
         const sourceType = String(entry.sourceType || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
         const isUserUpload = ["user_leads", "user_upload", "manual", "manual_lead"].includes(sourceType);
+        const isLeadRequest = sourceType === "lead_request" || Boolean(entry.leadRequestId);
         const owner = String(
           entry.ownerLabel
           || entry.ownerFirstName
@@ -279,6 +280,10 @@ export function LeadOwnershipHistory({
                   ? fieldChanges.length
                     ? `${actor} updated ${fieldChanges.length} lead field${fieldChanges.length === 1 ? "" : "s"}.`
                     : `${actor} updated this lead profile.`
+                  : isLeadRequest && sourceType === "lead_request"
+                    ? `${owner} requested this lead for ${entry.leadRequestEventName || department}. ${entry.leadRequestUploadedByDisplayName || "An administrator"} fulfilled the request.`
+                    : isLeadRequest && sourceType === "cs_database"
+                      ? `${entry.leadRequestUploadedByDisplayName || "An administrator"} added this requested lead to CS Database for ${department}.`
                   : isUserUpload
                   ? `${owner} uploaded this lead to ${department}.`
                   : sourceType === "cs_database"

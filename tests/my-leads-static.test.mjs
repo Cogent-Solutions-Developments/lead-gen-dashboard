@@ -113,3 +113,12 @@ test("My Leads page enforces role persona and redirects admins", () => {
   assert.match(page, /const expectedPersona = personaForRole\(role\)/);
   assert.match(page, /if \(hasPersonaMismatch\) router\.replace\("\/dashboard"\)/);
 });
+
+test("lead requests accept designation lists with concise copy", () => {
+  const dialog = read("components/leads/LeadRequestDialog.tsx");
+
+  assert.match(dialog, /<Textarea value=\{form\.targetDesignation\}/);
+  assert.match(dialog, />Designations<\/span>/);
+  assert.match(dialog, /placeholder="One per line or comma"/);
+  assert.doesNotMatch(dialog, /Target designation|Tell the admin team|Send request/);
+});
