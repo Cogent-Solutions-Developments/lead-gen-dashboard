@@ -262,7 +262,6 @@ export async function createCampaignFromUpload(payload: UploadCampaignRequest) {
   formData.append("date", payload.date?.trim() ?? "");
   formData.append("eventRegistryId", payload.eventRegistryId?.trim() ?? "");
   formData.append("icp", payload.icp?.trim() ?? "");
-  formData.append("leadType", payload.leadType);
 
   const leadSheetName =
     typeof File !== "undefined" && payload.leadSheet instanceof File && payload.leadSheet.name
@@ -278,11 +277,7 @@ export async function createCampaignFromUpload(payload: UploadCampaignRequest) {
   return data;
 }
 
-export async function validateLeadTemplateUpload(
-  file: File | Blob,
-  eventRegistryId: string | undefined,
-  leadType: UploadCampaignRequest["leadType"]
-) {
+export async function validateLeadTemplateUpload(file: File | Blob, eventRegistryId?: string) {
   const formData = new FormData();
   const fileName =
     typeof File !== "undefined" && file instanceof File && file.name
@@ -290,7 +285,6 @@ export async function validateLeadTemplateUpload(
       : "lead-upload-template.xlsx";
 
   formData.append("leadSheet", file, fileName);
-  formData.append("leadType", leadType);
   if (eventRegistryId?.trim()) formData.append("eventRegistryId", eventRegistryId.trim());
 
   const { data } = await apiClientDelegate.post<LeadTemplateValidationResponse>(
@@ -340,7 +334,6 @@ export async function createMyCampaignFromUpload(payload: UploadCampaignRequest)
   formData.append("date", payload.date?.trim() ?? "");
   formData.append("eventRegistryId", payload.eventRegistryId?.trim() ?? "");
   formData.append("icp", payload.icp?.trim() ?? "");
-  formData.append("leadType", payload.leadType);
 
   const leadSheetName =
     typeof File !== "undefined" && payload.leadSheet instanceof File && payload.leadSheet.name
@@ -356,11 +349,7 @@ export async function createMyCampaignFromUpload(payload: UploadCampaignRequest)
   return data;
 }
 
-export async function validateMyLeadTemplateUpload(
-  file: File | Blob,
-  eventRegistryId: string | undefined,
-  leadType: UploadCampaignRequest["leadType"]
-) {
+export async function validateMyLeadTemplateUpload(file: File | Blob, eventRegistryId?: string) {
   const formData = new FormData();
   const fileName =
     typeof File !== "undefined" && file instanceof File && file.name
@@ -368,7 +357,6 @@ export async function validateMyLeadTemplateUpload(
       : "lead-upload-template.xlsx";
 
   formData.append("leadSheet", file, fileName);
-  formData.append("leadType", leadType);
   if (eventRegistryId?.trim()) formData.append("eventRegistryId", eventRegistryId.trim());
 
   const { data } = await apiClientDelegate.post<LeadTemplateValidationResponse>(
@@ -542,8 +530,8 @@ export async function searchLeads(params?: GlobalLeadSearchParams) {
   return data;
 }
 
-export async function listEvents(params?: { leadGroup?: import("@/lib/leads/leadTypes").LeadGroup }) {
-  const { data } = await apiClientDelegate.get<EventSummaryResponse>("/api/delegates/events", { params });
+export async function listEvents() {
+  const { data } = await apiClientDelegate.get<EventSummaryResponse>("/api/delegates/events");
   return data;
 }
 

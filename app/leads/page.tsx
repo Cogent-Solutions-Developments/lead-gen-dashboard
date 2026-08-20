@@ -44,9 +44,13 @@ import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
 import { NormalUserEventLeadSheet } from "@/components/leads/NormalUserEventLeadSheet";
 import { LeadOriginTags } from "@/components/leads/LeadOriginTag";
-import { LEAD_GROUP_OPTIONS, type LeadGroup } from "@/lib/leads/leadTypes";
 
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
+const CEO_DEPARTMENT_TABS = [
+  { value: "sales", label: "Sales" },
+  { value: "delegates", label: "Delegate" },
+  { value: "production", label: "Production" },
+] as const;
 const SELECTED_CONTENT_GENERATION_LIMIT = 25;
 const POSITION_OPTIONS = [
   "CEO",
@@ -84,6 +88,7 @@ type SortBy =
 type ContactState = "whatsapp" | "email" | "both" | "in_progress" | "not_contacted" | "unknown";
 type DeliverySignal = "sent" | "in_progress" | "not_contacted";
 type ApprovalStatus = "pending" | "approved" | "rejected" | "suppressed";
+type CeoDepartmentValue = (typeof CEO_DEPARTMENT_TABS)[number]["value"];
 
 type SuppressionInfo = {
   active?: boolean;
@@ -2222,16 +2227,16 @@ function SuperAdminTotalLeads() {
 }
 
 function CeoDatabasePage() {
-  const [activeLeadGroup, setActiveLeadGroup] = useState<LeadGroup>("sales");
+  const [activeDepartment, setActiveDepartment] = useState<CeoDepartmentValue>("sales");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const switchLeadGroup = useCallback(
-    (next: LeadGroup) => {
-      if (next === activeLeadGroup) return;
+  const switchDepartment = useCallback(
+    (next: CeoDepartmentValue) => {
+      if (next === activeDepartment) return;
 
-      setActiveLeadGroup(next);
+      setActiveDepartment(next);
 
       const params = new URLSearchParams(searchParams.toString());
       params.delete("event");
@@ -2241,20 +2246,19 @@ function CeoDatabasePage() {
       const nextQuery = params.toString();
       router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
     },
-    [activeLeadGroup, pathname, router, searchParams]
+    [activeDepartment, pathname, router, searchParams]
   );
 
-  const leadGroupTabs = (
+  const departmentTabs = (
     <Card className="rounded-2xl border border-white/80 bg-white/88 p-1.5 shadow-[0_12px_38px_-32px_rgba(15,23,42,0.65)] backdrop-blur-[12px]">
-      <p className="px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-[0.16em] text-zinc-400">Lead Group</p>
-      <div className="grid gap-1 md:grid-cols-4">
-        {LEAD_GROUP_OPTIONS.map((tab) => {
-          const active = activeLeadGroup === tab.value;
+      <div className="grid gap-1 md:grid-cols-3">
+        {CEO_DEPARTMENT_TABS.map((tab) => {
+          const active = activeDepartment === tab.value;
           return (
             <button
               key={tab.value}
               type="button"
-              onClick={() => switchLeadGroup(tab.value)}
+              onClick={() => switchDepartment(tab.value)}
               className={`h-11 rounded-xl px-4 text-sm font-semibold transition-all ${
                 active
                   ? "bg-blue-600 text-white shadow-[0_14px_28px_-18px_rgba(37,99,235,0.9)]"
@@ -2269,14 +2273,7 @@ function CeoDatabasePage() {
     </Card>
   );
 
-  const dataPersona = activeLeadGroup === "delegate" ? "delegates" : activeLeadGroup === "production" ? "production" : "sales";
-  return (
-    <NormalUserEventLeadSheet
-      dataPersona={dataPersona}
-      leadGroup={activeLeadGroup}
-      departmentTabs={leadGroupTabs}
-    />
-  );
+  return <NormalUserEventLeadSheet dataPersona={activeDepartment} departmentTabs={departmentTabs} />;
 }
 
 export default function LeadsPage() {

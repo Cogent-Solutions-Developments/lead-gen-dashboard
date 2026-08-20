@@ -5002,7 +5002,7 @@ function SuperAdminCampaignDetailPage() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.96, opacity: 0, y: 10 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className="relative flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_22px_36px_-26px_rgba(2,10,27,0.62)]"
+              className="relative flex h-[calc(100vh-1.5rem)] max-h-[52rem] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_22px_36px_-26px_rgba(2,10,27,0.62)] sm:h-[88vh]"
             >
               <div className="relative z-[2] flex flex-col gap-3 border-b border-zinc-100 bg-white px-6 py-5 sm:flex-row sm:items-start sm:justify-between">
                 <div>
@@ -5053,18 +5053,18 @@ function SuperAdminCampaignDetailPage() {
                 </div>
               </div>
 
-              <div className="relative z-[2] flex-1 space-y-5 overflow-y-auto scrollbar-hide bg-white p-6">
-                <div className="min-h-[24.5rem]">
+              <div className="relative z-[2] flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-hide bg-white p-4 sm:p-5">
+                <div className="flex min-h-0 flex-1 flex-col">
                   {reviewChannel === "email" ? (
-                  <Card className="h-full rounded-2xl border border-zinc-300 bg-white p-5 shadow-sm">
-                    <div className="mb-4 flex items-center gap-2">
+                  <Card className="flex h-full min-h-0 flex-col rounded-2xl border border-zinc-300 bg-white p-4 shadow-sm">
+                    <div className="mb-2 flex items-center gap-2">
                       <div className="rounded-md border border-zinc-300 bg-white p-1.5">
                         <Mail className="h-4 w-4 text-zinc-900" />
                       </div>
                       <span className="text-sm font-semibold text-zinc-900">Cold Email</span>
                     </div>
 
-                    <div className="flex h-full min-h-0 flex-col space-y-3">
+                    <div className="flex min-h-0 flex-1 flex-col gap-2">
                       {selectedEmptyContentNotice ? (
                         <div
                           className={`rounded-lg border px-3 py-3 text-sm ${
@@ -5182,7 +5182,7 @@ function SuperAdminCampaignDetailPage() {
                       <div className="flex min-h-0 flex-1 flex-col">
                         <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">Email Body</label>
                         <textarea
-                          className="h-full min-h-0 w-full resize-none rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                          className="h-full min-h-0 max-h-full flex-1 w-full resize-y rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm leading-6 text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900"
                           value={(editForm.contentEmail as string) || ""}
                           onChange={(e) => handleContentChange("contentEmail", e.target.value)}
                         />
@@ -5190,20 +5190,20 @@ function SuperAdminCampaignDetailPage() {
                     </div>
                   </Card>
                   ) : (
-                  <Card className="h-full rounded-2xl border border-[#0A66C2]/20 bg-white p-5 shadow-sm">
-                    <div className="mb-4 flex items-center gap-2">
+                  <Card className="flex h-full min-h-0 flex-col rounded-2xl border border-[#0A66C2]/20 bg-white p-4 shadow-sm">
+                    <div className="mb-2 flex items-center gap-2">
                       <div className="rounded-md border border-[#0A66C2]/25 bg-[#0A66C2]/5 p-1.5">
                         <LinkedInIcon className="h-4 w-4 text-[#0A66C2]" />
                       </div>
                       <span className="text-sm font-semibold text-zinc-900">LinkedIn Message</span>
                     </div>
 
-                    <div className="flex h-full min-h-0 flex-col">
+                    <div className="flex min-h-0 flex-1 flex-col">
                       <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                         HeyReach message
                       </label>
                       <textarea
-                        className="h-full min-h-0 w-full resize-none rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-[#0A66C2]"
+                        className="h-full min-h-0 max-h-full flex-1 w-full resize-y rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm leading-6 text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-[#0A66C2]"
                         value={(editForm.contentLinkedin as string) || ""}
                         onChange={(e) => handleContentChange("contentLinkedin", e.target.value)}
                         placeholder="Generate or write a LinkedIn message to queue this lead in HeyReach."
@@ -5241,7 +5241,7 @@ function SuperAdminCampaignDetailPage() {
               <div className="relative z-[2] flex flex-col gap-3 border-t border-zinc-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-1">
                   <p className="text-xs text-zinc-500">
-                    Saving keeps this review editable. Approve the active channel separately to unlock only its outreach action.
+                    Saving keeps this review editable. Active template content is ready for its configured outreach channel.
                   </p>
                   {isLeadMarketingOptedOut(selectedLead) ? (
                     <p className="text-xs font-medium text-rose-600">
@@ -5307,6 +5307,7 @@ function SuperAdminCampaignDetailPage() {
                       Save
                     </Button>
 
+                    {/* Manual approval is intentionally hidden: active campaign templates are auto-approved.
                     <Button
                       className="h-9 bg-emerald-700 px-3.5 text-white hover:bg-emerald-800"
                       disabled={saving || isResettingContent || isLeadMarketingOptedOut(selectedLead)}
@@ -5315,6 +5316,7 @@ function SuperAdminCampaignDetailPage() {
                       <CheckCircle className="mr-2 h-4 w-4" />
                       {reviewChannel === "email" ? "Approve Cold Email" : "Approve LinkedIn"}
                     </Button>
+                    */}
                   </div>
                 ) : (
                   <div className="flex justify-end gap-3">
