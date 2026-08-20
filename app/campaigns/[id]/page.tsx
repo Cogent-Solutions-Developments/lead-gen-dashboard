@@ -44,6 +44,8 @@ import {
   deleteCampaignEmailTemplate,
   generateSelectedCampaignLeadContent,
   getCampaignEmailTemplate,
+  saveCampaignLinkedInSetup,
+  sendCampaignLeadLinkedin,
   resetLeadContent,
   resetSelectedCampaignLeadContent,
   type CampaignImportSummary,
@@ -80,10 +82,34 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 );
 
 type ApprovalStatus = "pending" | "approved" | "rejected" | "suppressed";
+type ChannelApprovalStatus = "pending" | "approved" | "rejected";
 type OutreachState = "pending" | "queued" | "sending" | "sent" | "failed";
 type AttachmentChannel = "email" | "whatsapp" | "common";
 type LeadFilterKey = "new" | "sent" | "rejected" | "suppressed";
-type LeadSendAction = "both" | "email" | "whatsapp";
+type LeadSendAction = "both" | "email" | "linkedin" | "whatsapp";
+
+const FOLLOW_UP_STEPS = ["1st follow-up", "2nd follow-up", "3rd follow-up", "Final follow-up"] as const;
+type FollowUpTemplate = {
+  id?: string;
+  stage: number;
+  subject: string;
+  body: string;
+  isActive: boolean;
+  updatedAt?: string | null;
+};
+type FollowUpHistoryItem = {
+  id: string;
+  stage: number;
+  status: "draft" | "queued" | "sent" | "failed";
+  subject: string;
+  sentAt?: string | null;
+  errorMessage?: string | null;
+};
+
+const createEmptyFollowUpTemplates = (): Record<number, FollowUpTemplate> =>
+  Object.fromEntries(
+    FOLLOW_UP_STEPS.map((_, index) => [index + 1, { stage: index + 1, subject: "", body: "", isActive: true }])
+  ) as Record<number, FollowUpTemplate>;
 type BulkSendChannel = "email" | "whatsapp";
 type LeadContentSource = "template" | "generated" | "manual" | "empty" | "unknown";
 type ContentGenerationQueueStatus = "idle" | "running" | "stopping" | "paused";
@@ -165,6 +191,7 @@ interface Lead {
 
   reviewStatus?: string | null;
   approvalStatus: ApprovalStatus;
+  channelApprovals?: Partial<Record<"email" | "linkedin", ChannelApprovalStatus>>;
   isSuppressed?: boolean;
   suppression?: SuppressionMeta | null;
   contactReadOnly?: boolean;
@@ -220,10 +247,10 @@ type LeadExportRow = {
 };
 
 const approvalStyles = {
-  pending: { bg: "bg-zinc-100 text-zinc-500 border-zinc-300", icon: Clock },
-  approved: { bg: "bg-sidebar-primary/10 text-emerald-900 border-sidebar-primary/20", icon: CheckCircle },
-  rejected: { bg: "bg-white text-zinc-400 border-zinc-300 line-through", icon: XCircle },
-  suppressed: { bg: "bg-rose-50 text-rose-700 border-rose-200", icon: XCircle },
+  pending: { bg: "bg-zinc-100 text-zinc-500 border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300", icon: Clock },
+  approved: { bg: "bg-sidebar-primary/10 text-emerald-900 border-sidebar-primary/20 dark:border-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300", icon: CheckCircle },
+  rejected: { bg: "bg-white text-zinc-400 border-zinc-300 line-through dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300", icon: XCircle },
+  suppressed: { bg: "bg-rose-50 text-rose-700 border-rose-200 dark:border-rose-800 dark:bg-rose-950/70 dark:text-rose-300", icon: XCircle },
 };
 
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
@@ -450,7 +477,7 @@ function getLeadContentIndicator(lead: Lead) {
     return {
       title: lead.generationFailure.reason || "Validator rejected this lead content.",
       buttonClassName:
-        "border-rose-200 bg-rose-50/90 text-rose-800 hover:border-rose-300 hover:bg-rose-100/80 hover:text-rose-900",
+        "border-rose-200 bg-rose-50/90 text-rose-800 hover:border-rose-300 hover:bg-rose-100/80 hover:text-rose-900 dark:border-rose-800 dark:bg-rose-950/70 dark:text-rose-300 dark:hover:bg-rose-950",
       iconClassName: "text-rose-500",
     };
   }
@@ -459,7 +486,7 @@ function getLeadContentIndicator(lead: Lead) {
     return {
       title: lead.generationFailure.reason || "Generated content did not pass QA.",
       buttonClassName:
-        "border-amber-200 bg-amber-50/90 text-amber-800 hover:border-amber-300 hover:bg-amber-100/80 hover:text-amber-900",
+        "border-amber-200 bg-amber-50/90 text-amber-800 hover:border-amber-300 hover:bg-amber-100/80 hover:text-amber-900 dark:border-amber-800 dark:bg-amber-950/70 dark:text-amber-300 dark:hover:bg-amber-950",
       iconClassName: "text-amber-500",
     };
   }
@@ -468,7 +495,7 @@ function getLeadContentIndicator(lead: Lead) {
     return {
       title: lead.generationFailure.reason || "Content generation failed.",
       buttonClassName:
-        "border-amber-200 bg-amber-50/90 text-amber-800 hover:border-amber-300 hover:bg-amber-100/80 hover:text-amber-900",
+        "border-amber-200 bg-amber-50/90 text-amber-800 hover:border-amber-300 hover:bg-amber-100/80 hover:text-amber-900 dark:border-amber-800 dark:bg-amber-950/70 dark:text-amber-300 dark:hover:bg-amber-950",
       iconClassName: "text-amber-500",
     };
   }
@@ -477,7 +504,7 @@ function getLeadContentIndicator(lead: Lead) {
     return {
       title: "Content is available for this lead.",
       buttonClassName:
-        "border-emerald-200 bg-emerald-50/90 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-100/80 hover:text-emerald-900",
+        "border-emerald-200 bg-emerald-50/90 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-100/80 hover:text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 dark:hover:bg-emerald-950",
       iconClassName: "text-emerald-500",
     };
   }
@@ -485,7 +512,7 @@ function getLeadContentIndicator(lead: Lead) {
   return {
     title: "Review email content",
     buttonClassName:
-      "border-zinc-300/80 bg-white/82 text-zinc-700 hover:border-zinc-300 hover:bg-white hover:text-zinc-900",
+      "border-zinc-300/80 bg-white/82 text-zinc-700 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:border-zinc-500 dark:hover:bg-zinc-700",
     iconClassName: "text-zinc-400",
   };
 }
@@ -709,6 +736,8 @@ function normalizeChannelCapability(value: unknown) {
     enabled: source.enabled == null ? undefined : parseBoolean(source.enabled),
     templateConfigured:
       source.templateConfigured == null ? undefined : parseBoolean(source.templateConfigured),
+    campaignConfigured:
+      source.campaignConfigured == null ? undefined : parseBoolean(source.campaignConfigured),
   };
 }
 
@@ -717,10 +746,21 @@ function normalizeChannelCapabilities(value: unknown): ChannelCapabilities | nul
   if (!source) return null;
 
   const email = normalizeChannelCapability(source.email);
+  const linkedin = normalizeChannelCapability(source.linkedin);
   const whatsapp = normalizeChannelCapability(source.whatsapp);
 
-  if (!email && !whatsapp) return null;
-  return { email, whatsapp };
+  if (!email && !linkedin && !whatsapp) return null;
+  return { email, linkedin, whatsapp };
+}
+
+function normalizeChannelApprovals(value: unknown): Lead["channelApprovals"] | undefined {
+  const source = asRecord(value);
+  if (!source) return undefined;
+  const normalize = (status: unknown): ChannelApprovalStatus | undefined =>
+    status === "approved" || status === "rejected" || status === "pending" ? status : undefined;
+  const email = normalize(source.email);
+  const linkedin = normalize(source.linkedin);
+  return email || linkedin ? { email, linkedin } : undefined;
 }
 
 function normalizeAttachment(value: unknown): Attachment | null {
@@ -809,12 +849,36 @@ function isLeadWhatsappActionCompleted(lead: Lead) {
   return isExecutedOutreachState(buildOutreachStatus(lead).whatsapp);
 }
 
+function leadHasLinkedinProfile(lead: Lead) {
+  return hasText(lead.linkedinUrl);
+}
+
+function leadSupportsLinkedinAction(lead: Lead) {
+  const capability = lead.channelCapabilities?.linkedin;
+  return Boolean(
+    leadHasLinkedinProfile(lead) &&
+      capability?.enabled === true &&
+      capability.campaignConfigured === true &&
+      capability.sendable === true
+  );
+}
+
+function isLeadLinkedinActionCompleted(lead: Lead) {
+  return buildOutreachStatus(lead).linkedin === "sent";
+}
+
+function isLeadLinkedinActionHandedOff(lead: Lead) {
+  return isExecutedOutreachState(buildOutreachStatus(lead).linkedin);
+}
+
 function isLeadFullyActioned(lead: Lead) {
   const needsEmail = leadSupportsEmailAction(lead);
+  const needsLinkedin = leadSupportsLinkedinAction(lead);
   const needsWhatsapp = leadSupportsWhatsappAction(lead);
 
-  if (!needsEmail && !needsWhatsapp) return false;
+  if (!needsEmail && !needsLinkedin && !needsWhatsapp) return false;
   if (needsEmail && !isLeadEmailActionCompleted(lead)) return false;
+  if (needsLinkedin && !isLeadLinkedinActionHandedOff(lead)) return false;
   if (needsWhatsapp && !isLeadWhatsappActionCompleted(lead)) return false;
   return true;
 }
@@ -1119,6 +1183,12 @@ function SuperAdminCampaignDetailPage() {
 
   const [campaign, setCampaign] = useState<CampaignDetail | null>(null);
   const [campaignCategory, setCampaignCategory] = useState<string>("");
+  const [heyreachCampaignId, setHeyreachCampaignId] = useState("");
+  const [savedHeyreachCampaignId, setSavedHeyreachCampaignId] = useState("");
+  const [linkedinTemplateBody, setLinkedinTemplateBody] = useState("");
+  const [savedLinkedinTemplateBody, setSavedLinkedinTemplateBody] = useState("");
+  const [isHeyreachCampaignSaving, setIsHeyreachCampaignSaving] = useState(false);
+  const [activeChannelSetup, setActiveChannelSetup] = useState<"linkedin" | "email" | "followups">("linkedin");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [leadFilter, setLeadFilter] = useState<LeadFilterKey>("new");
@@ -1149,6 +1219,16 @@ function SuperAdminCampaignDetailPage() {
   const [smsTargetLead, setSmsTargetLead] = useState<Lead | null>(null);
   const [smsMessage, setSmsMessage] = useState("");
   const [isSendingSms, setIsSendingSms] = useState(false);
+  const [followUpTargetLead, setFollowUpTargetLead] = useState<Lead | null>(null);
+  const [followUpHistory, setFollowUpHistory] = useState<FollowUpHistoryItem[]>([]);
+  const [followUpStep, setFollowUpStep] = useState(0);
+  const [followUpSubject, setFollowUpSubject] = useState("");
+  const [followUpBody, setFollowUpBody] = useState("");
+  const [isSendingFollowUp, setIsSendingFollowUp] = useState(false);
+  const [quickFollowUpLeadId, setQuickFollowUpLeadId] = useState<string | null>(null);
+  const [followUpTemplates, setFollowUpTemplates] = useState<Record<number, FollowUpTemplate>>(createEmptyFollowUpTemplates);
+  const [selectedFollowUpTemplateStage, setSelectedFollowUpTemplateStage] = useState(1);
+  const [isSavingFollowUpTemplate, setIsSavingFollowUpTemplate] = useState(false);
   const [emailTemplateId, setEmailTemplateId] = useState<string | null>(null);
   const [emailTemplateSubject, setEmailTemplateSubject] = useState("");
   const [emailTemplateBody, setEmailTemplateBody] = useState("");
@@ -1160,6 +1240,7 @@ function SuperAdminCampaignDetailPage() {
   const leadOrderRef = useRef<Map<string, number>>(new Map());
 
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [reviewChannel, setReviewChannel] = useState<"email" | "linkedin">("email");
   const [editForm, setEditForm] = useState<Partial<Lead>>({});
   const [saving, setSaving] = useState(false);
   const [isResettingContent, setIsResettingContent] = useState(false);
@@ -1196,6 +1277,7 @@ function SuperAdminCampaignDetailPage() {
   const hasEmailLeads = emailLeadCount > 0;
   const emailTemplateSaveDisabled =
     !hasEmailLeads || isEmailTemplateLoading || isEmailTemplateSaving || isEmailTemplateDeleting;
+  const selectedFollowUpTemplate = followUpTemplates[selectedFollowUpTemplateStage];
 
   const leadFilterTabs = useMemo(
     () => [
@@ -1318,6 +1400,35 @@ function SuperAdminCampaignDetailPage() {
   function isLeadSelectionBlocked(lead: Lead) {
     return isLeadMarketingOptedOut(lead);
   }
+  function leadSupportsEmailAction(lead: Lead) {
+    return hasText(lead.email);
+  }
+  function leadSupportsWhatsappAction(lead: Lead) {
+    return hasText(lead.phone);
+  }
+  function isLeadEmailActionCompleted(lead: Lead) {
+    return isExecutedOutreachState(buildOutreachStatus(lead).email);
+  }
+  function isLeadWhatsappActionCompleted(lead: Lead) {
+    return isExecutedOutreachState(buildOutreachStatus(lead).whatsapp);
+  }
+  function isLeadFullyActioned(lead: Lead) {
+    const needsEmail = leadSupportsEmailAction(lead);
+    const needsLinkedin = leadSupportsLinkedinAction(lead);
+    const needsWhatsapp = leadSupportsWhatsappAction(lead);
+
+    if (!needsEmail && !needsLinkedin && !needsWhatsapp) return false;
+    if (needsEmail && !isLeadEmailActionCompleted(lead)) return false;
+    if (needsLinkedin && !isLeadLinkedinActionHandedOff(lead)) return false;
+    if (needsWhatsapp && !isLeadWhatsappActionCompleted(lead)) return false;
+    return true;
+  }
+  function isLeadInNewBucket(lead: Lead) {
+    return lead.approvalStatus !== "rejected" && lead.approvalStatus !== "suppressed" && !isLeadFullyActioned(lead);
+  }
+  function isLeadInSentBucket(lead: Lead) {
+    return lead.approvalStatus !== "rejected" && lead.approvalStatus !== "suppressed" && isLeadFullyActioned(lead);
+  }
   function getEmailCapabilityDisabledReason(lead: Lead) {
     if (!hasText(lead.email)) return "Lead has no email address.";
 
@@ -1329,6 +1440,11 @@ function SuperAdminCampaignDetailPage() {
 
     return null;
   }
+  function getChannelApprovalStatus(lead: Lead, channel: "email" | "linkedin"): ChannelApprovalStatus {
+    const persisted = lead.channelApprovals?.[channel];
+    if (persisted) return persisted;
+    return channel === "email" && lead.approvalStatus === "approved" ? "approved" : "pending";
+  }
   function getWhatsappCapabilityDisabledReason(lead: Lead) {
     if (!hasText(lead.phone)) return "Lead has no phone number.";
 
@@ -1338,6 +1454,17 @@ function SuperAdminCampaignDetailPage() {
     if (capability.templateConfigured === false) return "WhatsApp template is not configured.";
     if (capability.sendable === false) return "WhatsApp is not currently sendable for this lead.";
 
+    return null;
+  }
+  function getLinkedinCapabilityDisabledReason(lead: Lead) {
+    if (!hasText(lead.linkedinUrl)) return "Lead has no LinkedIn profile URL.";
+    if (!hasText(lead.contentLinkedin)) return "Generate LinkedIn content before sending.";
+
+    const capability = lead.channelCapabilities?.linkedin;
+    if (!capability) return "LinkedIn sending is not supported by the server.";
+    if (capability.enabled === false) return "HeyReach API is not configured on the server.";
+    if (capability.campaignConfigured === false) return "HeyReach campaign ID is not configured.";
+    if (capability.sendable === false) return "LinkedIn is not currently sendable for this lead.";
     return null;
   }
 
@@ -1577,22 +1704,46 @@ function SuperAdminCampaignDetailPage() {
     }
     setIsEmailTemplateLoading(true);
     try {
-      const [cRes, lRes, infoRes, commonRes, optOutRes, templateRes] = await Promise.all([
+      const [cRes, lRes, infoRes, commonRes, optOutRes, templateRes, followUpTemplatesRes] = await Promise.all([
         api.get(`/api/campaigns/${campaignId}`),
         api.get(`/api/campaigns/${campaignId}/leads`, { params: { status: "all" } }),
         api.get(`/api/campaigns/${campaignId}/info`).catch(() => null),
         api.get(`/api/campaigns/${campaignId}/common-attachments`).catch(() => null),
         listWhatsAppOptOuts({ limit: 1000, activeOnly: true }).catch(() => ({ ok: false, items: [] })),
         getCampaignEmailTemplate(campaignId).catch(() => null),
+        api.get(`/api/campaigns/${campaignId}/follow-up-templates`).catch(() => null),
       ]);
 
       setCampaign(cRes.data);
       setCampaignCategory(String(infoRes?.data?.info?.category || cRes.data?.category || "").trim());
+      const configuredHeyreachCampaignId = String(infoRes?.data?.info?.heyreachCampaignId || "").trim();
+      const configuredLinkedinTemplateBody = String(infoRes?.data?.info?.linkedinTemplateBody || "").trim();
+      setHeyreachCampaignId(configuredHeyreachCampaignId);
+      setSavedHeyreachCampaignId(configuredHeyreachCampaignId);
+      setLinkedinTemplateBody(configuredLinkedinTemplateBody);
+      setSavedLinkedinTemplateBody(configuredLinkedinTemplateBody);
       const activeTemplate = templateRes?.template ?? null;
       setEmailTemplateId(activeTemplate?.id ?? null);
       setEmailTemplateSubject(activeTemplate?.emailSubject ?? "");
       setEmailTemplateBody(activeTemplate?.emailBody ?? "");
       setEmailTemplateUpdatedAt(activeTemplate?.updatedAt ?? null);
+      const rawFollowUpTemplates = followUpTemplatesRes?.data?.templates ?? followUpTemplatesRes?.data ?? [];
+      if (Array.isArray(rawFollowUpTemplates)) {
+        const nextTemplates = createEmptyFollowUpTemplates();
+        rawFollowUpTemplates.forEach((template: any) => {
+          const stage = Number(template?.stage);
+          if (stage < 1 || stage > FOLLOW_UP_STEPS.length) return;
+          nextTemplates[stage] = {
+            id: template.id ? String(template.id) : undefined,
+            stage,
+            subject: String(template.subject ?? template.emailSubject ?? ""),
+            body: String(template.body ?? template.emailBody ?? ""),
+            isActive: template.isActive !== false,
+            updatedAt: template.updatedAt ?? null,
+          };
+        });
+        setFollowUpTemplates(nextTemplates);
+      }
 
       const mapped: Lead[] = (lRes.data.leads || []).map((x: any) => ({
         id: x.id,
@@ -1612,6 +1763,7 @@ function SuperAdminCampaignDetailPage() {
 
         reviewStatus: x.reviewStatus ?? null,
         approvalStatus: normalizeApprovalStatus(x.approvalStatus),
+        channelApprovals: normalizeChannelApprovals(x.channelApprovals),
         isSuppressed: parseBoolean(x.isSuppressed),
         suppression: normalizeSuppressionMeta(x.suppression),
         contactReadOnly: parseBoolean(x.contactReadOnly),
@@ -1664,14 +1816,58 @@ function SuperAdminCampaignDetailPage() {
   const sendLeadWhatsappOnly = async (leadId: string) =>
     api.post(`/api/leads/${leadId}/send-whatsapp`, null, { timeout: 0 });
 
+  const handleSaveHeyreachCampaignId = async () => {
+    if (!canManageLeadActions || isHeyreachCampaignSaving) return;
+
+    const requestedCampaignId = heyreachCampaignId.trim();
+    const requestedTemplateBody = linkedinTemplateBody.trim();
+    if (!requestedCampaignId) {
+      toast.error("HeyReach campaign ID is required", {
+        description: "Enter the numeric HeyReach campaign ID before saving setup.",
+      });
+      return;
+    }
+    if (!/^\d+$/.test(requestedCampaignId)) {
+      toast.error("Invalid HeyReach campaign ID", {
+        description: "HeyReach campaign IDs must contain numbers only.",
+      });
+      return;
+    }
+    if (!requestedTemplateBody) {
+      toast.error("LinkedIn template is required", {
+        description: "Write the campaign-level LinkedIn message before saving setup.",
+      });
+      return;
+    }
+
+    try {
+      setIsHeyreachCampaignSaving(true);
+      const response = await saveCampaignLinkedInSetup(campaignId, { heyreachCampaignId: requestedCampaignId, linkedinTemplateBody: requestedTemplateBody }, persona);
+      const savedId = String(response.info?.heyreachCampaignId ?? heyreachCampaignId).trim();
+      const savedTemplate = String(response.info?.linkedinTemplateBody ?? requestedTemplateBody).trim();
+      setHeyreachCampaignId(savedId);
+      setSavedHeyreachCampaignId(savedId);
+      setLinkedinTemplateBody(savedTemplate);
+      setSavedLinkedinTemplateBody(savedTemplate);
+      await fetchAll();
+      toast.success("LinkedIn setup saved");
+    } catch (error: unknown) {
+      const description = error instanceof Error ? error.message : "Unable to save the HeyReach campaign ID";
+      toast.error("HeyReach configuration error", { description });
+    } finally {
+      setIsHeyreachCampaignSaving(false);
+    }
+  };
+
 
   const startPollingLead = (
     leadId: string,
-    expectedChannels: Array<"email" | "whatsapp"> = ["email", "whatsapp"]
+    expectedChannels: Array<"email" | "linkedin" | "whatsapp"> = ["email", "whatsapp"]
   ) => {
     if (expectedChannels.length === 0) return;
 
     const waitForEmail = expectedChannels.includes("email");
+    const waitForLinkedin = expectedChannels.includes("linkedin");
     const waitForWhatsapp = expectedChannels.includes("whatsapp");
     let tries = 0;
     const maxTries = 40;
@@ -1725,13 +1921,15 @@ function SuperAdminCampaignDetailPage() {
         const s = latestOutreachStatus;
         if (s) {
           const emailDone = !waitForEmail || s.email === "sent" || s.email === "failed";
+          const linkedinDone = !waitForLinkedin || isExecutedOutreachState(s.linkedin) || s.linkedin === "failed";
           const whatsappDone = !waitForWhatsapp || s.whatsapp === "sent" || s.whatsapp === "failed";
-          if (emailDone && whatsappDone) {
+          if (emailDone && linkedinDone && whatsappDone) {
             clearInterval(t);
 
             const emailSent = !waitForEmail || s.email === "sent";
+            const linkedinSent = !waitForLinkedin || isExecutedOutreachState(s.linkedin);
             const whatsappSent = !waitForWhatsapp || s.whatsapp === "sent";
-            if (emailSent && whatsappSent) {
+            if (emailSent && linkedinSent && whatsappSent) {
               toast.success("Outreach sent successfully");
             } else {
               toast.error("Outreach completed with failures");
@@ -1754,7 +1952,7 @@ function SuperAdminCampaignDetailPage() {
     setLeadSendLoading((prev) => {
       const current = prev[leadId] || {};
       const next = { ...current, [action]: value };
-      if (!next.both && !next.email && !next.whatsapp) {
+      if (!next.both && !next.email && !next.linkedin && !next.whatsapp) {
         const clone = { ...prev };
         delete clone[leadId];
         return clone;
@@ -1766,14 +1964,24 @@ function SuperAdminCampaignDetailPage() {
   const getLeadSendActionDisabledReason = (lead: Lead, action: LeadSendAction) => {
     const outreachStatus = buildOutreachStatus(lead);
     if (isLeadMarketingOptedOut(lead)) return "This lead is in the opt-out list and cannot receive any messages.";
+    if (action === "email" && getChannelApprovalStatus(lead, "email") !== "approved") {
+      return "Approve the Cold Email review before sending.";
+    }
+    if (action === "linkedin" && getChannelApprovalStatus(lead, "linkedin") !== "approved") {
+      return "Approve the LinkedIn review before queueing in HeyReach.";
+    }
     if (lead.sendable === false) return "This lead is currently not sendable.";
     const emailCapabilityReason = getEmailCapabilityDisabledReason(lead);
+    const linkedinCapabilityReason = getLinkedinCapabilityDisabledReason(lead);
     const whatsappCapabilityReason = getWhatsappCapabilityDisabledReason(lead);
     if (action === "email" && isExecutedOutreachState(outreachStatus.email)) {
       return "Email already queued or sent.";
     }
     if (action === "whatsapp" && isExecutedOutreachState(outreachStatus.whatsapp)) {
       return "WhatsApp already queued or sent.";
+    }
+    if (action === "linkedin" && isExecutedOutreachState(outreachStatus.linkedin)) {
+      return "LinkedIn already queued or sent.";
     }
     if (
       action === "both" &&
@@ -1785,6 +1993,7 @@ function SuperAdminCampaignDetailPage() {
       return "Attachment is still uploading.";
     }
     if (action === "email") return emailCapabilityReason;
+    if (action === "linkedin") return linkedinCapabilityReason;
     if (action === "whatsapp") return whatsappCapabilityReason;
     if (action === "both" && !hasText(lead.email) && !hasText(lead.phone)) {
       return "Lead has no phone or email.";
@@ -1800,7 +2009,9 @@ function SuperAdminCampaignDetailPage() {
   ) => {
     const previousOutreachStatus = buildOutreachStatus(lead);
     const expectedChannels =
-      action === "both" ? (["email", "whatsapp"] as Array<"email" | "whatsapp">) : ([action] as Array<"email" | "whatsapp">);
+      action === "both"
+        ? (["email", "whatsapp"] as Array<"email" | "linkedin" | "whatsapp">)
+        : ([action] as Array<"email" | "linkedin" | "whatsapp">);
 
     if (options?.manageLoading !== false) {
       setLeadSendActionLoading(lead.id, action, true);
@@ -1812,7 +2023,7 @@ function SuperAdminCampaignDetailPage() {
               ...item,
               outreachStatus: {
                 email: expectedChannels.includes("email") ? "sending" : previousOutreachStatus.email,
-                linkedin: previousOutreachStatus.linkedin,
+                linkedin: expectedChannels.includes("linkedin") ? "sending" : previousOutreachStatus.linkedin,
                 whatsapp: expectedChannels.includes("whatsapp") ? "sending" : previousOutreachStatus.whatsapp,
               },
             }
@@ -1821,16 +2032,17 @@ function SuperAdminCampaignDetailPage() {
     );
 
     try {
-      const queuedChannels: Array<"email" | "whatsapp"> = [];
+      const queuedChannels: Array<"email" | "linkedin" | "whatsapp"> = [];
       const channelErrors: string[] = [];
 
       const appendQueuedChannels = (
         response: { data?: { queuedChannels?: unknown } } | undefined,
-        fallbackChannels: Array<"email" | "whatsapp">
+        fallbackChannels: Array<"email" | "linkedin" | "whatsapp">
       ) => {
         const resolved = Array.isArray(response?.data?.queuedChannels)
           ? (response?.data?.queuedChannels as string[]).filter(
-              (channel): channel is "email" | "whatsapp" => channel === "email" || channel === "whatsapp"
+              (channel): channel is "email" | "linkedin" | "whatsapp" =>
+                channel === "email" || channel === "linkedin" || channel === "whatsapp"
             )
           : fallbackChannels;
 
@@ -1839,19 +2051,21 @@ function SuperAdminCampaignDetailPage() {
         }
       };
 
-      const runChannelSend = async (channel: "email" | "whatsapp") => {
+      const runChannelSend = async (channel: "email" | "linkedin" | "whatsapp") => {
         try {
           const response =
             channel === "email"
               ? await sendLeadEmailOnly(lead.id, commonAttachmentId ?? undefined)
-              : await sendLeadWhatsappOnly(lead.id);
+              : channel === "linkedin"
+                ? await sendCampaignLeadLinkedin(lead.id, persona)
+                : await sendLeadWhatsappOnly(lead.id);
           appendQueuedChannels(response, [channel]);
         } catch (error: any) {
           const detail = String(error?.response?.data?.detail || error?.message || "");
           if (isMarketingOptOutError(detail)) {
             throw error;
           }
-          channelErrors.push(`${channel === "email" ? "Email" : "WhatsApp"}: ${detail || "Failed to queue."}`);
+          channelErrors.push(`${channel === "email" ? "Email" : channel === "linkedin" ? "LinkedIn" : "WhatsApp"}: ${detail || "Failed to queue."}`);
         }
       };
 
@@ -1862,7 +2076,9 @@ function SuperAdminCampaignDetailPage() {
         const response =
           action === "email"
             ? await sendLeadEmailOnly(lead.id, commonAttachmentId ?? undefined)
-            : await sendLeadWhatsappOnly(lead.id);
+            : action === "linkedin"
+              ? await sendCampaignLeadLinkedin(lead.id, persona)
+              : await sendLeadWhatsappOnly(lead.id);
         appendQueuedChannels(response, expectedChannels);
       }
 
@@ -1877,7 +2093,7 @@ function SuperAdminCampaignDetailPage() {
                 ...item,
                 outreachStatus: {
                   email: queuedChannels.includes("email") ? "queued" : previousOutreachStatus.email,
-                  linkedin: previousOutreachStatus.linkedin,
+                  linkedin: queuedChannels.includes("linkedin") ? "queued" : previousOutreachStatus.linkedin,
                   whatsapp: queuedChannels.includes("whatsapp") ? "queued" : previousOutreachStatus.whatsapp,
                 },
               }
@@ -1885,8 +2101,11 @@ function SuperAdminCampaignDetailPage() {
         )
       );
 
-      if (queuedChannels.length > 0) {
-        startPollingLead(lead.id, queuedChannels);
+      const providerDeliveryChannels = queuedChannels.filter(
+        (channel): channel is "email" | "whatsapp" => channel === "email" || channel === "whatsapp"
+      );
+      if (providerDeliveryChannels.length > 0) {
+        startPollingLead(lead.id, providerDeliveryChannels);
       }
 
       if (action === "both" && channelErrors.length > 0) {
@@ -1899,7 +2118,9 @@ function SuperAdminCampaignDetailPage() {
             ? "Outreach queued"
             : action === "email"
               ? "Email queued"
-              : "WhatsApp queued"
+              : action === "linkedin"
+                ? "LinkedIn queued in HeyReach"
+                : "WhatsApp queued"
         );
       }
     } catch (error: any) {
@@ -1929,7 +2150,9 @@ function SuperAdminCampaignDetailPage() {
           ? "Send failed"
           : action === "email"
             ? "Email send failed"
-            : "WhatsApp send failed",
+            : action === "linkedin"
+              ? "LinkedIn queue failed"
+              : "WhatsApp send failed",
         { description: detail || "Please try again." }
       );
     } finally {
@@ -1941,7 +2164,8 @@ function SuperAdminCampaignDetailPage() {
 
   const handleSendLeadAction = async (lead: Lead, action: LeadSendAction) => {
     if (!canManageLeadActions) return;
-    const disabledReason = getLeadSendActionDisabledReason(lead, action);
+    const disabledReason =
+      action === "email" || action === "linkedin" ? null : getLeadSendActionDisabledReason(lead, action);
     if (disabledReason) {
       toast.warning("Action blocked", { description: disabledReason });
       return;
@@ -2530,7 +2754,8 @@ function SuperAdminCampaignDetailPage() {
     const lead = leadById.get(leadId);
     if (!lead) return;
 
-    const disabledReason = getLeadSendActionDisabledReason(lead, action);
+    const disabledReason =
+      action === "email" || action === "linkedin" ? null : getLeadSendActionDisabledReason(lead, action);
     if (disabledReason) {
       toast.warning("Action blocked", {
         description: disabledReason,
@@ -2540,9 +2765,21 @@ function SuperAdminCampaignDetailPage() {
 
     try {
       setLeadSendActionLoading(leadId, action, true);
-      const approveResponse = await api.put(`/api/leads/${leadId}/approve`, null, {
-        timeout: OUTREACH_REQUEST_TIMEOUT_MS,
-      });
+      const approveResponse = await api.put(
+        `/api/leads/${leadId}/approve`,
+        action === "email" || action === "linkedin"
+          ? {
+              channel: action,
+              content: {
+                contentEmailSubject: editForm.contentEmailSubject,
+                contentEmail: editForm.contentEmail,
+                contentLinkedin: editForm.contentLinkedin,
+                contentWhatsapp: editForm.contentWhatsapp,
+              },
+            }
+          : {},
+        { timeout: OUTREACH_REQUEST_TIMEOUT_MS }
+      );
       const approvedLead = approveResponse?.data ?? {};
       const resolvedStatus = normalizeApprovalStatus(approvedLead.approvalStatus ?? "approved");
       const resolvedSuppression = normalizeSuppressionMeta(approvedLead.suppression);
@@ -2571,17 +2808,47 @@ function SuperAdminCampaignDetailPage() {
                   : suppressedNow
                     ? false
                     : item.sendable,
+              contentEmailSubject: approvedLead.contentEmailSubject ?? item.contentEmailSubject,
+              contentEmail: approvedLead.contentEmail ?? item.contentEmail,
+              contentLinkedin: approvedLead.contentLinkedin ?? item.contentLinkedin,
+              contentWhatsapp: approvedLead.contentWhatsapp ?? item.contentWhatsapp,
+              channelApprovals:
+                approvedLead.channelApprovals === undefined
+                  ? item.channelApprovals
+                  : normalizeChannelApprovals(approvedLead.channelApprovals),
               channelCapabilities:
                 normalizeChannelCapabilities(approvedLead.channelCapabilities) ?? item.channelCapabilities ?? null,
             }
             : item
         )
       );
+      setSelectedLead((current) =>
+        current?.id === leadId
+          ? {
+              ...current,
+              approvalStatus: resolvedStatus,
+              contentEmailSubject: approvedLead.contentEmailSubject ?? current.contentEmailSubject,
+              contentEmail: approvedLead.contentEmail ?? current.contentEmail,
+              contentLinkedin: approvedLead.contentLinkedin ?? current.contentLinkedin,
+              contentWhatsapp: approvedLead.contentWhatsapp ?? current.contentWhatsapp,
+              channelApprovals:
+                approvedLead.channelApprovals === undefined
+                  ? current.channelApprovals
+                  : normalizeChannelApprovals(approvedLead.channelApprovals),
+              channelCapabilities:
+                normalizeChannelCapabilities(approvedLead.channelCapabilities) ?? current.channelCapabilities ?? null,
+            }
+          : current
+      );
 
       if (suppressedNow) {
         toast.warning("Lead suppressed", {
           description: resolvedSuppression?.reason || "This lead is blocked from all marketing messages.",
         });
+        return;
+      }
+      if (action === "email" || action === "linkedin") {
+        toast.success(action === "email" ? "Cold Email approved" : "LinkedIn message approved");
         return;
       }
       if (!resolvedSendable) {
@@ -2724,6 +2991,217 @@ function SuperAdminCampaignDetailPage() {
     if (isSendingSms) return;
     setSmsTargetLead(null);
     setSmsMessage("");
+  };
+
+  const personalizeFollowUpTemplate = (value: string, lead: Lead) => {
+    const firstName = lead.employeeName.trim().split(/\s+/)[0] || "there";
+    return value
+      .replace(/{{\s*(first_name|firstName|name)\s*}}/gi, firstName)
+      .replace(/{{\s*(company|companyName)\s*}}/gi, lead.company || "your company")
+      .replace(/{{\s*campaignName\s*}}/gi, campaign?.name || "our campaign");
+  };
+
+  const followUpContentForStage = (stage: number, lead: Lead) => {
+    const template = followUpTemplates[stage];
+    const subject = template?.isActive && template.subject.trim() ? template.subject : "Quick follow-up";
+    const body =
+      template?.isActive && template.body.trim()
+        ? template.body
+        : "Hi {{first_name}},\n\nI wanted to follow up on my earlier email about {{campaignName}}.\n\nWould you be open to a quick conversation?\n\nBest,";
+    return {
+      templateId: template?.isActive ? template.id : undefined,
+      subject: personalizeFollowUpTemplate(subject, lead),
+      body: personalizeFollowUpTemplate(body, lead),
+    };
+  };
+
+  const followUpHistoryFromResponse = (payload: any): FollowUpHistoryItem[] => {
+    const rows = payload?.history ?? payload?.items ?? [];
+    if (!Array.isArray(rows)) return [];
+    return rows
+      .map((row: any) => ({
+        id: String(row?.id || ""),
+        stage: Number(row?.stage),
+        status: String(row?.status || "draft") as FollowUpHistoryItem["status"],
+        subject: String(row?.subject || ""),
+        sentAt: row?.sentAt ?? null,
+        errorMessage: row?.errorMessage ?? null,
+      }))
+      .filter((row) => row.stage >= 1 && row.stage <= FOLLOW_UP_STEPS.length);
+  };
+
+  const openFollowUpComposer = async (lead: Lead) => {
+    if (!canManageLeadActions || !isLeadEmailActionCompleted(lead)) return;
+    if (isLeadMarketingOptedOut(lead)) {
+      toast.warning("Action blocked", { description: "This lead is in the opt-out list and cannot receive email." });
+      return;
+    }
+
+    try {
+      const response = await api.get(`/api/leads/${lead.id}/follow-ups`);
+      const nextStage = Number(response?.data?.nextStage);
+      if (!Number.isInteger(nextStage) || nextStage < 1 || nextStage > FOLLOW_UP_STEPS.length) {
+        toast.info("All follow-ups have already been sent");
+        return;
+      }
+      const content = followUpContentForStage(nextStage, lead);
+      setFollowUpHistory(followUpHistoryFromResponse(response?.data));
+      setFollowUpStep(nextStage - 1);
+      setFollowUpSubject(content.subject);
+      setFollowUpBody(content.body);
+      setFollowUpTargetLead(lead);
+    } catch (error: any) {
+      toast.error("Could not load follow-up history", { description: error?.response?.data?.detail || error?.message });
+    }
+  };
+
+  const selectFollowUpStep = (stepIndex: number) => {
+    if (!followUpTargetLead) return;
+    const stage = stepIndex + 1;
+    const existing = followUpHistory.find((item) => item.stage === stage && (item.status === "queued" || item.status === "sent"));
+    if (existing) {
+      toast.info(`${FOLLOW_UP_STEPS[stepIndex]} is already ${existing.status}`);
+      return;
+    }
+    const content = followUpContentForStage(stage, followUpTargetLead);
+    setFollowUpStep(stepIndex);
+    setFollowUpSubject(content.subject);
+    setFollowUpBody(content.body);
+  };
+
+  const closeFollowUpComposer = () => {
+    if (isSendingFollowUp) return;
+    setFollowUpTargetLead(null);
+    setFollowUpHistory([]);
+    setFollowUpStep(0);
+    setFollowUpSubject("");
+    setFollowUpBody("");
+  };
+
+  const handleSendFollowUp = async () => {
+    if (!followUpTargetLead || isSendingFollowUp) return;
+    const subject = followUpSubject.trim();
+    const body = followUpBody.trim();
+    if (!subject || !body) {
+      toast.error("Follow-up subject and body are required");
+      return;
+    }
+
+    try {
+      setIsSendingFollowUp(true);
+      const stage = followUpStep + 1;
+      const response = await api.post(`/api/leads/${followUpTargetLead.id}/follow-ups`, {
+        stage,
+        templateId: followUpTemplates[stage]?.isActive ? followUpTemplates[stage]?.id : undefined,
+        subject,
+        body,
+        sendNow: true,
+      });
+      setFollowUpHistory(followUpHistoryFromResponse(response?.data));
+      toast.success(`${FOLLOW_UP_STEPS[followUpStep]} queued`, {
+        description: `Your follow-up to ${followUpTargetLead.employeeName || "the lead"} is being sent.`,
+      });
+      setFollowUpTargetLead(null);
+      setFollowUpHistory([]);
+      setFollowUpStep(0);
+      setFollowUpSubject("");
+      setFollowUpBody("");
+    } catch (error: any) {
+      toast.error("Could not send follow-up", { description: error?.response?.data?.detail || error?.message });
+    } finally {
+      setIsSendingFollowUp(false);
+    }
+  };
+
+  const handleSendNextFollowUp = async (lead: Lead) => {
+    if (quickFollowUpLeadId || isLeadMarketingOptedOut(lead)) return;
+    try {
+      setQuickFollowUpLeadId(lead.id);
+      const historyResponse = await api.get(`/api/leads/${lead.id}/follow-ups`);
+      const stage = Number(historyResponse?.data?.nextStage);
+      if (!Number.isInteger(stage) || stage < 1 || stage > FOLLOW_UP_STEPS.length) {
+        toast.info("All follow-ups have already been sent");
+        return;
+      }
+      const content = followUpContentForStage(stage, lead);
+      await api.post(`/api/leads/${lead.id}/follow-ups`, {
+        stage,
+        templateId: content.templateId,
+        subject: content.subject,
+        body: content.body,
+        sendNow: true,
+      });
+      toast.success(`${FOLLOW_UP_STEPS[stage - 1]} queued`);
+    } catch (error: any) {
+      toast.error("Could not send follow-up", { description: error?.response?.data?.detail || error?.message });
+    } finally {
+      setQuickFollowUpLeadId(null);
+    }
+  };
+
+  const handleSaveFollowUpTemplate = async () => {
+    if (!canManageLeadActions || isSavingFollowUpTemplate) return;
+    const template = followUpTemplates[selectedFollowUpTemplateStage];
+    const subject = template.subject.trim();
+    const body = template.body.trim();
+    if (!subject || !body) {
+      toast.error("Follow-up template subject and body are required");
+      return;
+    }
+
+    try {
+      setIsSavingFollowUpTemplate(true);
+      const response = await api.put(
+        `/api/campaigns/${campaignId}/follow-up-templates/${selectedFollowUpTemplateStage}`,
+        { subject, body, isActive: template.isActive }
+      );
+      const saved = response?.data?.template ?? response?.data ?? {};
+      setFollowUpTemplates((previous) => ({
+        ...previous,
+        [selectedFollowUpTemplateStage]: {
+          ...previous[selectedFollowUpTemplateStage],
+          id: saved.id ? String(saved.id) : previous[selectedFollowUpTemplateStage].id,
+          subject: String(saved.subject ?? saved.emailSubject ?? subject),
+          body: String(saved.body ?? saved.emailBody ?? body),
+          isActive: saved.isActive ?? template.isActive,
+          updatedAt: saved.updatedAt ?? new Date().toISOString(),
+        },
+      }));
+      toast.success(`${FOLLOW_UP_STEPS[selectedFollowUpTemplateStage - 1]} template saved`);
+    } catch (error: any) {
+      toast.error("Follow-up template save failed", {
+        description: error?.response?.data?.detail || error?.message || "Please try again.",
+      });
+    } finally {
+      setIsSavingFollowUpTemplate(false);
+    }
+  };
+
+  const handleClearFollowUpTemplate = async () => {
+    if (isSavingFollowUpTemplate) return;
+    const template = followUpTemplates[selectedFollowUpTemplateStage];
+    try {
+      setIsSavingFollowUpTemplate(true);
+      if (template.id) {
+        await api.delete(`/api/campaigns/${campaignId}/follow-up-templates/${selectedFollowUpTemplateStage}`);
+      }
+      setFollowUpTemplates((previous) => ({
+        ...previous,
+        [selectedFollowUpTemplateStage]: {
+          stage: selectedFollowUpTemplateStage,
+          subject: "",
+          body: "",
+          isActive: true,
+        },
+      }));
+      toast.success("Follow-up template cleared");
+    } catch (error: any) {
+      toast.error("Could not clear follow-up template", {
+        description: error?.response?.data?.detail || error?.message || "Please try again.",
+      });
+    } finally {
+      setIsSavingFollowUpTemplate(false);
+    }
   };
 
   const handleSendAdminSms = async () => {
@@ -2892,6 +3370,10 @@ function SuperAdminCampaignDetailPage() {
     contentSource: data.contentSource == null ? "empty" : normalizeContentSource(data.contentSource),
     templateFallback: data.templateFallback == null ? false : parseBoolean(data.templateFallback),
     approvalStatus: (data.approvalStatus ?? lead.approvalStatus ?? "pending") as ApprovalStatus,
+    channelApprovals:
+      data.channelApprovals === undefined
+        ? lead.channelApprovals
+        : normalizeChannelApprovals(data.channelApprovals),
     reviewStatus: data.reviewStatus ?? data.approvalStatus ?? lead.reviewStatus ?? null,
     isSuppressed: data.isSuppressed == null ? lead.isSuppressed : Boolean(data.isSuppressed),
     suppression: data.suppression === undefined ? lead.suppression : data.suppression,
@@ -3016,6 +3498,10 @@ function SuperAdminCampaignDetailPage() {
                   ? l.generationFailure ?? null
                   : deriveGenerationFailure(res.data.draftStatus ?? l.draftStatus, asRecord(res.data.draftMeta) ?? l.draftMeta ?? null),
               reviewStatus: res.data.reviewStatus ?? l.reviewStatus ?? null,
+              channelApprovals:
+                res.data.channelApprovals === undefined
+                  ? l.channelApprovals
+                  : normalizeChannelApprovals(res.data.channelApprovals),
             }
             : l
         )
@@ -3043,6 +3529,8 @@ function SuperAdminCampaignDetailPage() {
     selectedLead?.generationFailure ?? (editForm.generationFailure as GenerationFailureInfo | null | undefined) ?? null;
   const selectedContentEmpty =
     Boolean(selectedLead) && !hasText(editForm.contentEmailSubject) && !hasText(editForm.contentEmail);
+  const selectedChannelApproved =
+    selectedLead && getChannelApprovalStatus(selectedLead, reviewChannel) === "approved";
   const selectedEmptyContentNotice = selectedContentEmpty
     ? {
         title: selectedGenerationFailure?.title || "No generated content available",
@@ -3180,117 +3668,140 @@ function SuperAdminCampaignDetailPage() {
       ) : null}
 
       {canManageLeadActions ? (
-        <Card className="relative mt-3 overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.86)_0%,rgba(250,252,255,0.7)_58%,rgba(240,246,253,0.58)_100%)] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_12px_24px_-22px_rgba(2,10,27,0.55),inset_0_1px_0_rgba(255,255,255,1)] backdrop-blur-[14px] [backdrop-filter:saturate(168%)_blur(14px)]">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
-            <div className="min-w-0 xl:w-80">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white">
-                  <Mail className="h-4 w-4 text-zinc-900" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-sm font-semibold text-zinc-900">Email Template</h2>
+        <Card className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_14px_34px_-28px_rgba(15,23,42,0.55)] transition-colors dark:border-zinc-700 dark:bg-zinc-900 dark:[&_input]:border-zinc-600 dark:[&_input]:bg-zinc-950 dark:[&_input]:text-zinc-100 dark:[&_textarea]:border-zinc-600 dark:[&_textarea]:bg-zinc-950 dark:[&_textarea]:text-zinc-100 dark:[&_h3]:text-zinc-50 dark:[&_p]:text-zinc-400 dark:[&_label]:text-zinc-400 dark:[&_code]:bg-zinc-800 dark:[&_code]:text-zinc-200">
+          <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-4 dark:border-zinc-700 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Campaign outreach</p>
+              <h2 className="mt-1 text-base font-semibold tracking-tight text-slate-950 dark:text-zinc-50">Set up your delivery channels</h2>
+              <p className="mt-1 text-xs text-slate-500 dark:text-zinc-400">Choose a channel, configure it, and save when it is ready to use.</p>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-zinc-400">Select a card to configure</p>
+          </div>
+
+          <div className="grid gap-3 border-b border-slate-100 bg-slate-50/70 p-4 dark:border-zinc-700 dark:bg-zinc-950/60 lg:grid-cols-3">
+            {[
+              {
+                id: "linkedin" as const,
+                title: "LinkedIn setup",
+                description: "Connect HeyReach and set the campaign message template for LinkedIn outreach.",
+                icon: <LinkedInIcon className="h-5 w-5 text-[#0A66C2]" />,
+                iconClass: "border-[#0A66C2]/20 bg-[#0A66C2]/10",
+                isConfigured: Boolean(savedHeyreachCampaignId && savedLinkedinTemplateBody),
+                configuredLabel: "Ready",
+              },
+              {
+                id: "email" as const,
+                title: "Email template",
+                description: "Create fallback email content for contacts with an email address.",
+                icon: <Mail className="h-5 w-5 text-slate-700" />,
+                iconClass: "border-slate-200 bg-white",
+                isConfigured: Boolean(emailTemplateId),
+                configuredLabel: "Active",
+              },
+              {
+                id: "followups" as const,
+                title: "Follow-up templates",
+                description: "Set up the manual email sequence your team can use after outreach.",
+                icon: <MessageSquare className="h-5 w-5 text-violet-700" />,
+                iconClass: "border-violet-200 bg-violet-50",
+                isConfigured: FOLLOW_UP_STEPS.some((_, index) => Boolean(followUpTemplates[index + 1]?.subject.trim() && followUpTemplates[index + 1]?.body.trim())),
+                configuredLabel: "Configured",
+              },
+            ].map((channel) => {
+              const isActive = activeChannelSetup === channel.id;
+              return (
+                <button
+                  key={channel.id}
+                  type="button"
+                  onClick={() => setActiveChannelSetup(channel.id)}
+                  aria-pressed={isActive}
+                  className={`group rounded-xl border p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 ${
+                    isActive
+                      ? "border-slate-900 bg-white shadow-[0_10px_22px_-18px_rgba(15,23,42,0.65)] dark:border-zinc-300 dark:bg-zinc-800"
+                      : "border-slate-200 bg-white/75 hover:border-slate-300 hover:bg-white dark:border-zinc-700 dark:bg-zinc-900/80 dark:hover:border-zinc-500 dark:hover:bg-zinc-800"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg border ${channel.iconClass}`}>{channel.icon}</div>
                     <Badge className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide shadow-none ${
-                      emailTemplateId
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                        : "border-zinc-300 bg-white text-zinc-500"
+                      channel.isConfigured ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300" : "border-slate-200 bg-white text-slate-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
                     }`}>
-                      {emailTemplateId ? "Active" : "Not Set"}
+                      {channel.isConfigured ? channel.configuredLabel : "Needs setup"}
                     </Badge>
                   </div>
-                  {emailTemplateUpdatedAt ? (
-                    <p className="mt-0.5 text-xs text-zinc-500">Updated {formatDateTime(emailTemplateUpdatedAt)}</p>
-                  ) : (
-                    <p className="mt-0.5 text-xs text-zinc-500">Campaign-level fallback email content</p>
-                  )}
-                  <p className={`mt-1 text-xs ${hasEmailLeads ? "text-zinc-500" : "font-medium text-amber-700"}`}>
-                    {hasEmailLeads
-                      ? `${emailLeadCount} lead${emailLeadCount === 1 ? "" : "s"} with email`
-                      : "No leads with email. Mail controls are disabled."}
-                  </p>
+                  <h3 className="mt-4 text-sm font-semibold text-slate-950 dark:text-zinc-50">{channel.title}</h3>
+                  <p className="mt-1 min-h-9 text-xs leading-relaxed text-slate-500 dark:text-zinc-400">{channel.description}</p>
+                  <span className={`mt-4 inline-flex items-center text-xs font-semibold ${isActive ? "text-slate-950 dark:text-zinc-50" : "text-slate-600 group-hover:text-slate-950 dark:text-zinc-400 dark:group-hover:text-zinc-100"}`}>
+                    {isActive ? "Currently editing" : channel.isConfigured ? "Edit setup" : "Set up"}
+                    <ChevronRight className="ml-1 h-3.5 w-3.5" />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="p-5">
+            {activeChannelSetup === "linkedin" ? (
+              <div>
+                <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#0A66C2]/20 bg-[#0A66C2]/10"><LinkedInIcon className="h-5 w-5 text-[#0A66C2]" /></div>
+                    <div><h3 className="text-sm font-semibold text-slate-950">LinkedIn campaign setup</h3><p className="mt-0.5 text-xs text-slate-500">Choose where leads are queued and set the fallback LinkedIn message.</p></div>
+                  </div>
+                  <Badge className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide shadow-none ${savedHeyreachCampaignId && savedLinkedinTemplateBody ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-500"}`}>{savedHeyreachCampaignId && savedLinkedinTemplateBody ? "Ready" : "Needs setup"}</Badge>
+                </div>
+                <div className="grid gap-4 xl:grid-cols-[minmax(16rem,0.7fr)_minmax(24rem,1.3fr)_auto] xl:items-end">
+                  <div>
+                    <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">HeyReach campaign ID</label>
+                    <Input value={heyreachCampaignId} onChange={(event) => setHeyreachCampaignId(event.target.value)} disabled={isHeyreachCampaignSaving} inputMode="numeric" placeholder="e.g. 235" className="h-10 border-slate-300 bg-white text-sm text-slate-950 placeholder:text-slate-400" />
+                    <p className="mt-2 text-xs leading-relaxed text-slate-500">Find the numeric ID in the HeyReach campaign URL or API response.</p>
+                  </div>
+                  <div><label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">LinkedIn message template</label><textarea value={linkedinTemplateBody} onChange={(event) => setLinkedinTemplateBody(event.target.value)} disabled={isHeyreachCampaignSaving} placeholder={"Hi {{first_name}},\n\nI wanted to connect about {{campaignName}}."} className="min-h-28 w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#0A66C2] disabled:cursor-not-allowed disabled:opacity-60" /><p className="mt-2 text-xs leading-relaxed text-slate-500">Variables: {"{{first_name}}"}, {"{{last_name}}"}, {"{{company}}"}, {"{{campaignName}}"}. Add <code className="rounded bg-slate-100 px-1 py-0.5 text-slate-700">{"{{supernizo_linkedin_message}}"}</code> to the HeyReach message step.</p></div>
+                  <Button type="button" onClick={() => void handleSaveHeyreachCampaignId()} disabled={isHeyreachCampaignSaving || (heyreachCampaignId.trim() === savedHeyreachCampaignId && linkedinTemplateBody.trim() === savedLinkedinTemplateBody)} className="btn-sidebar-noise h-10 px-4">
+                    {isHeyreachCampaignSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Save LinkedIn setup
+                  </Button>
                 </div>
               </div>
+            ) : null}
 
-              {fallbackDraftSummary ? (
-                <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/70 px-3 py-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Fallback Drafts</p>
-                  <p className="mt-1 text-sm font-semibold text-zinc-900">
-                    {formatFallbackDraftSummary(fallbackDraftSummary)}
-                  </p>
+            {activeChannelSetup === "email" ? (
+              <div>
+                <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-slate-50"><Mail className="h-5 w-5 text-slate-700" /></div><div><h3 className="text-sm font-semibold text-slate-950">Fallback email template</h3><p className="mt-0.5 text-xs text-slate-500">Used when a lead has an email address but no generated message.</p></div></div>
+                  <Badge className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide shadow-none ${emailTemplateId ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-500"}`}>{emailTemplateId ? "Active" : "Not set"}</Badge>
                 </div>
-              ) : null}
-            </div>
-
-            <div className="grid min-w-0 flex-1 gap-3 xl:grid-cols-[minmax(16rem,24rem)_minmax(24rem,1fr)]">
-              <div>
-                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                  Email Subject
-                </label>
-                <Input
-                  value={emailTemplateSubject}
-                  onChange={(event) => setEmailTemplateSubject(event.target.value)}
-                  disabled={emailTemplateSaveDisabled}
-                  placeholder="e.g. Digital Stadium 2026"
-                  className="h-10 border-zinc-300/85 bg-white/90 text-sm text-zinc-900 placeholder:text-zinc-400"
-                />
+                {!hasEmailLeads ? <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Add a lead with an email address to enable this template.</p> : null}
+                <div className="grid gap-4 xl:grid-cols-[minmax(16rem,0.72fr)_minmax(24rem,1.28fr)_auto] xl:items-end">
+                  <div><label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Email subject</label><Input value={emailTemplateSubject} onChange={(event) => setEmailTemplateSubject(event.target.value)} disabled={emailTemplateSaveDisabled} placeholder="e.g. Digital Stadium 2026" className="h-10 border-slate-300 bg-white text-sm text-slate-950 placeholder:text-slate-400" /></div>
+                  <div><label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Email body</label><textarea value={emailTemplateBody} onChange={(event) => setEmailTemplateBody(event.target.value)} disabled={emailTemplateSaveDisabled} placeholder={"Dear {{first_name}},\n\nWrite the fallback email body for leads with email addresses."} className="min-h-28 w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900 disabled:cursor-not-allowed disabled:opacity-60" /></div>
+                  <div className="flex flex-wrap gap-2 xl:w-40 xl:flex-col"><Button type="button" onClick={handleSaveEmailTemplate} disabled={emailTemplateSaveDisabled} className="btn-sidebar-noise h-10 px-3.5" title={hasEmailLeads ? "Save email template" : "No leads with email addresses"}>{isEmailTemplateSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save template</Button><Button type="button" variant="ghost" onClick={handleDeleteEmailTemplate} disabled={isEmailTemplateLoading || isEmailTemplateSaving || isEmailTemplateDeleting || (!emailTemplateId && !emailTemplateSubject && !emailTemplateBody)} className="h-10 rounded-md border border-slate-200 bg-white px-3 text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50">{isEmailTemplateDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}Delete</Button></div>
+                </div>
+                {fallbackDraftSummary ? <p className="mt-3 text-xs text-emerald-700">{formatFallbackDraftSummary(fallbackDraftSummary)}</p> : null}
               </div>
+            ) : null}
 
+            {activeChannelSetup === "followups" ? (
               <div>
-                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                  Email Body
-                </label>
-                <textarea
-                  value={emailTemplateBody}
-                  onChange={(event) => setEmailTemplateBody(event.target.value)}
-                  disabled={emailTemplateSaveDisabled}
-                  placeholder={"Dear {{first_name}},\n\nWrite the fallback email body for leads with email addresses."}
-                  className="min-h-28 w-full resize-y rounded-md border border-zinc-300/85 bg-white/90 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
-                />
+                <div className="mb-5 flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-lg border border-violet-200 bg-violet-50"><MessageSquare className="h-5 w-5 text-violet-700" /></div><div><h3 className="text-sm font-semibold text-slate-950">Manual follow-up sequence</h3><p className="mt-0.5 text-xs text-slate-500">Variables: {"{{first_name}}"}, {"{{company}}"}, {"{{campaignName}}"}</p></div></div>{selectedFollowUpTemplate.updatedAt ? <p className="text-xs text-slate-400">Updated {formatDateTime(selectedFollowUpTemplate.updatedAt)}</p> : null}</div>
+                <div className="mb-4 flex flex-wrap gap-1.5">{FOLLOW_UP_STEPS.map((label, index) => { const stage = index + 1; const isSelected = selectedFollowUpTemplateStage === stage; const isConfigured = Boolean(followUpTemplates[stage]?.subject.trim() && followUpTemplates[stage]?.body.trim()); return <button key={label} type="button" onClick={() => setSelectedFollowUpTemplateStage(stage)} className={`rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-colors ${isSelected ? "border-violet-600 bg-violet-600 text-white" : "border-violet-200 bg-white text-violet-700 hover:border-violet-300 hover:bg-violet-50"}`}>{label}{isConfigured ? <span className={`ml-1.5 text-[9px] ${isSelected ? "text-white/75" : "text-emerald-600"}`}>●</span> : null}</button>; })}</div>
+                <div className="grid gap-4 xl:grid-cols-[minmax(15rem,0.7fr)_minmax(22rem,1.3fr)_auto] xl:items-end">
+                  <div><label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Subject</label><Input value={selectedFollowUpTemplate.subject} onChange={(event) => setFollowUpTemplates((previous) => ({ ...previous, [selectedFollowUpTemplateStage]: { ...previous[selectedFollowUpTemplateStage], subject: event.target.value } }))} disabled={isSavingFollowUpTemplate} placeholder={`e.g. ${FOLLOW_UP_STEPS[selectedFollowUpTemplateStage - 1]} — {{first_name}}`} className="h-10 border-violet-200 bg-white text-sm" /><label className="mt-3 flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={selectedFollowUpTemplate.isActive} onChange={(event) => setFollowUpTemplates((previous) => ({ ...previous, [selectedFollowUpTemplateStage]: { ...previous[selectedFollowUpTemplateStage], isActive: event.target.checked } }))} disabled={isSavingFollowUpTemplate} className="h-3.5 w-3.5 rounded border-violet-300 text-violet-600 focus:ring-violet-500" />Active for manual follow-ups</label></div>
+                  <div><label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Email body</label><textarea value={selectedFollowUpTemplate.body} onChange={(event) => setFollowUpTemplates((previous) => ({ ...previous, [selectedFollowUpTemplateStage]: { ...previous[selectedFollowUpTemplateStage], body: event.target.value } }))} disabled={isSavingFollowUpTemplate} placeholder={"Hi {{first_name}},\n\nI wanted to follow up on my earlier email about {{campaignName}}.\n\nWould you be open to a quick conversation?"} className="min-h-28 w-full resize-y rounded-md border border-violet-200 bg-white px-3 py-2 text-sm text-slate-950 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:cursor-not-allowed disabled:opacity-60" /></div>
+                  <div className="flex flex-wrap gap-2 xl:w-40 xl:flex-col"><Button type="button" onClick={() => void handleSaveFollowUpTemplate()} disabled={isSavingFollowUpTemplate || !selectedFollowUpTemplate.subject.trim() || !selectedFollowUpTemplate.body.trim()} className="h-10 bg-violet-600 px-3.5 text-white hover:bg-violet-700">{isSavingFollowUpTemplate ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save template</Button><Button type="button" variant="ghost" onClick={() => void handleClearFollowUpTemplate()} disabled={isSavingFollowUpTemplate || (!selectedFollowUpTemplate.id && !selectedFollowUpTemplate.subject && !selectedFollowUpTemplate.body)} className="h-10 border border-violet-200 bg-white px-3 text-violet-700 hover:bg-violet-50"><Trash2 className="mr-2 h-4 w-4" />Clear</Button></div>
+                </div>
               </div>
-            </div>
-
-            <div className="flex shrink-0 flex-wrap gap-2 xl:w-44 xl:flex-col">
-              <Button
-                type="button"
-                onClick={handleSaveEmailTemplate}
-                disabled={emailTemplateSaveDisabled}
-                className="btn-sidebar-noise h-9 px-3.5"
-                title={hasEmailLeads ? "Save email template" : "No leads with email addresses"}
-              >
-                {isEmailTemplateSaving ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="mr-2 h-4 w-4" />
-                )}
-                Save Template
-              </Button>
-
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={handleDeleteEmailTemplate}
-                disabled={isEmailTemplateLoading || isEmailTemplateSaving || isEmailTemplateDeleting || (!emailTemplateId && !emailTemplateSubject && !emailTemplateBody)}
-                className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-              >
-                {isEmailTemplateDeleting ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="mr-2 h-4 w-4" />
-                )}
-                Delete
-              </Button>
-            </div>
+            ) : null}
           </div>
         </Card>
       ) : null}
 
-      <Card className="relative isolate mt-3 flex flex-col overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.84)_0%,rgba(250,252,255,0.66)_56%,rgba(240,246,253,0.56)_100%)] backdrop-blur-[16px] [backdrop-filter:saturate(175%)_blur(16px)] shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74),inset_0_0_22px_rgba(255,255,255,0.2)]">
-        <div className="pointer-events-none absolute -right-20 -top-24 h-60 w-60 rounded-full bg-gradient-to-br from-sky-300/34 via-blue-500/12 to-blue-700/0 blur-3xl" />
-        <div className="pointer-events-none absolute -left-24 -bottom-20 h-56 w-56 rounded-full bg-gradient-to-tr from-blue-300/20 via-sky-200/10 to-transparent blur-3xl" />
+      <Card className="campaign-leads-panel relative isolate mt-3 flex flex-col overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.84)_0%,rgba(250,252,255,0.66)_56%,rgba(240,246,253,0.56)_100%)] backdrop-blur-[16px] [backdrop-filter:saturate(175%)_blur(16px)] shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74),inset_0_0_22px_rgba(255,255,255,0.2)]">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-60 w-60 rounded-full bg-gradient-to-br from-sky-300/34 via-blue-500/12 to-blue-700/0 blur-3xl dark:hidden" />
+        <div className="pointer-events-none absolute -left-24 -bottom-20 h-56 w-56 rounded-full bg-gradient-to-tr from-blue-300/20 via-sky-200/10 to-transparent blur-3xl dark:hidden" />
 
         <div className="relative z-[6] flex flex-col gap-2 px-6 pt-0.5 sm:flex-row sm:items-center sm:justify-between">
           {canManageLeadActions ? (
-            <div className="inline-flex flex-wrap items-center rounded-xl border border-zinc-300/90 bg-white/60 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_8px_-10px_rgba(2,10,27,0.34)] backdrop-blur-[6px]">
+            <div className="inline-flex flex-wrap items-center rounded-xl border border-zinc-300/90 bg-white/60 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_8px_-10px_rgba(2,10,27,0.34)] backdrop-blur-[6px] dark:border-zinc-700 dark:bg-zinc-800/90 dark:shadow-none">
               {leadFilterTabs.map((tab) => (
                 <button
                   key={tab.key}
@@ -3650,7 +4161,7 @@ function SuperAdminCampaignDetailPage() {
         <div className="relative z-[2] px-4 pb-2 pt-3">
           <div>
             <table className={canManageLeadActions ? "min-w-[1000px] w-full" : "min-w-[520px] w-full"}>
-            <thead className="border-b border-zinc-100/85 bg-white/70">
+            <thead className="border-b border-zinc-100/85 bg-white/70 dark:border-zinc-700 dark:bg-zinc-800">
               <tr>
                 {canManageLeadActions && bulkSelectMode && (
                   <th className="w-10 px-3 py-3 text-center">
@@ -3680,7 +4191,7 @@ function SuperAdminCampaignDetailPage() {
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-zinc-100/70">
+            <tbody className="divide-y divide-zinc-100/70 dark:divide-zinc-700">
               {paginatedLeads.length === 0 && (
                 <tr>
                   <td colSpan={canManageLeadActions ? (bulkSelectMode ? 8 : 7) : 2} className="px-6 py-10 text-center text-sm text-zinc-500">
@@ -3702,16 +4213,21 @@ function SuperAdminCampaignDetailPage() {
                 const isOptedOut = Boolean(optOutEntry);
                 const isLeadReadOnly = isLeadMarketingOptedOut(item);
                 const canSendEmail = leadSupportsEmailAction(item);
+                const canSendLinkedin = leadHasLinkedinProfile(item);
                 const canSendWhatsapp = leadSupportsWhatsappAction(item);
                 const showEmailAction = canSendEmail;
+                const showLinkedinAction = canSendLinkedin;
                 const showWhatsappAction = canSendWhatsapp;
+                const isLinkedinOutreachCompleted = isLeadLinkedinActionCompleted(item);
                 const showSendActions =
                   item.approvalStatus !== "rejected" &&
                   item.approvalStatus !== "suppressed" &&
                   !isLeadFullyActioned(item);
                 const sendEmailDisabledReason = getLeadSendActionDisabledReason(item, "email");
+                const sendLinkedinDisabledReason = getLeadSendActionDisabledReason(item, "linkedin");
                 const sendWhatsappDisabledReason = getLeadSendActionDisabledReason(item, "whatsapp");
                 const isSendingEmail = Boolean(leadSendLoading[item.id]?.email);
+                const isSendingLinkedin = Boolean(leadSendLoading[item.id]?.linkedin);
                 const isSendingWhatsapp = Boolean(leadSendLoading[item.id]?.whatsapp);
                 const disableWhatsappAction = (!hasText(item.phone) && !hasText(item.email)) || isOptedOut;
                 const smsDisabledReason = !hasText(item.phone)
@@ -3726,10 +4242,11 @@ function SuperAdminCampaignDetailPage() {
                 const suppressionPhone = suppressionMeta?.phoneE164 || optOutEntry?.phoneE164 || item.phone || null;
                 const suppressionEmail = suppressionMeta?.email || optOutEntry?.email || item.email || null;
                 const showTemplateFallback = shouldShowTemplateFallback(item);
-                const reviewContentDisabled = isLeadReadOnly || !canSendEmail;
+                const canReviewContent = canSendEmail || canSendLinkedin;
+                const reviewContentDisabled = isLeadReadOnly || !canReviewContent;
                 const contentIndicator = getLeadContentIndicator(item);
-                const reviewContentTitle = !canSendEmail
-                  ? "Email content review is available only for leads with email addresses."
+                const reviewContentTitle = !canReviewContent
+                  ? "Review is available only for leads with an email address or LinkedIn profile."
                   : isLeadReadOnly
                     ? "Lead actions are blocked"
                     : contentIndicator.title;
@@ -3819,18 +4336,33 @@ function SuperAdminCampaignDetailPage() {
                                 Template fallback
                               </span>
                             ) : null}
-                            <div className="flex flex-wrap items-center gap-1.5">
+                            <div className="inline-flex overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_6px_14px_-12px_rgba(2,10,27,0.45)] dark:border-zinc-600 dark:bg-zinc-800 dark:shadow-none">
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className={`h-8 rounded-md border px-2.5 text-xs font-semibold shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] ${contentIndicator.buttonClassName}`}
-                                onClick={() => setSelectedLead(item)}
+                                className={`h-7 rounded-none border-0 border-r border-zinc-200 px-2.5 text-[11px] font-semibold shadow-none ${contentIndicator.buttonClassName}`}
+                                onClick={() => {
+                                  setReviewChannel(canSendEmail ? "email" : "linkedin");
+                                  setSelectedLead(item);
+                                }}
                                 disabled={reviewContentDisabled}
                                 title={reviewContentTitle}
                               >
-                                <Eye className={`mr-2 h-3.5 w-3.5 ${contentIndicator.iconClassName}`} />
-                                Review Content
+                                <Eye className={`mr-1.5 h-3 w-3 ${contentIndicator.iconClassName}`} />
+                                Review
                               </Button>
+                              {isLeadEmailActionCompleted(item) ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 rounded-none border-0 bg-violet-50 px-2.5 text-[11px] font-semibold text-violet-700 shadow-none hover:bg-violet-100"
+                                  onClick={() => void openFollowUpComposer(item)}
+                                  disabled={isLeadReadOnly}
+                                >
+                                  <Mail className="mr-1.5 h-3 w-3" />
+                                  Follow-ups
+                                </Button>
+                              ) : null}
                             </div>
                           </div>
                         </td>
@@ -3852,7 +4384,7 @@ function SuperAdminCampaignDetailPage() {
                               </span>
                             ) : null}
                             {item.reviewStatus ? (
-                              <span className="text-[10px] text-zinc-500">Review: {item.reviewStatus}</span>
+                              <span className="text-[10px] text-zinc-500 dark:text-zinc-300">Review: {item.reviewStatus}</span>
                             ) : null}
                           </div>
                         </td>
@@ -3906,16 +4438,9 @@ function SuperAdminCampaignDetailPage() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 rounded-md border border-zinc-300/80 bg-white/82 text-zinc-500 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-45"
-                                onClick={() =>
-                                  void (item.approvalStatus === "pending"
-                                    ? handleApprove(item.id, "whatsapp")
-                                    : handleSendLeadAction(item, "whatsapp"))
-                                }
+                                onClick={() => void handleSendLeadAction(item, "whatsapp")}
                                 disabled={Boolean(sendWhatsappDisabledReason) || isSendingWhatsapp}
-                                title={
-                                  sendWhatsappDisabledReason ||
-                                  (item.approvalStatus === "pending" ? "Approve and send WhatsApp only" : "Send WhatsApp only")
-                                }
+                                title={sendWhatsappDisabledReason || "Send WhatsApp only"}
                               >
                                 {isSendingWhatsapp ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -3924,21 +4449,38 @@ function SuperAdminCampaignDetailPage() {
                                 )}
                               </Button>
                             ) : null}
-                            {showEmailAction ? (
+                            {showLinkedinAction ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className={`h-8 w-8 rounded-md border disabled:cursor-not-allowed disabled:opacity-45 ${
+                                  isLinkedinOutreachCompleted
+                                    ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50"
+                                    : "border-[#0A66C2]/25 bg-[#0A66C2]/5 text-[#0A66C2] hover:border-[#0A66C2]/45 hover:bg-[#0A66C2]/10"
+                                }`}
+                                onClick={() => void handleSendLeadAction(item, "linkedin")}
+                                disabled={Boolean(sendLinkedinDisabledReason) || isSendingLinkedin}
+                                title={
+                                  isLinkedinOutreachCompleted
+                                    ? "LinkedIn outreach complete"
+                                    : sendLinkedinDisabledReason || "Queue in HeyReach"
+                                }
+                              >
+                                {isSendingLinkedin ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <LinkedInIcon className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                            ) : null}
+                            {showEmailAction && !isLeadEmailActionCompleted(item) ? (
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 rounded-md border border-zinc-300/80 bg-white/82 text-zinc-500 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-45"
-                                onClick={() =>
-                                  void (item.approvalStatus === "pending"
-                                    ? handleApprove(item.id, "email")
-                                    : handleSendLeadAction(item, "email"))
-                                }
+                                onClick={() => void handleSendLeadAction(item, "email")}
                                 disabled={Boolean(sendEmailDisabledReason) || isSendingEmail}
-                                title={
-                                  sendEmailDisabledReason ||
-                                  (item.approvalStatus === "pending" ? "Approve and send Email only" : "Send Email only")
-                                }
+                                title={sendEmailDisabledReason || "Send Email only"}
                               >
                                 {isSendingEmail ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -3961,6 +4503,30 @@ function SuperAdminCampaignDetailPage() {
                           </>
                         ) : item.approvalStatus === "rejected" ? (
                           <span className="text-xs italic text-zinc-400">Rejected</span>
+                        ) : null}
+                        {isLeadEmailActionCompleted(item) && canSendEmail ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled
+                              title="Initial email sent"
+                              className="h-8 w-8 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 disabled:opacity-100"
+                            >
+                              <Mail className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-md border border-violet-200 bg-violet-50 text-violet-700 shadow-none hover:border-violet-300 hover:bg-violet-100 hover:text-violet-800 disabled:cursor-not-allowed disabled:opacity-45"
+                              onClick={() => void handleSendNextFollowUp(item)}
+                              disabled={isLeadReadOnly || quickFollowUpLeadId === item.id}
+                              title={isLeadReadOnly ? "Lead actions are blocked" : "Send next follow-up"}
+                            >
+                              {quickFollowUpLeadId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+                            </Button>
+                          </>
                         ) : null}
                           </div>
                         </td>
@@ -4138,6 +4704,152 @@ function SuperAdminCampaignDetailPage() {
           </motion.div>
         )}
 
+        {canManageLeadActions && followUpTargetLead && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[73] flex items-start justify-center overflow-y-auto bg-zinc-950/50 p-3 backdrop-blur-[3px] sm:items-center sm:p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0, y: 8 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 8 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_24px_40px_-28px_rgba(2,10,27,0.68)] sm:max-h-[calc(100dvh-2rem)]"
+            >
+              <div className="shrink-0 border-b border-zinc-100 px-4 py-3 sm:px-5 sm:py-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md border border-violet-200 bg-violet-50 text-violet-700">
+                        <Mail className="h-4 w-4" />
+                      </div>
+                      <h3 className="text-base font-semibold text-zinc-900">Manual Follow-ups</h3>
+                    </div>
+                    <p className="mt-2 text-sm text-zinc-600">
+                      Continue the conversation with <span className="font-semibold text-zinc-900">{followUpTargetLead.employeeName || "this lead"}</span>.
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-500">{followUpTargetLead.email}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={closeFollowUpComposer}
+                    disabled={isSendingFollowUp}
+                    className="h-8 w-8 rounded-md border border-zinc-300 bg-white text-zinc-400 hover:text-zinc-900"
+                    aria-label="Close follow-up composer"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3 sm:space-y-4 sm:px-5 sm:py-4">
+                <div className="rounded-xl border border-violet-100 bg-[linear-gradient(135deg,rgba(245,243,255,0.9),rgba(255,255,255,0.96))] p-3 sm:p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold text-zinc-900">Follow-up status</p>
+                      <p className="mt-0.5 text-[11px] text-zinc-500">Initial email sent · choose the next manual touchpoint.</p>
+                    </div>
+                    <Badge className="border border-violet-200 bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700 shadow-none">
+                      {FOLLOW_UP_STEPS[followUpStep]}
+                    </Badge>
+                  </div>
+                  <div className="overflow-x-auto pb-1">
+                    <div className="flex min-w-[450px] items-start">
+                      <div className="flex min-w-0 flex-1 items-center">
+                        <div className="flex flex-col items-center gap-1.5">
+                          <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-emerald-300 bg-emerald-100 text-emerald-700 sm:h-9 sm:w-9">
+                            <Mail className="h-4 w-4" />
+                          </span>
+                          <span className="text-center text-[9px] font-semibold leading-tight text-emerald-700">Initial email</span>
+                        </div>
+                        <span className="mx-1 mb-5 h-0.5 min-w-3 flex-1 rounded-full bg-emerald-300" />
+                      </div>
+                      {FOLLOW_UP_STEPS.map((step, index) => {
+                        const isActive = index === followUpStep;
+                        const historyStatus = followUpHistory.find((item) => item.stage === index + 1)?.status;
+                        const isComplete = historyStatus === "queued" || historyStatus === "sent";
+                        return (
+                          <div key={step} className="flex min-w-0 flex-1 items-center last:flex-none">
+                            <button
+                              type="button"
+                              onClick={() => selectFollowUpStep(index)}
+                              disabled={isSendingFollowUp || isComplete}
+                              className="group flex min-w-0 flex-col items-center gap-1.5"
+                              aria-pressed={isActive}
+                            >
+                              <span className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all sm:h-9 sm:w-9 ${
+                                isActive
+                                  ? "border-violet-600 bg-violet-600 text-white shadow-[0_8px_16px_-10px_rgba(124,58,237,0.9)]"
+                                  : isComplete
+                                    ? "border-violet-300 bg-violet-100 text-violet-700"
+                                    : "border-zinc-200 bg-white text-zinc-400 group-hover:border-violet-300 group-hover:text-violet-600"
+                              }`}>
+                                <Mail className="h-4 w-4" />
+                              </span>
+                              <span className={`max-w-[68px] text-center text-[9px] font-semibold leading-tight ${isActive ? "text-violet-700" : "text-zinc-500"}`}>
+                                {step}
+                              </span>
+                            </button>
+                            {index < FOLLOW_UP_STEPS.length - 1 ? (
+                              <span className={`mx-1 mb-5 h-0.5 min-w-2 flex-1 rounded-full ${isComplete ? "bg-violet-300" : "bg-zinc-200"}`} />
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Subject</label>
+                  <Input
+                    value={followUpSubject}
+                    onChange={(event) => setFollowUpSubject(event.target.value)}
+                    disabled={isSendingFollowUp}
+                    placeholder="Following up"
+                    className="border-zinc-300 bg-white text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Email body</label>
+                  <textarea
+                    value={followUpBody}
+                    onChange={(event) => setFollowUpBody(event.target.value)}
+                    disabled={isSendingFollowUp}
+                    rows={7}
+                    className="w-full resize-y rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm leading-6 text-zinc-800 outline-none transition focus:border-zinc-400 focus:ring-1 focus:ring-zinc-300 disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                </div>
+              </div>
+
+              <div className="flex shrink-0 items-center justify-end gap-2 border-t border-zinc-100 px-4 py-3 sm:px-5 sm:py-4">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={isSendingFollowUp}
+                  onClick={closeFollowUpComposer}
+                  className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-700 hover:bg-zinc-50"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => void handleSendFollowUp()}
+                  disabled={isSendingFollowUp || !followUpSubject.trim() || !followUpBody.trim()}
+                  className="h-9 rounded-md border border-violet-600/75 bg-violet-600 px-3.5 text-white hover:bg-violet-700 disabled:opacity-60"
+                >
+                  {isSendingFollowUp ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Mail className="mr-1.5 h-4 w-4" />}
+                  Send {FOLLOW_UP_STEPS[followUpStep]}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
         {canManageLeadActions && smsTargetLead && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -4306,6 +5018,30 @@ function SuperAdminCampaignDetailPage() {
                 </div>
 
                 <div className="flex items-center">
+                  <div className="mr-3 inline-flex rounded-lg border border-zinc-200 bg-zinc-50 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setReviewChannel("email")}
+                      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        reviewChannel === "email"
+                          ? "bg-white text-zinc-900 shadow-sm"
+                          : "text-zinc-500 hover:text-zinc-900"
+                      }`}
+                    >
+                      Cold Email
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReviewChannel("linkedin")}
+                      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        reviewChannel === "linkedin"
+                          ? "bg-[#0A66C2] text-white shadow-sm"
+                          : "text-zinc-500 hover:text-[#0A66C2]"
+                      }`}
+                    >
+                      LinkedIn
+                    </button>
+                  </div>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -4318,7 +5054,8 @@ function SuperAdminCampaignDetailPage() {
               </div>
 
               <div className="relative z-[2] flex-1 space-y-5 overflow-y-auto scrollbar-hide bg-white p-6">
-                <div className="grid gap-5 xl:h-[24.5rem] xl:grid-cols-1">
+                <div className="min-h-[24.5rem]">
+                  {reviewChannel === "email" ? (
                   <Card className="h-full rounded-2xl border border-zinc-300 bg-white p-5 shadow-sm">
                     <div className="mb-4 flex items-center gap-2">
                       <div className="rounded-md border border-zinc-300 bg-white p-1.5">
@@ -4452,6 +5189,28 @@ function SuperAdminCampaignDetailPage() {
                       </div>
                     </div>
                   </Card>
+                  ) : (
+                  <Card className="h-full rounded-2xl border border-[#0A66C2]/20 bg-white p-5 shadow-sm">
+                    <div className="mb-4 flex items-center gap-2">
+                      <div className="rounded-md border border-[#0A66C2]/25 bg-[#0A66C2]/5 p-1.5">
+                        <LinkedInIcon className="h-4 w-4 text-[#0A66C2]" />
+                      </div>
+                      <span className="text-sm font-semibold text-zinc-900">LinkedIn Message</span>
+                    </div>
+
+                    <div className="flex h-full min-h-0 flex-col">
+                      <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                        HeyReach message
+                      </label>
+                      <textarea
+                        className="h-full min-h-0 w-full resize-none rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-[#0A66C2]"
+                        value={(editForm.contentLinkedin as string) || ""}
+                        onChange={(e) => handleContentChange("contentLinkedin", e.target.value)}
+                        placeholder="Generate or write a LinkedIn message to queue this lead in HeyReach."
+                      />
+                    </div>
+                  </Card>
+                  )}
 
                   <div className="hidden min-h-0 grid-cols-1 gap-4 xl:h-full xl:grid-rows-2">
                     <AttachmentSection
@@ -4481,7 +5240,9 @@ function SuperAdminCampaignDetailPage() {
 
               <div className="relative z-[2] flex flex-col gap-3 border-t border-zinc-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-1">
-                  <p className="text-xs text-zinc-500">Changes are saved only. No approval or outreach is triggered here.</p>
+                  <p className="text-xs text-zinc-500">
+                    Saving keeps this review editable. Approve the active channel separately to unlock only its outreach action.
+                  </p>
                   {isLeadMarketingOptedOut(selectedLead) ? (
                     <p className="text-xs font-medium text-rose-600">
                       This lead is suppressed for outreach, but content changes can still be saved.
@@ -4493,7 +5254,7 @@ function SuperAdminCampaignDetailPage() {
                   ) : null}
                 </div>
 
-                {selectedLead.approvalStatus === "pending" ? (
+                {!selectedChannelApproved ? (
                   <div className="flex justify-end gap-3">
                     <Button
                       variant="ghost"
@@ -4544,6 +5305,15 @@ function SuperAdminCampaignDetailPage() {
                         <Save className="mr-2 h-4 w-4" />
                       )}
                       Save
+                    </Button>
+
+                    <Button
+                      className="h-9 bg-emerald-700 px-3.5 text-white hover:bg-emerald-800"
+                      disabled={saving || isResettingContent || isLeadMarketingOptedOut(selectedLead)}
+                      onClick={() => void handleApprove(selectedLead.id, reviewChannel)}
+                    >
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      {reviewChannel === "email" ? "Approve Cold Email" : "Approve LinkedIn"}
                     </Button>
                   </div>
                 ) : (
