@@ -849,6 +849,14 @@ function isLeadWhatsappActionCompleted(lead: Lead) {
   return isExecutedOutreachState(buildOutreachStatus(lead).whatsapp);
 }
 
+function leadHasLinkedinProfile(lead: Lead) {
+  return hasText(lead.linkedinUrl);
+}
+
+function isLeadLinkedinActionCompleted(lead: Lead) {
+  return isExecutedOutreachState(buildOutreachStatus(lead).linkedin);
+}
+
 function isLeadFullyActioned(lead: Lead) {
   const needsEmail = leadSupportsEmailAction(lead);
   const needsWhatsapp = leadSupportsWhatsappAction(lead);
