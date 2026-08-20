@@ -16,7 +16,6 @@ import { createCampaignFromUpload } from "@/lib/apiRouter";
 import { persistCampaignUploadSummary } from "@/lib/campaignUploadSummary";
 import { useAuth } from "@/hooks/useAuth";
 import { getCachedAuthUserDisplayName, listActiveEventRegistry, listAdminEvents, type AdminEventItem } from "@/lib/auth";
-import { LEAD_TYPE_OPTIONS, type LeadType } from "@/lib/leads/leadTypes";
 
 const uploadSteps = [
   { id: "event", label: "Event" },
@@ -90,7 +89,6 @@ export default function UploadCampaignPage() {
   const [selectedEventId, setSelectedEventId] = useState("");
   const [category, setCategory] = useState("");
   const [notes, setNotes] = useState("");
-  const [leadType, setLeadType] = useState<LeadType | "">("");
   const [leadSheet, setLeadSheet] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState<UploadStep>("event");
@@ -154,7 +152,6 @@ export default function UploadCampaignPage() {
     if (!selectedEvent.isActive) return "Selected event is inactive. Activate it before uploading leads.";
     if (!selectedEvent.eventName.trim()) return "Selected event is missing a name.";
     if (!selectedEvent.location?.trim()) return "Selected event is missing a location.";
-    if (!leadType) return "Lead type is required.";
     return validateLeadSheet(leadSheet);
   };
 
@@ -187,10 +184,6 @@ export default function UploadCampaignPage() {
     }
 
     if (currentStep === "details") {
-      if (!leadType) {
-        toast.error("Select a lead type before continuing.");
-        return;
-      }
       setCurrentStep("csv");
     }
   };
@@ -229,7 +222,6 @@ export default function UploadCampaignPage() {
 
     if (!leadSheet) return;
     if (!selectedEvent) return;
-    if (!leadType) return;
 
     setIsSubmitting(true);
     try {
@@ -240,7 +232,6 @@ export default function UploadCampaignPage() {
         date: selectedEvent.date || "",
         eventRegistryId: selectedEvent.id,
         icp: notes.trim(),
-        leadType,
         leadSheet,
       });
 
@@ -345,7 +336,7 @@ export default function UploadCampaignPage() {
               step.id === "event"
                 ? eventReady
                 : step.id === "details"
-                  ? Boolean(leadType) && activeStepIndex > index
+                  ? activeStepIndex > index
                   : Boolean(leadSheet);
 
             return (
@@ -445,25 +436,6 @@ export default function UploadCampaignPage() {
                 </div>
 
                 <div className="space-y-12">
-                  <div className="space-y-4">
-                    <label htmlFor="campaign-upload-lead-type" className="text-xs font-medium text-zinc-400">
-                      Lead type <span aria-hidden="true" className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="campaign-upload-lead-type"
-                      value={leadType}
-                      onChange={(event) => setLeadType(event.target.value as LeadType | "")}
-                      required
-                      aria-required="true"
-                      className="h-14 w-full border-0 border-b border-zinc-300 bg-transparent text-xl font-light tracking-tight text-zinc-950 focus:border-blue-600 focus:outline-none"
-                    >
-                      <option value="" disabled>Select lead type</option>
-                      {LEAD_TYPE_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
                   <div className="space-y-4">
                     <label className="text-xs font-medium text-zinc-400">Industry category</label>
                     <input

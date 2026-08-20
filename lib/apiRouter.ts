@@ -144,7 +144,6 @@ function appendUploadCampaignFormData(payload: sales.UploadCampaignRequest) {
   formData.append("date", payload.date?.trim() ?? "");
   formData.append("eventRegistryId", payload.eventRegistryId?.trim() ?? "");
   formData.append("icp", payload.icp?.trim() ?? "");
-  formData.append("leadType", payload.leadType);
 
   const leadSheetName =
     typeof File !== "undefined" && payload.leadSheet instanceof File && payload.leadSheet.name
@@ -277,11 +276,8 @@ export const listEvents: typeof sales.listEvents = (...args) =>
 export const listEventLeads: typeof sales.listEventLeads = (...args) =>
   pickModule().listEventLeads(...args);
 
-export function listEventsForPersona(
-  persona: DepartmentPersona,
-  params?: { leadGroup?: import("@/lib/leads/leadTypes").LeadGroup }
-): ReturnType<typeof sales.listEvents> {
-  return pickModule(persona).listEvents(params);
+export function listEventsForPersona(persona: DepartmentPersona): ReturnType<typeof sales.listEvents> {
+  return pickModule(persona).listEvents();
 }
 
 export function listEventLeadsForPersona(
@@ -302,10 +298,9 @@ export function createCampaignFromUploadForPersona(
 export function validateLeadTemplateUploadForPersona(
   persona: DepartmentPersona,
   file: File | Blob,
-  eventRegistryId: string | undefined,
-  leadType: sales.UploadCampaignRequest["leadType"]
+  eventRegistryId?: string
 ): ReturnType<typeof sales.validateLeadTemplateUpload> {
-  return pickModule(persona).validateLeadTemplateUpload(file, eventRegistryId, leadType);
+  return pickModule(persona).validateLeadTemplateUpload(file, eventRegistryId);
 }
 
 export function downloadLeadTemplateFileForPersona(
@@ -350,8 +345,7 @@ export async function createMyLeadsCampaignFromUpload(
 export async function validateMyLeadsLeadTemplateUpload(
   file: File | Blob,
   persona?: Persona,
-  eventRegistryId?: string,
-  leadType?: sales.UploadCampaignRequest["leadType"]
+  eventRegistryId?: string
 ) {
   const formData = new FormData();
   const fileName =
@@ -360,8 +354,6 @@ export async function validateMyLeadsLeadTemplateUpload(
       : "lead-upload-template.xlsx";
 
   formData.append("leadSheet", file, fileName);
-  if (!leadType) throw new Error("Lead type is required.");
-  formData.append("leadType", leadType);
   if (eventRegistryId?.trim()) formData.append("eventRegistryId", eventRegistryId.trim());
 
   const { data } = await apiClient.post<sales.LeadTemplateValidationResponse>(

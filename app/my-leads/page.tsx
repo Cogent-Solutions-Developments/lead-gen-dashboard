@@ -48,7 +48,6 @@ import {
   teamLeadQueryKey,
 } from "@/lib/teamLeads";
 import { cn } from "@/lib/utils";
-import { LEAD_TYPE_OPTIONS, type LeadType } from "@/lib/leads/leadTypes";
 import { LeadOriginTags } from "@/components/leads/LeadOriginTag";
 import { LeadHistoryContent } from "@/components/leads/LeadHistoryContent";
 import { LeadUploadDuplicateSummary } from "@/components/leads/LeadUploadDuplicateSummary";
@@ -127,7 +126,6 @@ type TemplateUploadState = {
   submitting: boolean;
   selectedEventId: string;
   category: string;
-  leadType: LeadType | "";
 };
 
 type AddLeadFormState = {
@@ -223,7 +221,6 @@ const EMPTY_TEMPLATE_UPLOAD: TemplateUploadState = {
   submitting: false,
   selectedEventId: "",
   category: "",
-  leadType: "",
 };
 const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
   eventRegistryId: "",
@@ -938,8 +935,7 @@ export function MyLeadsWorkspace({
       templateValidation &&
       templateValidation.sheetCount === 1 &&
       selectedTemplateUploadEvent?.isActive &&
-      templateUpload.category.trim() &&
-      templateUpload.leadType
+      templateUpload.category.trim()
   );
   const canUseDealBellFlow = role === "sales_user";
   const isCommentOnly = Boolean(
@@ -1122,14 +1118,7 @@ export function MyLeadsWorkspace({
     }));
 
     try {
-      if (!templateUpload.leadType) {
-        throw new Error("Select a lead type before choosing the Excel file.");
-      }
-      const validation = await validateMyLeadTemplateUpload(
-        file,
-        templateUpload.selectedEventId,
-        templateUpload.leadType
-      );
+      const validation = await validateMyLeadTemplateUpload(file, templateUpload.selectedEventId);
       if (validation.sheetCount !== 1) {
         setTemplateUpload((prev) => ({
           ...prev,
@@ -1168,10 +1157,6 @@ export function MyLeadsWorkspace({
       toast.error("Category is required.");
       return;
     }
-    if (!templateUpload.leadType) {
-      toast.error("Lead type is required.");
-      return;
-    }
     if (templateUpload.validation.sheetCount !== 1) {
       toast.error("Upload one category worksheet at a time.");
       return;
@@ -1197,7 +1182,6 @@ export function MyLeadsWorkspace({
         date: uploadEvent.date || "",
         eventRegistryId,
         icp: `Template upload for ${uploadEvent.eventName}`,
-        leadType: templateUpload.leadType,
         leadSheet: templateUpload.file,
       });
       const createdCampaigns = response.createdCampaigns?.length ? response.createdCampaigns : [response];
@@ -3041,34 +3025,6 @@ export function MyLeadsWorkspace({
           </div>
 
           <div>
-            <label className="mb-3 block text-xs font-medium text-zinc-400">
-              Lead type <span aria-hidden="true" className="text-red-500">*</span>
-            </label>
-            <Select
-              value={templateUpload.leadType}
-              onValueChange={(value) =>
-                setTemplateUpload((prev) => ({
-                  ...prev,
-                  leadType: value as LeadType,
-                  file: null,
-                  validation: null,
-                  error: "",
-                }))
-              }
-              disabled={templateUpload.validating || templateUpload.submitting}
-            >
-              <SelectTrigger aria-label="Select lead type" className="h-12 rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light shadow-none">
-                <SelectValue placeholder="Select lead type" />
-              </SelectTrigger>
-              <SelectContent>
-                {LEAD_TYPE_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
             <label htmlFor="my-lead-upload-category" className="mb-3 block text-xs font-medium text-zinc-400">
               Category <span className="text-red-500">*</span>
             </label>
@@ -3091,19 +3047,19 @@ export function MyLeadsWorkspace({
               htmlFor="my-lead-template-upload"
               className={cn(
                 "flex min-w-0 flex-1 items-center gap-4 transition-opacity",
-                !selectedTemplateUploadEvent || !templateUpload.leadType || templateUpload.validating || templateUpload.submitting
+                !selectedTemplateUploadEvent || templateUpload.validating || templateUpload.submitting
                   ? "cursor-not-allowed opacity-60"
                   : "cursor-pointer"
               )}
             >
               <span className="min-w-0 flex-1 text-left">
                 <span className="block truncate text-sm font-semibold text-zinc-950">
-                  {!selectedTemplateUploadEvent || !templateUpload.leadType
-                    ? "Select event and lead type first"
+                  {!selectedTemplateUploadEvent
+                    ? "Select event first"
                     : templateUpload.file?.name || "Choose Excel template"}
                 </span>
                 <span className="mt-1 block truncate text-xs font-light text-zinc-500">
-                  {!selectedTemplateUploadEvent || !templateUpload.leadType
+                  {!selectedTemplateUploadEvent
                     ? "Only .xlsx files are accepted"
                     : templateUpload.validating
                       ? "Checking workbook"
@@ -3116,12 +3072,11 @@ export function MyLeadsWorkspace({
                 Choose
               </span>
               <input
-                key={`${templateUpload.selectedEventId}:${templateUpload.leadType}`}
                 id="my-lead-template-upload"
                 type="file"
                 accept={LEAD_TEMPLATE_ACCEPT}
                 className="sr-only"
-                disabled={!selectedTemplateUploadEvent || !templateUpload.leadType || templateUpload.validating || templateUpload.submitting}
+                disabled={!selectedTemplateUploadEvent || templateUpload.validating || templateUpload.submitting}
                 onChange={(event) => void handleTemplateFileChange(event)}
               />
             </label>

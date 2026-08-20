@@ -42,14 +42,13 @@ test("duplicate event rows merge into one card while retaining provenance", asyn
   assert.equal(merged[0].originSources.length, 2);
 });
 
-test("lead creation and uploads require explicit event provenance and lead type", () => {
+test("lead creation and uploads require explicit event provenance", () => {
   const page = read("app/my-leads/page.tsx");
   const api = read("lib/api.ts");
   assert.match(page, /eventRegistryId: selectedAddLeadEvent\.id/);
   assert.match(page, /<SelectValue placeholder=\{loadingRegistryEvents/);
-  assert.match(page, /validateMyLeadTemplateUpload\([\s\S]*templateUpload\.selectedEventId,[\s\S]*templateUpload\.leadType[\s\S]*\)/);
+  assert.match(page, /validateMyLeadTemplateUpload\(file, templateUpload\.selectedEventId\)/);
   assert.match(api, /formData\.append\("eventRegistryId", eventRegistryId\.trim\(\)\)/);
-  assert.match(api, /formData\.append\("leadType", leadType\)/);
 });
 
 test("the Add Lead dialog fits the desktop viewport without internal scrolling", () => {
