@@ -8,6 +8,17 @@ import type {
 
 const CS_DATABASE_LABEL = "CS Database";
 const LEADS_LABEL = "Leads";
+const EDIT_FIELD_LABELS: Record<string, string> = {
+  fullName: "Full name",
+  title: "Job title",
+  companyName: "Company",
+  companyUrl: "Company website",
+  email: "Email",
+  phone: "Mobile number 1",
+  phone2: "Mobile number 2",
+  linkedinUrl: "LinkedIn",
+  category: "Category",
+};
 
 function normalizeLegacyLabel(value: string) {
   const label = value.trim();
@@ -151,6 +162,44 @@ function formatDateTime(value?: string | null) {
   return parsed.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
+type TimelineFieldChange = {
+  field: string;
+  label: string;
+  oldValue?: string | null;
+  newValue?: string | null;
+  recorded: boolean;
+};
+
+function timelineFieldChanges(entry: LeadOriginHistoryItem): TimelineFieldChange[] {
+  const changes = new Map<string, TimelineFieldChange>();
+  for (const change of entry.fieldChanges || []) {
+    const field = String(change.field || "").trim();
+    if (!field || changes.has(field)) continue;
+    changes.set(field, {
+      field,
+      label: EDIT_FIELD_LABELS[field] || field,
+      oldValue: change.oldValue,
+      newValue: change.newValue,
+      recorded: true,
+    });
+  }
+  for (const rawField of entry.changedFields || []) {
+    const field = String(rawField || "").trim();
+    if (!field || changes.has(field)) continue;
+    changes.set(field, {
+      field,
+      label: EDIT_FIELD_LABELS[field] || field,
+      recorded: false,
+    });
+  }
+  return [...changes.values()];
+}
+
+function timelineChangeValue(value: string | null | undefined, recorded: boolean) {
+  if (!recorded) return "Not recorded";
+  return String(value || "").trim() || "Empty";
+}
+
 export function LeadOwnershipHistory({
   items,
   className,
@@ -169,8 +218,9 @@ export function LeadOwnershipHistory({
   }
 
   return (
-    <ol className={cn("space-y-3", className)} aria-label="Lead source history">
+    <ol className={cn("space-y-3", className)} aria-label="Lead source and edit history">
       {history.map((entry) => {
+        const isProfileEdit = entry.eventType === "lead_profile_updated";
         const sourceType = String(entry.sourceType || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
         const isUserUpload = ["user_leads", "user_upload", "manual", "manual_lead"].includes(sourceType);
         const isLeadRequest = sourceType === "lead_request" || Boolean(entry.leadRequestId);
@@ -181,39 +231,80 @@ export function LeadOwnershipHistory({
           || (sourceType === "cs_database" ? CS_DATABASE_LABEL : "Source unavailable")
         );
         const department = String(entry.departmentLabel || entry.department || "Department unavailable");
+        const actor = String(
+          entry.actorLabel
+          || entry.actorFirstName
+          || entry.actorDisplayName
+          || entry.actorUsername
+          || owner
+          || "User"
+        );
+        const fieldChanges = timelineFieldChanges(entry);
+        const sourceSequence = entry.sourceSequence || entry.sequence;
         return (
           <li
-            key={`${entry.sequence}:${entry.personId || entry.occurredAt || owner}`}
+            key={entry.eventId || `${entry.sequence}:${entry.personId || entry.occurredAt || owner}`}
             className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-2 border-b border-zinc-200 pb-3 last:border-b-0 last:pb-0"
           >
             <div className="relative flex justify-center pt-1">
               <span className="absolute inset-y-1 left-1/2 w-px -translate-x-1/2 bg-zinc-200" />
-              <span className="relative flex h-5 w-5 items-center justify-center rounded-full border border-sky-200 bg-sky-50 text-[10px] font-semibold text-sky-700 ring-2 ring-white">
-                {entry.sequence}
+              <span
+                aria-label={isProfileEdit ? `Edit version ${entry.editVersion || entry.sequence}` : `Source ${sourceSequence}`}
+                className="relative flex h-5 w-5 items-center justify-center rounded-full border border-sky-200 bg-sky-50 text-[10px] font-semibold text-sky-700 ring-2 ring-white"
+              >
+                {isProfileEdit ? "E" : sourceSequence}
               </span>
             </div>
             <div className="min-w-0">
               <div className="flex min-w-0 items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-zinc-900">Source {entry.sequence}</p>
-                  <p className="mt-0.5 truncate text-xs text-zinc-500">{owner} · {department}</p>
+                  <p className="truncate text-sm font-semibold text-zinc-900">
+                    {isProfileEdit ? "Lead profile updated" : `Source: ${sourceSequence}`}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-zinc-500">
+                    {isProfileEdit ? `Edited by ${actor}` : owner} · {department}
+                  </p>
                 </div>
                 <time className="shrink-0 text-right text-[11px] leading-4 text-zinc-400">
                   {formatDateTime(entry.occurredAt)}
                 </time>
               </div>
               <p className="mt-2 text-xs leading-5 text-zinc-600">
-                {isLeadRequest && sourceType === "lead_request"
-                  ? `${owner} requested this lead for ${entry.leadRequestEventName || department}. ${entry.leadRequestUploadedByDisplayName || "An administrator"} fulfilled the request.`
-                  : isLeadRequest && sourceType === "cs_database"
-                    ? `${entry.leadRequestUploadedByDisplayName || "An administrator"} added this requested lead to CS Database for ${department}.`
+                {isProfileEdit
+                  ? fieldChanges.length
+                    ? `${actor} updated ${fieldChanges.length} lead field${fieldChanges.length === 1 ? "" : "s"}.`
+                    : `${actor} updated this lead profile.`
+                  : isLeadRequest && sourceType === "lead_request"
+                    ? `${owner} requested this lead for ${entry.leadRequestEventName || department}. ${entry.leadRequestUploadedByDisplayName || "An administrator"} fulfilled the request.`
+                    : isLeadRequest && sourceType === "cs_database"
+                      ? `${entry.leadRequestUploadedByDisplayName || "An administrator"} added this requested lead to CS Database for ${department}.`
                   : isUserUpload
                   ? `${owner} uploaded this lead to ${department}.`
                   : sourceType === "cs_database"
                     ? `Generated by CS Database for ${department}.`
                     : `Recorded from ${owner} for ${department}.`}
               </p>
-              {entry.sourceEmail || entry.sourcePhone || entry.sourceLinkedinUrl || entry.sourceCompanyUrl ? (
+              {isProfileEdit && fieldChanges.length ? (
+                <div className="mt-2 space-y-1.5" aria-label="Edited field changes">
+                  {fieldChanges.map((change) => {
+                    const oldValue = timelineChangeValue(change.oldValue, change.recorded);
+                    const newValue = timelineChangeValue(change.newValue, change.recorded);
+                    return (
+                      <p
+                        key={change.field}
+                        aria-label={`${change.label}: ${oldValue} changed to ${newValue}`}
+                        className="min-w-0 break-words rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-[11px] leading-4 text-zinc-600"
+                      >
+                        <span className="font-semibold text-zinc-800">[{change.label}]</span>{" "}
+                        <span>{oldValue}</span>{" "}
+                        <span className="font-medium text-zinc-400">→</span>{" "}
+                        <span>{newValue}</span>
+                      </p>
+                    );
+                  })}
+                </div>
+              ) : null}
+              {!isProfileEdit && (entry.sourceEmail || entry.sourcePhone || entry.sourceLinkedinUrl || entry.sourceCompanyUrl) ? (
                 <div className="mt-2 grid gap-1 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-2 text-[11px] leading-4 text-zinc-500">
                   {entry.sourceEmail ? <span className="truncate">Email: {entry.sourceEmail}</span> : null}
                   {entry.sourcePhone ? <span className="truncate">Phone: {entry.sourcePhone}</span> : null}
