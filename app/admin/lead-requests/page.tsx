@@ -14,7 +14,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { AdminPanelShell } from "@/components/layout/AdminPanelShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -152,39 +151,53 @@ export default function AdminLeadRequestsPage() {
   };
 
   return (
-    <AdminPanelShell>
-      <div className="min-h-[calc(100dvh-3rem)] font-sans">
-        <header className="rounded-2xl border border-white/80 bg-white/75 p-5 shadow-sm backdrop-blur-xl sm:p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">Request management</p>
-              <h1 className="mt-1 text-3xl font-semibold tracking-tight text-zinc-950">Lead Requests</h1>
-              <p className="mt-1 text-sm text-zinc-500">Review requirements, reject or reopen requests, and upload event-scoped leads.</p>
-            </div>
-            <Button onClick={() => void load()} disabled={loading} variant="outline" className="h-10 rounded-full border-zinc-200 bg-white">
-              <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />Refresh
+    <div className="admin-page flex min-h-[calc(100dvh-3rem)] w-full min-w-0 flex-col bg-transparent">
+      <section className="admin-card p-5">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
+          <div className="min-w-0">
+            <p className="admin-eyebrow">Request Management</p>
+            <h1 className="admin-title">Lead Requests</h1>
+            <p className="admin-description">Review requirements, reject or reopen requests, and upload event-scoped leads.</p>
+          </div>
+          <div className="admin-actions xl:justify-end">
+            <Button onClick={() => void load()} disabled={loading} className="analytics-frost-btn h-10 px-4">
+              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+              Refresh
             </Button>
           </div>
-          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {(["all", "pending", "done", "rejected"] as StatusFilter[]).map((status) => (
-              <button key={status} type="button" onClick={() => setFilter(status)} className={cn("rounded-xl border px-4 py-3 text-left transition", filter === status ? "border-blue-500 bg-blue-600 text-white shadow-md" : "border-zinc-200 bg-white text-zinc-700 hover:border-blue-200 hover:bg-blue-50/50")}>
-                <span className="block text-xs font-bold capitalize opacity-75">{status}</span>
-                <span className="mt-1 block text-2xl font-semibold tabular-nums">{counts[status]}</span>
-              </button>
-            ))}
-          </div>
-        </header>
+        </div>
 
-        <div className="mt-5 space-y-4">
-          {loading && requests.length === 0 ? (
-            <div className="flex min-h-64 items-center justify-center rounded-2xl border border-zinc-200 bg-white/80 text-sm text-zinc-500"><Loader2 className="mr-2 h-5 w-5 animate-spin" />Loading requests…</div>
-          ) : visible.length === 0 ? (
-            <div className="flex min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-white/65 text-center"><FileSpreadsheet className="h-8 w-8 text-zinc-300" /><p className="mt-3 text-sm font-semibold text-zinc-700">No {filter === "all" ? "lead" : filter} requests</p></div>
-          ) : visible.map((request) => {
-            const busy = busyId === request.id;
-            return (
-              <article key={request.id} className="overflow-hidden rounded-2xl border border-white/85 bg-white/85 shadow-sm backdrop-blur-xl">
-                <div className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4" role="group" aria-label="Filter lead requests by status">
+          {(["all", "pending", "done", "rejected"] as StatusFilter[]).map((status) => (
+            <button
+              key={status}
+              type="button"
+              aria-pressed={filter === status}
+              onClick={() => setFilter(status)}
+              className={cn(
+                "min-w-0 rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
+                filter === status
+                  ? "border-blue-600 bg-blue-600 text-white shadow-sm shadow-blue-200"
+                  : "border-zinc-200 bg-white/80 text-zinc-700 hover:border-blue-200 hover:bg-blue-50/60 hover:text-blue-700",
+              )}
+            >
+              <span className="block truncate text-[10px] font-bold uppercase tracking-wider opacity-75">{status === "all" ? "All requests" : status}</span>
+              <span className="mt-1 block text-2xl font-semibold tracking-tight tabular-nums">{counts[status]}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <div className="mt-4 space-y-4">
+        {loading && requests.length === 0 ? (
+          <div className="admin-card flex min-h-64 items-center justify-center text-sm text-zinc-500"><Loader2 className="mr-2 h-5 w-5 animate-spin" />Loading requests…</div>
+        ) : visible.length === 0 ? (
+          <div className="admin-card flex min-h-64 flex-col items-center justify-center border-dashed text-center"><FileSpreadsheet className="h-8 w-8 text-zinc-300" /><p className="mt-3 text-sm font-semibold text-zinc-700">No {filter === "all" ? "lead" : filter} requests</p></div>
+        ) : visible.map((request) => {
+          const busy = busyId === request.id;
+          return (
+            <article key={request.id} className="admin-card overflow-hidden">
+              <div className="grid min-w-0 gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
@@ -205,7 +218,7 @@ export default function AdminLeadRequestsPage() {
                     </dl>
                   </div>
 
-                  <section className="rounded-2xl border border-zinc-200 bg-zinc-50/80 p-4">
+                  <section className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-4">
                     <h3 className="text-sm font-semibold text-zinc-900">Fulfil this request</h3>
                     <p className="mt-1 text-xs leading-5 text-zinc-500">The upload is written to CS Database and this requester&apos;s My Leads event. Successful upload marks the request done.</p>
                     <label className="mt-4 block">
@@ -215,27 +228,26 @@ export default function AdminLeadRequestsPage() {
 
                     {request.status === "pending" ? (
                       <div className="mt-4 space-y-3">
-                        <Button type="button" variant="outline" onClick={() => void downloadTemplate(request)} disabled={busy} className="h-10 w-full rounded-xl border-zinc-300 bg-white"><Download className="mr-2 h-4 w-4" />Download {request.pipeline} template</Button>
-                        <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-blue-300 bg-blue-50/60 px-3 text-center hover:bg-blue-50">
+                        <Button type="button" variant="outline" onClick={() => void downloadTemplate(request)} disabled={busy} className="h-10 w-full rounded-md border-zinc-300 bg-white"><Download className="mr-2 h-4 w-4" />Download {request.pipeline} template</Button>
+                        <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-blue-300 bg-blue-50/60 px-3 text-center hover:bg-blue-50">
                           <FileSpreadsheet className="h-5 w-5 text-blue-600" />
                           <span className="mt-1 max-w-full truncate text-xs font-semibold text-blue-800">{files[request.id]?.name || "Choose completed .xlsx"}</span>
                           <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="sr-only" onChange={(event: ChangeEvent<HTMLInputElement>) => setFiles((current) => ({ ...current, [request.id]: event.target.files?.[0] || null }))} disabled={busy} />
                         </label>
-                        <Button type="button" onClick={() => void upload(request)} disabled={busy || !files[request.id]} className="h-10 w-full rounded-xl bg-blue-600 text-white hover:bg-blue-700">{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}Upload leads & complete</Button>
-                        <Button type="button" variant="ghost" onClick={() => void changeStatus(request, "rejected")} disabled={busy} className="h-9 w-full rounded-xl text-red-600 hover:bg-red-50 hover:text-red-700"><XCircle className="mr-2 h-4 w-4" />Reject request</Button>
+                        <Button type="button" onClick={() => void upload(request)} disabled={busy || !files[request.id]} className="h-10 w-full rounded-md bg-blue-600 text-white hover:bg-blue-700">{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}Upload leads & complete</Button>
+                        <Button type="button" variant="ghost" onClick={() => void changeStatus(request, "rejected")} disabled={busy} className="h-9 w-full rounded-md text-red-600 hover:bg-red-50 hover:text-red-700"><XCircle className="mr-2 h-4 w-4" />Reject request</Button>
                       </div>
                     ) : request.status === "rejected" ? (
-                      <Button type="button" onClick={() => void changeStatus(request, "pending")} disabled={busy} variant="outline" className="mt-4 h-10 w-full rounded-xl border-zinc-300 bg-white">{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}Reopen as pending</Button>
+                      <Button type="button" onClick={() => void changeStatus(request, "pending")} disabled={busy} variant="outline" className="mt-4 h-10 w-full rounded-md border-zinc-300 bg-white">{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}Reopen as pending</Button>
                     ) : (
-                      <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs leading-5 text-emerald-800"><CheckCircle2 className="mr-1 inline h-4 w-4" />Upload complete. The requester was notified and can access these leads in My Leads.</div>
+                      <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs leading-5 text-emerald-800"><CheckCircle2 className="mr-1 inline h-4 w-4" />Upload complete. The requester was notified and can access these leads in My Leads.</div>
                     )}
                   </section>
                 </div>
               </article>
-            );
-          })}
-        </div>
+          );
+        })}
       </div>
-    </AdminPanelShell>
+    </div>
   );
 }
