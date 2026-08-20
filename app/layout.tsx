@@ -3,6 +3,8 @@ import "./globals.css";
 import "./admin/admin-ui.css";
 import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/components/layout/AppShell";
+import { ThemeProvider } from "@/components/layout/ThemeProvider";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
 export const metadata: Metadata = {
   title: "supernizo",
@@ -15,10 +17,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="bg-transparent">
+    <html lang="en" className="bg-transparent" suppressHydrationWarning>
       <body className="min-h-screen bg-black/3 font-sans">
-        <AppShell>{children}</AppShell>
-        <Toaster position="top-right" />
+        <ThemeProvider>
+          <AppShell>{children}</AppShell>
+          <ThemeToggle />
+          <Toaster position="top-right" />
+        </ThemeProvider>
       </body>
     </html>
   );
