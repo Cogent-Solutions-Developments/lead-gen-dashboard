@@ -54,6 +54,50 @@ test("My Leads endpoints resolve to the correct pipeline prefixes", () => {
   assert.match(apiRouter, /`\$\{getMyLeadsPrefix\(persona\)\}\/events\/\$\{encodeURIComponent\(canonicalEventKey\)\}\/leads`/);
   assert.match(apiRouter, /export async function listMyLeadsEventLeads/);
   assert.match(apiRouter, /export async function downloadMyLeadsCampaignExport/);
+  assert.match(apiRouter, /export async function updateMyLead/);
+  assert.match(apiRouter, /apiClient\.patch<sales\.MyLeadUpdateResponse>/);
+  assert.match(apiRouter, /`\$\{getMyLeadsPrefix\(persona\)\}\/leads\/\$\{encodeURIComponent\(id\)\}`/);
+});
+
+test("My Leads edit is capability gated and never exposes delete", () => {
+  const page = read("app/my-leads/page.tsx");
+  const editForm = read("components/leads/MyLeadEditForm.tsx");
+
+  assert.match(page, /item\.canEdit \? \(/);
+  assert.match(page, /setEditingLeadId\(item\.id\)/);
+  assert.match(page, /<MyLeadEditForm/);
+  assert.match(editForm, /expectedVersion: lead\.leadEditVersion/);
+  assert.match(editForm, /Deletion is intentionally unavailable/);
+  assert.doesNotMatch(page, /deleteMyLead|deleteUploadedLead/);
+});
+
+test("My Leads add and edit forms support a second mobile number", () => {
+  const page = read("app/my-leads/page.tsx");
+  const editForm = read("components/leads/MyLeadEditForm.tsx");
+  const api = read("lib/api.ts");
+
+  assert.match(page, /phone2: addLeadForm\.phone2\.trim\(\)/);
+  assert.match(page, /Mobile Number 2/);
+  assert.match(editForm, /payload\.phone2 = cleaned\.phone2/);
+  assert.match(editForm, /Mobile number 2/);
+  assert.match(api, /phone2\?: string/);
+});
+
+test("Source timeline renders append-only lead edit records", () => {
+  const originHistory = read("components/leads/LeadOriginTag.tsx");
+  const api = read("lib/api.ts");
+
+  assert.match(api, /eventType\?: "lead_source_recorded" \| "lead_profile_updated" \| string/);
+  assert.match(api, /changedFields\?: string\[\]/);
+  assert.match(api, /fieldChanges\?: Array/);
+  assert.match(originHistory, /Lead profile updated/);
+  assert.match(originHistory, /Edited by \$\{actor\}/);
+  assert.doesNotMatch(originHistory, />Version \{entry\.editVersion\}</);
+  assert.match(originHistory, /\[\{change\.label\}\]/);
+  assert.match(originHistory, /\{oldValue\}/);
+  assert.match(originHistory, /\{newValue\}/);
+  assert.match(originHistory, /EDIT_FIELD_LABELS/);
+  assert.match(originHistory, /phone2: "Mobile number 2"/);
 });
 
 test("normal upload entry points route to My Leads upload", () => {
@@ -68,4 +112,13 @@ test("My Leads page enforces role persona and redirects admins", () => {
   assert.match(page, /router\.replace\("\/leads"\)/);
   assert.match(page, /const expectedPersona = personaForRole\(role\)/);
   assert.match(page, /if \(hasPersonaMismatch\) router\.replace\("\/dashboard"\)/);
+});
+
+test("lead requests accept designation lists with concise copy", () => {
+  const dialog = read("components/leads/LeadRequestDialog.tsx");
+
+  assert.match(dialog, /<Textarea value=\{form\.targetDesignation\}/);
+  assert.match(dialog, />Designations<\/span>/);
+  assert.match(dialog, /placeholder="One per line or comma"/);
+  assert.doesNotMatch(dialog, /Target designation|Tell the admin team|Send request/);
 });

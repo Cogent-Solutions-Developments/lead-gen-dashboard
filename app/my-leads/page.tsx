@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  ClipboardPlus,
   Copy,
   Download,
   FileUp,
@@ -19,6 +20,7 @@ import {
   Loader2,
   Mail,
   MessageSquare,
+  Pencil,
   Plus,
   RefreshCcw,
   Search,
@@ -50,6 +52,8 @@ import { cn } from "@/lib/utils";
 import { LeadOriginTags } from "@/components/leads/LeadOriginTag";
 import { LeadHistoryContent } from "@/components/leads/LeadHistoryContent";
 import { LeadUploadDuplicateSummary } from "@/components/leads/LeadUploadDuplicateSummary";
+import { LeadRequestDialog } from "@/components/leads/LeadRequestDialog";
+import { MyLeadEditForm } from "@/components/leads/MyLeadEditForm";
 import {
   addMyEventLead,
   createMyCampaignFromUpload,
@@ -61,6 +65,7 @@ import {
   listMyEventLeads,
   listMyEvents,
   searchMyLeads,
+  updateMyLead,
   updateLeadWorkflowStatus,
   validateMyLeadTemplateUpload,
   type EventLeadCreateRequest,
@@ -72,6 +77,8 @@ import {
   type LeadOriginSource,
   type LeadTemplateValidationResponse,
   type LeadItem,
+  type MyLeadUpdateRequest,
+  type MyLeadUpdateResponse,
   type WorkflowStatus,
   type WorkflowStatusHistoryItem,
 } from "@/lib/apiRouter";
@@ -97,6 +104,10 @@ type MyLeadRow = {
   phones: string[];
   linkedinUrl: string;
   companyUrl: string;
+  category: string;
+  leadEditVersion: number;
+  canEdit: boolean;
+  canDelete: boolean;
   workflowStatus: string;
   workflowStatusLabel: string;
   workflowComment: string;
@@ -128,6 +139,7 @@ type AddLeadFormState = {
   companyUrl: string;
   email: string;
   phone: string;
+  phone2: string;
   linkedinUrl: string;
 };
 
@@ -221,6 +233,7 @@ const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
   companyUrl: "",
   email: "",
   phone: "",
+  phone2: "",
   linkedinUrl: "",
 };
 const LEAD_TEMPLATE_ACCEPT = ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -557,6 +570,10 @@ function mapLeadItemToRow(item: LeadItem | EventLeadListItem): MyLeadRow {
     phones,
     linkedinUrl: item.linkedinUrl || "",
     companyUrl: item.companyUrl || "",
+    category: item.category || "",
+    leadEditVersion: Number(item.leadEditVersion || 0),
+    canEdit: Boolean(item.leadPermissions?.canEdit),
+    canDelete: Boolean(item.leadPermissions?.canDelete),
     workflowStatus,
     workflowStatusLabel: item.workflowStatusLabel || workflowStatus,
     workflowComment: item.workflowComment || "",
@@ -567,6 +584,71 @@ function mapLeadItemToRow(item: LeadItem | EventLeadListItem): MyLeadRow {
     manualLeadAddedByUsername: item.manualLeadAddedByUsername || "",
     originSources: Array.isArray(item.originSources) ? item.originSources : [],
     originHistory: "originHistory" in item && Array.isArray(item.originHistory) ? item.originHistory : [],
+  };
+}
+
+function replacePrimaryContact(
+  contacts: string[],
+  previousPrimary: string,
+  nextPrimary: string,
+  normalize: (value: string) => string
+) {
+  const previousKey = normalize(previousPrimary);
+  const nextKey = normalize(nextPrimary);
+  const alternates = contacts.filter((value) => {
+    const key = normalize(value);
+    return key && key !== previousKey && key !== nextKey;
+  });
+  return nextPrimary ? [nextPrimary, ...alternates] : alternates;
+}
+
+function normalizePhoneKey(value: string) {
+  const text = value.trim();
+  const normalized = [...text]
+    .filter((character, index) => /\d/.test(character) || (character === "+" && index === 0))
+    .join("");
+  return normalized.startsWith("00") ? `+${normalized.slice(2)}` : normalized || text;
+}
+
+function replaceVisiblePhones(
+  contacts: string[],
+  previousPrimary: string,
+  previousSecondary: string,
+  nextPrimary: string,
+  nextSecondary: string
+) {
+  const replacedKeys = new Set(
+    [previousPrimary, previousSecondary, nextPrimary, nextSecondary]
+      .map(normalizePhoneKey)
+      .filter(Boolean)
+  );
+  const hiddenPhones = contacts.filter((value) => {
+    const key = normalizePhoneKey(value);
+    return key && !replacedKeys.has(key);
+  });
+  return uniqText([nextPrimary, nextSecondary, ...hiddenPhones], "phone");
+}
+
+function mergeMyLeadUpdate(row: MyLeadRow, update: MyLeadUpdateResponse): MyLeadRow {
+  const email = asText(update.email);
+  const phone = asText(update.phone);
+  const previousPhone2 = row.phones[1] || "";
+  const phone2 = update.phone2 == null ? previousPhone2 : asText(update.phone2);
+  return {
+    ...row,
+    employeeName: asText(update.employeeName),
+    title: asText(update.title),
+    company: asText(update.company),
+    companyUrl: asText(update.companyUrl),
+    email,
+    phone,
+    emails: replacePrimaryContact(row.emails, row.email, email, (value) => value.trim().toLowerCase()),
+    phones: replaceVisiblePhones(row.phones, row.phone, previousPhone2, phone, phone2),
+    linkedinUrl: asText(update.linkedinUrl),
+    category: asText(update.category),
+    leadEditVersion: Number(update.leadEditVersion || 0),
+    canEdit: Boolean(update.leadPermissions?.canEdit),
+    canDelete: Boolean(update.leadPermissions?.canDelete),
   };
 }
 
@@ -760,6 +842,7 @@ export function MyLeadsWorkspace({
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [loadingRegistryEvents, setLoadingRegistryEvents] = useState(true);
   const [templateUploadOpen, setTemplateUploadOpen] = useState(false);
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [templateUpload, setTemplateUpload] = useState<TemplateUploadState>(EMPTY_TEMPLATE_UPLOAD);
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [addLeadForm, setAddLeadForm] = useState<AddLeadFormState>(EMPTY_ADD_LEAD_FORM);
@@ -785,6 +868,7 @@ export function MyLeadsWorkspace({
   const [filterOpen, setFilterOpen] = useState(false);
   const [pageOffset, setPageOffset] = useState(0);
   const [pageSize, setPageSize] = useState<number>(embedded ? EMBEDDED_PAGE_SIZE : 100);
+  const [editingLeadId, setEditingLeadId] = useState("");
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -979,6 +1063,10 @@ export function MyLeadsWorkspace({
   const pageRangeStart = pagedRows.length > 0 ? pageOffset + 1 : 0;
   const pageRangeEnd = pageOffset + pagedRows.length;
   const hasMore = usesServerPagination ? leadListMeta.hasMore : pageOffset + pageSize < pageTotal;
+  const editingLead = useMemo(
+    () => rows.find((row) => row.id === editingLeadId) || null,
+    [editingLeadId, rows]
+  );
 
   if (!role || isSuperAdmin || hasPersonaMismatch) return null;
 
@@ -1134,6 +1222,29 @@ export function MyLeadsWorkspace({
     setPageOffset(0);
   };
 
+  const submitLeadEdit = async (payload: MyLeadUpdateRequest) => {
+    if (!editingLead) throw new Error("This lead is no longer available.");
+    try {
+      const response = await updateMyLead(editingLead.id, payload);
+      setRows((current) =>
+        current.map((row) => (row.id === response.id ? mergeMyLeadUpdate(row, response) : row))
+      );
+      setEditingLeadId("");
+      toast.success("Lead updated", {
+        description: response.contentReviewRequired
+          ? "The profile was saved. Review the existing outreach content before sending."
+          : "The uploaded lead profile is now up to date.",
+      });
+      void loadRows();
+    } catch (error: unknown) {
+      const status = Number((error as { response?: { status?: number } })?.response?.status || 0);
+      if (status === 409) await loadRows();
+      const message = getApiErrorMessage(error);
+      toast.error("Lead update failed", { description: message });
+      throw new Error(message);
+    }
+  };
+
   const handleEventChange = (value: string) => {
     setSelectedEventKey(value === "my-leads" ? "" : value);
     setSearchInput("");
@@ -1171,6 +1282,7 @@ export function MyLeadsWorkspace({
       companyUrl: addLeadForm.companyUrl.trim() || undefined,
       email: addLeadForm.email.trim() || undefined,
       phone: addLeadForm.phone.trim() || undefined,
+      phone2: addLeadForm.phone2.trim() || undefined,
       linkedinUrl: addLeadForm.linkedinUrl.trim() || undefined,
     };
 
@@ -1184,6 +1296,14 @@ export function MyLeadsWorkspace({
     }
     if (!payload.title) {
       toast.error("Title is required");
+      return;
+    }
+    if (
+      payload.phone &&
+      payload.phone2 &&
+      normalizePhoneKey(payload.phone) === normalizePhoneKey(payload.phone2)
+    ) {
+      toast.error("Mobile numbers 1 and 2 must be different");
       return;
     }
 
@@ -1606,12 +1726,21 @@ export function MyLeadsWorkspace({
                 embedded ? "gap-3 sm:gap-4" : "gap-4 sm:gap-8"
               )}
             >
-              <div className="grid h-12 min-w-0 flex-1 grid-cols-2 items-center gap-1.5 rounded-full border border-zinc-200 bg-white p-1.5 sm:inline-flex sm:flex-none" aria-label="Lead actions">
+              <div className="grid h-12 min-w-0 flex-1 grid-cols-3 items-center gap-1.5 rounded-full border border-zinc-200 bg-white p-1.5 sm:inline-flex sm:flex-none" aria-label="Lead actions">
+                <button
+                  type="button"
+                  onClick={() => setRequestDialogOpen(true)}
+                  disabled={loadingRegistryEvents || !hasActiveRegistryEvents || Boolean(teamMemberId)}
+                  className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full px-2 text-xs font-semibold text-zinc-500 transition-colors hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50 sm:w-36 sm:text-sm"
+                >
+                  <ClipboardPlus className="h-4 w-4" />
+                  Request leads
+                </button>
                 <button
                   type="button"
                   onClick={openTemplateUploadDialog}
                   disabled={loadingRegistryEvents || !hasActiveRegistryEvents}
-                  className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full px-2 text-xs font-semibold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-50 sm:w-40 sm:text-sm"
+                  className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full px-2 text-xs font-semibold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-50 sm:w-36 sm:text-sm"
                 >
                   <FileUp className="h-4 w-4" />
                   Upload leads
@@ -1621,7 +1750,7 @@ export function MyLeadsWorkspace({
                   type="button"
                   onClick={openAddLeadDialog}
                   disabled={!hasActiveRegistryEvents || loadingRegistryEvents}
-                  className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-2 text-xs font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:opacity-50 sm:w-40 sm:text-sm"
+                  className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full border border-blue-500/20 bg-blue-600 px-2 text-xs font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] transition-colors hover:bg-blue-700 disabled:opacity-50 sm:w-36 sm:text-sm"
                 >
                   <Plus className="h-4 w-4" />
                   Add a lead
@@ -1985,6 +2114,19 @@ export function MyLeadsWorkspace({
                                 <span className="text-xs font-medium">Website</span>
                               </a>
                             ) : null}
+                            {item.canEdit ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setContactDropdown(null);
+                                  setEditingLeadId(item.id);
+                                }}
+                                className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-blue-600 transition-colors hover:border-blue-700 hover:text-blue-800"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                                <span className="text-xs font-medium">Edit</span>
+                              </button>
+                            ) : null}
                             <button type="button" onClick={() => void copyLeadDetails(item)} className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950">
                               <Copy className="h-3.5 w-3.5" />
                               <span className="text-xs font-medium">{copiedLeadId === item.id ? "Copied" : "Copy lead"}</span>
@@ -2241,6 +2383,24 @@ export function MyLeadsWorkspace({
             </div>
           </div>
         </div>
+      ) : null}
+
+      {editingLead ? (
+        <LeadSheetDialog
+          open
+          eyebrow="My Leads"
+          title="Edit uploaded lead"
+          description="Change the profile details used across this lead's workflow and outreach drafts."
+          onClose={() => setEditingLeadId("")}
+          compactSize="wide"
+        >
+          <MyLeadEditForm
+            lead={editingLead}
+            requireContact={persona === "sales"}
+            onCancel={() => setEditingLeadId("")}
+            onSubmit={submitLeadEdit}
+          />
+        </LeadSheetDialog>
       ) : null}
 
       {pendingStatusChange ? (
@@ -3176,7 +3336,7 @@ export function MyLeadsWorkspace({
             />
           </div>
 
-          <div>
+          <div className="sm:col-span-2">
             <label className={ADD_LEAD_LABEL_CLASS}>
               Email
             </label>
@@ -3190,12 +3350,30 @@ export function MyLeadsWorkspace({
 
           <div>
             <label className={ADD_LEAD_LABEL_CLASS}>
-              Phone
+              Mobile Number 1
             </label>
             <Input
+              type="tel"
               value={addLeadForm.phone}
               onChange={(event) => updateAddLeadField("phone", event.target.value)}
               placeholder="+60 ..."
+              maxLength={80}
+              autoComplete="tel"
+              className={ADD_LEAD_INPUT_CLASS}
+            />
+          </div>
+
+          <div>
+            <label className={ADD_LEAD_LABEL_CLASS}>
+              Mobile Number 2
+            </label>
+            <Input
+              type="tel"
+              value={addLeadForm.phone2}
+              onChange={(event) => updateAddLeadField("phone2", event.target.value)}
+              placeholder="+60 ..."
+              maxLength={80}
+              autoComplete="off"
               className={ADD_LEAD_INPUT_CLASS}
             />
           </div>
@@ -3249,6 +3427,11 @@ export function MyLeadsWorkspace({
           </Button>
         </div>
       </LeadSheetDialog>
+      <LeadRequestDialog
+        open={requestDialogOpen}
+        onOpenChange={setRequestDialogOpen}
+        events={registryEvents}
+      />
     </>
   );
 }

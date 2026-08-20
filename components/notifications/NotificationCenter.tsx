@@ -274,6 +274,12 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
         setOpen(false);
         router.push(actionHref);
       }
+    } else if (notification.type === "lead_request_created" || notification.type === "lead_request_updated") {
+      const actionHref = metadataText(notification, "actionHref");
+      if (actionHref.startsWith("/")) {
+        setOpen(false);
+        router.push(actionHref);
+      }
     } else {
       const documentNotification = eventDocumentNotification(notification);
       const documentId = eventDocumentId(notification);
@@ -423,12 +429,15 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
                   const isBirthdayWish = notification.type === "birthday_wish";
                   const isMemberBirthday = notification.type === "member_birthday";
                   const isEventInquiry = notification.type === "event_inquiry";
+                  const isLeadRequest = notification.type === "lead_request_created" || notification.type === "lead_request_updated";
                   const documentNotification = eventDocumentNotification(notification);
                   const isEventDocumentUpload = Boolean(documentNotification);
                   const detail = isEventInquiry
                     ? [metadataText(notification, "contactName"), metadataText(notification, "company")].filter(Boolean).join(" - ")
                     : documentNotification
                       ? [eventDocumentName(notification, documentNotification.fallbackName), metadataText(notification, "uploadedByUsername") ? `Uploaded by ${metadataText(notification, "uploadedByUsername")}` : ""].filter(Boolean).join(" - ")
+                      : isLeadRequest
+                        ? [metadataText(notification, "eventName"), metadataText(notification, "requesterName")].filter(Boolean).join(" - ")
                       : "";
                   return (
                     <button
@@ -479,9 +488,15 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
                             {documentNotification?.categoryLabel}
                           </span>
                         ) : null}
-                        {isEventInquiry || isEventDocumentUpload ? (
+                        {isEventInquiry || isEventDocumentUpload || isLeadRequest ? (
                           <span className="mt-1.5 block text-xs font-bold text-blue-700">
-                            {isEventInquiry ? "View inquiry details" : documentNotification?.actionLabel}
+                            {isEventInquiry
+                              ? "View inquiry details"
+                              : isEventDocumentUpload
+                                ? documentNotification?.actionLabel
+                                : notification.type === "lead_request_created"
+                                  ? "Manage request"
+                                  : "Open My Leads"}
                           </span>
                         ) : null}
                         <time className="mt-1.5 block text-xs text-zinc-500" dateTime={notification.createdAt}>

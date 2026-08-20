@@ -711,6 +711,9 @@ export type LeadOwnerSummary = {
 export type LeadOriginHistoryItem = {
   sequence: number;
   isFirst?: boolean;
+  eventId?: string | null;
+  eventType?: "lead_source_recorded" | "lead_profile_updated" | string;
+  sourceSequence?: number | null;
   personId?: string | null;
   icpRunId?: string | null;
   department: string;
@@ -721,11 +724,26 @@ export type LeadOriginHistoryItem = {
   ownerDisplayName?: string | null;
   ownerFirstName?: string | null;
   ownerLabel: string;
+  actorUserId?: string | null;
+  actorUsername?: string | null;
+  actorDisplayName?: string | null;
+  actorFirstName?: string | null;
+  actorLabel?: string | null;
   occurredAt?: string | null;
+  editVersion?: number | null;
+  changedFields?: string[];
+  fieldChanges?: Array<{
+    field: string;
+    oldValue?: string | null;
+    newValue?: string | null;
+  }>;
   sourceEmail?: string | null;
   sourcePhone?: string | null;
   sourceLinkedinUrl?: string | null;
   sourceCompanyUrl?: string | null;
+  leadRequestId?: string | null;
+  leadRequestEventName?: string | null;
+  leadRequestUploadedByDisplayName?: string | null;
 };
 
 export type LeadOriginSource = {
@@ -787,8 +805,10 @@ export type LeadItem = {
   company: string | null;
   email: string | null;
   phone: string | null;
+  phone2?: string | null;
   linkedinUrl: string | null;
   companyUrl: string | null;
+  category?: string | null;
   contentEmailSubject: string | null;
   contentEmail: string | null;
   contentLinkedin: string | null;
@@ -826,6 +846,47 @@ export type LeadItem = {
   whatsappAttachments?: LeadAttachment[];
   contentSource?: EmailTemplateContentSource | string | null;
   templateFallback?: boolean | null;
+  leadEditVersion?: number | null;
+  leadPermissions?: MyLeadEditPermissions | null;
+};
+
+export type MyLeadEditPermissions = {
+  canEdit: boolean;
+  canDelete: boolean;
+};
+
+export type MyLeadUpdateRequest = {
+  expectedVersion: number;
+  fullName?: string;
+  title?: string;
+  companyName?: string;
+  companyUrl?: string;
+  email?: string;
+  phone?: string;
+  phone2?: string;
+  linkedinUrl?: string;
+  category?: string;
+};
+
+export type MyLeadUpdateResponse = {
+  id: string;
+  campaignId: string;
+  employeeName: string;
+  title?: string | null;
+  company?: string | null;
+  companyUrl?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  phone2?: string | null;
+  linkedinUrl?: string | null;
+  category?: string | null;
+  leadIdentityKey: string;
+  previousLeadIdentityKey: string;
+  leadEditVersion: number;
+  leadPermissions: MyLeadEditPermissions;
+  changedFields: string[];
+  contentReviewRequired: boolean;
+  updatedAt: string;
 };
 
 export type WorkflowStatusUpdateResponse = {
@@ -914,6 +975,7 @@ export type EventLeadListItem = {
   company?: string | null;
   email?: string | null;
   phone?: string | null;
+  phone2?: string | null;
   linkedinUrl?: string | null;
   companyUrl?: string | null;
   category?: string | null;
@@ -939,6 +1001,8 @@ export type EventLeadListItem = {
   originSources?: LeadOriginSource[];
   originHistory?: LeadOriginHistoryItem[];
   ownershipCount?: number | null;
+  leadEditVersion?: number | null;
+  leadPermissions?: MyLeadEditPermissions | null;
 };
 
 export type LeadEmailGenerationRequest = {
@@ -1050,6 +1114,7 @@ export type EventLeadListParams = {
   limit?: number;
   offset?: number;
   search?: string;
+  department?: "sales" | "delegate" | "production";
   workflowStatus?: WorkflowStatus;
   category?: string;
   includeManual?: boolean;
@@ -1233,6 +1298,7 @@ export type EventLeadCreateRequest = {
   companyUrl?: string;
   email?: string;
   phone?: string;
+  phone2?: string;
   linkedinUrl?: string;
 };
 
@@ -1250,6 +1316,7 @@ export type EventLeadCreateResponse = {
   companyUrl?: string | null;
   email?: string | null;
   phone?: string | null;
+  phone2?: string | null;
   linkedinUrl?: string | null;
   isManualLead?: boolean | null;
   manualLeadAddedByUserId?: string | null;
@@ -1598,6 +1665,7 @@ export async function listMyEventLeads(canonicalEventKey: string, params?: Event
         limit: params?.limit,
         offset: params?.offset,
         search: params?.search,
+        department: params?.department,
         workflowStatus: params?.workflowStatus,
         category: params?.category,
         includeManual: params?.includeManual,
@@ -1691,6 +1759,7 @@ export async function listEventLeads(canonicalEventKey: string, params?: EventLe
         limit: params?.limit,
         offset: params?.offset,
         search: params?.search,
+        department: params?.department,
         workflowStatus: params?.workflowStatus,
         category: params?.category,
         includeManual: params?.includeManual,

@@ -62,6 +62,9 @@ export type {
   LeadTemplateCategorySummary,
   LeadTemplateValidationResponse,
   LeadItem,
+  MyLeadEditPermissions,
+  MyLeadUpdateRequest,
+  MyLeadUpdateResponse,
   LeadDepartmentTag,
   LeadOriginHistoryItem,
   LeadOriginSource,
@@ -230,6 +233,18 @@ export const listMyEventLeads: typeof sales.listMyEventLeads = (...args) =>
 
 export const addMyEventLead: typeof sales.addMyEventLead = (...args) =>
   pickModule().addMyEventLead(...args);
+
+export async function updateMyLead(
+  id: string,
+  payload: sales.MyLeadUpdateRequest,
+  persona?: Persona
+) {
+  const { data } = await apiClient.patch<sales.MyLeadUpdateResponse>(
+    `${getMyLeadsPrefix(persona)}/leads/${encodeURIComponent(id)}`,
+    payload
+  );
+  return data;
+}
 
 export const getCampaign: typeof sales.getCampaign = (...args) =>
   pickModule().getCampaign(...args);
@@ -413,6 +428,7 @@ export async function listMyLeadsEventLeads(
         limit: params?.limit,
         offset: params?.offset,
         search: params?.search,
+        department: params?.department,
         workflowStatus: params?.workflowStatus,
         category: params?.category,
         includeManual: params?.includeManual,

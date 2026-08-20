@@ -62,7 +62,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 import { getDailyDealBellMedia } from "@/lib/dealBellMedia";
 import { cn } from "@/lib/utils";
-import { LeadOriginTags } from "@/components/leads/LeadOriginTag";
+import { LeadDepartmentTags, LeadOriginTags } from "@/components/leads/LeadOriginTag";
 import { LeadHistoryContent } from "@/components/leads/LeadHistoryContent";
 import { LeadUploadDuplicateSummary } from "@/components/leads/LeadUploadDuplicateSummary";
 import { mergeDuplicateEventLeadRows } from "@/lib/leads/mergeEventLeadRows";
@@ -140,6 +140,7 @@ type AddLeadFormState = {
 };
 
 type LeadFilterState = {
+  department: "all" | "sales" | "delegate" | "production";
   status: string;
   contact: "all" | "email" | "phone" | "complete" | "missing-contact" | "linkedin" | "website";
   category: string;
@@ -498,6 +499,15 @@ const LEAD_PAGE_CACHE_TTL_MS = 60 * 1000;
 const MAX_INITIAL_DATA_CACHE_ENTRIES = 8;
 const MAX_LEAD_PAGE_CACHE_ENTRIES = 24;
 const LEAD_SHEET_DEPARTMENT_PERSONAS: LeadSheetDepartmentPersona[] = ["sales", "delegates", "production"];
+const LEAD_DEPARTMENT_OPTIONS: Array<{
+  value: LeadFilterState["department"];
+  label: string;
+}> = [
+  { value: "all", label: "All departments" },
+  { value: "sales", label: "Sales" },
+  { value: "delegate", label: "Delegate" },
+  { value: "production", label: "Production" },
+];
 
 const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
   fullName: "",
@@ -511,6 +521,7 @@ const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
 };
 
 const EMPTY_FILTERS: LeadFilterState = {
+  department: "all",
   status: "all",
   contact: "all",
   category: "all",
@@ -568,6 +579,35 @@ function normalizeLeadCategory(value: unknown) {
   const label = asText(value);
   if (!label || label.toLowerCase() === "other") return UNCATEGORIZED_CATEGORY_LABEL;
   return label;
+}
+
+function normalizeLeadDepartment(value: unknown) {
+  const department = asText(value).toLowerCase().replace(/[\s_-]+/g, "");
+  if (department === "delegate" || department === "delegates") return "delegate";
+  if (department === "production" || department === "productions") return "production";
+  if (department === "sale" || department === "sales") return "sales";
+  return department;
+}
+
+function getLeadDepartmentLabel(department: string) {
+  return LEAD_DEPARTMENT_OPTIONS.find((option) => option.value === department)?.label || humanizeStatusLabel(department);
+}
+
+function getLeadDepartmentTags(lead: LeadSheetRow) {
+  const tags = new Map<string, LeadDepartmentTag>();
+  const addDepartment = (value: unknown, label?: unknown) => {
+    const department = normalizeLeadDepartment(value);
+    if (!department || tags.has(department)) return;
+    tags.set(department, {
+      department,
+      label: asText(label) || getLeadDepartmentLabel(department),
+    });
+  };
+
+  for (const tag of lead.departmentTags) addDepartment(tag.department, tag.label);
+  for (const department of lead.departments) addDepartment(department);
+  addDepartment(lead.primaryDepartment);
+  return [...tags.values()];
 }
 
 function getDisplayEventName(name?: string | null) {
@@ -730,6 +770,7 @@ type LeadPageFetchParams = {
   limit: number;
   offset: number;
   search?: string;
+  department?: Exclude<LeadFilterState["department"], "all">;
   workflowStatus?: WorkflowStatus;
   category?: string;
   includeManual: boolean;
@@ -798,6 +839,7 @@ function leadPageCacheKey(
     params.limit,
     params.offset,
     params.search || "",
+    params.department || "",
     params.workflowStatus || "",
     params.category || "",
     params.includeManual ? "1" : "0",
@@ -1503,7 +1545,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
 
   useEffect(() => {
     setPageOffset(0);
-  }, [filters.status, filters.contact, filters.category]);
+  }, [filters.department, filters.status, filters.contact, filters.category]);
 
   useEffect(() => {
     const nextSearch = searchParams.get("search") || "";
@@ -1590,6 +1632,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
       limit: pageSize,
       offset: nextOffset,
       search: query || undefined,
+      department: filters.department === "all" ? undefined : filters.department,
       workflowStatus: filters.status === "all" ? undefined : filters.status,
       category: filters.category === "all" ? undefined : filters.category,
       includeManual: true,
@@ -1649,7 +1692,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
         setLoadingLeads(false);
       }
     }
-  }, [cacheScope, effectivePersona, filters.category, filters.status, leadSheetApi, mode, pageSize]);
+  }, [cacheScope, effectivePersona, filters.category, filters.department, filters.status, leadSheetApi, mode, pageSize]);
 
   useEffect(() => {
     if (!scopedEvents.length || !selectedEventKey) {
@@ -1817,6 +1860,12 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
 
   const visibleEventLeads = useMemo(() => {
     return eventLeads.filter((item) => {
+      if (filters.department !== "all") {
+        const departments = getLeadDepartmentTags(item);
+        if (departments.length > 0 && !departments.some((tag) => tag.department === filters.department)) {
+          return false;
+        }
+      }
       if (filters.contact === "email" && !item.email) return false;
       if (filters.contact === "phone" && !item.phone) return false;
       if (filters.contact === "complete" && (!item.email || !item.phone)) return false;
@@ -1826,10 +1875,11 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
 
       return true;
     });
-  }, [eventLeads, filters.contact]);
+  }, [eventLeads, filters.contact, filters.department]);
 
   const activeFilterCount = useMemo(() => {
     return [
+      filters.department !== EMPTY_FILTERS.department,
       filters.status !== EMPTY_FILTERS.status,
       filters.contact !== EMPTY_FILTERS.contact,
       filters.category !== EMPTY_FILTERS.category,
@@ -2845,6 +2895,32 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
 
               <div className="mt-4 border-t border-zinc-100 pt-4">
                 <label className="mb-3 block text-xs font-medium text-zinc-400">Intelligent filters</label>
+                <div className="mb-4">
+                  <label className="mb-2 block text-[11px] font-medium text-zinc-500">Department</label>
+                  <Select
+                    value={filters.department}
+                    onValueChange={(value) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        department: value as LeadFilterState["department"],
+                      }))
+                    }
+                  >
+                    <SelectTrigger
+                      aria-label="Filter leads by department"
+                      className="h-11 w-full rounded-full border-zinc-300 bg-white px-4 text-sm font-light text-zinc-700 shadow-[0_18px_46px_-42px_rgba(2,10,27,0.42)] focus:ring-blue-600"
+                    >
+                      <SelectValue placeholder="All departments" />
+                    </SelectTrigger>
+                    <SelectContent align="start" className="rounded-2xl border-zinc-200 bg-white p-1 shadow-xl">
+                      {LEAD_DEPARTMENT_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value} className="rounded-xl py-2.5 text-sm">
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <button
                   type="button"
                   onClick={() => setFilterOpen(true)}
@@ -2949,9 +3025,12 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                         >
                           <div className="pr-8">
                             <div className="flex flex-col gap-1.5">
-                              <div className="flex items-center gap-5">
+                              <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
                                 <span className="text-xl font-light tracking-tight text-zinc-950">{item.employeeName || "-"}</span>
-                                <LeadOriginTags originSources={item.originSources} />
+                                <span className="inline-flex min-w-0 flex-wrap items-center gap-1.5">
+                                  <LeadOriginTags originSources={item.originSources} />
+                                  <LeadDepartmentTags departments={getLeadDepartmentTags(item)} />
+                                </span>
                               </div>
                               <span className="max-w-sm text-base font-light leading-relaxed text-zinc-700">{item.title || "-"}</span>
                               <span className="text-xs font-medium text-zinc-400">{item.company || "-"}</span>
