@@ -566,11 +566,13 @@ export type ChannelCapability = {
   mode?: string | null;
   enabled?: boolean;
   templateConfigured?: boolean;
+  campaignConfigured?: boolean;
 };
 
 export type ChannelCapabilities = {
   email?: ChannelCapability | null;
   whatsapp?: ChannelCapability | null;
+  linkedin?: ChannelCapability | null;
 };
 
 export type SuppressionMeta = {
@@ -673,6 +675,8 @@ export type CampaignInfo = {
   location: string | null;
   category: string | null;
   date: string | null;
+  heyreachCampaignId?: string | null;
+  linkedinTemplateBody?: string | null;
   createdAt: string | null;
   updatedAt: string | null;
 };

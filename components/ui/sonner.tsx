@@ -11,7 +11,8 @@ import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  const { theme = "system", resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === "dark"
 
   return (
     <Sonner
@@ -46,9 +47,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
       style={
         {
           "--width": "21.5rem",
-          "--normal-bg": "rgb(255 255 255)",
-          "--normal-text": "rgb(15 23 42)",
-          "--normal-border": "rgb(226 232 240)",
+          "--normal-bg": isDark ? "rgb(39 39 42)" : "rgb(255 255 255)",
+          "--normal-text": isDark ? "rgb(244 244 245)" : "rgb(15 23 42)",
+          "--normal-border": isDark ? "rgb(82 82 91)" : "rgb(226 232 240)",
           "--border-radius": "0.875rem",
         } as React.CSSProperties
       }

@@ -110,9 +110,9 @@
 }
 
 .dark {
-  /* --- DECKO THEME: Dark Mode --- */
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
+  /* --- App-wide charcoal dark mode --- */
+  --background: oklch(0.16 0 0);
+  --foreground: oklch(0.96 0 0);
 
   /* Sidebar: Consistent across Light/Dark modes */
   --sidebar: oklch(0.10 0.00 0);
@@ -130,28 +130,90 @@
   --sidebar-ring: oklch(0.88 0.20 138);
 
   /* Shadcn Dark Utils */
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
+  --card: oklch(0.21 0 0);
+  --card-foreground: oklch(0.96 0 0);
+  --popover: oklch(0.21 0 0);
+  --popover-foreground: oklch(0.96 0 0);
+  --primary: oklch(0.96 0 0);
+  --primary-foreground: oklch(0.21 0 0);
+  --secondary: oklch(0.28 0 0);
+  --secondary-foreground: oklch(0.96 0 0);
+  --muted: oklch(0.28 0 0);
+  --muted-foreground: oklch(0.72 0 0);
+  --accent: oklch(0.28 0 0);
+  --accent-foreground: oklch(0.96 0 0);
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.98 0 0);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
+  --ring: oklch(0.72 0 0);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
+}
+
+/* campaign-leads-panel dark mode overrides are defined near the end of the file to ensure they override the legacy glass utilities. */
+
+/* Let the sidebar inherit the page artwork in dark mode instead of placing
+   a solid charcoal rectangle over it. */
+.dark .sidebar-modern {
+  background-color: transparent !important;
+  background-image: none !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.dark .sidebar-modern::before,
+.dark .sidebar-modern::after {
+  display: none;
+}
+
+/* The dashboard uses utility colours extensively. These mappings keep every
+   existing screen readable when the global theme is switched to dark mode. */
+.dark body {
+  background: #18181b;
+  color: #f4f4f5;
+}
+
+.dark [class*="bg-white"],
+.dark [class*="bg-slate-50"],
+.dark [class*="bg-zinc-50"],
+.dark [class*="bg-gray-50"] {
+  background-color: #27272a !important;
+}
+
+.dark [class*="bg-[linear-gradient"] {
+  background-color: #27272a !important;
+  background-image: none !important;
+}
+
+.dark [class*="border-slate-"],
+.dark [class*="border-zinc-"],
+.dark [class*="border-gray-"] {
+  border-color: #52525b !important;
+}
+
+.dark [class*="text-slate-9"],
+.dark [class*="text-zinc-9"],
+.dark [class*="text-gray-9"],
+.dark [class*="text-black"] {
+  color: #f4f4f5 !important;
+}
+
+.dark [class*="text-slate-"],
+.dark [class*="text-zinc-"],
+.dark [class*="text-gray-"] {
+  color: #d4d4d8;
+}
+
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: #18181b !important;
+  border-color: #52525b !important;
+  color: #f4f4f5 !important;
 }
 
 @keyframes sidebar-gradient-pan {
@@ -968,4 +1030,25 @@
       width: 22rem;
     }
   }
+}
+
+/* Must follow the legacy glass utilities above so dark mode wins their
+   intentionally high-specificity light surfaces. */
+.dark .campaign-leads-panel {
+  border-color: #52525b !important;
+  background-color: #27272a !important;
+  background-image: none !important;
+  box-shadow: 0 18px 35px -26px rgb(0 0 0 / 0.9) !important;
+}
+
+.dark .campaign-leads-panel [class*="bg-white"],
+.dark .campaign-leads-panel [class*="bg-slate-50"],
+.dark .campaign-leads-panel [class*="bg-zinc-50"] {
+  background-color: #3f3f46 !important;
+  background-image: none !important;
+}
+
+.dark .campaign-leads-panel thead {
+  background-color: #3f3f46 !important;
+  border-color: #52525b !important;
 }
