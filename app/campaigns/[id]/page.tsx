@@ -853,6 +853,16 @@ function leadHasLinkedinProfile(lead: Lead) {
   return hasText(lead.linkedinUrl);
 }
 
+function leadSupportsLinkedinAction(lead: Lead) {
+  const capability = lead.channelCapabilities?.linkedin;
+  return Boolean(
+    leadHasLinkedinProfile(lead) &&
+      capability?.enabled === true &&
+      capability.campaignConfigured === true &&
+      capability.sendable === true
+  );
+}
+
 function isLeadLinkedinActionCompleted(lead: Lead) {
   return buildOutreachStatus(lead).linkedin === "sent";
 }
@@ -863,7 +873,7 @@ function isLeadLinkedinActionHandedOff(lead: Lead) {
 
 function isLeadFullyActioned(lead: Lead) {
   const needsEmail = leadSupportsEmailAction(lead);
-  const needsLinkedin = leadHasLinkedinProfile(lead);
+  const needsLinkedin = leadSupportsLinkedinAction(lead);
   const needsWhatsapp = leadSupportsWhatsappAction(lead);
 
   if (!needsEmail && !needsLinkedin && !needsWhatsapp) return false;
@@ -1404,7 +1414,7 @@ function SuperAdminCampaignDetailPage() {
   }
   function isLeadFullyActioned(lead: Lead) {
     const needsEmail = leadSupportsEmailAction(lead);
-    const needsLinkedin = leadHasLinkedinProfile(lead);
+    const needsLinkedin = leadSupportsLinkedinAction(lead);
     const needsWhatsapp = leadSupportsWhatsappAction(lead);
 
     if (!needsEmail && !needsLinkedin && !needsWhatsapp) return false;

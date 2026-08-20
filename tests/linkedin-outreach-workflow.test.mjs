@@ -7,8 +7,12 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const campaignPage = readFileSync(resolve(root, "app/campaigns/[id]/page.tsx"), "utf8");
 
-test("LinkedIn remains required until its outreach handoff has been queued", () => {
-  assert.equal((campaignPage.match(/const needsLinkedin = leadHasLinkedinProfile\(lead\);/g) || []).length, 2);
+test("LinkedIn is required only when the configured channel is available for the lead", () => {
+  assert.match(
+    campaignPage,
+    /function leadSupportsLinkedinAction\(lead: Lead\) \{\s*const capability = lead\.channelCapabilities\?\.linkedin;\s*return Boolean\(\s*leadHasLinkedinProfile\(lead\) &&\s*capability\?\.enabled === true &&\s*capability\.campaignConfigured === true &&\s*capability\.sendable === true\s*\);\s*\}/,
+  );
+  assert.equal((campaignPage.match(/const needsLinkedin = leadSupportsLinkedinAction\(lead\);/g) || []).length, 2);
   assert.equal(
     (campaignPage.match(/if \(needsLinkedin && !isLeadLinkedinActionHandedOff\(lead\)\) return false;/g) || []).length,
     2,
