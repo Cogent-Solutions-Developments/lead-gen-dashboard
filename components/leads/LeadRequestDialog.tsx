@@ -95,7 +95,7 @@ export function LeadRequestDialog({
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!form.eventRegistryId) {
-      toast.error("Select an event before submitting the request.");
+      toast.error("Event required");
       return;
     }
     setSubmitting(true);
@@ -110,9 +110,9 @@ export function LeadRequestDialog({
       });
       setRequests((current) => [created, ...current].slice(0, 5));
       setForm(EMPTY_FORM);
-      toast.success("Lead request sent", { description: "The admin team has been notified." });
+      toast.success("Request sent");
     } catch (error) {
-      toast.error("Could not send lead request", { description: errorMessage(error) });
+      toast.error("Send failed", { description: errorMessage(error) });
     } finally {
       setSubmitting(false);
     }
@@ -125,9 +125,8 @@ export function LeadRequestDialog({
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">My Leads</p>
             <h2 id="lead-request-title" className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">Request leads</h2>
-            <p className="mt-1 text-sm text-zinc-500">Tell the admin team what you need. Only the event is required.</p>
           </div>
-          <button type="button" onClick={() => onOpenChange(false)} disabled={submitting} className="grid h-10 w-10 place-items-center rounded-full border border-zinc-200 bg-white text-zinc-500 hover:text-zinc-950" aria-label="Close request form">
+          <button type="button" onClick={() => onOpenChange(false)} disabled={submitting} className="grid h-10 w-10 place-items-center rounded-full border border-zinc-200 bg-white text-zinc-500 hover:text-zinc-950" aria-label="Close">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -137,45 +136,45 @@ export function LeadRequestDialog({
             <label className="sm:col-span-2">
               <span className="mb-1.5 block text-xs font-semibold text-zinc-700">Event <span className="text-red-500">*</span></span>
               <select required value={form.eventRegistryId} onChange={(event) => update("eventRegistryId", event.target.value)} className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
-                <option value="">Select the event</option>
+                <option value="">Select event</option>
                 {activeEvents.map((event) => <option key={event.id} value={event.id}>{event.eventName}</option>)}
               </select>
             </label>
             <label>
-              <span className="mb-1.5 block text-xs font-semibold text-zinc-700">Leads per company</span>
-              <Input type="number" min={1} max={10000} value={form.leadsPerCompany} onChange={(event) => update("leadsPerCompany", event.target.value)} placeholder="e.g. 3" className="h-11 rounded-xl border-zinc-300 bg-white" />
+              <span className="mb-1.5 block text-xs font-semibold text-zinc-700">Leads/company</span>
+              <Input type="number" min={1} max={10000} value={form.leadsPerCompany} onChange={(event) => update("leadsPerCompany", event.target.value)} placeholder="3" className="h-11 rounded-xl border-zinc-300 bg-white" />
             </label>
             <label>
               <span className="mb-1.5 block text-xs font-semibold text-zinc-700">Location</span>
-              <Input value={form.location} onChange={(event) => update("location", event.target.value)} placeholder="Country, city, or region" className="h-11 rounded-xl border-zinc-300 bg-white" />
+              <Input value={form.location} onChange={(event) => update("location", event.target.value)} placeholder="City or region" className="h-11 rounded-xl border-zinc-300 bg-white" />
             </label>
             <label className="sm:col-span-2">
-              <span className="mb-1.5 block text-xs font-semibold text-zinc-700">Company list</span>
-              <Textarea value={form.companyList} onChange={(event) => update("companyList", event.target.value)} placeholder="One company per line, or paste a comma-separated list" className="min-h-24 rounded-xl border-zinc-300 bg-white" />
+              <span className="mb-1.5 block text-xs font-semibold text-zinc-700">Companies</span>
+              <Textarea value={form.companyList} onChange={(event) => update("companyList", event.target.value)} placeholder="One per line or comma" className="min-h-20 rounded-xl border-zinc-300 bg-white" />
             </label>
             <label className="sm:col-span-2">
               <span className="mb-1.5 block text-xs font-semibold text-zinc-700">ICP</span>
-              <Textarea value={form.icp} onChange={(event) => update("icp", event.target.value)} placeholder="Describe the ideal customer profile" className="min-h-24 rounded-xl border-zinc-300 bg-white" />
+              <Textarea value={form.icp} onChange={(event) => update("icp", event.target.value)} placeholder="Ideal profile" className="min-h-20 rounded-xl border-zinc-300 bg-white" />
             </label>
             <label className="sm:col-span-2">
-              <span className="mb-1.5 block text-xs font-semibold text-zinc-700">Target designation</span>
-              <Input value={form.targetDesignation} onChange={(event) => update("targetDesignation", event.target.value)} placeholder="e.g. Head of Sales, Managing Director" className="h-11 rounded-xl border-zinc-300 bg-white" />
+              <span className="mb-1.5 block text-xs font-semibold text-zinc-700">Designations</span>
+              <Textarea value={form.targetDesignation} onChange={(event) => update("targetDesignation", event.target.value)} placeholder="One per line or comma" className="min-h-20 rounded-xl border-zinc-300 bg-white" />
             </label>
             <div className="sm:col-span-2 flex justify-end pt-1">
               <Button type="submit" disabled={submitting || !form.eventRegistryId} className="h-11 rounded-full bg-blue-600 px-6 text-white hover:bg-blue-700">
                 {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                {submitting ? "Sending…" : "Send request"}
+                {submitting ? "Sending…" : "Send"}
               </Button>
             </div>
           </form>
 
           <aside className="rounded-2xl border border-zinc-200 bg-white p-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-zinc-900">Recent requests</h3>
+              <h3 className="text-sm font-semibold text-zinc-900">Recent</h3>
               {loadingRequests ? <Loader2 className="h-4 w-4 animate-spin text-zinc-400" /> : null}
             </div>
             <div className="mt-3 space-y-2.5">
-              {!loadingRequests && requests.length === 0 ? <p className="rounded-xl bg-zinc-50 px-3 py-5 text-center text-xs text-zinc-500">No requests yet.</p> : null}
+              {!loadingRequests && requests.length === 0 ? <p className="rounded-xl bg-zinc-50 px-3 py-5 text-center text-xs text-zinc-500">None</p> : null}
               {requests.map((request) => (
                 <div key={request.id} className="rounded-xl border border-zinc-200 px-3 py-2.5">
                   <p className="truncate text-sm font-semibold text-zinc-900">{request.eventName}</p>

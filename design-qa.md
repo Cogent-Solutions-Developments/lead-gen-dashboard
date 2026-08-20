@@ -1,17 +1,24 @@
-# Design QA — event document cards
+# Design QA — lead request dialog
 
-## Reference
+- Source visual truth: `C:\Users\SASAN-~1\AppData\Local\Temp\codex-clipboard-cdba767b-2340-47b4-8ebd-ff0a31720bf5.png`
+- Implementation screenshot: unavailable; `/my-leads` redirected to `/sign-in` in the available browser session.
+- Viewport: intended 1920 × 1080 CSS px.
+- Pixels/density: source 1920 × 1080 px at 1×; implementation unavailable.
+- State: light theme, request dialog open, empty recent list.
 
-- Supplied crop: `C:\Users\SASAN-~1\AppData\Local\Temp\codex-clipboard-54ced570-a577-40a8-858c-d2452e3880c0.png`
-- Target: the agenda area on the lead sheet, with equivalent speaker-list and delegate-list cards beneath it.
+## Comparison
 
-## Implementation checks
+- Full view: blocked because the authenticated implementation could not be captured.
+- Focused form region: blocked for the same reason.
+- Fonts, spacing, colors, assets, and copy could not be visually compared. Source-code review confirms the existing dialog tokens remain unchanged; only the requested textarea and concise copy changed.
 
-- The existing agenda section and its View / Download latest actions remain unchanged.
-- The speaker and delegate documents render as separate, bordered sections rather than compact download rows.
-- Each section has its own people icon, loading state, unavailable state, empty state, filename metadata, View action, and Download latest action.
-- Normal users and manager/department views share this implementation through `NormalUserEventLeadSheet`.
+## Findings
 
-## Automated comparison
+- [P2] Visual fidelity remains unverified behind authentication.
+  Fix: sign in, open **Request leads**, then capture and compare at 1920 × 1080.
 
-Blocked on 2026-08-18: the Codex in-app browser runtime could not establish its trusted local connection, so a same-viewport prototype screenshot could not be captured or combined with the supplied reference. Static regression tests, full lint, TypeScript, and the production build passed.
+## Comparison history
+
+- 2026-08-20: capture attempt reached `/sign-in`; no visual fixes were inferred without rendered evidence.
+
+final result: blocked
