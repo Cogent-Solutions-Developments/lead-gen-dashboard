@@ -8,6 +8,7 @@ import type {
 
 const CS_DATABASE_LABEL = "CS Database";
 const LEADS_LABEL = "Leads";
+const MEDIA_PARTNER_LABEL = "Media Partner";
 const EDIT_FIELD_LABELS: Record<string, string> = {
   fullName: "Full name",
   title: "Job title",
@@ -41,6 +42,9 @@ function sourceLabel(source: LeadOriginSource) {
 export function getLeadOriginLabels({ originSources }: { originSources?: LeadOriginSource[] | null }) {
   const uniqueLabels = new Map<string, string>();
   for (const source of originSources || []) {
+    if (source.isMediaPartner || source.leadType === "media_partner") {
+      uniqueLabels.set(MEDIA_PARTNER_LABEL.toLocaleLowerCase(), MEDIA_PARTNER_LABEL);
+    }
     const label = sourceLabel(source);
     if (label) uniqueLabels.set(label.toLocaleLowerCase(), label);
   }
@@ -61,12 +65,14 @@ export function getLeadOriginLabel(
 }
 
 export function LeadOriginTag({ label, className }: { label: string; className?: string }) {
+  const isMediaPartner = label === MEDIA_PARTNER_LABEL;
   return (
     <span
-      aria-label={`Source: ${label}`}
-      title={`Source: ${label}`}
+      aria-label={`${isMediaPartner ? "Lead type" : "Source"}: ${label}`}
+      title={`${isMediaPartner ? "Lead type" : "Source"}: ${label}`}
       className={cn(
         "inline-flex max-w-52 shrink-0 items-center truncate rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700",
+        isMediaPartner && "border-violet-200 bg-violet-50 text-violet-700",
         className
       )}
     >

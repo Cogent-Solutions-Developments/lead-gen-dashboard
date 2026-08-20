@@ -244,6 +244,7 @@ export type UploadCampaignRequest = {
   date?: string;
   icp?: string;
   eventRegistryId?: string;
+  leadType: import("@/lib/leads/leadTypes").LeadType;
   leadSheet: File | Blob;
 };
 
@@ -741,6 +742,9 @@ export type LeadOriginHistoryItem = {
   sourcePhone?: string | null;
   sourceLinkedinUrl?: string | null;
   sourceCompanyUrl?: string | null;
+  leadType?: import("@/lib/leads/leadTypes").LeadType | null;
+  leadTypeLabel?: string | null;
+  isMediaPartner?: boolean;
 };
 
 export type LeadOriginSource = {
@@ -754,6 +758,9 @@ export type LeadOriginSource = {
   firstOwnedAt?: string | null;
   occurrenceCount?: number | null;
   label?: string | null;
+  leadType?: import("@/lib/leads/leadTypes").LeadType | null;
+  leadTypeLabel?: string | null;
+  isMediaPartner?: boolean;
 };
 
 export type LeadUploadDuplicate = {
@@ -949,6 +956,9 @@ export type EventSummaryItem = {
   departments?: string[];
   departmentTags?: LeadDepartmentTag[];
   departmentCounts?: Array<{ department: string; label: string; count: number }>;
+  leadGroups?: string[];
+  leadGroupTags?: Array<{ leadGroup: string; label: string }>;
+  leadGroupCounts?: Record<string, number>;
 };
 
 export type EventLeadCategoryCount = {
@@ -959,6 +969,10 @@ export type EventLeadCategoryCount = {
 export type EventSummaryResponse = {
   events: EventSummaryItem[];
   total: number;
+  filterLabel?: string;
+  filterKey?: string;
+  availableLeadGroups?: Array<{ leadGroup: string; value: string; label: string }>;
+  availableDepartments?: Array<{ department: string; value: string; label: string }>;
 };
 
 export type EventLeadListItem = {
@@ -1000,6 +1014,11 @@ export type EventLeadListItem = {
   ownershipCount?: number | null;
   leadEditVersion?: number | null;
   leadPermissions?: MyLeadEditPermissions | null;
+  leadType?: import("@/lib/leads/leadTypes").LeadType | null;
+  leadTypeLabel?: string | null;
+  leadTypeTag?: { leadType: string; label: string } | null;
+  isMediaPartner?: boolean;
+  sourceTags?: Array<{ type?: string; value?: string; label: string }>;
 };
 
 export type LeadEmailGenerationRequest = {
@@ -1115,6 +1134,7 @@ export type EventLeadListParams = {
   category?: string;
   includeManual?: boolean;
   sort?: string;
+  leadGroup?: import("@/lib/leads/leadTypes").LeadGroup;
 };
 
 export type EventLeadListResponse = {
@@ -1495,6 +1515,7 @@ export async function createCampaignFromUpload(payload: UploadCampaignRequest) {
   formData.append("date", payload.date?.trim() ?? "");
   formData.append("eventRegistryId", payload.eventRegistryId?.trim() ?? "");
   formData.append("icp", payload.icp?.trim() ?? "");
+  formData.append("leadType", payload.leadType);
 
   const leadSheetName =
     typeof File !== "undefined" && payload.leadSheet instanceof File && payload.leadSheet.name
@@ -1507,7 +1528,11 @@ export async function createCampaignFromUpload(payload: UploadCampaignRequest) {
   return data;
 }
 
-export async function validateLeadTemplateUpload(file: File | Blob, eventRegistryId?: string) {
+export async function validateLeadTemplateUpload(
+  file: File | Blob,
+  eventRegistryId: string | undefined,
+  leadType: import("@/lib/leads/leadTypes").LeadType
+) {
   const formData = new FormData();
   const fileName =
     typeof File !== "undefined" && file instanceof File && file.name
@@ -1515,6 +1540,7 @@ export async function validateLeadTemplateUpload(file: File | Blob, eventRegistr
       : "lead-upload-template.xlsx";
 
   formData.append("leadSheet", file, fileName);
+  formData.append("leadType", leadType);
   if (eventRegistryId?.trim()) formData.append("eventRegistryId", eventRegistryId.trim());
 
   const { data } = await apiClient.post<LeadTemplateValidationResponse>(
@@ -1562,6 +1588,7 @@ export async function createMyCampaignFromUpload(payload: UploadCampaignRequest)
   formData.append("date", payload.date?.trim() ?? "");
   formData.append("eventRegistryId", payload.eventRegistryId?.trim() ?? "");
   formData.append("icp", payload.icp?.trim() ?? "");
+  formData.append("leadType", payload.leadType);
 
   const leadSheetName =
     typeof File !== "undefined" && payload.leadSheet instanceof File && payload.leadSheet.name
@@ -1574,7 +1601,11 @@ export async function createMyCampaignFromUpload(payload: UploadCampaignRequest)
   return data;
 }
 
-export async function validateMyLeadTemplateUpload(file: File | Blob, eventRegistryId?: string) {
+export async function validateMyLeadTemplateUpload(
+  file: File | Blob,
+  eventRegistryId: string | undefined,
+  leadType: import("@/lib/leads/leadTypes").LeadType
+) {
   const formData = new FormData();
   const fileName =
     typeof File !== "undefined" && file instanceof File && file.name
@@ -1582,6 +1613,7 @@ export async function validateMyLeadTemplateUpload(file: File | Blob, eventRegis
       : "lead-upload-template.xlsx";
 
   formData.append("leadSheet", file, fileName);
+  formData.append("leadType", leadType);
   if (eventRegistryId?.trim()) formData.append("eventRegistryId", eventRegistryId.trim());
 
   const { data } = await apiClient.post<LeadTemplateValidationResponse>(
@@ -1741,8 +1773,8 @@ export async function searchLeads(params?: GlobalLeadSearchParams) {
   return data;
 }
 
-export async function listEvents() {
-  const { data } = await apiClient.get<EventSummaryResponse>("/api/events");
+export async function listEvents(params?: { leadGroup?: import("@/lib/leads/leadTypes").LeadGroup }) {
+  const { data } = await apiClient.get<EventSummaryResponse>("/api/events", { params });
   return data;
 }
 
