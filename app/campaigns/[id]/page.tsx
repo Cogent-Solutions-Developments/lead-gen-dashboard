@@ -854,15 +854,21 @@ function leadHasLinkedinProfile(lead: Lead) {
 }
 
 function isLeadLinkedinActionCompleted(lead: Lead) {
+  return buildOutreachStatus(lead).linkedin === "sent";
+}
+
+function isLeadLinkedinActionHandedOff(lead: Lead) {
   return isExecutedOutreachState(buildOutreachStatus(lead).linkedin);
 }
 
 function isLeadFullyActioned(lead: Lead) {
   const needsEmail = leadSupportsEmailAction(lead);
+  const needsLinkedin = leadHasLinkedinProfile(lead);
   const needsWhatsapp = leadSupportsWhatsappAction(lead);
 
-  if (!needsEmail && !needsWhatsapp) return false;
+  if (!needsEmail && !needsLinkedin && !needsWhatsapp) return false;
   if (needsEmail && !isLeadEmailActionCompleted(lead)) return false;
+  if (needsLinkedin && !isLeadLinkedinActionHandedOff(lead)) return false;
   if (needsWhatsapp && !isLeadWhatsappActionCompleted(lead)) return false;
   return true;
 }
@@ -1398,10 +1404,12 @@ function SuperAdminCampaignDetailPage() {
   }
   function isLeadFullyActioned(lead: Lead) {
     const needsEmail = leadSupportsEmailAction(lead);
+    const needsLinkedin = leadHasLinkedinProfile(lead);
     const needsWhatsapp = leadSupportsWhatsappAction(lead);
 
-    if (!needsEmail && !needsWhatsapp) return false;
+    if (!needsEmail && !needsLinkedin && !needsWhatsapp) return false;
     if (needsEmail && !isLeadEmailActionCompleted(lead)) return false;
+    if (needsLinkedin && !isLeadLinkedinActionHandedOff(lead)) return false;
     if (needsWhatsapp && !isLeadWhatsappActionCompleted(lead)) return false;
     return true;
   }
@@ -1425,7 +1433,7 @@ function SuperAdminCampaignDetailPage() {
   function getChannelApprovalStatus(lead: Lead, channel: "email" | "linkedin"): ChannelApprovalStatus {
     const persisted = lead.channelApprovals?.[channel];
     if (persisted) return persisted;
-    return lead.approvalStatus === "approved" ? "approved" : "pending";
+    return channel === "email" && lead.approvalStatus === "approved" ? "approved" : "pending";
   }
   function getWhatsappCapabilityDisabledReason(lead: Lead) {
     if (!hasText(lead.phone)) return "Lead has no phone number.";
