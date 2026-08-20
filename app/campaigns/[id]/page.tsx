@@ -1232,7 +1232,7 @@ function SuperAdminCampaignDetailPage() {
   const [emailTemplateId, setEmailTemplateId] = useState<string | null>(null);
   const [emailTemplateSubject, setEmailTemplateSubject] = useState("");
   const [emailTemplateBody, setEmailTemplateBody] = useState("");
-  const [emailTemplateUpdatedAt, setEmailTemplateUpdatedAt] = useState<string | null>(null);
+  const [, setEmailTemplateUpdatedAt] = useState<string | null>(null);
   const [isEmailTemplateLoading, setIsEmailTemplateLoading] = useState(false);
   const [isEmailTemplateSaving, setIsEmailTemplateSaving] = useState(false);
   const [isEmailTemplateDeleting, setIsEmailTemplateDeleting] = useState(false);
@@ -1399,35 +1399,6 @@ function SuperAdminCampaignDetailPage() {
   }
   function isLeadSelectionBlocked(lead: Lead) {
     return isLeadMarketingOptedOut(lead);
-  }
-  function leadSupportsEmailAction(lead: Lead) {
-    return hasText(lead.email);
-  }
-  function leadSupportsWhatsappAction(lead: Lead) {
-    return hasText(lead.phone);
-  }
-  function isLeadEmailActionCompleted(lead: Lead) {
-    return isExecutedOutreachState(buildOutreachStatus(lead).email);
-  }
-  function isLeadWhatsappActionCompleted(lead: Lead) {
-    return isExecutedOutreachState(buildOutreachStatus(lead).whatsapp);
-  }
-  function isLeadFullyActioned(lead: Lead) {
-    const needsEmail = leadSupportsEmailAction(lead);
-    const needsLinkedin = leadSupportsLinkedinAction(lead);
-    const needsWhatsapp = leadSupportsWhatsappAction(lead);
-
-    if (!needsEmail && !needsLinkedin && !needsWhatsapp) return false;
-    if (needsEmail && !isLeadEmailActionCompleted(lead)) return false;
-    if (needsLinkedin && !isLeadLinkedinActionHandedOff(lead)) return false;
-    if (needsWhatsapp && !isLeadWhatsappActionCompleted(lead)) return false;
-    return true;
-  }
-  function isLeadInNewBucket(lead: Lead) {
-    return lead.approvalStatus !== "rejected" && lead.approvalStatus !== "suppressed" && !isLeadFullyActioned(lead);
-  }
-  function isLeadInSentBucket(lead: Lead) {
-    return lead.approvalStatus !== "rejected" && lead.approvalStatus !== "suppressed" && isLeadFullyActioned(lead);
   }
   function getEmailCapabilityDisabledReason(lead: Lead) {
     if (!hasText(lead.email)) return "Lead has no email address.";
@@ -2749,6 +2720,8 @@ function SuperAdminCampaignDetailPage() {
     }
   };
 
+  // Manual approval is dormant while active campaign templates auto-approve.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleApprove = async (leadId: string, action: LeadSendAction = "both") => {
     if (!canManageLeadActions) return;
     const lead = leadById.get(leadId);
