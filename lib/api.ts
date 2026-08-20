@@ -707,6 +707,9 @@ export type LeadOwnerSummary = {
 export type LeadOriginHistoryItem = {
   sequence: number;
   isFirst?: boolean;
+  eventId?: string | null;
+  eventType?: "lead_source_recorded" | "lead_profile_updated" | string;
+  sourceSequence?: number | null;
   personId?: string | null;
   icpRunId?: string | null;
   department: string;
@@ -717,7 +720,19 @@ export type LeadOriginHistoryItem = {
   ownerDisplayName?: string | null;
   ownerFirstName?: string | null;
   ownerLabel: string;
+  actorUserId?: string | null;
+  actorUsername?: string | null;
+  actorDisplayName?: string | null;
+  actorFirstName?: string | null;
+  actorLabel?: string | null;
   occurredAt?: string | null;
+  editVersion?: number | null;
+  changedFields?: string[];
+  fieldChanges?: Array<{
+    field: string;
+    oldValue?: string | null;
+    newValue?: string | null;
+  }>;
   sourceEmail?: string | null;
   sourcePhone?: string | null;
   sourceLinkedinUrl?: string | null;
@@ -783,6 +798,7 @@ export type LeadItem = {
   company: string | null;
   email: string | null;
   phone: string | null;
+  phone2?: string | null;
   linkedinUrl: string | null;
   companyUrl: string | null;
   category?: string | null;
@@ -840,6 +856,7 @@ export type MyLeadUpdateRequest = {
   companyUrl?: string;
   email?: string;
   phone?: string;
+  phone2?: string;
   linkedinUrl?: string;
   category?: string;
 };
@@ -853,6 +870,7 @@ export type MyLeadUpdateResponse = {
   companyUrl?: string | null;
   email?: string | null;
   phone?: string | null;
+  phone2?: string | null;
   linkedinUrl?: string | null;
   category?: string | null;
   leadIdentityKey: string;
@@ -950,6 +968,7 @@ export type EventLeadListItem = {
   company?: string | null;
   email?: string | null;
   phone?: string | null;
+  phone2?: string | null;
   linkedinUrl?: string | null;
   companyUrl?: string | null;
   category?: string | null;
@@ -1271,6 +1290,7 @@ export type EventLeadCreateRequest = {
   companyUrl?: string;
   email?: string;
   phone?: string;
+  phone2?: string;
   linkedinUrl?: string;
 };
 
@@ -1288,6 +1308,7 @@ export type EventLeadCreateResponse = {
   companyUrl?: string | null;
   email?: string | null;
   phone?: string | null;
+  phone2?: string | null;
   linkedinUrl?: string | null;
   isManualLead?: boolean | null;
   manualLeadAddedByUserId?: string | null;

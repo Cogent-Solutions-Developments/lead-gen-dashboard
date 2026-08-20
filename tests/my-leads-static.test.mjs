@@ -71,6 +71,35 @@ test("My Leads edit is capability gated and never exposes delete", () => {
   assert.doesNotMatch(page, /deleteMyLead|deleteUploadedLead/);
 });
 
+test("My Leads add and edit forms support a second mobile number", () => {
+  const page = read("app/my-leads/page.tsx");
+  const editForm = read("components/leads/MyLeadEditForm.tsx");
+  const api = read("lib/api.ts");
+
+  assert.match(page, /phone2: addLeadForm\.phone2\.trim\(\)/);
+  assert.match(page, /Mobile Number 2/);
+  assert.match(editForm, /payload\.phone2 = cleaned\.phone2/);
+  assert.match(editForm, /Mobile number 2/);
+  assert.match(api, /phone2\?: string/);
+});
+
+test("Source timeline renders append-only lead edit records", () => {
+  const originHistory = read("components/leads/LeadOriginTag.tsx");
+  const api = read("lib/api.ts");
+
+  assert.match(api, /eventType\?: "lead_source_recorded" \| "lead_profile_updated" \| string/);
+  assert.match(api, /changedFields\?: string\[\]/);
+  assert.match(api, /fieldChanges\?: Array/);
+  assert.match(originHistory, /Lead profile updated/);
+  assert.match(originHistory, /Edited by \$\{actor\}/);
+  assert.doesNotMatch(originHistory, />Version \{entry\.editVersion\}</);
+  assert.match(originHistory, /\[\{change\.label\}\]/);
+  assert.match(originHistory, /\{oldValue\}/);
+  assert.match(originHistory, /\{newValue\}/);
+  assert.match(originHistory, /EDIT_FIELD_LABELS/);
+  assert.match(originHistory, /phone2: "Mobile number 2"/);
+});
+
 test("normal upload entry points route to My Leads upload", () => {
   const uploadPage = read("app/campaigns/upload/page.tsx");
   const quickActions = read("components/dashboard/QuickActions.tsx");

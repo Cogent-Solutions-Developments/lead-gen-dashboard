@@ -14,12 +14,15 @@ export type EditableMyLead = {
   companyUrl: string;
   email: string;
   phone: string;
+  phones: string[];
   linkedinUrl: string;
   category: string;
   leadEditVersion: number;
 };
 
-type EditValues = Omit<EditableMyLead, "id" | "leadEditVersion">;
+type EditValues = Omit<EditableMyLead, "id" | "leadEditVersion" | "phones"> & {
+  phone2: string;
+};
 
 type MyLeadEditFormProps = {
   lead: EditableMyLead;
@@ -35,6 +38,7 @@ const EDIT_FIELDS = [
   "companyUrl",
   "email",
   "phone",
+  "phone2",
   "linkedinUrl",
   "category",
 ] as const;
@@ -47,6 +51,7 @@ function valuesFromLead(lead: EditableMyLead): EditValues {
     companyUrl: lead.companyUrl,
     email: lead.email,
     phone: lead.phone,
+    phone2: lead.phones[1] || "",
     linkedinUrl: lead.linkedinUrl,
     category: lead.category,
   };
@@ -64,6 +69,14 @@ function errorMessage(error: unknown) {
     : "We could not save this lead. Refresh and try again.";
 }
 
+function normalizePhoneKey(value: string) {
+  const text = value.trim();
+  const normalized = [...text]
+    .filter((character, index) => /\d/.test(character) || (character === "+" && index === 0))
+    .join("");
+  return normalized.startsWith("00") ? `+${normalized.slice(2)}` : normalized || text;
+}
+
 export function MyLeadEditForm({
   lead,
   requireContact,
@@ -74,9 +87,20 @@ export function MyLeadEditForm({
   const [values, setValues] = useState<EditValues>(() => valuesFromLead(lead));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const leadPhone2 = lead.phones[1] || "";
 
   useEffect(() => {
-    setValues(valuesFromLead(lead));
+    setValues({
+      employeeName: lead.employeeName,
+      title: lead.title,
+      company: lead.company,
+      companyUrl: lead.companyUrl,
+      email: lead.email,
+      phone: lead.phone,
+      phone2: leadPhone2,
+      linkedinUrl: lead.linkedinUrl,
+      category: lead.category,
+    });
     setError("");
   }, [
     lead.category,
@@ -88,6 +112,7 @@ export function MyLeadEditForm({
     lead.leadEditVersion,
     lead.linkedinUrl,
     lead.phone,
+    leadPhone2,
     lead.title,
   ]);
 
@@ -110,8 +135,16 @@ export function MyLeadEditForm({
       setError("Category is required.");
       return;
     }
-    if (requireContact && !cleaned.email && !cleaned.phone) {
+    if (requireContact && !cleaned.email && !cleaned.phone && !cleaned.phone2) {
       setError("Sales leads need an email address or phone number.");
+      return;
+    }
+    if (
+      cleaned.phone &&
+      cleaned.phone2 &&
+      normalizePhoneKey(cleaned.phone) === normalizePhoneKey(cleaned.phone2)
+    ) {
+      setError("Mobile numbers 1 and 2 must be different.");
       return;
     }
 
@@ -122,6 +155,7 @@ export function MyLeadEditForm({
     if (cleaned.companyUrl !== original.companyUrl) payload.companyUrl = cleaned.companyUrl;
     if (cleaned.email !== original.email) payload.email = cleaned.email;
     if (cleaned.phone !== original.phone) payload.phone = cleaned.phone;
+    if (cleaned.phone2 !== original.phone2) payload.phone2 = cleaned.phone2;
     if (cleaned.linkedinUrl !== original.linkedinUrl) payload.linkedinUrl = cleaned.linkedinUrl;
     if (cleaned.category !== original.category) payload.category = cleaned.category;
 
@@ -169,16 +203,20 @@ export function MyLeadEditForm({
           <Input id={`${fieldId}-email`} type="email" value={values.email} onChange={(event) => updateField("email", event.target.value)} maxLength={255} autoComplete="email" className={inputClass} />
         </div>
         <div>
-          <label htmlFor={`${fieldId}-phone`} className={labelClass}>Phone</label>
+          <label htmlFor={`${fieldId}-phone`} className={labelClass}>Mobile number 1</label>
           <Input id={`${fieldId}-phone`} type="tel" value={values.phone} onChange={(event) => updateField("phone", event.target.value)} maxLength={80} autoComplete="tel" className={inputClass} />
         </div>
         <div>
-          <label htmlFor={`${fieldId}-linkedin`} className={labelClass}>LinkedIn URL</label>
-          <Input id={`${fieldId}-linkedin`} value={values.linkedinUrl} onChange={(event) => updateField("linkedinUrl", event.target.value)} maxLength={2048} inputMode="url" autoComplete="url" className={inputClass} />
+          <label htmlFor={`${fieldId}-phone-2`} className={labelClass}>Mobile number 2</label>
+          <Input id={`${fieldId}-phone-2`} type="tel" value={values.phone2} onChange={(event) => updateField("phone2", event.target.value)} maxLength={80} autoComplete="off" className={inputClass} />
         </div>
         <div>
           <label htmlFor={`${fieldId}-website`} className={labelClass}>Company website</label>
           <Input id={`${fieldId}-website`} value={values.companyUrl} onChange={(event) => updateField("companyUrl", event.target.value)} maxLength={2048} inputMode="url" autoComplete="url" className={inputClass} />
+        </div>
+        <div className="sm:col-span-2">
+          <label htmlFor={`${fieldId}-linkedin`} className={labelClass}>LinkedIn URL</label>
+          <Input id={`${fieldId}-linkedin`} value={values.linkedinUrl} onChange={(event) => updateField("linkedinUrl", event.target.value)} maxLength={2048} inputMode="url" autoComplete="url" className={inputClass} />
         </div>
       </fieldset>
 

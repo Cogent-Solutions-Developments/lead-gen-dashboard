@@ -137,6 +137,7 @@ type AddLeadFormState = {
   companyUrl: string;
   email: string;
   phone: string;
+  phone2: string;
   linkedinUrl: string;
 };
 
@@ -230,6 +231,7 @@ const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
   companyUrl: "",
   email: "",
   phone: "",
+  phone2: "",
   linkedinUrl: "",
 };
 const LEAD_TEMPLATE_ACCEPT = ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -598,9 +600,38 @@ function replacePrimaryContact(
   return nextPrimary ? [nextPrimary, ...alternates] : alternates;
 }
 
+function normalizePhoneKey(value: string) {
+  const text = value.trim();
+  const normalized = [...text]
+    .filter((character, index) => /\d/.test(character) || (character === "+" && index === 0))
+    .join("");
+  return normalized.startsWith("00") ? `+${normalized.slice(2)}` : normalized || text;
+}
+
+function replaceVisiblePhones(
+  contacts: string[],
+  previousPrimary: string,
+  previousSecondary: string,
+  nextPrimary: string,
+  nextSecondary: string
+) {
+  const replacedKeys = new Set(
+    [previousPrimary, previousSecondary, nextPrimary, nextSecondary]
+      .map(normalizePhoneKey)
+      .filter(Boolean)
+  );
+  const hiddenPhones = contacts.filter((value) => {
+    const key = normalizePhoneKey(value);
+    return key && !replacedKeys.has(key);
+  });
+  return uniqText([nextPrimary, nextSecondary, ...hiddenPhones], "phone");
+}
+
 function mergeMyLeadUpdate(row: MyLeadRow, update: MyLeadUpdateResponse): MyLeadRow {
   const email = asText(update.email);
   const phone = asText(update.phone);
+  const previousPhone2 = row.phones[1] || "";
+  const phone2 = update.phone2 == null ? previousPhone2 : asText(update.phone2);
   return {
     ...row,
     employeeName: asText(update.employeeName),
@@ -610,7 +641,7 @@ function mergeMyLeadUpdate(row: MyLeadRow, update: MyLeadUpdateResponse): MyLead
     email,
     phone,
     emails: replacePrimaryContact(row.emails, row.email, email, (value) => value.trim().toLowerCase()),
-    phones: replacePrimaryContact(row.phones, row.phone, phone, (value) => value.replace(/\s+/g, "").trim()),
+    phones: replaceVisiblePhones(row.phones, row.phone, previousPhone2, phone, phone2),
     linkedinUrl: asText(update.linkedinUrl),
     category: asText(update.category),
     leadEditVersion: Number(update.leadEditVersion || 0),
@@ -1248,6 +1279,7 @@ export function MyLeadsWorkspace({
       companyUrl: addLeadForm.companyUrl.trim() || undefined,
       email: addLeadForm.email.trim() || undefined,
       phone: addLeadForm.phone.trim() || undefined,
+      phone2: addLeadForm.phone2.trim() || undefined,
       linkedinUrl: addLeadForm.linkedinUrl.trim() || undefined,
     };
 
@@ -1261,6 +1293,14 @@ export function MyLeadsWorkspace({
     }
     if (!payload.title) {
       toast.error("Title is required");
+      return;
+    }
+    if (
+      payload.phone &&
+      payload.phone2 &&
+      normalizePhoneKey(payload.phone) === normalizePhoneKey(payload.phone2)
+    ) {
+      toast.error("Mobile numbers 1 and 2 must be different");
       return;
     }
 
@@ -3284,7 +3324,7 @@ export function MyLeadsWorkspace({
             />
           </div>
 
-          <div>
+          <div className="sm:col-span-2">
             <label className={ADD_LEAD_LABEL_CLASS}>
               Email
             </label>
@@ -3298,12 +3338,30 @@ export function MyLeadsWorkspace({
 
           <div>
             <label className={ADD_LEAD_LABEL_CLASS}>
-              Phone
+              Mobile Number 1
             </label>
             <Input
+              type="tel"
               value={addLeadForm.phone}
               onChange={(event) => updateAddLeadField("phone", event.target.value)}
               placeholder="+60 ..."
+              maxLength={80}
+              autoComplete="tel"
+              className={ADD_LEAD_INPUT_CLASS}
+            />
+          </div>
+
+          <div>
+            <label className={ADD_LEAD_LABEL_CLASS}>
+              Mobile Number 2
+            </label>
+            <Input
+              type="tel"
+              value={addLeadForm.phone2}
+              onChange={(event) => updateAddLeadField("phone2", event.target.value)}
+              placeholder="+60 ..."
+              maxLength={80}
+              autoComplete="off"
               className={ADD_LEAD_INPUT_CLASS}
             />
           </div>
