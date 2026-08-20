@@ -1,4 +1,5 @@
 export const ACTIVITY_IDLE_MS = 5 * 60_000;
+export const READ_NOTIFICATION_RETENTION_MS = 24 * 60 * 60_000;
 
 export function formatEngagedDuration(seconds: number) {
   if (!Number.isFinite(seconds) || seconds <= 0) return "0 min";
@@ -37,12 +38,52 @@ export function hasRecordedUserActivity(record: {
   return Boolean(record.firstSeenAt || record.lastSeenAt || record.lastActiveAt);
 }
 
-export function markOneNotificationRead<T extends { id: string; isRead: boolean }>(items: T[], id: string) {
-  return items.map((item) => (item.id === id ? { ...item, isRead: true } : item));
+export function markOneNotificationRead<T extends { id: string; isRead: boolean; readAt?: string | null }>(
+  items: T[],
+  id: string,
+  readAt = new Date().toISOString(),
+) {
+  return items.map((item) => (item.id === id ? { ...item, isRead: true, readAt } : item));
 }
 
-export function markEveryNotificationRead<T extends { isRead: boolean }>(items: T[]) {
-  return items.map((item) => ({ ...item, isRead: true }));
+export function markEveryNotificationRead<T extends { isRead: boolean; readAt?: string | null }>(
+  items: T[],
+  readAt = new Date().toISOString(),
+) {
+  return items.map((item) => ({ ...item, isRead: true, readAt }));
+}
+
+export function shouldShowNotificationAfterRead(
+  notification: { isRead?: boolean; readAt?: string | null },
+  now: Date = new Date(),
+) {
+  if (!notification.isRead || !notification.readAt) return true;
+  const readAt = Date.parse(notification.readAt);
+  if (!Number.isFinite(readAt)) return true;
+  return now.getTime() - readAt < READ_NOTIFICATION_RETENTION_MS;
+}
+
+export function notificationsWithinReadRetention<T extends { isRead?: boolean; readAt?: string | null }>(
+  items: T[],
+  now: Date = new Date(),
+) {
+  return items.filter((item) => shouldShowNotificationAfterRead(item, now));
+}
+
+export function millisecondsUntilNextReadNotificationExpiry(
+  items: Array<{ isRead?: boolean; readAt?: string | null }>,
+  now: Date = new Date(),
+) {
+  let nextDelay: number | null = null;
+  for (const item of items) {
+    if (!item.isRead || !item.readAt) continue;
+    const readAt = Date.parse(item.readAt);
+    if (!Number.isFinite(readAt)) continue;
+    const delay = readAt + READ_NOTIFICATION_RETENTION_MS - now.getTime();
+    if (delay <= 0) return 1;
+    nextDelay = nextDelay == null ? delay : Math.min(nextDelay, delay);
+  }
+  return nextDelay == null ? null : Math.max(1, nextDelay);
 }
 
 export function localCalendarDateKey(value: Date = new Date()) {

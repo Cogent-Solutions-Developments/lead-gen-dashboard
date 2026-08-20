@@ -44,6 +44,11 @@ export type {
   EventAgendaItem,
   EventAgendaListResponse,
   EventAgendaUploadResponse,
+  EventDocumentDeleteResponse,
+  EventDocumentItem,
+  EventDocumentListResponse,
+  EventDocumentType,
+  EventDocumentUploadResponse,
   GlobalLeadSearchParams,
   GlobalLeadSearchResponse,
   EventSummaryItem,
@@ -435,6 +440,12 @@ export const listEventAgendas: typeof sales.listEventAgendas = (...args) =>
 
 export const downloadEventAgendaFile: typeof sales.downloadEventAgendaFile = (...args) =>
   sales.downloadEventAgendaFile(...args);
+
+export const listEventDocuments: typeof sales.listEventDocuments = (...args) =>
+  sales.listEventDocuments(...args);
+
+export const downloadEventDocumentFile: typeof sales.downloadEventDocumentFile = (...args) =>
+  sales.downloadEventDocumentFile(...args);
 
 export const nizoAiChat: typeof sales.nizoAiChat = (...args) =>
   pickModule().nizoAiChat(...args);
