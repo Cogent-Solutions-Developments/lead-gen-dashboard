@@ -5,6 +5,13 @@ import { CheckCircle2, Clock3, Loader2, Send, X, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   createLeadRequest,
@@ -133,13 +140,41 @@ export function LeadRequestDialog({
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
           <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
-            <label className="sm:col-span-2">
+            <div className="sm:col-span-2">
               <span className="mb-1.5 block text-xs font-semibold text-zinc-700">Event <span className="text-red-500">*</span></span>
-              <select required value={form.eventRegistryId} onChange={(event) => update("eventRegistryId", event.target.value)} className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
-                <option value="">Select event</option>
-                {activeEvents.map((event) => <option key={event.id} value={event.id}>{event.eventName}</option>)}
-              </select>
-            </label>
+              <Select
+                value={form.eventRegistryId}
+                onValueChange={(value) => update("eventRegistryId", value)}
+                disabled={submitting || activeEvents.length === 0}
+              >
+                <SelectTrigger
+                  aria-label="Select event"
+                  className="!h-11 w-full rounded-xl border-zinc-300 bg-white px-3 text-sm font-normal text-zinc-900 shadow-none transition-colors hover:border-zinc-400 focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 data-[placeholder]:text-zinc-400"
+                >
+                  <SelectValue placeholder={activeEvents.length === 0 ? "No active events" : "Select event"} />
+                </SelectTrigger>
+                <SelectContent
+                  position="popper"
+                  align="start"
+                  sideOffset={8}
+                  className="z-[180] max-h-[min(20rem,var(--radix-select-content-available-height))] w-[var(--radix-select-trigger-width)] overflow-hidden rounded-2xl border-zinc-200 bg-white p-0 shadow-[0_24px_64px_-34px_rgba(15,23,42,0.5)] [&_[data-slot=select-scroll-down-button]]:bg-white [&_[data-slot=select-scroll-up-button]]:bg-white"
+                  viewportClassName="!h-auto max-h-72 overflow-y-auto p-1.5 scrollbar-modern"
+                >
+                  {activeEvents.map((event) => (
+                    <SelectItem
+                      key={event.id}
+                      value={event.id}
+                      title={event.eventName}
+                      className="min-h-10 rounded-xl py-2.5 pl-3 pr-9 text-sm text-zinc-700 focus:bg-blue-50 focus:text-blue-700 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:focus:bg-blue-600 data-[state=checked]:focus:text-white data-[state=checked]:[&_svg]:text-white"
+                    >
+                      <span className="block min-w-0 max-w-[calc(var(--radix-select-trigger-width)-3.5rem)] truncate">
+                        {event.eventName}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <label>
               <span className="mb-1.5 block text-xs font-semibold text-zinc-700">Leads/company</span>
               <Input type="number" min={1} max={10000} value={form.leadsPerCompany} onChange={(event) => update("leadsPerCompany", event.target.value)} placeholder="3" className="h-11 rounded-xl border-zinc-300 bg-white" />
