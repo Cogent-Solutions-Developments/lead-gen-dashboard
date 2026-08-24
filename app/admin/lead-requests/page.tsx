@@ -76,7 +76,17 @@ async function writeClipboardText(value: string) {
   throw new Error("Clipboard unavailable");
 }
 
-function Detail({ label, value, long = false }: { label: string; value?: string | number | null; long?: boolean }) {
+function Detail({
+  label,
+  value,
+  long = false,
+  copyable = true,
+}: {
+  label: string;
+  value?: string | number | null;
+  long?: boolean;
+  copyable?: boolean;
+}) {
   const text = value === null || value === undefined ? "" : String(value);
   const [copied, setCopied] = useState(false);
 
@@ -103,27 +113,30 @@ function Detail({ label, value, long = false }: { label: string; value?: string 
           tabIndex={0}
           aria-label={`${label} details`}
           className={cn(
-            "h-full overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-zinc-200 bg-zinc-50/70 py-2 pl-3 pr-14 text-sm leading-6 text-zinc-700 scrollbar-modern",
+            "h-full overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-zinc-200 bg-zinc-50/70 py-2 pl-3 text-sm leading-6 text-zinc-700 scrollbar-modern",
             long ? "max-h-52" : "max-h-28",
+            copyable ? "pr-14" : "pr-3",
           )}
         >
           {text}
         </dd>
-        <button
-          type="button"
-          onClick={() => void copyDetail()}
-          aria-label={`${copied ? "Copied" : "Copy"} ${label}`}
-          aria-live="polite"
-          title={copied ? `${label} copied` : `Copy ${label}`}
-          className={cn(
-            "absolute right-3 top-2 inline-flex h-8 w-8 items-center justify-center rounded-md border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
-            copied
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border-zinc-200 bg-white text-zinc-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700",
-          )}
-        >
-          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-        </button>
+        {copyable ? (
+          <button
+            type="button"
+            onClick={() => void copyDetail()}
+            aria-label={`${copied ? "Copied" : "Copy"} ${label}`}
+            aria-live="polite"
+            title={copied ? `${label} copied` : `Copy ${label}`}
+            className={cn(
+              "absolute right-3 top-2 inline-flex h-8 w-8 items-center justify-center rounded-md border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
+              copied
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-zinc-200 bg-white text-zinc-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700",
+            )}
+          >
+            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -282,8 +295,8 @@ export default function AdminLeadRequestsPage() {
                       <div className="h-full sm:col-span-2">
                         <Detail label="ICP" value={request.icp} long />
                       </div>
-                      {request.uploadedCampaignId ? <Detail label="Uploaded campaign" value={request.uploadedCampaignId} /> : null}
-                      {request.completedAt ? <Detail label="Completed" value={formatDate(request.completedAt)} /> : null}
+                      {request.uploadedCampaignId ? <Detail label="Uploaded campaign" value={request.uploadedCampaignId} copyable={false} /> : null}
+                      {request.completedAt ? <Detail label="Completed" value={formatDate(request.completedAt)} copyable={false} /> : null}
                     </dl>
                   </div>
 

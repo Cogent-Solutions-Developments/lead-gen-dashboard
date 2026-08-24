@@ -29,16 +29,24 @@ test("admin lead-request details use the specified compact two-column row order"
   assert.match(page, /className="h-full sm:col-span-2"/);
 });
 
-test("every rendered lead-request detail provides copy feedback", () => {
+test("copyable lead-request details provide copy feedback", () => {
   assert.match(page, /async function writeClipboardText/);
   assert.match(page, /navigator\.clipboard\?\.writeText/);
   assert.match(page, /document\.execCommand\("copy"\)/);
   assert.match(page, /onClick=\{\(\) => void copyDetail\(\)\}/);
   assert.match(page, /h-8 w-8/);
   assert.match(page, /absolute right-3 top-2/);
-  assert.match(page, /py-2 pl-3 pr-14/);
+  assert.match(page, /py-2 pl-3 text-sm/);
   assert.doesNotMatch(page, /flex items-center justify-between gap-3/);
   assert.match(page, /title=\{copied \? `\$\{label\} copied` : `Copy \$\{label\}`\}/);
   assert.doesNotMatch(page, /<span>\{copied \? "Copied" : "Copy"\}<\/span>/);
   assert.match(page, /toast\.success\(`\$\{label\} copied`\)/);
+});
+
+test("uploaded campaign and completed details remain read-only without copy actions", () => {
+  assert.match(page, /copyable = true/);
+  assert.match(page, /copyable \? "pr-14" : "pr-3"/);
+  assert.match(page, /label="Uploaded campaign"[^>]*copyable=\{false\}/);
+  assert.match(page, /label="Completed"[^>]*copyable=\{false\}/);
+  assert.match(page, /\{copyable \? \(/);
 });
