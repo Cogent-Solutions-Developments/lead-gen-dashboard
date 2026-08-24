@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from "react";
 import {
+  Check,
   CheckCircle2,
   Clock3,
+  Copy,
   Download,
   FileSpreadsheet,
   Loader2,
@@ -52,12 +54,73 @@ function StatusBadge({ status }: { status: LeadRequestStatus }) {
   );
 }
 
+async function writeClipboardText(value: string) {
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  if (typeof document !== "undefined") {
+    const area = document.createElement("textarea");
+    area.value = value;
+    area.style.position = "fixed";
+    area.style.left = "-9999px";
+    document.body.appendChild(area);
+    area.focus();
+    area.select();
+    const copied = document.execCommand("copy");
+    area.remove();
+    if (copied) return;
+  }
+
+  throw new Error("Clipboard unavailable");
+}
+
 function Detail({ label, value }: { label: string; value?: string | number | null }) {
-  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const text = value === null || value === undefined ? "" : String(value);
+  const [copied, setCopied] = useState(false);
+
+  if (text.trim() === "") return null;
+
+  const copyDetail = async () => {
+    try {
+      await writeClipboardText(text);
+      setCopied(true);
+      toast.success(`${label} copied`);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch (error) {
+      toast.error(`Could not copy ${label.toLowerCase()}`, { description: errorMessage(error) });
+    }
+  };
+
   return (
-    <div>
-      <dt className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">{label}</dt>
-      <dd className="mt-1 whitespace-pre-wrap text-sm leading-6 text-zinc-700">{value}</dd>
+    <div className="min-w-0">
+      <div className="flex items-center justify-between gap-3">
+        <dt className="min-w-0 truncate text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">
+          {label}
+        </dt>
+        <button
+          type="button"
+          onClick={() => void copyDetail()}
+          aria-label={`${copied ? "Copied" : "Copy"} ${label}`}
+          className={cn(
+            "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border px-2 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
+            copied
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-zinc-200 bg-white text-zinc-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700",
+          )}
+        >
+          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          <span>{copied ? "Copied" : "Copy"}</span>
+        </button>
+      </div>
+      <dd
+        tabIndex={0}
+        aria-label={`${label} details`}
+        className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-zinc-200 bg-zinc-50/70 px-3 py-2 text-sm leading-6 text-zinc-700 scrollbar-modern"
+      >
+        {text}
+      </dd>
     </div>
   );
 }
