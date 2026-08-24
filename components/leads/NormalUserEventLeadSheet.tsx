@@ -66,6 +66,11 @@ import { LeadDepartmentTags, LeadOriginTags } from "@/components/leads/LeadOrigi
 import { LeadHistoryContent } from "@/components/leads/LeadHistoryContent";
 import { LeadUploadDuplicateSummary } from "@/components/leads/LeadUploadDuplicateSummary";
 import { mergeDuplicateEventLeadRows } from "@/lib/leads/mergeEventLeadRows";
+import {
+  LEAD_TYPE_OPTIONS,
+  type LeadGroup,
+  type LeadType,
+} from "@/lib/leads/leadTypes";
 import type { Persona } from "@/lib/persona";
 import {
   AlertTriangle,
@@ -187,6 +192,7 @@ type TemplateUploadState = {
   error: string;
   submitting: boolean;
   selectedEventId: string;
+  leadType: LeadType | "";
 };
 
 const LinkedInIcon = ({ className }: { className?: string }) => (
@@ -533,6 +539,7 @@ const EMPTY_TEMPLATE_UPLOAD: TemplateUploadState = {
   error: "",
   submitting: false,
   selectedEventId: "",
+  leadType: "",
 };
 const LEAD_TEMPLATE_ACCEPT = ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const UNCATEGORIZED_CATEGORY_LABEL = "Competing Events";
@@ -775,6 +782,7 @@ type LeadPageFetchParams = {
   category?: string;
   includeManual: boolean;
   sort: string;
+  leadGroup?: LeadGroup;
 };
 
 const initialDataCache = new Map<string, CacheEntry<LeadSheetInitialData>>();
@@ -1105,6 +1113,7 @@ type NormalUserEventLeadSheetProps = {
   mode?: LeadSheetDataMode;
   departmentTabs?: ReactNode;
   dataPersona?: LeadSheetDepartmentPersona;
+  leadGroup?: LeadGroup;
 };
 
 function humanizeCampaignStatus(value?: string | null) {
@@ -1257,14 +1266,16 @@ function LeadSheetDialog({
   );
 }
 
-export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, dataPersona }: NormalUserEventLeadSheetProps) {
+export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, dataPersona, leadGroup }: NormalUserEventLeadSheetProps) {
   const { persona } = usePersona();
   const effectivePersona: LeadSheetDepartmentPersona =
     dataPersona ?? (persona === "delegates" || persona === "production" ? persona : "sales");
+  const effectiveLeadGroup: LeadGroup =
+    leadGroup ?? (effectivePersona === "delegates" ? "delegate" : effectivePersona);
   const { role, user } = useAuth();
   const cacheScope = useMemo(
-    () => [role || "unknown-role", user?.id || user?.username || "anonymous"].join(":"),
-    [role, user?.id, user?.username]
+    () => [role || "unknown-role", user?.id || user?.username || "anonymous", mode, effectiveLeadGroup].join(":"),
+    [effectiveLeadGroup, mode, role, user?.id, user?.username]
   );
   const router = useRouter();
   const pathname = usePathname();
@@ -1354,12 +1365,12 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
               createMyLeadsCampaignFromUpload(payload, effectivePersona),
             addEventLead: (canonicalEventKey: string, payload: EventLeadCreateRequest) =>
               addMyLeadsEventLead(canonicalEventKey, payload, effectivePersona),
-            validateLeadTemplateUpload: (file: File | Blob, eventRegistryId?: string) =>
-              validateMyLeadsLeadTemplateUpload(file, effectivePersona, eventRegistryId),
+            validateLeadTemplateUpload: (file: File | Blob, eventRegistryId: string | undefined, leadType: LeadType) =>
+              validateMyLeadsLeadTemplateUpload(file, effectivePersona, eventRegistryId, leadType),
             downloadLeadTemplateFile: () => downloadMyLeadsLeadTemplateFile(undefined, effectivePersona),
           }
         : {
-            listEvents: () => listEventsForPersona(effectivePersona),
+            listEvents: () => listEventsForPersona(effectivePersona, { leadGroup: effectiveLeadGroup }),
             listEventLeads: (
               canonicalEventKey: string,
               params: Parameters<typeof listEventLeadsForPersona>[2]
@@ -1368,11 +1379,11 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
               createCampaignFromUploadForPersona(effectivePersona, payload),
             addEventLead: (canonicalEventKey: string, payload: EventLeadCreateRequest) =>
               addEventLeadForPersona(effectivePersona, canonicalEventKey, payload),
-            validateLeadTemplateUpload: (file: File | Blob, eventRegistryId?: string) =>
-              validateLeadTemplateUploadForPersona(effectivePersona, file, eventRegistryId),
+            validateLeadTemplateUpload: (file: File | Blob, eventRegistryId: string | undefined, leadType: LeadType) =>
+              validateLeadTemplateUploadForPersona(effectivePersona, file, eventRegistryId, leadType),
             downloadLeadTemplateFile: () => downloadLeadTemplateFileForPersona(effectivePersona),
           },
-    [effectivePersona, isMyLeadsMode]
+    [effectiveLeadGroup, effectivePersona, isMyLeadsMode]
   );
 
   const resetFilters = useCallback(() => {
@@ -1637,6 +1648,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
       category: filters.category === "all" ? undefined : filters.category,
       includeManual: true,
       sort: "createdAt:desc",
+      leadGroup: isMyLeadsMode ? undefined : effectiveLeadGroup,
     };
     const force = Boolean(options.force);
     const cached = force ? null : readCachedLeadPage(cacheScope, mode, requestPersona, canonicalEventKey, params);
@@ -1692,7 +1704,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
         setLoadingLeads(false);
       }
     }
-  }, [cacheScope, effectivePersona, filters.category, filters.department, filters.status, leadSheetApi, mode, pageSize]);
+  }, [cacheScope, effectiveLeadGroup, effectivePersona, filters.category, filters.department, filters.status, isMyLeadsMode, leadSheetApi, mode, pageSize]);
 
   useEffect(() => {
     if (!scopedEvents.length || !selectedEventKey) {
@@ -1954,6 +1966,11 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
       toast.error("Select the event before uploading the Excel file.");
       return;
     }
+    if (!templateUpload.leadType) {
+      event.target.value = "";
+      toast.error("Select the lead type before uploading the Excel file.");
+      return;
+    }
 
     if (!file.name.toLowerCase().endsWith(".xlsx")) {
       setTemplateUpload((prev) => ({
@@ -1975,7 +1992,11 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
     }));
 
     try {
-      const validation = await leadSheetApi.validateLeadTemplateUpload(file, templateUpload.selectedEventId);
+      const validation = await leadSheetApi.validateLeadTemplateUpload(
+        file,
+        templateUpload.selectedEventId,
+        templateUpload.leadType
+      );
       setTemplateUpload((prev) => ({
         ...prev,
         validation,
@@ -2000,6 +2021,10 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
       toast.error("Choose a valid template first.");
       return;
     }
+    if (!templateUpload.leadType) {
+      toast.error("Lead type is required.");
+      return;
+    }
 
     const uploadEvent = selectedTemplateUploadEvent;
     const eventRegistryId = asText(uploadEvent?.id);
@@ -2018,6 +2043,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
         name: uploadEvent.eventName,
         eventRegistryId,
         icp: `Template upload for ${uploadEvent.eventName}`,
+        leadType: templateUpload.leadType,
         leadSheet: templateUpload.file,
       });
       const createdCampaigns = response.createdCampaigns?.length ? response.createdCampaigns : [response];
@@ -2583,7 +2609,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
 
   const templateValidation = templateUpload.validation;
   const templateUploadReady = Boolean(
-    templateUpload.file && templateValidation && selectedTemplateUploadEvent?.isActive
+    templateUpload.file && templateValidation && selectedTemplateUploadEvent?.isActive && templateUpload.leadType
   );
 
   return (
@@ -3978,7 +4004,13 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
             <Select
               value={templateUploadEventId}
               onValueChange={(value) =>
-                setTemplateUpload((prev) => ({ ...prev, selectedEventId: value }))
+                setTemplateUpload((prev) => ({
+                  ...prev,
+                  selectedEventId: value,
+                  file: null,
+                  validation: null,
+                  error: "",
+                }))
               }
               disabled={loadingEvents || templateUpload.validating || templateUpload.submitting}
             >
@@ -4007,6 +4039,34 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
             </Select>
           </div>
 
+          <div>
+            <label className="mb-3 block text-xs font-medium text-zinc-400">
+              Lead type <span aria-hidden="true" className="text-red-500">*</span>
+            </label>
+            <Select
+              value={templateUpload.leadType}
+              onValueChange={(value) =>
+                setTemplateUpload((prev) => ({
+                  ...prev,
+                  leadType: value as LeadType,
+                  file: null,
+                  validation: null,
+                  error: "",
+                }))
+              }
+              disabled={templateUpload.validating || templateUpload.submitting}
+            >
+              <SelectTrigger aria-label="Select lead type" className="!h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-left text-lg font-light shadow-none focus:ring-0">
+                <SelectValue placeholder="Select lead type" />
+              </SelectTrigger>
+              <SelectContent>
+                {LEAD_TYPE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div
             className={cn(
               "group flex min-h-20 items-center gap-3 rounded-2xl border px-4 py-3 transition-all",
@@ -4021,7 +4081,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
               htmlFor="normal-lead-template-upload"
               className={cn(
                 "flex min-w-0 flex-1 items-center gap-4",
-                !selectedTemplateUploadEvent || templateUpload.validating || templateUpload.submitting
+                !selectedTemplateUploadEvent || !templateUpload.leadType || templateUpload.validating || templateUpload.submitting
                   ? "cursor-not-allowed"
                   : "cursor-pointer"
               )}
@@ -4037,12 +4097,12 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
               </span>
               <span className="min-w-0 flex-1 text-left">
                 <span className="block truncate text-sm font-semibold text-zinc-950">
-                  {!selectedTemplateUploadEvent
-                    ? "Select event first"
+                  {!selectedTemplateUploadEvent || !templateUpload.leadType
+                    ? "Select event and lead type first"
                     : templateUpload.file?.name || "Choose Excel template"}
                 </span>
                 <span className="mt-1 block truncate text-xs font-light text-zinc-500">
-                  {!selectedTemplateUploadEvent
+                  {!selectedTemplateUploadEvent || !templateUpload.leadType
                     ? "Only .xlsx files are accepted"
                     : templateUpload.validating
                     ? "Checking workbook"
@@ -4055,11 +4115,12 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                 Choose
               </span>
               <input
+                key={`${templateUpload.selectedEventId}:${templateUpload.leadType}`}
                 id="normal-lead-template-upload"
                 type="file"
                 accept={LEAD_TEMPLATE_ACCEPT}
                 className="sr-only"
-                disabled={!selectedTemplateUploadEvent || templateUpload.validating || templateUpload.submitting}
+                disabled={!selectedTemplateUploadEvent || !templateUpload.leadType || templateUpload.validating || templateUpload.submitting}
                 onChange={(event) => void handleTemplateFileChange(event)}
               />
             </label>
