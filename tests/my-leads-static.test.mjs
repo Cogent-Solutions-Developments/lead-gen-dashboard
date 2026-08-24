@@ -44,6 +44,20 @@ test("shared LeadSheet hides create actions while My Leads enables them", () => 
   assert.match(leadSheet, /addMyLeadsEventLead\(canonicalEventKey, payload, effectivePersona\)/);
 });
 
+test("shared CS Database only scopes by an explicitly selected lead group", () => {
+  const leadSheet = read("components/leads/NormalUserEventLeadSheet.tsx");
+
+  assert.match(
+    leadSheet,
+    /listEventsForPersona\(effectivePersona, leadGroup \? \{ leadGroup \} : undefined\)/
+  );
+  assert.match(leadSheet, /leadGroup: isMyLeadsMode \? undefined : leadGroup/);
+  assert.doesNotMatch(
+    leadSheet,
+    /listEventsForPersona\(effectivePersona, \{ leadGroup: effectiveLeadGroup \}\)/
+  );
+});
+
 test("My Leads endpoints resolve to the correct pipeline prefixes", () => {
   const apiRouter = read("lib/apiRouter.ts");
   assert.match(apiRouter, /return "\/api\/delegates\/my-leads";/);

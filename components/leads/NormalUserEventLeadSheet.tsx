@@ -1370,7 +1370,8 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
             downloadLeadTemplateFile: () => downloadMyLeadsLeadTemplateFile(undefined, effectivePersona),
           }
         : {
-            listEvents: () => listEventsForPersona(effectivePersona, { leadGroup: effectiveLeadGroup }),
+            listEvents: () =>
+              listEventsForPersona(effectivePersona, leadGroup ? { leadGroup } : undefined),
             listEventLeads: (
               canonicalEventKey: string,
               params: Parameters<typeof listEventLeadsForPersona>[2]
@@ -1383,7 +1384,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
               validateLeadTemplateUploadForPersona(effectivePersona, file, eventRegistryId, leadType),
             downloadLeadTemplateFile: () => downloadLeadTemplateFileForPersona(effectivePersona),
           },
-    [effectiveLeadGroup, effectivePersona, isMyLeadsMode]
+    [effectivePersona, isMyLeadsMode, leadGroup]
   );
 
   const resetFilters = useCallback(() => {
@@ -1648,7 +1649,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
       category: filters.category === "all" ? undefined : filters.category,
       includeManual: true,
       sort: "createdAt:desc",
-      leadGroup: isMyLeadsMode ? undefined : effectiveLeadGroup,
+      leadGroup: isMyLeadsMode ? undefined : leadGroup,
     };
     const force = Boolean(options.force);
     const cached = force ? null : readCachedLeadPage(cacheScope, mode, requestPersona, canonicalEventKey, params);
@@ -1704,7 +1705,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
         setLoadingLeads(false);
       }
     }
-  }, [cacheScope, effectiveLeadGroup, effectivePersona, filters.category, filters.department, filters.status, isMyLeadsMode, leadSheetApi, mode, pageSize]);
+  }, [cacheScope, effectivePersona, filters.category, filters.department, filters.status, isMyLeadsMode, leadGroup, leadSheetApi, mode, pageSize]);
 
   useEffect(() => {
     if (!scopedEvents.length || !selectedEventKey) {
