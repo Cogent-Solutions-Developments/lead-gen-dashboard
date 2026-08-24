@@ -274,12 +274,14 @@ export default function AdminLeadRequestsPage() {
                       </div>
                       <span className="text-xs text-zinc-400">#{request.id.slice(0, 8)}</span>
                     </div>
-                    <dl className="mt-5 grid grid-cols-1 gap-4 border-t border-zinc-100 pt-4">
+                    <dl className="mt-5 grid grid-cols-1 gap-4 border-t border-zinc-100 pt-4 sm:grid-cols-2">
                       <Detail label="Leads per company" value={request.leadsPerCompany} />
                       <Detail label="Location" value={request.location} />
-                      <Detail label="Target designation" value={request.targetDesignation} long />
                       <Detail label="Company list" value={request.companyList} long />
-                      <Detail label="ICP" value={request.icp} long />
+                      <Detail label="Target designation" value={request.targetDesignation} long />
+                      <div className="sm:col-span-2">
+                        <Detail label="ICP" value={request.icp} long />
+                      </div>
                       {request.uploadedCampaignId ? <Detail label="Uploaded campaign" value={request.uploadedCampaignId} /> : null}
                       {request.completedAt ? <Detail label="Completed" value={formatDate(request.completedAt)} /> : null}
                     </dl>

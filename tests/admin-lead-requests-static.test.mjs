@@ -7,9 +7,13 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const page = fs.readFileSync(path.join(root, "app/admin/lead-requests/page.tsx"), "utf8");
 
-test("admin lead-request details use compact content-adaptive full-width rows", () => {
-  assert.match(page, /grid grid-cols-1 gap-4/);
-  assert.doesNotMatch(page, /sm:grid-cols-2/);
+test("admin lead-request details use the specified compact two-column row order", () => {
+  assert.match(page, /grid grid-cols-1 gap-4[^"]*sm:grid-cols-2/);
+  assert.match(
+    page,
+    /label="Leads per company"[\s\S]*?label="Location"[\s\S]*?label="Company list"[\s\S]*?label="Target designation"/,
+  );
+  assert.match(page, /sm:col-span-2[\s\S]*?label="ICP"/);
   assert.match(page, /long \? "max-h-52" : "max-h-28"/);
   assert.doesNotMatch(page, /min-h-36/);
   assert.match(page, /grid min-w-0 items-start gap-5/);
