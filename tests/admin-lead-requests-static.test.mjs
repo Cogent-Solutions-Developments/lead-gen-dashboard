@@ -50,3 +50,12 @@ test("uploaded campaign and completed details remain read-only without copy acti
   assert.match(page, /label="Completed"[^>]*copyable=\{false\}/);
   assert.match(page, /\{copyable \? \(/);
 });
+
+test("admin fulfilment accepts flexible CSV and XLSX lead sheets", () => {
+  assert.match(page, /Choose CSV or XLSX lead sheet/);
+  assert.match(page, /Headers are detected and mapped automatically/);
+  assert.match(page, /accept="\.csv,text\/csv,\.xlsx,application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet"/);
+  assert.doesNotMatch(page, /downloadAdminLeadRequestTemplate/);
+  assert.doesNotMatch(page, /Download \{request\.pipeline\} template/);
+  assert.doesNotMatch(page, /Choose completed \.xlsx/);
+});

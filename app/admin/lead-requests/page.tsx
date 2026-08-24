@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Clock3,
   Copy,
-  Download,
   FileSpreadsheet,
   Loader2,
   RefreshCw,
@@ -19,7 +18,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  downloadAdminLeadRequestTemplate,
   listAdminLeadRequests,
   updateAdminLeadRequestStatus,
   uploadAdminLeadRequest,
@@ -202,7 +200,7 @@ export default function AdminLeadRequestsPage() {
   const upload = async (request: LeadRequestItem) => {
     const file = files[request.id];
     if (!file) {
-      toast.error("Choose the completed Excel template first.");
+      toast.error("Choose a CSV or XLSX lead sheet first.");
       return;
     }
     setBusyId(request.id);
@@ -213,18 +211,6 @@ export default function AdminLeadRequestsPage() {
       toast.success("Requested leads uploaded", { description: "The request is done and the requester has been notified." });
     } catch (error) {
       toast.error("Lead upload failed", { description: errorMessage(error) });
-    } finally {
-      setBusyId("");
-    }
-  };
-
-  const downloadTemplate = async (request: LeadRequestItem) => {
-    setBusyId(request.id);
-    try {
-      await downloadAdminLeadRequestTemplate(request.id);
-      toast.success("Template download started");
-    } catch (error) {
-      toast.error("Template download failed", { description: errorMessage(error) });
     } finally {
       setBusyId("");
     }
@@ -302,7 +288,7 @@ export default function AdminLeadRequestsPage() {
 
                   <section className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-4">
                     <h3 className="text-sm font-semibold text-zinc-900">Fulfil this request</h3>
-                    <p className="mt-1 text-xs leading-5 text-zinc-500">The upload is written to CS Database and this requester&apos;s My Leads event. Successful upload marks the request done.</p>
+                    <p className="mt-1 text-xs leading-5 text-zinc-500">Upload a CSV or XLSX lead sheet. Common header names are detected and mapped automatically, then the leads are written to CS Database and this requester&apos;s My Leads event.</p>
                     <label className="mt-4 block">
                       <span className="mb-1.5 block text-xs font-semibold text-zinc-600">Admin note</span>
                       <Input value={notes[request.id] || ""} onChange={(event) => setNotes((current) => ({ ...current, [request.id]: event.target.value }))} placeholder="Optional note for the requester" disabled={busy || request.status === "done"} className="h-10 border-zinc-300 bg-white" />
@@ -310,11 +296,11 @@ export default function AdminLeadRequestsPage() {
 
                     {request.status === "pending" ? (
                       <div className="mt-4 space-y-3">
-                        <Button type="button" variant="outline" onClick={() => void downloadTemplate(request)} disabled={busy} className="h-10 w-full rounded-md border-zinc-300 bg-white"><Download className="mr-2 h-4 w-4" />Download {request.pipeline} template</Button>
                         <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-blue-300 bg-blue-50/60 px-3 text-center hover:bg-blue-50">
                           <FileSpreadsheet className="h-5 w-5 text-blue-600" />
-                          <span className="mt-1 max-w-full truncate text-xs font-semibold text-blue-800">{files[request.id]?.name || "Choose completed .xlsx"}</span>
-                          <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="sr-only" onChange={(event: ChangeEvent<HTMLInputElement>) => setFiles((current) => ({ ...current, [request.id]: event.target.files?.[0] || null }))} disabled={busy} />
+                          <span className="mt-1 max-w-full truncate text-xs font-semibold text-blue-800">{files[request.id]?.name || "Choose CSV or XLSX lead sheet"}</span>
+                          <span className="mt-1 text-[11px] text-blue-700/75">Headers are detected and mapped automatically.</span>
+                          <input type="file" accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="sr-only" onChange={(event: ChangeEvent<HTMLInputElement>) => setFiles((current) => ({ ...current, [request.id]: event.target.files?.[0] || null }))} disabled={busy} />
                         </label>
                         <Button type="button" onClick={() => void upload(request)} disabled={busy || !files[request.id]} className="h-10 w-full rounded-md bg-blue-600 text-white hover:bg-blue-700">{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}Upload leads & complete</Button>
                         <Button type="button" variant="ghost" onClick={() => void changeStatus(request, "rejected")} disabled={busy} className="h-9 w-full rounded-md text-red-600 hover:bg-red-50 hover:text-red-700"><XCircle className="mr-2 h-4 w-4" />Reject request</Button>
