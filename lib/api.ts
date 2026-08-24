@@ -1148,6 +1148,14 @@ export type EventLeadListResponse = {
   limit: number;
   offset: number;
   hasMore: boolean;
+  availableDepartments?: LeadDepartmentTag[];
+  availableLeadGroups?: Array<{
+    leadGroup: import("@/lib/leads/leadTypes").LeadGroup;
+    value: import("@/lib/leads/leadTypes").LeadGroup;
+    label: string;
+  }>;
+  filterLabel?: string;
+  filterKey?: string;
 };
 
 export type GlobalLeadSearchParams = {
@@ -1792,6 +1800,7 @@ export async function listEventLeads(canonicalEventKey: string, params?: EventLe
         offset: params?.offset,
         search: params?.search,
         department: params?.department,
+        leadGroup: params?.leadGroup ?? params?.department,
         workflowStatus: params?.workflowStatus,
         category: params?.category,
         includeManual: params?.includeManual,

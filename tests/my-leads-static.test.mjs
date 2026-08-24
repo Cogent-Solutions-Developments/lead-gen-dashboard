@@ -44,14 +44,35 @@ test("shared LeadSheet hides create actions while My Leads enables them", () => 
   assert.match(leadSheet, /addMyLeadsEventLead\(canonicalEventKey, payload, effectivePersona\)/);
 });
 
-test("shared CS Database only scopes by an explicitly selected lead group", () => {
+test("shared CS Database matches the Heavy lead-group and filter model", () => {
   const leadSheet = read("components/leads/NormalUserEventLeadSheet.tsx");
+  const api = read("lib/api.ts");
+  const delegateApi = read("lib/apidele.ts");
+  const productionApi = read("lib/apiproduction.ts");
+  const leadTypes = read("lib/leads/leadTypes.ts");
 
   assert.match(
     leadSheet,
     /listEventsForPersona\(effectivePersona, leadGroup \? \{ leadGroup \} : undefined\)/
   );
-  assert.match(leadSheet, /leadGroup: isMyLeadsMode \? undefined : leadGroup/);
+  assert.match(leadSheet, /filters\.department === "all"[\s\S]*?\? leadGroup[\s\S]*?: filters\.department/);
+  assert.match(leadSheet, /activeLeadPage\?\.availableLeadGroups/);
+  assert.match(leadSheet, /LEAD_GROUP_OPTIONS\.map/);
+  assert.match(leadSheet, />Lead Group<\/label>/);
+  assert.match(leadSheet, /All lead groups/);
+  assert.match(leadSheet, />Status model<\/label>/);
+  assert.match(leadSheet, />Contact intelligence<\/label>/);
+  assert.match(leadSheet, />Campaign category<\/label>/);
+  assert.match(leadSheet, /Reset model/);
+  assert.doesNotMatch(leadSheet, /filterOpen|setFilterOpen/);
+  assert.match(api, /availableLeadGroups\?: Array/);
+  assert.match(leadTypes, /\{ value: "media_partner", label: "Media Partner" \}/);
+  for (const apiModule of [api, delegateApi, productionApi]) {
+    assert.equal(
+      apiModule.match(/leadGroup: params\?\.leadGroup \?\? params\?\.department/g)?.length,
+      1
+    );
+  }
   assert.doesNotMatch(
     leadSheet,
     /listEventsForPersona\(effectivePersona, \{ leadGroup: effectiveLeadGroup \}\)/

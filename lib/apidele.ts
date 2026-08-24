@@ -557,6 +557,7 @@ export async function listEventLeads(canonicalEventKey: string, params?: EventLe
         offset: params?.offset,
         search: params?.search,
         department: params?.department,
+        leadGroup: params?.leadGroup ?? params?.department,
         workflowStatus: params?.workflowStatus,
         category: params?.category,
         includeManual: params?.includeManual,
