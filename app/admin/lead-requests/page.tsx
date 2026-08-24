@@ -76,7 +76,7 @@ async function writeClipboardText(value: string) {
   throw new Error("Clipboard unavailable");
 }
 
-function Detail({ label, value }: { label: string; value?: string | number | null }) {
+function Detail({ label, value, long = false }: { label: string; value?: string | number | null; long?: boolean }) {
   const text = value === null || value === undefined ? "" : String(value);
   const [copied, setCopied] = useState(false);
 
@@ -103,21 +103,25 @@ function Detail({ label, value }: { label: string; value?: string | number | nul
           type="button"
           onClick={() => void copyDetail()}
           aria-label={`${copied ? "Copied" : "Copy"} ${label}`}
+          aria-live="polite"
+          title={copied ? `${label} copied` : `Copy ${label}`}
           className={cn(
-            "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border px-2 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
+            "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
             copied
               ? "border-emerald-200 bg-emerald-50 text-emerald-700"
               : "border-zinc-200 bg-white text-zinc-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700",
           )}
         >
           {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-          <span>{copied ? "Copied" : "Copy"}</span>
         </button>
       </div>
       <dd
         tabIndex={0}
         aria-label={`${label} details`}
-        className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-zinc-200 bg-zinc-50/70 px-3 py-2 text-sm leading-6 text-zinc-700 scrollbar-modern"
+        className={cn(
+          "mt-2 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-zinc-200 bg-zinc-50/70 px-3 py-2 text-sm leading-6 text-zinc-700 scrollbar-modern",
+          long ? "min-h-36 max-h-72" : "max-h-36",
+        )}
       >
         {text}
       </dd>
@@ -270,12 +274,12 @@ export default function AdminLeadRequestsPage() {
                       </div>
                       <span className="text-xs text-zinc-400">#{request.id.slice(0, 8)}</span>
                     </div>
-                    <dl className="mt-5 grid gap-4 border-t border-zinc-100 pt-4 sm:grid-cols-2">
+                    <dl className="mt-5 grid grid-cols-1 gap-5 border-t border-zinc-100 pt-4">
                       <Detail label="Leads per company" value={request.leadsPerCompany} />
                       <Detail label="Location" value={request.location} />
-                      <Detail label="Target designation" value={request.targetDesignation} />
-                      <Detail label="Company list" value={request.companyList} />
-                      <div className="sm:col-span-2"><Detail label="ICP" value={request.icp} /></div>
+                      <Detail label="Target designation" value={request.targetDesignation} long />
+                      <Detail label="Company list" value={request.companyList} long />
+                      <Detail label="ICP" value={request.icp} long />
                       {request.uploadedCampaignId ? <Detail label="Uploaded campaign" value={request.uploadedCampaignId} /> : null}
                       {request.completedAt ? <Detail label="Completed" value={formatDate(request.completedAt)} /> : null}
                     </dl>
