@@ -120,7 +120,7 @@ function Detail({ label, value, long = false }: { label: string; value?: string 
         aria-label={`${label} details`}
         className={cn(
           "mt-2 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-zinc-200 bg-zinc-50/70 px-3 py-2 text-sm leading-6 text-zinc-700 scrollbar-modern",
-          long ? "min-h-36 max-h-72" : "max-h-36",
+          long ? "max-h-52" : "max-h-28",
         )}
       >
         {text}
@@ -264,7 +264,7 @@ export default function AdminLeadRequestsPage() {
           const busy = busyId === request.id;
           return (
             <article key={request.id} className="admin-card overflow-hidden">
-              <div className="grid min-w-0 gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
+              <div className="grid min-w-0 items-start gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
@@ -274,7 +274,7 @@ export default function AdminLeadRequestsPage() {
                       </div>
                       <span className="text-xs text-zinc-400">#{request.id.slice(0, 8)}</span>
                     </div>
-                    <dl className="mt-5 grid grid-cols-1 gap-5 border-t border-zinc-100 pt-4">
+                    <dl className="mt-5 grid grid-cols-1 gap-4 border-t border-zinc-100 pt-4">
                       <Detail label="Leads per company" value={request.leadsPerCompany} />
                       <Detail label="Location" value={request.location} />
                       <Detail label="Target designation" value={request.targetDesignation} long />

@@ -7,10 +7,12 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const page = fs.readFileSync(path.join(root, "app/admin/lead-requests/page.tsx"), "utf8");
 
-test("admin lead-request details use full-width rows with taller bounded long content", () => {
-  assert.match(page, /grid grid-cols-1 gap-5/);
+test("admin lead-request details use compact content-adaptive full-width rows", () => {
+  assert.match(page, /grid grid-cols-1 gap-4/);
   assert.doesNotMatch(page, /sm:grid-cols-2/);
-  assert.match(page, /long \? "min-h-36 max-h-72" : "max-h-36"/);
+  assert.match(page, /long \? "max-h-52" : "max-h-28"/);
+  assert.doesNotMatch(page, /min-h-36/);
+  assert.match(page, /grid min-w-0 items-start gap-5/);
   assert.match(page, /label="Target designation"[\s\S]*?long/);
   assert.match(page, /label="Company list"[\s\S]*?long/);
   assert.match(page, /label="ICP"[\s\S]*?long/);
