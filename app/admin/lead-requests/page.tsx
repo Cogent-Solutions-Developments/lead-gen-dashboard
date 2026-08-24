@@ -288,7 +288,7 @@ export default function AdminLeadRequestsPage() {
 
                   <section className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-4">
                     <h3 className="text-sm font-semibold text-zinc-900">Fulfil this request</h3>
-                    <p className="mt-1 text-xs leading-5 text-zinc-500">Upload a CSV or XLSX lead sheet. Common header names are detected and mapped automatically, then the leads are written to CS Database and this requester&apos;s My Leads event.</p>
+                    <p className="mt-1 text-xs leading-5 text-zinc-500">Upload a CSV or XLSX lead sheet. Common header names are detected and mapped automatically, then the leads are written to CS Database.</p>
                     <label className="mt-4 block">
                       <span className="mb-1.5 block text-xs font-semibold text-zinc-600">Admin note</span>
                       <Input value={notes[request.id] || ""} onChange={(event) => setNotes((current) => ({ ...current, [request.id]: event.target.value }))} placeholder="Optional note for the requester" disabled={busy || request.status === "done"} className="h-10 border-zinc-300 bg-white" />
@@ -308,7 +308,7 @@ export default function AdminLeadRequestsPage() {
                     ) : request.status === "rejected" ? (
                       <Button type="button" onClick={() => void changeStatus(request, "pending")} disabled={busy} variant="outline" className="mt-4 h-10 w-full rounded-md border-zinc-300 bg-white">{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}Reopen as pending</Button>
                     ) : (
-                      <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs leading-5 text-emerald-800"><CheckCircle2 className="mr-1 inline h-4 w-4" />Upload complete. The requester was notified and can access these leads in My Leads.</div>
+                      <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs leading-5 text-emerald-800"><CheckCircle2 className="mr-1 inline h-4 w-4" />Upload complete. The requester was notified and can access these leads in CS Database.</div>
                     )}
                   </section>
                 </div>

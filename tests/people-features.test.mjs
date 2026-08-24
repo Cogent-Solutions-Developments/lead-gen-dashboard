@@ -80,6 +80,7 @@ test("notification center covers loading, unread count, empty, retry, mark-one, 
   assert.match(source, /PartyPopper/);
   assert.match(source, /event_inquiry/);
   assert.match(source, /View inquiry details/);
+  assert.match(source, /Open CS Database/);
   assert.match(source, /event_agenda_uploaded/);
   assert.match(source, /Download agenda/);
   assert.match(source, /event_speaker_list_uploaded/);
