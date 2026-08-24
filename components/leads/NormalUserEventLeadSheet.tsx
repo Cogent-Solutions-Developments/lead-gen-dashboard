@@ -538,7 +538,7 @@ const EMPTY_TEMPLATE_UPLOAD: TemplateUploadState = {
   error: "",
   submitting: false,
   selectedEventId: "",
-  leadType: "",
+  leadType: "event_lead",
 };
 const LEAD_TEMPLATE_ACCEPT = ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const UNCATEGORIZED_CATEGORY_LABEL = "Competing Events";

@@ -225,7 +225,7 @@ const EMPTY_TEMPLATE_UPLOAD: TemplateUploadState = {
   submitting: false,
   selectedEventId: "",
   category: "",
-  leadType: "",
+  leadType: "event_lead",
 };
 const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
   eventRegistryId: "",

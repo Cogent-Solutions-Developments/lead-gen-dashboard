@@ -496,7 +496,7 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
                                 ? documentNotification?.actionLabel
                                 : notification.type === "lead_request_created"
                                   ? "Manage request"
-                                  : "Open My Leads"}
+                                  : "Open CS Database"}
                           </span>
                         ) : null}
                         <time className="mt-1.5 block text-xs text-zinc-500" dateTime={notification.createdAt}>

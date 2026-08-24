@@ -142,6 +142,15 @@ test("normal upload entry points route to My Leads upload", () => {
   assert.match(quickActions, /normalHref:\s*"\/my-leads\?upload=1"/);
 });
 
+test("user upload dialogs default lead type to event leads", () => {
+  const myLeads = read("app/my-leads/page.tsx");
+  const sharedLeadSheet = read("components/leads/NormalUserEventLeadSheet.tsx");
+
+  for (const source of [myLeads, sharedLeadSheet]) {
+    assert.match(source, /const EMPTY_TEMPLATE_UPLOAD: TemplateUploadState = \{[\s\S]*?leadType: "event_lead",[\s\S]*?\};/);
+  }
+});
+
 test("My Leads page enforces role persona and redirects admins", () => {
   const page = read("app/my-leads/page.tsx");
   assert.match(page, /router\.replace\("\/leads"\)/);

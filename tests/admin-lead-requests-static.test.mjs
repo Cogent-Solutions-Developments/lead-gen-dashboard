@@ -58,4 +58,7 @@ test("admin fulfilment accepts flexible CSV and XLSX lead sheets", () => {
   assert.doesNotMatch(page, /downloadAdminLeadRequestTemplate/);
   assert.doesNotMatch(page, /Download \{request\.pipeline\} template/);
   assert.doesNotMatch(page, /Choose completed \.xlsx/);
+  assert.match(page, /the leads are written to CS Database\./);
+  assert.match(page, /can access these leads in CS Database\./);
+  assert.doesNotMatch(page, /requester(?:&apos;|')s My Leads|access these leads in My Leads/);
 });
