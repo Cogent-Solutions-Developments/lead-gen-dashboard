@@ -44,6 +44,41 @@ test("shared LeadSheet hides create actions while My Leads enables them", () => 
   assert.match(leadSheet, /addMyLeadsEventLead\(canonicalEventKey, payload, effectivePersona\)/);
 });
 
+test("shared CS Database matches the Heavy lead-group and filter model", () => {
+  const leadSheet = read("components/leads/NormalUserEventLeadSheet.tsx");
+  const api = read("lib/api.ts");
+  const delegateApi = read("lib/apidele.ts");
+  const productionApi = read("lib/apiproduction.ts");
+  const leadTypes = read("lib/leads/leadTypes.ts");
+
+  assert.match(
+    leadSheet,
+    /listEventsForPersona\(effectivePersona, leadGroup \? \{ leadGroup \} : undefined\)/
+  );
+  assert.match(leadSheet, /filters\.department === "all"[\s\S]*?\? leadGroup[\s\S]*?: filters\.department/);
+  assert.match(leadSheet, /activeLeadPage\?\.availableLeadGroups/);
+  assert.match(leadSheet, /LEAD_GROUP_OPTIONS\.map/);
+  assert.match(leadSheet, />Lead Group<\/label>/);
+  assert.match(leadSheet, /All lead groups/);
+  assert.match(leadSheet, />Status model<\/label>/);
+  assert.match(leadSheet, />Contact intelligence<\/label>/);
+  assert.match(leadSheet, />Campaign category<\/label>/);
+  assert.match(leadSheet, /Reset model/);
+  assert.doesNotMatch(leadSheet, /filterOpen|setFilterOpen/);
+  assert.match(api, /availableLeadGroups\?: Array/);
+  assert.match(leadTypes, /\{ value: "media_partner", label: "Media Partner" \}/);
+  for (const apiModule of [api, delegateApi, productionApi]) {
+    assert.equal(
+      apiModule.match(/leadGroup: params\?\.leadGroup \?\? params\?\.department/g)?.length,
+      1
+    );
+  }
+  assert.doesNotMatch(
+    leadSheet,
+    /listEventsForPersona\(effectivePersona, \{ leadGroup: effectiveLeadGroup \}\)/
+  );
+});
+
 test("My Leads endpoints resolve to the correct pipeline prefixes", () => {
   const apiRouter = read("lib/apiRouter.ts");
   assert.match(apiRouter, /return "\/api\/delegates\/my-leads";/);
@@ -107,9 +142,27 @@ test("normal upload entry points route to My Leads upload", () => {
   assert.match(quickActions, /normalHref:\s*"\/my-leads\?upload=1"/);
 });
 
+test("user upload dialogs default lead type to event leads", () => {
+  const myLeads = read("app/my-leads/page.tsx");
+  const sharedLeadSheet = read("components/leads/NormalUserEventLeadSheet.tsx");
+
+  for (const source of [myLeads, sharedLeadSheet]) {
+    assert.match(source, /const EMPTY_TEMPLATE_UPLOAD: TemplateUploadState = \{[\s\S]*?leadType: "event_lead",[\s\S]*?\};/);
+  }
+});
+
 test("My Leads page enforces role persona and redirects admins", () => {
   const page = read("app/my-leads/page.tsx");
   assert.match(page, /router\.replace\("\/leads"\)/);
   assert.match(page, /const expectedPersona = personaForRole\(role\)/);
   assert.match(page, /if \(hasPersonaMismatch\) router\.replace\("\/dashboard"\)/);
+});
+
+test("lead requests accept designation lists with concise copy", () => {
+  const dialog = read("components/leads/LeadRequestDialog.tsx");
+
+  assert.match(dialog, /<Textarea value=\{form\.targetDesignation\}/);
+  assert.match(dialog, />Designations<\/span>/);
+  assert.match(dialog, /placeholder="One per line or comma"/);
+  assert.doesNotMatch(dialog, /Target designation|Tell the admin team|Send request/);
 });

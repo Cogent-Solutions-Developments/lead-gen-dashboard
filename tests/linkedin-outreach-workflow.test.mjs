@@ -12,10 +12,10 @@ test("LinkedIn is required only when the configured channel is available for the
     campaignPage,
     /function leadSupportsLinkedinAction\(lead: Lead\) \{\s*const capability = lead\.channelCapabilities\?\.linkedin;\s*return Boolean\(\s*leadHasLinkedinProfile\(lead\) &&\s*capability\?\.enabled === true &&\s*capability\.campaignConfigured === true &&\s*capability\.sendable === true\s*\);\s*\}/,
   );
-  assert.equal((campaignPage.match(/const needsLinkedin = leadSupportsLinkedinAction\(lead\);/g) || []).length, 2);
+  assert.equal((campaignPage.match(/const needsLinkedin = leadSupportsLinkedinAction\(lead\);/g) || []).length, 1);
   assert.equal(
     (campaignPage.match(/if \(needsLinkedin && !isLeadLinkedinActionHandedOff\(lead\)\) return false;/g) || []).length,
-    2,
+    1,
   );
   assert.match(
     campaignPage,

@@ -62,10 +62,16 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
 import { getDailyDealBellMedia } from "@/lib/dealBellMedia";
 import { cn } from "@/lib/utils";
-import { LeadOriginTags } from "@/components/leads/LeadOriginTag";
+import { LeadDepartmentTags, LeadOriginTags } from "@/components/leads/LeadOriginTag";
 import { LeadHistoryContent } from "@/components/leads/LeadHistoryContent";
 import { LeadUploadDuplicateSummary } from "@/components/leads/LeadUploadDuplicateSummary";
 import { mergeDuplicateEventLeadRows } from "@/lib/leads/mergeEventLeadRows";
+import {
+  LEAD_GROUP_OPTIONS,
+  LEAD_TYPE_OPTIONS,
+  type LeadGroup,
+  type LeadType,
+} from "@/lib/leads/leadTypes";
 import type { Persona } from "@/lib/persona";
 import {
   AlertTriangle,
@@ -140,6 +146,7 @@ type AddLeadFormState = {
 };
 
 type LeadFilterState = {
+  department: "all" | LeadGroup;
   status: string;
   contact: "all" | "email" | "phone" | "complete" | "missing-contact" | "linkedin" | "website";
   category: string;
@@ -186,6 +193,7 @@ type TemplateUploadState = {
   error: string;
   submitting: boolean;
   selectedEventId: string;
+  leadType: LeadType | "";
 };
 
 const LinkedInIcon = ({ className }: { className?: string }) => (
@@ -498,6 +506,13 @@ const LEAD_PAGE_CACHE_TTL_MS = 60 * 1000;
 const MAX_INITIAL_DATA_CACHE_ENTRIES = 8;
 const MAX_LEAD_PAGE_CACHE_ENTRIES = 24;
 const LEAD_SHEET_DEPARTMENT_PERSONAS: LeadSheetDepartmentPersona[] = ["sales", "delegates", "production"];
+const DEFAULT_LEAD_GROUP_FILTER_OPTIONS: Array<{
+  value: LeadFilterState["department"];
+  label: string;
+}> = [
+  { value: "all", label: "All lead groups" },
+  ...LEAD_GROUP_OPTIONS,
+];
 
 const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
   fullName: "",
@@ -511,6 +526,7 @@ const EMPTY_ADD_LEAD_FORM: AddLeadFormState = {
 };
 
 const EMPTY_FILTERS: LeadFilterState = {
+  department: "all",
   status: "all",
   contact: "all",
   category: "all",
@@ -522,6 +538,7 @@ const EMPTY_TEMPLATE_UPLOAD: TemplateUploadState = {
   error: "",
   submitting: false,
   selectedEventId: "",
+  leadType: "event_lead",
 };
 const LEAD_TEMPLATE_ACCEPT = ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const UNCATEGORIZED_CATEGORY_LABEL = "Competing Events";
@@ -568,6 +585,36 @@ function normalizeLeadCategory(value: unknown) {
   const label = asText(value);
   if (!label || label.toLowerCase() === "other") return UNCATEGORIZED_CATEGORY_LABEL;
   return label;
+}
+
+function normalizeLeadDepartment(value: unknown) {
+  const department = asText(value).toLowerCase().replace(/[\s_-]+/g, "");
+  if (department === "delegate" || department === "delegates") return "delegate";
+  if (department === "production" || department === "productions") return "production";
+  if (department === "sale" || department === "sales") return "sales";
+  if (department === "mediapartner" || department === "mediapartners") return "media_partner";
+  return department;
+}
+
+function getLeadDepartmentLabel(department: string) {
+  return DEFAULT_LEAD_GROUP_FILTER_OPTIONS.find((option) => option.value === department)?.label || humanizeStatusLabel(department);
+}
+
+function getLeadDepartmentTags(lead: LeadSheetRow) {
+  const tags = new Map<string, LeadDepartmentTag>();
+  const addDepartment = (value: unknown, label?: unknown) => {
+    const department = normalizeLeadDepartment(value);
+    if (!department || tags.has(department)) return;
+    tags.set(department, {
+      department,
+      label: asText(label) || getLeadDepartmentLabel(department),
+    });
+  };
+
+  for (const tag of lead.departmentTags) addDepartment(tag.department, tag.label);
+  for (const department of lead.departments) addDepartment(department);
+  addDepartment(lead.primaryDepartment);
+  return [...tags.values()];
 }
 
 function getDisplayEventName(name?: string | null) {
@@ -734,6 +781,7 @@ type LeadPageFetchParams = {
   category?: string;
   includeManual: boolean;
   sort: string;
+  leadGroup?: LeadGroup;
 };
 
 const initialDataCache = new Map<string, CacheEntry<LeadSheetInitialData>>();
@@ -798,6 +846,7 @@ function leadPageCacheKey(
     params.limit,
     params.offset,
     params.search || "",
+    params.leadGroup || "",
     params.workflowStatus || "",
     params.category || "",
     params.includeManual ? "1" : "0",
@@ -1063,6 +1112,7 @@ type NormalUserEventLeadSheetProps = {
   mode?: LeadSheetDataMode;
   departmentTabs?: ReactNode;
   dataPersona?: LeadSheetDepartmentPersona;
+  leadGroup?: LeadGroup;
 };
 
 function humanizeCampaignStatus(value?: string | null) {
@@ -1215,14 +1265,16 @@ function LeadSheetDialog({
   );
 }
 
-export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, dataPersona }: NormalUserEventLeadSheetProps) {
+export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, dataPersona, leadGroup }: NormalUserEventLeadSheetProps) {
   const { persona } = usePersona();
   const effectivePersona: LeadSheetDepartmentPersona =
     dataPersona ?? (persona === "delegates" || persona === "production" ? persona : "sales");
+  const effectiveLeadGroup: LeadGroup =
+    leadGroup ?? (effectivePersona === "delegates" ? "delegate" : effectivePersona);
   const { role, user } = useAuth();
   const cacheScope = useMemo(
-    () => [role || "unknown-role", user?.id || user?.username || "anonymous"].join(":"),
-    [role, user?.id, user?.username]
+    () => [role || "unknown-role", user?.id || user?.username || "anonymous", mode, effectiveLeadGroup].join(":"),
+    [effectiveLeadGroup, mode, role, user?.id, user?.username]
   );
   const router = useRouter();
   const pathname = usePathname();
@@ -1255,7 +1307,6 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
   const [addLeadForm, setAddLeadForm] = useState<AddLeadFormState>(EMPTY_ADD_LEAD_FORM);
   const [addingLead, setAddingLead] = useState(false);
   const [copiedLeadId, setCopiedLeadId] = useState<string | null>(null);
-  const [filterOpen, setFilterOpen] = useState(false);
   const [filters, setFilters] = useState<LeadFilterState>(EMPTY_FILTERS);
   const [categorySearch, setCategorySearch] = useState("");
   const [templateUploadOpen, setTemplateUploadOpen] = useState(false);
@@ -1312,12 +1363,13 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
               createMyLeadsCampaignFromUpload(payload, effectivePersona),
             addEventLead: (canonicalEventKey: string, payload: EventLeadCreateRequest) =>
               addMyLeadsEventLead(canonicalEventKey, payload, effectivePersona),
-            validateLeadTemplateUpload: (file: File | Blob, eventRegistryId?: string) =>
-              validateMyLeadsLeadTemplateUpload(file, effectivePersona, eventRegistryId),
+            validateLeadTemplateUpload: (file: File | Blob, eventRegistryId: string | undefined, leadType: LeadType) =>
+              validateMyLeadsLeadTemplateUpload(file, effectivePersona, eventRegistryId, leadType),
             downloadLeadTemplateFile: () => downloadMyLeadsLeadTemplateFile(undefined, effectivePersona),
           }
         : {
-            listEvents: () => listEventsForPersona(effectivePersona),
+            listEvents: () =>
+              listEventsForPersona(effectivePersona, leadGroup ? { leadGroup } : undefined),
             listEventLeads: (
               canonicalEventKey: string,
               params: Parameters<typeof listEventLeadsForPersona>[2]
@@ -1326,11 +1378,11 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
               createCampaignFromUploadForPersona(effectivePersona, payload),
             addEventLead: (canonicalEventKey: string, payload: EventLeadCreateRequest) =>
               addEventLeadForPersona(effectivePersona, canonicalEventKey, payload),
-            validateLeadTemplateUpload: (file: File | Blob, eventRegistryId?: string) =>
-              validateLeadTemplateUploadForPersona(effectivePersona, file, eventRegistryId),
+            validateLeadTemplateUpload: (file: File | Blob, eventRegistryId: string | undefined, leadType: LeadType) =>
+              validateLeadTemplateUploadForPersona(effectivePersona, file, eventRegistryId, leadType),
             downloadLeadTemplateFile: () => downloadLeadTemplateFileForPersona(effectivePersona),
           },
-    [effectivePersona, isMyLeadsMode]
+    [effectivePersona, isMyLeadsMode, leadGroup]
   );
 
   const resetFilters = useCallback(() => {
@@ -1503,7 +1555,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
 
   useEffect(() => {
     setPageOffset(0);
-  }, [filters.status, filters.contact, filters.category]);
+  }, [filters.department, filters.status, filters.contact, filters.category]);
 
   useEffect(() => {
     const nextSearch = searchParams.get("search") || "";
@@ -1594,6 +1646,12 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
       category: filters.category === "all" ? undefined : filters.category,
       includeManual: true,
       sort: "createdAt:desc",
+      leadGroup:
+        isMyLeadsMode
+          ? undefined
+          : filters.department === "all"
+            ? leadGroup
+            : filters.department,
     };
     const force = Boolean(options.force);
     const cached = force ? null : readCachedLeadPage(cacheScope, mode, requestPersona, canonicalEventKey, params);
@@ -1649,7 +1707,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
         setLoadingLeads(false);
       }
     }
-  }, [cacheScope, effectivePersona, filters.category, filters.status, leadSheetApi, mode, pageSize]);
+  }, [cacheScope, effectivePersona, filters.category, filters.department, filters.status, isMyLeadsMode, leadGroup, leadSheetApi, mode, pageSize]);
 
   useEffect(() => {
     if (!scopedEvents.length || !selectedEventKey) {
@@ -1768,6 +1826,11 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
     return mergeDuplicateEventLeadRows(rows);
   }, [activeLeadPage, workflowStatusLabelLookup]);
 
+  const leadGroupOptions = useMemo(() => {
+    if (activeLeadPage?.availableLeadGroups?.length) return activeLeadPage.availableLeadGroups;
+    return LEAD_GROUP_OPTIONS.map((item) => ({ ...item, leadGroup: item.value }));
+  }, [activeLeadPage?.availableLeadGroups]);
+
   const categoryOptions = useMemo<LeadCategoryOption[]>(() => {
     const byKey = new Map<string, LeadCategoryOption>();
     const counts = Array.isArray(selectedEvent?.categoryCounts) ? selectedEvent.categoryCounts : [];
@@ -1830,6 +1893,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
 
   const activeFilterCount = useMemo(() => {
     return [
+      filters.department !== EMPTY_FILTERS.department,
       filters.status !== EMPTY_FILTERS.status,
       filters.contact !== EMPTY_FILTERS.contact,
       filters.category !== EMPTY_FILTERS.category,
@@ -1904,6 +1968,11 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
       toast.error("Select the event before uploading the Excel file.");
       return;
     }
+    if (!templateUpload.leadType) {
+      event.target.value = "";
+      toast.error("Select the lead type before uploading the Excel file.");
+      return;
+    }
 
     if (!file.name.toLowerCase().endsWith(".xlsx")) {
       setTemplateUpload((prev) => ({
@@ -1925,7 +1994,11 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
     }));
 
     try {
-      const validation = await leadSheetApi.validateLeadTemplateUpload(file, templateUpload.selectedEventId);
+      const validation = await leadSheetApi.validateLeadTemplateUpload(
+        file,
+        templateUpload.selectedEventId,
+        templateUpload.leadType
+      );
       setTemplateUpload((prev) => ({
         ...prev,
         validation,
@@ -1950,6 +2023,10 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
       toast.error("Choose a valid template first.");
       return;
     }
+    if (!templateUpload.leadType) {
+      toast.error("Lead type is required.");
+      return;
+    }
 
     const uploadEvent = selectedTemplateUploadEvent;
     const eventRegistryId = asText(uploadEvent?.id);
@@ -1968,6 +2045,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
         name: uploadEvent.eventName,
         eventRegistryId,
         icp: `Template upload for ${uploadEvent.eventName}`,
+        leadType: templateUpload.leadType,
         leadSheet: templateUpload.file,
       });
       const createdCampaigns = response.createdCampaigns?.length ? response.createdCampaigns : [response];
@@ -2533,7 +2611,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
 
   const templateValidation = templateUpload.validation;
   const templateUploadReady = Boolean(
-    templateUpload.file && templateValidation && selectedTemplateUploadEvent?.isActive
+    templateUpload.file && templateValidation && selectedTemplateUploadEvent?.isActive && templateUpload.leadType
   );
 
   return (
@@ -2844,29 +2922,197 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
               </div>
 
               <div className="mt-4 border-t border-zinc-100 pt-4">
-                <label className="mb-3 block text-xs font-medium text-zinc-400">Intelligent filters</label>
-                <button
-                  type="button"
-                  onClick={() => setFilterOpen(true)}
-                  className="flex h-11 w-full items-center justify-between rounded-full border border-zinc-300 bg-white px-4 text-left shadow-[0_18px_46px_-42px_rgba(2,10,27,0.42)] transition-colors hover:border-zinc-400"
-                >
-                  <span className="inline-flex items-center gap-4 text-sm font-light text-zinc-500">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <label className="text-xs font-medium text-zinc-400">Intelligent filters</label>
+                  {activeFilterCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={resetFilters}
+                      className="text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-950"
+                    >
+                      Reset
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="flex h-11 w-full items-center justify-between rounded-full border border-zinc-300 bg-white px-4 text-left shadow-[0_18px_46px_-42px_rgba(2,10,27,0.42)]">
+                  <span className="inline-flex items-center gap-3 text-sm font-light text-zinc-500">
                     <SlidersHorizontal className="h-4 w-4" />
                     Advanced filters
                   </span>
                   <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-zinc-100 px-1.5 text-xs font-medium tabular-nums text-zinc-500">
                     {activeFilterCount}
                   </span>
-                </button>
-                {activeFilterCount > 0 ? (
-                  <button
-                    type="button"
-                    onClick={resetFilters}
-                    className="border-b border-transparent pb-1 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950"
-                  >
-                    Clear filter model
-                  </button>
-                ) : null}
+                </div>
+
+                <div className="mt-4 space-y-5 rounded-2xl border border-zinc-200 bg-white/75 p-4 shadow-[0_16px_42px_-38px_rgba(2,10,27,0.48)]">
+                  <div>
+                    <label className="mb-2 block text-[11px] font-medium text-zinc-500">Lead Group</label>
+                    <Select
+                      value={filters.department}
+                      onValueChange={(value) =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          department: value as LeadFilterState["department"],
+                        }))
+                      }
+                    >
+                      <SelectTrigger
+                        aria-label="Filter leads by lead group"
+                        className="h-10 w-full rounded-full border-zinc-300 bg-white px-4 text-sm font-light text-zinc-700 shadow-none focus:ring-blue-600"
+                      >
+                        <SelectValue placeholder="All lead groups" />
+                      </SelectTrigger>
+                      <SelectContent align="start" className="rounded-2xl border-zinc-200 bg-white p-1 shadow-xl">
+                        <SelectItem value="all" className="rounded-xl py-2.5 text-sm">
+                          All lead groups
+                        </SelectItem>
+                        {leadGroupOptions.map((option) => (
+                          <SelectItem
+                            key={option.leadGroup}
+                            value={option.leadGroup}
+                            className="rounded-xl py-2.5 text-sm"
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[11px] font-medium text-zinc-500">Status model</label>
+                    <Select
+                      value={filters.status}
+                      onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}
+                    >
+                      <SelectTrigger className="h-10 w-full rounded-full border-zinc-300 bg-white px-4 text-sm font-light text-zinc-700 shadow-none focus:ring-blue-600">
+                        <SelectValue placeholder="All statuses" />
+                      </SelectTrigger>
+                      <SelectContent position="popper" className="z-[120] rounded-2xl border-zinc-200 bg-white p-1 shadow-xl">
+                        <SelectItem value="all" className="rounded-xl py-2.5 text-sm">
+                          <span className="flex items-center gap-3">
+                            <span className="ml-1 h-2.5 w-2.5 shrink-0 rounded-full bg-zinc-300" />
+                            All statuses
+                          </span>
+                        </SelectItem>
+                        {statusOptions.map((option) => (
+                          <SelectItem key={option.statusKey} value={option.statusKey} className="rounded-xl py-2.5 text-sm">
+                            <span className="flex items-center gap-3">
+                              <span className={`ml-1 h-2.5 w-2.5 shrink-0 rounded-full ${getStatusDotClass(option.statusKey)}`} />
+                              {option.label}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[11px] font-medium text-zinc-500">Contact intelligence</label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { value: "all", label: "All" },
+                        { value: "complete", label: "Email + phone" },
+                        { value: "email", label: "Has email" },
+                        { value: "phone", label: "Has phone" },
+                        { value: "linkedin", label: "LinkedIn" },
+                        { value: "website", label: "Website" },
+                        { value: "missing-contact", label: "Needs data" },
+                      ].map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          aria-pressed={filters.contact === option.value}
+                          onClick={() =>
+                            setFilters((prev) => ({
+                              ...prev,
+                              contact: option.value as LeadFilterState["contact"],
+                            }))
+                          }
+                          className={cn(
+                            "inline-flex h-8 items-center rounded-full border px-3 text-xs font-medium transition-colors",
+                            filters.contact === option.value
+                              ? "border-blue-600 bg-blue-600 text-white"
+                              : "border-zinc-300 bg-white text-zinc-600 hover:border-blue-500 hover:text-blue-600"
+                          )}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[11px] font-medium text-zinc-500">Campaign category</label>
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                      <Input
+                        value={categorySearch}
+                        onChange={(event) => setCategorySearch(event.target.value)}
+                        placeholder="Search categories..."
+                        className="h-10 rounded-full border-zinc-300 bg-white pl-9 text-sm shadow-none focus-visible:ring-blue-600"
+                      />
+                    </div>
+
+                    <div className="mt-3 max-h-44 overflow-y-auto pr-1 scrollbar-modern">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          aria-pressed={filters.category === "all"}
+                          onClick={() => setFilters((prev) => ({ ...prev, category: "all" }))}
+                          className={cn(
+                            "inline-flex h-8 items-center rounded-full border px-3 text-xs font-medium transition-colors",
+                            filters.category === "all"
+                              ? "border-blue-600 bg-blue-600 text-white"
+                              : "border-zinc-300 bg-white text-zinc-600 hover:border-blue-500 hover:text-blue-600"
+                          )}
+                        >
+                          All
+                        </button>
+
+                        {filteredCategoryOptions.map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            title={`${option.label} (${option.count.toLocaleString()})`}
+                            aria-pressed={filters.category === option.value}
+                            onClick={() => setFilters((prev) => ({ ...prev, category: option.value }))}
+                            className={cn(
+                              "inline-flex h-8 max-w-full items-center rounded-full border px-3 text-xs font-medium transition-colors",
+                              filters.category === option.value
+                                ? "border-blue-600 bg-blue-600 text-white"
+                                : "border-zinc-300 bg-white text-zinc-600 hover:border-blue-500 hover:text-blue-600"
+                            )}
+                          >
+                            <span className="max-w-[12rem] truncate">{option.label}</span>
+                          </button>
+                        ))}
+
+                        {filteredCategoryOptions.length === 0 ? (
+                          <span className="inline-flex h-8 items-center rounded-full border border-dashed border-zinc-300 px-3 text-xs text-zinc-400">
+                            No matches
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-zinc-100 pt-3">
+                    <button
+                      type="button"
+                      onClick={resetFilters}
+                      className="text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-950"
+                    >
+                      Reset model
+                    </button>
+                    {allCategoryCount > 0 ? (
+                      <span className="text-[11px] tabular-nums text-zinc-400">
+                        {allCategoryCount.toLocaleString()} categorized
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
               </div>
 
               {selectedEvent && (
@@ -2949,9 +3195,12 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                         >
                           <div className="pr-8">
                             <div className="flex flex-col gap-1.5">
-                              <div className="flex items-center gap-5">
+                              <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
                                 <span className="text-xl font-light tracking-tight text-zinc-950">{item.employeeName || "-"}</span>
-                                <LeadOriginTags originSources={item.originSources} />
+                                <span className="inline-flex min-w-0 flex-wrap items-center gap-1.5">
+                                  <LeadOriginTags originSources={item.originSources} />
+                                  <LeadDepartmentTags departments={getLeadDepartmentTags(item)} />
+                                </span>
                               </div>
                               <span className="max-w-sm text-base font-light leading-relaxed text-zinc-700">{item.title || "-"}</span>
                               <span className="text-xs font-medium text-zinc-400">{item.company || "-"}</span>
@@ -3722,168 +3971,6 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
         </LeadSheetDialog>
       ) : null}
 
-      {filterOpen ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-6">
-          <button
-            type="button"
-            aria-label="Close filters"
-            className="absolute inset-0 bg-zinc-950/30 backdrop-blur-[3px]"
-            onClick={() => setFilterOpen(false)}
-          />
-
-          <div className="relative z-[1] w-full max-w-xl overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_80px_-48px_rgba(2,10,27,0.65)]">
-            <div className="relative p-8 pb-28">
-              <Button
-                type="button"
-                variant="ghost"
-                className="absolute right-5 top-5 h-10 w-10 rounded-full border border-zinc-300 bg-white p-0 text-zinc-500 shadow-none hover:border-zinc-900 hover:bg-white hover:text-zinc-950"
-                onClick={() => setFilterOpen(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-
-              <div className="space-y-10">
-                <div>
-                  <label className="mb-3 block text-xs font-medium text-zinc-400">Status model</label>
-                  <Select
-                    value={filters.status}
-                    onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}
-                  >
-                    <SelectTrigger className="!h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-lg font-light shadow-none transition-colors focus:border-blue-600 focus:ring-0">
-                      <SelectValue placeholder="All statuses" />
-                    </SelectTrigger>
-                    <SelectContent position="popper" className="z-[120] rounded-none border-zinc-300 bg-white shadow-2xl">
-                      <SelectItem value="all">
-                        <span className="flex items-center gap-3">
-                          <span className="ml-1 h-2.5 w-2.5 shrink-0 rounded-full bg-zinc-300" />
-                          All statuses
-                        </span>
-                      </SelectItem>
-                      {statusOptions.map((option) => (
-                        <SelectItem key={option.statusKey} value={option.statusKey}>
-                          <span className="flex items-center gap-3">
-                            <span className={`ml-1 h-2.5 w-2.5 shrink-0 rounded-full ${getStatusDotClass(option.statusKey)}`} />
-                            {option.label}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-4">
-                  <label className="block text-sm font-semibold text-zinc-950">By contact intelligence:</label>
-                  <div className="flex flex-wrap gap-2.5">
-                    {[
-                      { value: "all", label: "All profiles" },
-                      { value: "complete", label: "Email + phone" },
-                      { value: "email", label: "Has email" },
-                      { value: "phone", label: "Has phone" },
-                      { value: "linkedin", label: "Has LinkedIn" },
-                      { value: "website", label: "Has website" },
-                      { value: "missing-contact", label: "Needs contact data" },
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() =>
-                          setFilters((prev) => ({
-                            ...prev,
-                            contact: option.value as LeadFilterState["contact"],
-                          }))
-                        }
-                        className={`inline-flex h-10 items-center rounded-full border px-4 text-sm font-semibold transition-all ${
-                          filters.contact === option.value
-                            ? "border-blue-600 bg-white text-blue-600 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.85)]"
-                            : "border-zinc-300 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <label className="block text-sm font-semibold text-zinc-950">By campaign category:</label>
-                  <div className="rounded-2xl border border-zinc-200 bg-white p-3">
-                    <div className="relative">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                      <Input
-                        value={categorySearch}
-                        onChange={(event) => setCategorySearch(event.target.value)}
-                        placeholder="Search categories..."
-                        className="h-10 rounded-full border-zinc-300 bg-white pl-9 text-sm shadow-none focus-visible:ring-blue-600"
-                      />
-                    </div>
-
-                    <div className="mt-3 pr-1">
-                      <div className="flex flex-wrap gap-2.5">
-                        <button
-                          type="button"
-                          onClick={() => setFilters((prev) => ({ ...prev, category: "all" }))}
-                          className={`inline-flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-all ${
-                            filters.category === "all"
-                              ? "border-blue-600 bg-white text-blue-600 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.85)]"
-                              : "border-zinc-300 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
-                          }`}
-                        >
-                          <span>All categories</span>
-                          {allCategoryCount > 0 ? (
-                            <span className="text-xs font-medium tabular-nums text-zinc-400">
-                              {allCategoryCount.toLocaleString()}
-                            </span>
-                          ) : null}
-                        </button>
-
-                        {filteredCategoryOptions.map((option) => (
-                          <button
-                            key={option.value}
-                            type="button"
-                            title={option.label}
-                            onClick={() => setFilters((prev) => ({ ...prev, category: option.value }))}
-                            className={`inline-flex h-10 max-w-full items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-all ${
-                              filters.category === option.value
-                                ? "border-blue-600 bg-white text-blue-600 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.85)]"
-                                : "border-zinc-300 bg-white text-zinc-950 shadow-[0_7px_18px_-18px_rgba(2,10,27,0.5)] hover:border-blue-500 hover:text-blue-600"
-                            }`}
-                          >
-                            <span className="max-w-[13rem] truncate">{option.label}</span>
-                            <span className="text-xs font-medium tabular-nums text-zinc-400">
-                              {option.count.toLocaleString()}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-
-                      {filteredCategoryOptions.length === 0 ? (
-                        <p className="py-3 text-sm font-light text-zinc-400">No matching categories.</p>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="absolute bottom-8 left-8 right-8 flex items-center justify-between border-t border-zinc-100 pt-6">
-                <button
-                  type="button"
-                  className="border-b border-transparent pb-1 text-sm font-medium text-zinc-400 transition-colors hover:border-zinc-900 hover:text-zinc-950"
-                  onClick={resetFilters}
-                >
-                  Reset model
-                </button>
-                <Button
-                  type="button"
-                  className="h-11 rounded-full border border-blue-500/20 bg-blue-600 px-7 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_-14px_rgba(37,99,235,0.95)] hover:bg-blue-700"
-                  onClick={() => setFilterOpen(false)}
-                >
-                  Apply filters
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       <LeadSheetDialog
         open={templateUploadOpen}
@@ -3899,7 +3986,13 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
             <Select
               value={templateUploadEventId}
               onValueChange={(value) =>
-                setTemplateUpload((prev) => ({ ...prev, selectedEventId: value }))
+                setTemplateUpload((prev) => ({
+                  ...prev,
+                  selectedEventId: value,
+                  file: null,
+                  validation: null,
+                  error: "",
+                }))
               }
               disabled={loadingEvents || templateUpload.validating || templateUpload.submitting}
             >
@@ -3928,6 +4021,34 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
             </Select>
           </div>
 
+          <div>
+            <label className="mb-3 block text-xs font-medium text-zinc-400">
+              Lead type <span aria-hidden="true" className="text-red-500">*</span>
+            </label>
+            <Select
+              value={templateUpload.leadType}
+              onValueChange={(value) =>
+                setTemplateUpload((prev) => ({
+                  ...prev,
+                  leadType: value as LeadType,
+                  file: null,
+                  validation: null,
+                  error: "",
+                }))
+              }
+              disabled={templateUpload.validating || templateUpload.submitting}
+            >
+              <SelectTrigger aria-label="Select lead type" className="!h-12 w-full rounded-none border-0 border-b border-zinc-300 bg-transparent px-0 text-left text-lg font-light shadow-none focus:ring-0">
+                <SelectValue placeholder="Select lead type" />
+              </SelectTrigger>
+              <SelectContent>
+                {LEAD_TYPE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div
             className={cn(
               "group flex min-h-20 items-center gap-3 rounded-2xl border px-4 py-3 transition-all",
@@ -3942,7 +4063,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
               htmlFor="normal-lead-template-upload"
               className={cn(
                 "flex min-w-0 flex-1 items-center gap-4",
-                !selectedTemplateUploadEvent || templateUpload.validating || templateUpload.submitting
+                !selectedTemplateUploadEvent || !templateUpload.leadType || templateUpload.validating || templateUpload.submitting
                   ? "cursor-not-allowed"
                   : "cursor-pointer"
               )}
@@ -3958,12 +4079,12 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
               </span>
               <span className="min-w-0 flex-1 text-left">
                 <span className="block truncate text-sm font-semibold text-zinc-950">
-                  {!selectedTemplateUploadEvent
-                    ? "Select event first"
+                  {!selectedTemplateUploadEvent || !templateUpload.leadType
+                    ? "Select event and lead type first"
                     : templateUpload.file?.name || "Choose Excel template"}
                 </span>
                 <span className="mt-1 block truncate text-xs font-light text-zinc-500">
-                  {!selectedTemplateUploadEvent
+                  {!selectedTemplateUploadEvent || !templateUpload.leadType
                     ? "Only .xlsx files are accepted"
                     : templateUpload.validating
                     ? "Checking workbook"
@@ -3976,11 +4097,12 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                 Choose
               </span>
               <input
+                key={`${templateUpload.selectedEventId}:${templateUpload.leadType}`}
                 id="normal-lead-template-upload"
                 type="file"
                 accept={LEAD_TEMPLATE_ACCEPT}
                 className="sr-only"
-                disabled={!selectedTemplateUploadEvent || templateUpload.validating || templateUpload.submitting}
+                disabled={!selectedTemplateUploadEvent || !templateUpload.leadType || templateUpload.validating || templateUpload.submitting}
                 onChange={(event) => void handleTemplateFileChange(event)}
               />
             </label>

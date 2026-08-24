@@ -115,8 +115,6 @@ type LeadContentSource = "template" | "generated" | "manual" | "empty" | "unknow
 type ContentGenerationQueueStatus = "idle" | "running" | "stopping" | "paused";
 type GenerationFailureStatus = "validator_rejected" | "qa_failed" | "generation_failed";
 
-// const OUTREACH_REQUEST_TIMEOUT_MS = 15_000;
-const OUTREACH_REQUEST_TIMEOUT_MS = 0;
 
 
 type GenerationFailureInfo = {
@@ -1232,7 +1230,7 @@ function SuperAdminCampaignDetailPage() {
   const [emailTemplateId, setEmailTemplateId] = useState<string | null>(null);
   const [emailTemplateSubject, setEmailTemplateSubject] = useState("");
   const [emailTemplateBody, setEmailTemplateBody] = useState("");
-  const [emailTemplateUpdatedAt, setEmailTemplateUpdatedAt] = useState<string | null>(null);
+  const [, setEmailTemplateUpdatedAt] = useState<string | null>(null);
   const [isEmailTemplateLoading, setIsEmailTemplateLoading] = useState(false);
   const [isEmailTemplateSaving, setIsEmailTemplateSaving] = useState(false);
   const [isEmailTemplateDeleting, setIsEmailTemplateDeleting] = useState(false);
@@ -1399,35 +1397,6 @@ function SuperAdminCampaignDetailPage() {
   }
   function isLeadSelectionBlocked(lead: Lead) {
     return isLeadMarketingOptedOut(lead);
-  }
-  function leadSupportsEmailAction(lead: Lead) {
-    return hasText(lead.email);
-  }
-  function leadSupportsWhatsappAction(lead: Lead) {
-    return hasText(lead.phone);
-  }
-  function isLeadEmailActionCompleted(lead: Lead) {
-    return isExecutedOutreachState(buildOutreachStatus(lead).email);
-  }
-  function isLeadWhatsappActionCompleted(lead: Lead) {
-    return isExecutedOutreachState(buildOutreachStatus(lead).whatsapp);
-  }
-  function isLeadFullyActioned(lead: Lead) {
-    const needsEmail = leadSupportsEmailAction(lead);
-    const needsLinkedin = leadSupportsLinkedinAction(lead);
-    const needsWhatsapp = leadSupportsWhatsappAction(lead);
-
-    if (!needsEmail && !needsLinkedin && !needsWhatsapp) return false;
-    if (needsEmail && !isLeadEmailActionCompleted(lead)) return false;
-    if (needsLinkedin && !isLeadLinkedinActionHandedOff(lead)) return false;
-    if (needsWhatsapp && !isLeadWhatsappActionCompleted(lead)) return false;
-    return true;
-  }
-  function isLeadInNewBucket(lead: Lead) {
-    return lead.approvalStatus !== "rejected" && lead.approvalStatus !== "suppressed" && !isLeadFullyActioned(lead);
-  }
-  function isLeadInSentBucket(lead: Lead) {
-    return lead.approvalStatus !== "rejected" && lead.approvalStatus !== "suppressed" && isLeadFullyActioned(lead);
   }
   function getEmailCapabilityDisabledReason(lead: Lead) {
     if (!hasText(lead.email)) return "Lead has no email address.";
@@ -2746,148 +2715,6 @@ function SuperAdminCampaignDetailPage() {
       setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, approvalStatus: "rejected" } : l)));
     } catch (e: any) {
       toast.error("Reject failed", { description: e?.response?.data?.detail || e?.message });
-    }
-  };
-
-  const handleApprove = async (leadId: string, action: LeadSendAction = "both") => {
-    if (!canManageLeadActions) return;
-    const lead = leadById.get(leadId);
-    if (!lead) return;
-
-    const disabledReason =
-      action === "email" || action === "linkedin" ? null : getLeadSendActionDisabledReason(lead, action);
-    if (disabledReason) {
-      toast.warning("Action blocked", {
-        description: disabledReason,
-      });
-      return;
-    }
-
-    try {
-      setLeadSendActionLoading(leadId, action, true);
-      const approveResponse = await api.put(
-        `/api/leads/${leadId}/approve`,
-        action === "email" || action === "linkedin"
-          ? {
-              channel: action,
-              content: {
-                contentEmailSubject: editForm.contentEmailSubject,
-                contentEmail: editForm.contentEmail,
-                contentLinkedin: editForm.contentLinkedin,
-                contentWhatsapp: editForm.contentWhatsapp,
-              },
-            }
-          : {},
-        { timeout: OUTREACH_REQUEST_TIMEOUT_MS }
-      );
-      const approvedLead = approveResponse?.data ?? {};
-      const resolvedStatus = normalizeApprovalStatus(approvedLead.approvalStatus ?? "approved");
-      const resolvedSuppression = normalizeSuppressionMeta(approvedLead.suppression);
-      const suppressedNow =
-        resolvedStatus === "suppressed" ||
-        parseBoolean(approvedLead.isSuppressed) ||
-        parseBoolean(approvedLead.contactReadOnly) ||
-        Boolean(resolvedSuppression?.active);
-      const resolvedSendable =
-        typeof approvedLead.sendable === "boolean"
-          ? approvedLead.sendable
-          : !suppressedNow;
-
-      setLeads((prev) =>
-        prev.map((item) =>
-          item.id === leadId
-            ? {
-              ...item,
-              approvalStatus: resolvedStatus,
-              isSuppressed: suppressedNow,
-              suppression: resolvedSuppression ?? item.suppression ?? null,
-              contactReadOnly: suppressedNow || parseBoolean(approvedLead.contactReadOnly),
-              sendable:
-                typeof approvedLead.sendable === "boolean"
-                  ? approvedLead.sendable
-                  : suppressedNow
-                    ? false
-                    : item.sendable,
-              contentEmailSubject: approvedLead.contentEmailSubject ?? item.contentEmailSubject,
-              contentEmail: approvedLead.contentEmail ?? item.contentEmail,
-              contentLinkedin: approvedLead.contentLinkedin ?? item.contentLinkedin,
-              contentWhatsapp: approvedLead.contentWhatsapp ?? item.contentWhatsapp,
-              channelApprovals:
-                approvedLead.channelApprovals === undefined
-                  ? item.channelApprovals
-                  : normalizeChannelApprovals(approvedLead.channelApprovals),
-              channelCapabilities:
-                normalizeChannelCapabilities(approvedLead.channelCapabilities) ?? item.channelCapabilities ?? null,
-            }
-            : item
-        )
-      );
-      setSelectedLead((current) =>
-        current?.id === leadId
-          ? {
-              ...current,
-              approvalStatus: resolvedStatus,
-              contentEmailSubject: approvedLead.contentEmailSubject ?? current.contentEmailSubject,
-              contentEmail: approvedLead.contentEmail ?? current.contentEmail,
-              contentLinkedin: approvedLead.contentLinkedin ?? current.contentLinkedin,
-              contentWhatsapp: approvedLead.contentWhatsapp ?? current.contentWhatsapp,
-              channelApprovals:
-                approvedLead.channelApprovals === undefined
-                  ? current.channelApprovals
-                  : normalizeChannelApprovals(approvedLead.channelApprovals),
-              channelCapabilities:
-                normalizeChannelCapabilities(approvedLead.channelCapabilities) ?? current.channelCapabilities ?? null,
-            }
-          : current
-      );
-
-      if (suppressedNow) {
-        toast.warning("Lead suppressed", {
-          description: resolvedSuppression?.reason || "This lead is blocked from all marketing messages.",
-        });
-        return;
-      }
-      if (action === "email" || action === "linkedin") {
-        toast.success(action === "email" ? "Cold Email approved" : "LinkedIn message approved");
-        return;
-      }
-      if (!resolvedSendable) {
-        toast.warning("Lead not sendable", {
-          description: "This lead cannot be queued for outreach right now.",
-        });
-        return;
-      }
-
-
-      // ✅ NEW: send by leadId (backend locates latest draft)
-      const approvedLeadState: Lead = {
-        ...lead,
-        approvalStatus: resolvedStatus,
-        isSuppressed: suppressedNow,
-        suppression: resolvedSuppression ?? lead.suppression ?? null,
-        contactReadOnly: suppressedNow || parseBoolean(approvedLead.contactReadOnly),
-        sendable:
-          typeof approvedLead.sendable === "boolean"
-            ? approvedLead.sendable
-            : suppressedNow
-              ? false
-              : lead.sendable,
-        channelCapabilities: normalizeChannelCapabilities(approvedLead.channelCapabilities) ?? lead.channelCapabilities ?? null,
-      };
-
-      await runLeadSendAction(approvedLeadState, action, { manageLoading: false });
-    } catch (e: any) {
-      const detail = String(e?.response?.data?.detail || e?.message || "");
-      if (isMarketingOptOutError(detail)) {
-        toast.warning("Lead is opted out", {
-          description: "This lead is blocked from all marketing messages.",
-        });
-        await fetchAll();
-        return;
-      }
-      toast.error("Approve/send failed", { description: detail });
-    } finally {
-      setLeadSendActionLoading(leadId, action, false);
     }
   };
 
@@ -5307,16 +5134,6 @@ function SuperAdminCampaignDetailPage() {
                       Save
                     </Button>
 
-                    {/* Manual approval is intentionally hidden: active campaign templates are auto-approved.
-                    <Button
-                      className="h-9 bg-emerald-700 px-3.5 text-white hover:bg-emerald-800"
-                      disabled={saving || isResettingContent || isLeadMarketingOptedOut(selectedLead)}
-                      onClick={() => void handleApprove(selectedLead.id, reviewChannel)}
-                    >
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      {reviewChannel === "email" ? "Approve Cold Email" : "Approve LinkedIn"}
-                    </Button>
-                    */}
                   </div>
                 ) : (
                   <div className="flex justify-end gap-3">
