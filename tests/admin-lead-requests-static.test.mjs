@@ -24,6 +24,9 @@ test("admin lead-request details use the specified compact two-column row order"
   assert.match(page, /whitespace-pre-wrap break-words/);
   assert.match(page, /scrollbar-modern/);
   assert.match(page, /tabIndex=\{0\}/);
+  assert.match(page, /flex h-full min-w-0 flex-col/);
+  assert.match(page, /relative mt-2 min-h-0 flex-1/);
+  assert.match(page, /className="h-full sm:col-span-2"/);
 });
 
 test("every rendered lead-request detail provides copy feedback", () => {
@@ -32,6 +35,9 @@ test("every rendered lead-request detail provides copy feedback", () => {
   assert.match(page, /document\.execCommand\("copy"\)/);
   assert.match(page, /onClick=\{\(\) => void copyDetail\(\)\}/);
   assert.match(page, /h-8 w-8/);
+  assert.match(page, /absolute right-3 top-2/);
+  assert.match(page, /py-2 pl-3 pr-14/);
+  assert.doesNotMatch(page, /flex items-center justify-between gap-3/);
   assert.match(page, /title=\{copied \? `\$\{label\} copied` : `Copy \$\{label\}`\}/);
   assert.doesNotMatch(page, /<span>\{copied \? "Copied" : "Copy"\}<\/span>/);
   assert.match(page, /toast\.success\(`\$\{label\} copied`\)/);

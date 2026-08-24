@@ -94,11 +94,21 @@ function Detail({ label, value, long = false }: { label: string; value?: string 
   };
 
   return (
-    <div className="min-w-0">
-      <div className="flex items-center justify-between gap-3">
-        <dt className="min-w-0 truncate text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">
-          {label}
-        </dt>
+    <div className="flex h-full min-w-0 flex-col">
+      <dt className="min-w-0 truncate text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">
+        {label}
+      </dt>
+      <div className="relative mt-2 min-h-0 flex-1">
+        <dd
+          tabIndex={0}
+          aria-label={`${label} details`}
+          className={cn(
+            "h-full overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-zinc-200 bg-zinc-50/70 py-2 pl-3 pr-14 text-sm leading-6 text-zinc-700 scrollbar-modern",
+            long ? "max-h-52" : "max-h-28",
+          )}
+        >
+          {text}
+        </dd>
         <button
           type="button"
           onClick={() => void copyDetail()}
@@ -106,7 +116,7 @@ function Detail({ label, value, long = false }: { label: string; value?: string 
           aria-live="polite"
           title={copied ? `${label} copied` : `Copy ${label}`}
           className={cn(
-            "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
+            "absolute right-3 top-2 inline-flex h-8 w-8 items-center justify-center rounded-md border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
             copied
               ? "border-emerald-200 bg-emerald-50 text-emerald-700"
               : "border-zinc-200 bg-white text-zinc-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700",
@@ -115,16 +125,6 @@ function Detail({ label, value, long = false }: { label: string; value?: string 
           {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
         </button>
       </div>
-      <dd
-        tabIndex={0}
-        aria-label={`${label} details`}
-        className={cn(
-          "mt-2 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-zinc-200 bg-zinc-50/70 px-3 py-2 text-sm leading-6 text-zinc-700 scrollbar-modern",
-          long ? "max-h-52" : "max-h-28",
-        )}
-      >
-        {text}
-      </dd>
     </div>
   );
 }
@@ -279,7 +279,7 @@ export default function AdminLeadRequestsPage() {
                       <Detail label="Location" value={request.location} />
                       <Detail label="Company list" value={request.companyList} long />
                       <Detail label="Target designation" value={request.targetDesignation} long />
-                      <div className="sm:col-span-2">
+                      <div className="h-full sm:col-span-2">
                         <Detail label="ICP" value={request.icp} long />
                       </div>
                       {request.uploadedCampaignId ? <Detail label="Uploaded campaign" value={request.uploadedCampaignId} /> : null}
