@@ -25,10 +25,13 @@ test("mail webhook API client follows the admin backend contract", () => {
   assert.match(api, /export async function createDepartmentMailWebhook/);
   assert.match(api, /export async function updateDepartmentMailWebhook/);
   assert.match(api, /export async function deleteDepartmentMailWebhook/);
+  assert.match(api, /suggestedWebhookName: string/);
+  assert.match(api, /name: string/);
+  assert.match(api, /name: payload\.name\.trim\(\)/);
   assert.match(router, /export const listDepartmentMailWebhooks = sales\.listDepartmentMailWebhooks/);
 });
 
-test("mail webhook settings supports department routing lifecycle and rotation guidance", () => {
+test("mail webhook settings supports named department routing lifecycle and rotation guidance", () => {
   const settings = read("components/settings/OutreachMailWebhookSettings.tsx");
 
   assert.match(settings, /value: "sales"/);
@@ -40,6 +43,12 @@ test("mail webhook settings supports department routing lifecycle and rotation g
   assert.match(settings, /rotate through them sequentially/);
   assert.match(settings, /cannot be registered twice in one department/);
   assert.match(settings, /webhookUrlMasked/);
+  assert.match(settings, /Webhook name/);
+  assert.match(settings, /suggestedWebhookName/);
+  assert.match(settings, /webhook\.name/);
+  assert.match(settings, /openRenameDialog/);
+  assert.match(settings, /Rename mail webhook/);
+  assert.match(settings, /Names are unique across all departments and remain reserved for audit history/);
 });
 
 test("the settings route remains super-admin-only", () => {
