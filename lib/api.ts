@@ -589,6 +589,7 @@ export type DepartmentMailWebhook = {
   id: string;
   department: OutreachDepartment;
   departmentLabel: string;
+  name: string;
   webhookUrlMasked: string;
   isActive: boolean;
   selectionCount: number;
@@ -604,6 +605,7 @@ export type DepartmentMailWebhookDepartmentSummary = {
   label: string;
   webhookCount: number;
   activeWebhookCount: number;
+  suggestedWebhookName: string;
 };
 
 export type ListDepartmentMailWebhooksResponse = {
@@ -614,12 +616,14 @@ export type ListDepartmentMailWebhooksResponse = {
 
 export type CreateDepartmentMailWebhookRequest = {
   department: OutreachDepartment;
+  name: string;
   webhookUrl: string;
   isActive: boolean;
 };
 
 export type UpdateDepartmentMailWebhookRequest = {
   department?: OutreachDepartment;
+  name?: string;
   webhookUrl?: string;
   isActive?: boolean;
 };
@@ -2451,6 +2455,7 @@ export async function createDepartmentMailWebhook(
     "/api/admin/settings/outreach/mail-webhooks",
     {
       department: payload.department,
+      name: payload.name.trim(),
       webhookUrl: payload.webhookUrl.trim(),
       isActive: payload.isActive,
     }
@@ -2464,6 +2469,10 @@ export async function updateDepartmentMailWebhook(
 ) {
   const body = {
     ...payload,
+    name:
+      typeof payload.name === "string"
+        ? payload.name.trim()
+        : undefined,
     webhookUrl:
       typeof payload.webhookUrl === "string"
         ? payload.webhookUrl.trim()
