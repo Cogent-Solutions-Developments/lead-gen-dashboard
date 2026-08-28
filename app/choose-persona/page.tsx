@@ -116,11 +116,11 @@ export default function ChoosePersonaPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Link href="/campaigns">
+          <Link href={isSuperAdmin ? "/admin" : "/campaigns"}>
             <Button
               variant="outline"
               className="h-10 w-10 rounded-xl border-slate-200 bg-white/90 p-0 text-slate-600 shadow-sm hover:bg-blue-50 hover:text-blue-700"
-              aria-label="Go to department workspace"
+              aria-label={isSuperAdmin ? "Go to Admin Panel" : "Go to department workspace"}
             >
               <Home className="h-4 w-4" />
             </Button>
