@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { useState, type CSSProperties } from "react";
 import {
   Activity,
   CalendarDays,
@@ -108,12 +109,16 @@ const adminTabs = [
   },
 ];
 
+const APP_VERSION_LABEL = "v0.3.0";
+
 export function AdminPanelShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
   const isManager = isManagerRole(user?.role);
   const isCeo = isCeoRole(user?.role);
+  const [sidebarHovered, setSidebarHovered] = useState(false);
+  const sidebarExpanded = sidebarHovered;
 
   if (isCeo) {
     return <>{children}</>;
@@ -140,19 +145,44 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
         initial={{ x: -20, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="sidebar-modern fixed left-0 top-0 z-40 hidden h-screen w-72 min-w-0 flex-col overflow-hidden p-5 font-sans text-sidebar-foreground lg:flex"
+        onMouseEnter={() => setSidebarHovered(true)}
+        onMouseLeave={() => setSidebarHovered(false)}
+        className={`sidebar-modern fixed left-0 top-0 z-40 hidden h-screen min-w-0 flex-col overflow-hidden font-sans text-white shadow-[22px_0_45px_-34px_rgba(2,10,27,0.65)] transition-[width,padding] duration-300 ease-out lg:flex ${
+          sidebarExpanded ? "w-72 px-6 py-8" : "w-24 p-6"
+        }`}
       >
-        <div className="mb-8 flex min-w-0 shrink-0 items-center gap-3 px-2">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sidebar-secondary text-sidebar-primary-foreground">
-            <Webhook className="h-5 w-5" />
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-xl font-medium tracking-wide text-sidebar-foreground drop-shadow-sm">supernizo</p>
-            <p className="truncate text-xs text-sidebar-foreground/70">{isManager ? "Manager Panel" : isCeo ? "CEO Panel" : "Admin Panel"}</p>
-          </div>
+        <div
+          className={`pointer-events-none !absolute top-1/2 !z-0 -translate-y-1/2 rotate-12 opacity-40 transition-all duration-300 ${
+            sidebarExpanded ? "-right-40" : "-right-72"
+          }`}
+        >
+          <Webhook aria-hidden="true" className="h-[46rem] w-[46rem] text-white/14" strokeWidth={2} />
         </div>
 
-        <nav className="scrollbar-hide min-w-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
+        <div
+          className={`mb-8 min-h-8 min-w-0 px-1 transition-all duration-300 ${
+            sidebarExpanded ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          <div className="flex min-w-0 items-baseline gap-2 whitespace-nowrap">
+            <span className="text-2xl font-normal tracking-wide text-white">supernizo</span>
+            <span
+              className="text-[1.35rem] font-normal leading-none tracking-wide text-white/78"
+              style={{ fontFamily: '"Bungee Hairline", sans-serif' }}
+            >
+              Lite
+            </span>
+          </div>
+          <span className="mt-1 block text-[10px] font-light tracking-[0.22em] text-white/40">
+            {APP_VERSION_LABEL}
+          </span>
+        </div>
+
+        <nav
+          className={`scrollbar-hide min-w-0 flex-1 overflow-y-auto overflow-x-hidden pt-2 transition-[margin] duration-300 ${
+            sidebarExpanded ? "-mx-4" : "-mx-6"
+          }`}
+        >
           {visibleTabs.map((item, index) => {
             const isActive = item.match(pathname);
             return (
@@ -162,48 +192,98 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.05 * index }}
               >
-                <Link href={item.href}>
-                  <Button
-                    variant="ghost"
-                    className={`h-12 min-w-0 w-full justify-start overflow-hidden rounded-lg border px-3 py-0 text-left text-[15px] font-medium leading-snug transition-all duration-200 ${
+                <Link
+                  href={item.href}
+                  className="group block min-w-0"
+                  aria-label={sidebarExpanded ? undefined : item.name}
+                  title={sidebarExpanded ? undefined : item.name}
+                >
+                  <div
+                    className={`relative flex min-w-0 items-center py-2 transition-all duration-300 ${
                       isActive
-                        ? "sidebar-chip-active"
-                        : "border-transparent bg-transparent text-sidebar-foreground/90 shadow-none hover:border-white/25 hover:bg-white/12 hover:text-sidebar-accent-foreground"
-                    }`}
+                        ? "bg-white/10 text-white"
+                        : "text-white/40 hover:bg-white/5 hover:text-white/80"
+                    } ${sidebarExpanded ? "gap-4 px-5" : "justify-center px-0"}`}
                   >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/6">
-                      <item.icon className="h-[18px] w-[18px]" />
+                    {isActive ? (
+                      <motion.span
+                        layoutId="admin-sidebar-active-bar"
+                        className="absolute left-0 top-1/2 h-8 w-1.5 -translate-y-1/2 rounded-r-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.5)]"
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      />
+                    ) : null}
+
+                    <span
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${
+                        isActive
+                          ? "bg-white/12 text-white"
+                          : "text-white/35 group-hover:bg-white/6 group-hover:text-white/70"
+                      }`}
+                    >
+                      <item.icon className="h-5 w-5" />
                     </span>
-                    <span className="min-w-0 flex-1 truncate">{item.name}</span>
-                  </Button>
+
+                    <span
+                      className={`min-w-0 truncate whitespace-nowrap text-base tracking-tight transition-all duration-200 ${
+                        isActive ? "font-medium" : "font-light"
+                      } ${sidebarExpanded ? "flex-1 opacity-100" : "w-0 overflow-hidden opacity-0"}`}
+                    >
+                      {item.name}
+                    </span>
+                  </div>
                 </Link>
               </motion.div>
             );
           })}
         </nav>
 
-        <div className="mt-auto min-w-0 space-y-2 pt-6">
-          <Link href="/choose-persona">
-            <Button
-              variant="ghost"
-              className="h-10 min-w-0 w-full justify-start overflow-hidden rounded-full bg-transparent px-3 py-0 text-[15px] text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-accent-foreground"
+        <div className="mt-auto flex min-w-0 flex-col gap-3 border-t border-white/10 pt-5">
+          <div className={sidebarExpanded ? "" : "flex justify-center"}>
+            <Link href="/choose-persona">
+              <button
+                type="button"
+                className={`group flex min-w-0 items-center text-sm font-light tracking-tight text-white/40 transition-all hover:text-white ${
+                  sidebarExpanded ? "gap-5 px-2" : "h-8 w-8 justify-center px-0"
+                }`}
+                aria-label={sidebarExpanded ? undefined : user?.username || "Workspaces"}
+                title={sidebarExpanded ? undefined : user?.username || "Workspaces"}
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/5 transition-colors group-hover:bg-white/10">
+                  <UserRound className="h-4 w-4 opacity-50" />
+                </span>
+                <span
+                  className={`min-w-0 truncate whitespace-nowrap transition-all duration-200 ${
+                    sidebarExpanded ? "flex-1 opacity-100" : "w-0 overflow-hidden opacity-0"
+                  }`}
+                >
+                  {user?.username || "Workspaces"}
+                </span>
+              </button>
+            </Link>
+          </div>
+
+          <div className={sidebarExpanded ? "" : "flex justify-center"}>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className={`group flex min-w-0 items-center text-sm font-light tracking-tight text-white/40 transition-all hover:text-white ${
+                sidebarExpanded ? "gap-5 px-2" : "h-8 w-8 justify-center px-0"
+              }`}
+              aria-label={sidebarExpanded ? undefined : "Sign out"}
+              title={sidebarExpanded ? undefined : "Sign out"}
             >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/5">
-                <UserRound className="h-4 w-4" />
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/5 transition-colors group-hover:bg-white/10">
+                <LogOut className="h-4 w-4 opacity-50" />
               </span>
-              <span className="min-w-0 flex-1 truncate text-left">{user?.username || "Workspaces"}</span>
-            </Button>
-          </Link>
-          <Button
-            variant="ghost"
-            onClick={handleSignOut}
-            className="h-10 min-w-0 w-full justify-start overflow-hidden rounded-full bg-transparent px-3 py-0 text-[15px] text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-accent-foreground"
-          >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/5">
-              <LogOut className="h-4 w-4" />
-            </span>
-            <span className="min-w-0 flex-1 truncate text-left">Sign out</span>
-          </Button>
+              <span
+                className={`min-w-0 truncate whitespace-nowrap transition-all duration-200 ${
+                  sidebarExpanded ? "flex-1 opacity-100" : "w-0 overflow-hidden opacity-0"
+                }`}
+              >
+                Sign out
+              </span>
+            </button>
+          </div>
         </div>
       </motion.aside>
 
@@ -251,7 +331,14 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
         </nav>
       </div>
 
-      <main className="min-h-screen overflow-x-hidden bg-transparent p-4 pt-32 sm:p-5 sm:pt-32 lg:ml-72 lg:p-6">{children}</main>
+      <main
+        className={`min-h-screen overflow-x-hidden bg-transparent p-4 pt-32 transition-[margin] duration-300 ease-out sm:p-5 sm:pt-32 lg:p-6 ${
+          sidebarExpanded ? "lg:ml-72" : "lg:ml-24"
+        }`}
+        style={{ "--app-sidebar-width": sidebarExpanded ? "18rem" : "6rem" } as CSSProperties}
+      >
+        {children}
+      </main>
     </>
   );
 }
