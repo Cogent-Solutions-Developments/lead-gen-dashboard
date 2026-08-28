@@ -583,6 +583,56 @@ export type SuppressionMeta = {
   legacy?: boolean;
 };
 
+export type OutreachDepartment = "sales" | "delegate" | "production";
+
+export type DepartmentMailWebhook = {
+  id: string;
+  department: OutreachDepartment;
+  departmentLabel: string;
+  webhookUrlMasked: string;
+  isActive: boolean;
+  selectionCount: number;
+  lastSelectedAt: string | null;
+  source: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+};
+
+export type DepartmentMailWebhookDepartmentSummary = {
+  value: OutreachDepartment;
+  label: string;
+  webhookCount: number;
+  activeWebhookCount: number;
+};
+
+export type ListDepartmentMailWebhooksResponse = {
+  ok: boolean;
+  departments: DepartmentMailWebhookDepartmentSummary[];
+  items: DepartmentMailWebhook[];
+};
+
+export type CreateDepartmentMailWebhookRequest = {
+  department: OutreachDepartment;
+  webhookUrl: string;
+  isActive: boolean;
+};
+
+export type UpdateDepartmentMailWebhookRequest = {
+  department?: OutreachDepartment;
+  webhookUrl?: string;
+  isActive?: boolean;
+};
+
+export type DepartmentMailWebhookMutationResponse = {
+  ok: boolean;
+  webhook: DepartmentMailWebhook;
+};
+
+export type DeleteDepartmentMailWebhookResponse = DepartmentMailWebhookMutationResponse & {
+  deleted: boolean;
+};
+
 export type WhatsAppOptOutItem = {
   id: string;
   scope?: string | null;
@@ -2371,6 +2421,64 @@ export async function listWhatsAppOptOuts(params?: {
             : undefined,
       },
     }
+  );
+  return data;
+}
+
+export async function listDepartmentMailWebhooks(params?: {
+  department?: OutreachDepartment;
+  includeDeleted?: boolean;
+}) {
+  const { data } = await apiClient.get<ListDepartmentMailWebhooksResponse>(
+    "/api/admin/settings/outreach/mail-webhooks",
+    {
+      params: {
+        department: params?.department,
+        includeDeleted:
+          typeof params?.includeDeleted === "boolean"
+            ? params.includeDeleted
+            : undefined,
+      },
+    }
+  );
+  return data;
+}
+
+export async function createDepartmentMailWebhook(
+  payload: CreateDepartmentMailWebhookRequest
+) {
+  const { data } = await apiClient.post<DepartmentMailWebhookMutationResponse>(
+    "/api/admin/settings/outreach/mail-webhooks",
+    {
+      department: payload.department,
+      webhookUrl: payload.webhookUrl.trim(),
+      isActive: payload.isActive,
+    }
+  );
+  return data;
+}
+
+export async function updateDepartmentMailWebhook(
+  webhookId: string,
+  payload: UpdateDepartmentMailWebhookRequest
+) {
+  const body = {
+    ...payload,
+    webhookUrl:
+      typeof payload.webhookUrl === "string"
+        ? payload.webhookUrl.trim()
+        : undefined,
+  };
+  const { data } = await apiClient.patch<DepartmentMailWebhookMutationResponse>(
+    `/api/admin/settings/outreach/mail-webhooks/${encodeURIComponent(webhookId)}`,
+    body
+  );
+  return data;
+}
+
+export async function deleteDepartmentMailWebhook(webhookId: string) {
+  const { data } = await apiClient.delete<DeleteDepartmentMailWebhookResponse>(
+    `/api/admin/settings/outreach/mail-webhooks/${encodeURIComponent(webhookId)}`
   );
   return data;
 }
