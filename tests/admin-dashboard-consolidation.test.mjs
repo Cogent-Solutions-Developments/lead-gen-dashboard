@@ -25,7 +25,10 @@ test("super admins have one dashboard route while department workspaces remain a
   assert.match(appShell, /isSuperAdmin && pathname === "\/dashboard"/);
   assert.match(appShell, /isSuperAdmin && pathname === "\/dashboard"[\s\S]*?router\.replace\("\/campaigns"\)/);
   assert.match(chooser, /setPersona\(next\);\s*router\.push\("\/campaigns"\)/);
-  assert.match(chooser, /<Link href="\/campaigns">[\s\S]*?aria-label="Go to department workspace"/);
+  assert.match(chooser, /<Link href=\{isSuperAdmin \? "\/admin" : "\/campaigns"\}>[\s\S]*?aria-label=\{isSuperAdmin \? "Go to Admin Panel" : "Go to department workspace"\}/);
+  assert.match(chooser, /bg-slate-50/);
+  assert.match(chooser, /w-\[46%\] bg-blue-600\/5 \[clip-path:polygon\(18%_0,100%_0,100%_100%,0_100%\)\]/);
+  assert.doesNotMatch(chooser, /PersonaRippleBackground|persona-ripple|workspace-topographic-background-matte/);
   assert.match(sidebar, /if \(isSuperAdmin\) \{\s*return item\.href !== "\/dashboard"/);
   assert.match(sidebar, /name: "Campaigns"[\s\S]*?name: "New Campaign"[\s\S]*?name: "Upload Campaign"[\s\S]*?name: "CS Database"[\s\S]*?name: "Admin Panel"/);
 });
