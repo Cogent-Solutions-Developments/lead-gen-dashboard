@@ -63,7 +63,7 @@ import {
   uploadCampaignCommonAttachment,
 } from "@/lib/apiRouter";
 import { consumeCampaignUploadSummary } from "@/lib/campaignUploadSummary";
-import { resolveCampaignMessageApproval } from "@/lib/campaignMessageApproval";
+import { hasCampaignMessageContent, resolveCampaignMessageApproval } from "@/lib/campaignMessageApproval";
 import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -1404,7 +1404,7 @@ function SuperAdminCampaignDetailPage() {
 
     const capability = lead.channelCapabilities?.email;
     if (!capability) return null;
-    if (capability.sendable === false) {
+    if (capability.sendable === false && !hasCampaignMessageContent(lead, "email")) {
       return "Email is not currently sendable for this lead.";
     }
 
@@ -1432,7 +1432,9 @@ function SuperAdminCampaignDetailPage() {
     if (!capability) return "LinkedIn sending is not supported by the server.";
     if (capability.enabled === false) return "HeyReach API is not configured on the server.";
     if (capability.campaignConfigured === false) return "HeyReach campaign ID is not configured.";
-    if (capability.sendable === false) return "LinkedIn is not currently sendable for this lead.";
+    if (capability.sendable === false && !hasCampaignMessageContent(lead, "linkedin")) {
+      return "LinkedIn is not currently sendable for this lead.";
+    }
     return null;
   }
 
@@ -2132,8 +2134,7 @@ function SuperAdminCampaignDetailPage() {
 
   const handleSendLeadAction = async (lead: Lead, action: LeadSendAction) => {
     if (!canManageLeadActions) return;
-    const disabledReason =
-      action === "email" || action === "linkedin" ? null : getLeadSendActionDisabledReason(lead, action);
+    const disabledReason = getLeadSendActionDisabledReason(lead, action);
     if (disabledReason) {
       toast.warning("Action blocked", { description: disabledReason });
       return;

@@ -31,11 +31,11 @@ test("campaign message approval is delegated to the shared content-aware resolve
 });
 
 test("generated and manually saved channel content is ready without template auto-approval", async () => {
-  const { resolveCampaignMessageApproval } = await import(
+  const { hasCampaignMessageContent, resolveCampaignMessageApproval } = await import(
     pathToFileURL(resolve(root, "lib/campaignMessageApproval.ts")).href
   );
 
-  for (const contentSource of ["generated", "manual"]) {
+  for (const contentSource of ["generated", "manual", "unknown", undefined]) {
     assert.equal(
       resolveCampaignMessageApproval(
         {
@@ -61,6 +61,9 @@ test("generated and manually saved channel content is ready without template aut
       "approved",
     );
   }
+
+  assert.equal(hasCampaignMessageContent({ contentEmail: "A personalized message" }, "email"), true);
+  assert.equal(hasCampaignMessageContent({ contentLinkedin: "   " }, "linkedin"), false);
 });
 
 test("content-aware approval keeps production safety gates intact", async () => {
@@ -88,17 +91,36 @@ test("content-aware approval keeps production safety gates intact", async () => 
   );
   assert.equal(
     resolveCampaignMessageApproval(
-      { approvalStatus: "approved", contentSource: "unknown" },
+      { approvalStatus: "approved" },
       "email",
     ),
     "approved",
   );
   assert.equal(
     resolveCampaignMessageApproval(
-      { approvalStatus: "approved", contentSource: "unknown" },
+      { approvalStatus: "approved" },
       "linkedin",
     ),
     "pending",
+  );
+});
+
+test("row actions use real content to bypass stale approval capability flags", () => {
+  assert.match(
+    campaignPage,
+    /capability\.sendable === false && !hasCampaignMessageContent\(lead, "email"\)/,
+  );
+  assert.match(
+    campaignPage,
+    /capability\.sendable === false && !hasCampaignMessageContent\(lead, "linkedin"\)/,
+  );
+  assert.match(
+    campaignPage,
+    /const disabledReason = getLeadSendActionDisabledReason\(lead, action\);/,
+  );
+  assert.doesNotMatch(
+    campaignPage,
+    /action === "email" \|\| action === "linkedin" \? null : getLeadSendActionDisabledReason/,
   );
 });
 
