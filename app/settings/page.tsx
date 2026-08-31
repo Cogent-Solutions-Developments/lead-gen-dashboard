@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AdminPanelShell } from "@/components/layout/AdminPanelShell";
-import { User, Key, ShieldOff, RefreshCw, UploadCloud, Activity } from "lucide-react";
+import { ShieldOff, RefreshCw, UploadCloud, Activity, ChevronRight, Database, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import {
   createWhatsAppOptOut,
@@ -150,10 +150,6 @@ export default function SettingsPage() {
 
   const activeCount = useMemo(() => optOutRows.filter((row) => row.isActive).length, [optOutRows]);
 
-  const handleSave = () => {
-    toast.success("Settings saved successfully!");
-  };
-
   return (
     <AdminPanelShell>
     <div>
@@ -164,7 +160,7 @@ export default function SettingsPage() {
       >
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
-          <p className="text-slate-500">Manage your account settings</p>
+          <p className="text-slate-500">Manage system controls and channel safety</p>
         </div>
         <Link href="/settings/system-monitor">
           <Button
@@ -179,72 +175,41 @@ export default function SettingsPage() {
       </motion.div>
 
       <div className="space-y-6">
-        {/* Profile */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <Card className="max-w-2xl p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
-                <User className="h-5 w-5 text-blue-600" />
+          <Link
+            href="/settings/content-generation"
+            aria-label="Open Content Generation settings"
+            className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+          >
+            <Card className="overflow-hidden border-slate-200 bg-gradient-to-br from-white via-white to-blue-50/70 p-0 shadow-sm transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-blue-300 group-hover:shadow-md">
+              <div className="flex flex-col justify-between gap-5 p-6 sm:flex-row sm:items-center">
+                <div className="flex min-w-0 items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm shadow-blue-200">
+                    <Sparkles className="h-6 w-6" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-lg font-semibold text-slate-950">Content Generation</h2>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-200">
+                        <Database className="h-3 w-3" />DB managed
+                      </span>
+                    </div>
+                    <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
+                      Configure cost guardrails and inspect live runs, checkpoints, pause/resume state, and usage efficiency.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2 text-sm font-semibold text-blue-700">
+                  Open control center
+                  <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </div>
               </div>
-              <div>
-                <h2 className="font-semibold text-slate-900">Profile</h2>
-                <p className="text-sm text-slate-500">Your account information</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Company Name
-                </label>
-                <Input defaultValue="Cogent Solutions" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Email
-                </label>
-                <Input type="email" defaultValue="admin@cogentsolutions.com" />
-              </div>
-            </div>
-          </Card>
-        </motion.div>
-
-        {/* API Keys */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Card className="max-w-2xl p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100">
-                <Key className="h-5 w-5 text-amber-600" />
-              </div>
-              <div>
-                <h2 className="font-semibold text-slate-900">API Keys</h2>
-                <p className="text-sm text-slate-500">Connect your services</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  OpenAI API Key
-                </label>
-                <Input type="password" placeholder="sk-..." />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Browserflow API Key
-                </label>
-                <Input type="password" placeholder="bf-..." />
-              </div>
-            </div>
-          </Card>
+            </Card>
+          </Link>
         </motion.div>
 
         {/* Marketing Opt-out */}
@@ -403,17 +368,6 @@ export default function SettingsPage() {
           </Card>
         </motion.div>
 
-        {/* Save Button */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="flex justify-end"
-        >
-          <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
-            Save Changes
-          </Button>
-        </motion.div>
       </div>
     </div>
     </AdminPanelShell>
