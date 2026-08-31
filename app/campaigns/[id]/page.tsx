@@ -63,6 +63,7 @@ import {
   uploadCampaignCommonAttachment,
 } from "@/lib/apiRouter";
 import { consumeCampaignUploadSummary } from "@/lib/campaignUploadSummary";
+import { hasCampaignMessageContent, resolveCampaignMessageApproval } from "@/lib/campaignMessageApproval";
 import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -1403,16 +1404,14 @@ function SuperAdminCampaignDetailPage() {
 
     const capability = lead.channelCapabilities?.email;
     if (!capability) return null;
-    if (capability.sendable === false) {
+    if (capability.sendable === false && !hasCampaignMessageContent(lead, "email")) {
       return "Email is not currently sendable for this lead.";
     }
 
     return null;
   }
   function getChannelApprovalStatus(lead: Lead, channel: "email" | "linkedin"): ChannelApprovalStatus {
-    const persisted = lead.channelApprovals?.[channel];
-    if (persisted) return persisted;
-    return channel === "email" && lead.approvalStatus === "approved" ? "approved" : "pending";
+    return resolveCampaignMessageApproval(lead, channel);
   }
   function getWhatsappCapabilityDisabledReason(lead: Lead) {
     if (!hasText(lead.phone)) return "Lead has no phone number.";
@@ -1433,7 +1432,9 @@ function SuperAdminCampaignDetailPage() {
     if (!capability) return "LinkedIn sending is not supported by the server.";
     if (capability.enabled === false) return "HeyReach API is not configured on the server.";
     if (capability.campaignConfigured === false) return "HeyReach campaign ID is not configured.";
-    if (capability.sendable === false) return "LinkedIn is not currently sendable for this lead.";
+    if (capability.sendable === false && !hasCampaignMessageContent(lead, "linkedin")) {
+      return "LinkedIn is not currently sendable for this lead.";
+    }
     return null;
   }
 
@@ -2133,8 +2134,7 @@ function SuperAdminCampaignDetailPage() {
 
   const handleSendLeadAction = async (lead: Lead, action: LeadSendAction) => {
     if (!canManageLeadActions) return;
-    const disabledReason =
-      action === "email" || action === "linkedin" ? null : getLeadSendActionDisabledReason(lead, action);
+    const disabledReason = getLeadSendActionDisabledReason(lead, action);
     if (disabledReason) {
       toast.warning("Action blocked", { description: disabledReason });
       return;
@@ -5068,7 +5068,7 @@ function SuperAdminCampaignDetailPage() {
               <div className="relative z-[2] flex flex-col gap-3 border-t border-zinc-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-1">
                   <p className="text-xs text-zinc-500">
-                    Saving keeps this review editable. Active template content is ready for its configured outreach channel.
+                    Saving keeps this review editable. Generated, manually saved, and template content are ready for their configured outreach channel.
                   </p>
                   {isLeadMarketingOptedOut(selectedLead) ? (
                     <p className="text-xs font-medium text-rose-600">
