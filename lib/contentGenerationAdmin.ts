@@ -3,10 +3,17 @@ import { getLocalDevNgrokHeaders } from "@/lib/devNgrok";
 
 export type ContentGenerationConfiguration = {
   maxLeadsPerRun: number;
+  maxCampaignLeads: number;
   maxRequestsPerLead: number;
   maxTotalTokensPerRun: number;
   maxOutputTokens: number;
   maxToolCalls: number;
+  maxCostPerLeadUsd: number;
+  maxCampaignCostUsd: number;
+  validatorModel: string;
+  writerModel: string;
+  qaModel: string;
+  promptCacheEnabled: boolean;
   checkpointRetentionDays: number;
   leadLeaseSeconds: number;
   runLeaseSeconds: number;
@@ -17,6 +24,8 @@ export type ContentGenerationConfiguration = {
   derivedLimits: {
     maxProviderRequestsPerRun: number;
     maxTheoreticalOutputTokens: number;
+    maximumCampaignBatches: number;
+    pricingSnapshot: string;
   };
 };
 
@@ -25,8 +34,8 @@ export type ContentGenerationConfigChange = {
   version: number;
   changedByUserId?: string | null;
   changedByUsername: string;
-  previousValues: Record<string, number>;
-  currentValues: Record<string, number>;
+  previousValues: Record<string, unknown>;
+  currentValues: Record<string, unknown>;
   createdAt?: string | null;
 };
 
@@ -60,6 +69,11 @@ export type ContentGenerationRun = {
     tokenLimit: number;
     tokenUtilization: number;
     toolCalls: number;
+    estimatedCostMicrousd: number;
+    estimatedCostUsd: number;
+    costLimitMicrousd: number;
+    costLimitUsd: number;
+    costUtilization: number;
   };
   createdAt?: string | null;
   updatedAt?: string | null;
@@ -83,22 +97,67 @@ export type ContentGenerationOverview = {
     outputTokens: number;
     totalTokens: number;
     toolCalls: number;
+    estimatedCostMicrousd: number;
+    estimatedCostUsd: number;
     cachedInputRate: number;
     requestBudgetUtilization: number;
     tokenBudgetUtilization: number;
+    costBudgetUtilization: number;
   };
   dailyUsage: Array<{
     date: string;
     runs: number;
     requests: number;
     tokens: number;
+    estimatedCostMicrousd: number;
+    estimatedCostUsd: number;
     budgetStops: number;
   }>;
   stateDistribution: Array<{ state: string; count: number }>;
   pipelineDistribution: Array<{ pipeline: string; count: number }>;
   activeStageFlow: Array<{ stage: string; state: string; count: number }>;
   activeCheckpoints: Array<{ node: string; state: string; count: number }>;
+  activeBatches: Array<{ state: string; count: number }>;
   recentRuns: ContentGenerationRun[];
+};
+
+export type ContentGenerationUsageSnapshot = {
+  requests: number;
+  inputTokens: number;
+  cachedInputTokens: number;
+  outputTokens: number;
+  toolCalls: number;
+  estimatedCostMicrousd: number;
+};
+
+export type ContentGenerationBatch = {
+  id: string;
+  number: number;
+  leadCount: number;
+  state: string;
+  attempts: number;
+  usage: Partial<{
+    startedWith: ContentGenerationUsageSnapshot;
+    finishedWith: ContentGenerationUsageSnapshot;
+    delta: ContentGenerationUsageSnapshot;
+  }>;
+  error: string;
+  startedAt?: string | null;
+  updatedAt?: string | null;
+  finishedAt?: string | null;
+};
+
+export type ContentGenerationRunDetails = {
+  run: ContentGenerationRun;
+  tracking: {
+    leadStates: Record<string, number>;
+    batches: {
+      total: number;
+      states: Record<string, number>;
+      items: ContentGenerationBatch[];
+    };
+    checkpointStates: Record<string, number>;
+  };
 };
 
 export type ContentGenerationConfigurationUpdate = Omit<
@@ -158,5 +217,11 @@ export function getContentGenerationOverview(days = 14, recentLimit = 8) {
   const query = new URLSearchParams({ days: String(days), recentLimit: String(recentLimit) });
   return adminRequest<ContentGenerationOverview>(
     `/api/admin/content-generation/overview?${query.toString()}`,
+  );
+}
+
+export function getContentGenerationRunDetails(jobId: string) {
+  return adminRequest<ContentGenerationRunDetails>(
+    `/api/admin/content-generation/runs/${encodeURIComponent(jobId)}`,
   );
 }

@@ -28,6 +28,7 @@ test("content generation settings use authenticated admin configuration and over
   assert.match(api, /\/api\/admin\/content-generation\/configuration/);
   assert.match(api, /method: "PUT"/);
   assert.match(api, /\/api\/admin\/content-generation\/overview/);
+  assert.match(api, /\/api\/admin\/content-generation\/runs\/\$\{encodeURIComponent\(jobId\)\}/);
   assert.match(api, /expectedVersion: number/);
 });
 
@@ -40,14 +41,36 @@ test("control center exposes durable limits, visual tracking, and recovery state
   assert.match(center, /setInterval\(\(\) => void load\(true\), 30000\)/);
   assert.match(center, /status\?: number[\s\S]*?=== 409\) await load\(true, true\)/);
   assert.match(center, /Save guardrails/);
-  assert.match(center, />Usage</);
+  assert.match(center, />Spend & usage</);
   assert.match(center, />Outcomes</);
   assert.match(center, />Stage flow</);
   assert.match(center, /Atomic checkpoint ledger/);
   assert.match(center, /Atomic recovery/);
+  assert.match(center, /Campaign batch queue/);
+  assert.match(center, /Batch execution plan/);
+  assert.match(center, /Cost budget used/);
   assert.match(center, />Recent runs</);
   assert.match(center, /Recent configuration changes/);
   assert.match(center, /maxLeadsPerRun[\s\S]*?max: 1000/);
+  assert.match(center, /maxCampaignLeads[\s\S]*?max: 100000/);
   assert.match(center, /maxRequestsPerLead[\s\S]*?max: 25/);
   assert.match(center, /maxTotalTokensPerRun[\s\S]*?max: 20000000/);
+  assert.match(center, /maxCostPerLeadUsd[\s\S]*?max: 1/);
+  assert.match(center, /maxCampaignCostUsd[\s\S]*?max: 10000/);
+  assert.match(center, /validatorModel/);
+  assert.match(center, /writerModel/);
+  assert.match(center, /qaModel/);
+  assert.match(center, /promptCacheEnabled/);
+});
+
+test("campaign generation feedback reports the durable backend batch plan", () => {
+  const api = read("lib/api.ts");
+  const campaigns = read("app/campaigns/page.tsx");
+  const campaign = read("app/campaigns/[id]/page.tsx");
+
+  assert.match(api, /batchSize\?: number/);
+  assert.match(api, /totalBatches\?: number/);
+  assert.match(campaigns, /durable batch/);
+  assert.match(campaign, /durable batch/);
+  assert.doesNotMatch(campaigns, /one sequential content worker/);
 });

@@ -477,6 +477,8 @@ export type GenerateSelectedLeadContentResponse = {
   jobId?: string | null;
   taskId?: string | null;
   queue?: string | null;
+  batchSize?: number;
+  totalBatches?: number;
 };
 
 export type CancelContentGenerationJobResponse = {

@@ -2484,7 +2484,7 @@ function SuperAdminCampaignDetailPage() {
       if (response?.queued) {
         resetContentGenerationQueue();
         toast.success("Content generation queued", {
-          description: `${leadIds.length} lead${leadIds.length === 1 ? "" : "s"} sent to the content generation worker.`,
+          description: `${leadIds.length} lead${leadIds.length === 1 ? "" : "s"} queued in ${response.totalBatches ?? 1} durable batch${(response.totalBatches ?? 1) === 1 ? "" : "es"}${response.batchSize ? ` of up to ${response.batchSize}` : ""}.`,
         });
         await fetchAll({ silent: true, syncSelectedLeadId: options?.syncSelectedLeadId });
         return;

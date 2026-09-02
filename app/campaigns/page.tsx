@@ -930,7 +930,7 @@ function SuperAdminCampaignsPage() {
           jobId: response.jobId || null,
         });
         toast.success("Content generation queued", {
-          description: `${queued} lead${queued === 1 ? "" : "s"} sent to one sequential content worker.`,
+          description: `${queued} lead${queued === 1 ? "" : "s"} queued in ${response.totalBatches ?? 1} durable batch${(response.totalBatches ?? 1) === 1 ? "" : "es"}${response.batchSize ? ` of up to ${response.batchSize}` : ""}.`,
         });
         await fetchData({ silent: true, showErrors: false });
         await loadCampaignContentSummary(campaignId, { silent: true });
