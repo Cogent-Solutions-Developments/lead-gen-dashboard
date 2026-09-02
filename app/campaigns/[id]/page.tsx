@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { Suspense, useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { AxiosInstance } from "axios";
 import { Card } from "@/components/ui/card";
@@ -38,7 +38,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   approveSelectedCampaignLeads,
   deleteCampaignEmailTemplate,
@@ -66,6 +66,11 @@ import { consumeCampaignUploadSummary } from "@/lib/campaignUploadSummary";
 import { hasCampaignMessageContent, resolveCampaignMessageApproval } from "@/lib/campaignMessageApproval";
 import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  buildCampaignListReturnHref,
+  CAMPAIGN_RETURN_PAGE_QUERY_PARAM,
+  parseCampaignPageParam,
+} from "@/lib/campaignNavigation";
 
 // -----------------------------
 // Custom LinkedIn Icon
@@ -81,6 +86,20 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
     <path d="M12.04 2C6.5 2 2 6.4 2 11.84c0 1.93.58 3.81 1.67 5.43L2.28 22l4.94-1.29a10.15 10.15 0 004.82 1.21h.01c5.54 0 10.04-4.4 10.04-9.84C22.09 6.4 17.59 2 12.04 2zm0 18.18h-.01a8.43 8.43 0 01-4.28-1.16l-.31-.18-2.94.77.79-2.84-.2-.33a8.08 8.08 0 01-1.27-4.36c0-4.47 3.69-8.11 8.22-8.11 2.2 0 4.26.84 5.81 2.37a8 8 0 012.41 5.73c0 4.47-3.69 8.11-8.22 8.11zm4.5-6.02c-.25-.12-1.49-.73-1.72-.81-.23-.08-.4-.12-.57.12-.17.24-.65.81-.8.97-.15.16-.29.18-.54.06-.25-.12-1.05-.38-2-1.2-.74-.64-1.24-1.44-1.38-1.68-.15-.24-.02-.37.11-.49.12-.12.25-.3.37-.45.12-.14.16-.24.25-.4.08-.16.04-.3-.02-.42-.06-.12-.57-1.36-.78-1.86-.21-.5-.43-.43-.57-.44h-.49c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2 0 1.18.86 2.32.98 2.48.12.16 1.69 2.68 4.16 3.65 2.48.97 2.48.65 2.92.61.44-.04 1.49-.61 1.7-1.2.21-.59.21-1.09.15-1.2-.06-.1-.23-.16-.48-.28z" />
   </svg>
 );
+
+function BackToCampaignsLink({ campaignId }: { campaignId: string }) {
+  const searchParams = useSearchParams();
+  const returnPage = parseCampaignPageParam(searchParams.get(CAMPAIGN_RETURN_PAGE_QUERY_PARAM));
+
+  return (
+    <Link href={buildCampaignListReturnHref(returnPage, campaignId)}>
+      <Button className="analytics-frost-btn h-9 px-3.5">
+        <ArrowLeft className="h-4 w-4" />
+        Back to Campaigns
+      </Button>
+    </Link>
+  );
+}
 
 type ApprovalStatus = "pending" | "approved" | "rejected" | "suppressed";
 type ChannelApprovalStatus = "pending" | "approved" | "rejected";
@@ -3414,12 +3433,16 @@ function SuperAdminCampaignDetailPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 self-start">
-            <Link href="/campaigns">
-              <Button className="analytics-frost-btn h-9 px-3.5">
-                <ArrowLeft className="h-4 w-4" />
-                Back to Campaigns
-              </Button>
-            </Link>
+            <Suspense
+              fallback={
+                <Button className="analytics-frost-btn h-9 px-3.5" disabled>
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to Campaigns
+                </Button>
+              }
+            >
+              <BackToCampaignsLink campaignId={campaignId} />
+            </Suspense>
           </div>
         </div>
 

@@ -42,6 +42,14 @@ import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
 import { CampaignActionDialog } from "@/components/campaigns/CampaignActionDialog";
 import { NormalUserEventsPage } from "@/components/events/NormalUserEventsPage";
+import {
+  buildCampaignDetailHref,
+  CAMPAIGN_PAGE_QUERY_PARAM,
+  CAMPAIGN_SELECTED_QUERY_PARAM,
+  didCampaignFiltersChange,
+  parseCampaignPageParam,
+  type CampaignFilterSnapshot,
+} from "@/lib/campaignNavigation";
 
 const statusConfig: Record<
   string,
@@ -93,7 +101,6 @@ const filterOnlyStatuses = [
 
 const CAMPAIGN_LIST_POLL_MS = 30000;
 const CONTENT_JOB_ACTIVE_STATES = new Set(["PENDING", "STARTED", "PROGRESS", "RETRY"]);
-const CAMPAIGN_PAGE_QUERY_PARAM = "page";
 
 type CampaignContentGenerationStatus = "preparing" | "running" | "stopping" | "paused";
 
@@ -118,12 +125,6 @@ type CampaignContentSummary = {
   emptyLeadIds: string[];
   error?: string | null;
 };
-
-function parseCampaignPageParam(value: string | null) {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return 1;
-  return Math.max(1, Math.floor(parsed));
-}
 
 function hasText(value: unknown) {
   return String(value ?? "").trim().length > 0;
@@ -383,6 +384,7 @@ function SuperAdminCampaignsPage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const initialPage = parseCampaignPageParam(searchParams.get(CAMPAIGN_PAGE_QUERY_PARAM));
+  const selectedCampaignId = searchParams.get(CAMPAIGN_SELECTED_QUERY_PARAM);
   const [items, setItems] = useState<CampaignListItem[]>([]);
   const [totalItems, setTotalItems] = useState(0);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
@@ -411,9 +413,10 @@ function SuperAdminCampaignsPage() {
   const { isSuperAdmin } = useAuth();
   const filterPanelRef = useRef<HTMLDivElement | null>(null);
   const listViewportRef = useRef<HTMLDivElement | null>(null);
+  const selectedCampaignRowRef = useRef<HTMLDivElement | null>(null);
   const contentGenerationControllersRef = useRef<Map<string, AbortController>>(new Map());
   const contentGenerationStopRequestedRef = useRef<Set<string>>(new Set());
-  const didMountFilterResetRef = useRef(false);
+  const previousCampaignFiltersRef = useRef<CampaignFilterSnapshot | null>(null);
 
   const replaceCampaignPage = useCallback(
     (page: number) => {
@@ -428,6 +431,7 @@ function SuperAdminCampaignsPage() {
       } else {
         params.set(CAMPAIGN_PAGE_QUERY_PARAM, String(nextPage));
       }
+      params.delete(CAMPAIGN_SELECTED_QUERY_PARAM);
 
       const nextQuery = params.toString();
       router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
@@ -439,6 +443,11 @@ function SuperAdminCampaignsPage() {
     const pageFromUrl = parseCampaignPageParam(searchParams.get(CAMPAIGN_PAGE_QUERY_PARAM));
     setCurrentPage((prev) => (prev === pageFromUrl ? prev : pageFromUrl));
   }, [searchParams]);
+
+  useEffect(() => {
+    if (loading || !selectedCampaignId) return;
+    selectedCampaignRowRef.current?.scrollIntoView({ block: "nearest" });
+  }, [loading, selectedCampaignId]);
 
   const fetchData = useCallback(async (options?: { silent?: boolean; showErrors?: boolean }) => {
     const silent = Boolean(options?.silent);
@@ -648,12 +657,17 @@ function SuperAdminCampaignsPage() {
     statusFilter !== "all" || categoryFilter !== "all" || searchQuery.trim().length > 0;
 
   useEffect(() => {
-    if (!didMountFilterResetRef.current) {
-      didMountFilterResetRef.current = true;
-      return;
-    }
+    const nextFilters: CampaignFilterSnapshot = {
+      status: statusFilter,
+      category: categoryFilter,
+      search: searchQuery,
+    };
+    const previousFilters = previousCampaignFiltersRef.current;
+    previousCampaignFiltersRef.current = nextFilters;
 
-    replaceCampaignPage(1);
+    if (didCampaignFiltersChange(previousFilters, nextFilters)) {
+      replaceCampaignPage(1);
+    }
   }, [categoryFilter, replaceCampaignPage, searchQuery, statusFilter]);
 
   useEffect(() => {
@@ -1429,15 +1443,23 @@ function SuperAdminCampaignsPage() {
                   contentSummaryTotal > 0 &&
                   emptyContentCount > 0 &&
                   emptyContentCount < contentSummaryTotal;
+                const isSelectedCampaign = campaign.id === selectedCampaignId;
 
                 return (
                   <motion.div
                     key={campaign.id}
-                    initial={{ opacity: 0, y: 8 }}
+                    ref={isSelectedCampaign ? selectedCampaignRowRef : undefined}
+                    initial={isSelectedCampaign ? false : { opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.04 }}
+                    transition={{ delay: isSelectedCampaign ? 0 : index * 0.04 }}
                     data-campaign-row="true"
-                    className="group border-b border-zinc-300/75 transition-colors hover:bg-white/30 last:border-b-0"
+                    data-selected={isSelectedCampaign ? "true" : undefined}
+                    aria-current={isSelectedCampaign ? "true" : undefined}
+                    className={`group border-b border-zinc-300/75 transition-[background-color,box-shadow] last:border-b-0 ${
+                      isSelectedCampaign
+                        ? "bg-blue-50/75 shadow-[inset_4px_0_0_#2563eb,inset_0_0_0_1px_rgba(37,99,235,0.18)] dark:bg-blue-950/45 dark:shadow-[inset_4px_0_0_#60a5fa,inset_0_0_0_1px_rgba(96,165,250,0.34)]"
+                        : "hover:bg-white/30"
+                    }`}
                   >
                     <div className="grid gap-5 px-6 py-4 md:min-h-[9.75rem] md:grid-cols-[minmax(0,1fr)_minmax(250px,0.95fr)_max-content] md:items-start">
                       <div className="min-w-0">
@@ -1451,6 +1473,12 @@ function SuperAdminCampaignsPage() {
                             {s.label}
                           </Badge>
 
+                          {isSelectedCampaign ? (
+                            <Badge className="rounded-full border border-blue-300/80 bg-blue-100/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-blue-800 shadow-none dark:border-blue-700/80 dark:bg-blue-950/90 dark:text-blue-200">
+                              Selected
+                            </Badge>
+                          ) : null}
+
                           {category ? (
                             <>
                               <span className="h-4 w-px bg-zinc-300/80" aria-hidden="true" />
@@ -1462,7 +1490,7 @@ function SuperAdminCampaignsPage() {
 
                         </div>
 
-                        <Link href={`/campaigns/${campaign.id}`} className="block">
+                        <Link href={buildCampaignDetailHref(campaign.id, currentPage)} className="block">
                           <h3 className="truncate text-base font-semibold text-zinc-900 transition-colors hover:text-blue-700">
                             {campaign.name}
                           </h3>
@@ -1623,7 +1651,7 @@ function SuperAdminCampaignsPage() {
                             </Button>
                           ) : null}
 
-                          <Link href={`/campaigns/${campaign.id}`}>
+                          <Link href={buildCampaignDetailHref(campaign.id, currentPage)}>
                             <Button
                               className="h-9 rounded-md border border-zinc-300/80 bg-white/82 px-3.5 text-xs font-semibold text-zinc-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
                             >
