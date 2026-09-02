@@ -12,7 +12,7 @@ test("settings links to a dedicated content generation control center", () => {
   assert.match(settings, />Content Generation</);
   assert.doesNotMatch(settings, /<ContentGenerationControlCenter\s*\/>/);
   assert.match(contentGenerationPage, /<ContentGenerationControlCenter\s*\/>/);
-  assert.match(contentGenerationPage, /aria-label="Breadcrumb"/);
+  assert.doesNotMatch(contentGenerationPage, /aria-label="Breadcrumb"/);
   assert.match(contentGenerationPage, /href="\/settings"/);
   assert.doesNotMatch(settings, />Profile</);
   assert.doesNotMatch(settings, />API Keys</);
@@ -31,21 +31,21 @@ test("content generation settings use authenticated admin configuration and over
   assert.match(api, /expectedVersion: number/);
 });
 
-test("control center exposes durable limits, visual tracking, and recovery states", () => {
+test("control center exposes durable limits, visual tracking, and recovery states without status chips", () => {
   const center = read("components/settings/ContentGenerationControlCenter.tsx");
 
-  assert.match(center, /Content Generation Control Center/);
-  assert.match(center, /DB managed/);
+  assert.match(center, />Control Center</);
+  assert.doesNotMatch(center, /DB managed/);
   assert.match(center, /Promise\.allSettled/);
   assert.match(center, /setInterval\(\(\) => void load\(true\), 30000\)/);
   assert.match(center, /status\?: number[\s\S]*?=== 409\) await load\(true, true\)/);
   assert.match(center, /Save guardrails/);
-  assert.match(center, /Usage trajectory/);
-  assert.match(center, /Run outcomes/);
-  assert.match(center, /Live stage flow/);
+  assert.match(center, />Usage</);
+  assert.match(center, />Outcomes</);
+  assert.match(center, />Stage flow</);
   assert.match(center, /Atomic checkpoint ledger/);
   assert.match(center, /Atomic recovery/);
-  assert.match(center, /Recent generation runs/);
+  assert.match(center, />Recent runs</);
   assert.match(center, /Recent configuration changes/);
   assert.match(center, /maxLeadsPerRun[\s\S]*?max: 1000/);
   assert.match(center, /maxRequestsPerLead[\s\S]*?max: 25/);

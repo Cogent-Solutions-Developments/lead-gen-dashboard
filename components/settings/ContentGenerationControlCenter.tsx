@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { MagicWandIcon } from "@phosphor-icons/react/dist/csr/MagicWand";
 import {
   Activity, AlertTriangle, Check, ChevronDown, CircleDollarSign, Clock3,
   Database, Gauge, Loader2, PauseCircle, RefreshCw, RotateCcw, Save,
-  ShieldCheck, Sparkles, Workflow, XCircle,
+  ShieldCheck, Workflow, XCircle,
 } from "lucide-react";
 import {
   Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
@@ -113,10 +114,10 @@ function MetricCard({ icon: Icon, label, value, note, tone }: {
   tone: "blue" | "emerald" | "amber" | "violet";
 }) {
   const styles = {
-    blue: "bg-blue-50 text-blue-700 ring-blue-100",
-    emerald: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-    amber: "bg-amber-50 text-amber-700 ring-amber-100",
-    violet: "bg-violet-50 text-violet-700 ring-violet-100",
+    blue: "text-blue-600",
+    emerald: "text-emerald-600",
+    amber: "text-amber-600",
+    violet: "text-violet-600",
   }[tone];
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -126,7 +127,7 @@ function MetricCard({ icon: Icon, label, value, note, tone }: {
           <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">{value}</p>
           <p className="mt-1 text-xs text-slate-500">{note}</p>
         </div>
-        <div className={`rounded-lg p-2 ring-1 ${styles}`}><Icon className="h-4 w-4" /></div>
+        <Icon className={`h-5 w-5 ${styles}`} aria-hidden="true" />
       </div>
     </div>
   );
@@ -183,7 +184,7 @@ export function ContentGenerationControlCenter() {
     } else failures.push(errorMessage(configurationResult.reason));
     if (overviewResult.status === "fulfilled") setOverview(overviewResult.value);
     else failures.push(errorMessage(overviewResult.reason));
-    setLoadError(failures.length ? failures.join(" ") : null);
+    setLoadError(failures.length ? [...new Set(failures)].join(" ") : null);
     if (failures.length === 0) setLastSynced(new Date());
     setLoading(false);
     setRefreshing(false);
@@ -256,21 +257,16 @@ export function ContentGenerationControlCenter() {
       <Card className="overflow-hidden border-slate-200 bg-gradient-to-br from-white via-white to-blue-50/60 shadow-sm">
         <div className="border-b border-slate-200 px-5 py-5 sm:px-6">
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
-            <div className="flex gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm shadow-blue-200">
-                <Sparkles className="h-5 w-5" />
-              </div>
+            <div className="flex gap-4">
+              <MagicWandIcon
+                size={36}
+                weight="duotone"
+                className="mt-0.5 shrink-0 text-blue-600"
+                aria-hidden="true"
+              />
               <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-lg font-semibold text-slate-950">Content Generation Control Center</h2>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-200">
-                    <Database className="h-3 w-3" />DB managed
-                  </span>
-                  {configuration ? <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">v{configuration.version}</span> : null}
-                </div>
-                <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
-                  Set durable cost limits, inspect every active stage, and verify that paused work resumes from its last atomic checkpoint.
-                </p>
+                <h2 className="text-lg font-semibold text-slate-950">Control Center</h2>
+                <p className="mt-1 text-sm text-slate-600">Limits, usage, and workflow status.</p>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -288,7 +284,7 @@ export function ContentGenerationControlCenter() {
           </div>
           {loadError ? (
             <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><span>Some control-center data is unavailable. {loadError}</span>
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><span>Data unavailable. {loadError}</span>
             </div>
           ) : null}
         </div>
@@ -360,9 +356,9 @@ export function ContentGenerationControlCenter() {
 
         <div className="p-5 sm:p-6">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricCard icon={Workflow} label="Runs · 14 days" value={compactNumber(summary?.totalRuns ?? 0)} note={`${summary?.activeRuns ?? 0} active now`} tone="blue" />
-            <MetricCard icon={CircleDollarSign} label="Model requests" value={compactNumber(summary?.requests ?? 0)} note={`${(summary?.requestBudgetUtilization ?? 0).toFixed(1)}% aggregate budget`} tone="violet" />
-            <MetricCard icon={ShieldCheck} label="Successful" value={compactNumber(summary?.successfulRuns ?? 0)} note={`${summary?.budgetStops ?? 0} budget stops`} tone="emerald" />
+            <MetricCard icon={Workflow} label="14-day runs" value={compactNumber(summary?.totalRuns ?? 0)} note={`${summary?.activeRuns ?? 0} active`} tone="blue" />
+            <MetricCard icon={CircleDollarSign} label="Model requests" value={compactNumber(summary?.requests ?? 0)} note={`${(summary?.requestBudgetUtilization ?? 0).toFixed(1)}% budget`} tone="violet" />
+            <MetricCard icon={ShieldCheck} label="Successful" value={compactNumber(summary?.successfulRuns ?? 0)} note={`${summary?.budgetStops ?? 0} stops`} tone="emerald" />
             <MetricCard icon={PauseCircle} label="Paused / failed" value={`${summary?.pausedRuns ?? 0} / ${summary?.failedRuns ?? 0}`} note={`${summary?.cancelledRuns ?? 0} cancelled`} tone="amber" />
           </div>
         </div>
@@ -371,8 +367,8 @@ export function ContentGenerationControlCenter() {
       <div className="grid gap-4 xl:grid-cols-[1.5fr_0.9fr]">
         <Card className="border-slate-200 p-5 shadow-sm">
           <div className="mb-4 flex items-start justify-between gap-4">
-            <div><h3 className="font-semibold text-slate-900">Usage trajectory</h3><p className="text-xs text-slate-500">Daily provider requests and token volume for the last 14 days.</p></div>
-            <span className="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700">Auto-refresh · 30s</span>
+            <div><h3 className="font-semibold text-slate-900">Usage</h3><p className="text-xs text-slate-500">14-day requests and tokens.</p></div>
+            <span className="text-[11px] text-slate-400">30s refresh</span>
           </div>
           <div className="h-64 w-full" data-testid="generation-usage-chart">
             <ResponsiveContainer width="100%" height="100%">
@@ -391,7 +387,7 @@ export function ContentGenerationControlCenter() {
         </Card>
 
         <Card className="border-slate-200 p-5 shadow-sm">
-          <div><h3 className="font-semibold text-slate-900">Run outcomes</h3><p className="text-xs text-slate-500">Distribution across durable run states.</p></div>
+          <div><h3 className="font-semibold text-slate-900">Outcomes</h3><p className="text-xs text-slate-500">Run states.</p></div>
           <div className="mt-2 grid min-h-64 grid-cols-[1fr_0.9fr] items-center gap-2">
             <div className="h-52" data-testid="generation-state-chart">
               <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={overview?.stateDistribution ?? []} dataKey="count" nameKey="state" innerRadius={52} outerRadius={78} paddingAngle={3} isAnimationActive={false}>{(overview?.stateDistribution ?? []).map((item) => <Cell key={item.state} fill={STATE_COLORS[item.state.toLowerCase()] ?? DEFAULT_CHART_COLOR} />)}</Pie><Tooltip contentStyle={{ borderRadius: 10, borderColor: "#cbd5e1", fontSize: 12 }} /></PieChart></ResponsiveContainer>
@@ -410,7 +406,7 @@ export function ContentGenerationControlCenter() {
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Card className="border-slate-200 p-5 shadow-sm">
-          <div className="mb-4"><h3 className="font-semibold text-slate-900">Live stage flow</h3><p className="text-xs text-slate-500">Where active leads are waiting, processing, paused, or recovering.</p></div>
+          <div className="mb-4"><h3 className="font-semibold text-slate-900">Stage flow</h3><p className="text-xs text-slate-500">Active stages.</p></div>
           <div className="space-y-3" data-testid="generation-stage-flow">
             {activeStages.length ? activeStages.slice(0, 8).map((item) => (
               <div key={`${item.stage}-${item.state}`} className="grid grid-cols-[minmax(100px,0.8fr)_minmax(120px,1fr)_auto] items-center gap-3 text-xs">
@@ -420,7 +416,7 @@ export function ContentGenerationControlCenter() {
               </div>
             )) : (
               <div className="flex min-h-32 flex-col items-center justify-center rounded-lg border border-dashed border-slate-200 text-center">
-                <Check className="mb-2 h-5 w-5 text-emerald-600" /><p className="text-sm font-medium text-slate-700">No active stage backlog</p><p className="text-xs text-slate-500">All work is complete or waiting for a new campaign.</p>
+                <Check className="mb-2 h-5 w-5 text-emerald-600" /><p className="text-sm font-medium text-slate-700">No stage backlog</p>
               </div>
             )}
           </div>
@@ -429,7 +425,7 @@ export function ContentGenerationControlCenter() {
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Atomic checkpoint ledger</p>
               <div className="flex flex-wrap gap-2">
                 {activeCheckpoints.slice(0, 6).map((item) => (
-                  <span key={`${item.node}-${item.state}`} className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600">
+                  <span key={`${item.node}-${item.state}`} className="text-[11px] text-slate-600">
                     {humanize(item.node)} · {humanize(item.state)} · {item.count}
                   </span>
                 ))}
@@ -439,7 +435,7 @@ export function ContentGenerationControlCenter() {
         </Card>
 
         <Card className="border-slate-200 p-5 shadow-sm">
-          <div className="mb-4"><h3 className="font-semibold text-slate-900">Safety interpretation</h3><p className="text-xs text-slate-500">A quick reading of current generation efficiency and protection.</p></div>
+          <div className="mb-4"><h3 className="font-semibold text-slate-900">Safeguards</h3></div>
           <div className="space-y-5">
             <BudgetBar label="Request budget used" value={summary?.requestBudgetUtilization ?? 0} detail={`${(summary?.requestBudgetUtilization ?? 0).toFixed(1)}%`} />
             <BudgetBar label="Token budget used" value={summary?.tokenBudgetUtilization ?? 0} detail={`${(summary?.tokenBudgetUtilization ?? 0).toFixed(1)}%`} tone={(summary?.tokenBudgetUtilization ?? 0) > 80 ? "amber" : "blue"} />
@@ -454,8 +450,8 @@ export function ContentGenerationControlCenter() {
 
       <Card className="border-slate-200 shadow-sm">
         <div className="flex flex-col justify-between gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center">
-          <div><h3 className="font-semibold text-slate-900">Recent generation runs</h3><p className="text-xs text-slate-500">Progress, checkpoints, and budget status for the latest campaigns.</p></div>
-          <span className="text-xs text-slate-500">Configuration updated {formatDate(configuration?.updatedAt)}</span>
+          <div><h3 className="font-semibold text-slate-900">Recent runs</h3><p className="text-xs text-slate-500">Latest activity.</p></div>
+          <span className="text-xs text-slate-500">Updated {formatDate(configuration?.updatedAt)}</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-left text-sm">
@@ -465,7 +461,7 @@ export function ContentGenerationControlCenter() {
                 <tr key={run.id} className="bg-white hover:bg-slate-50/70">
                   <td className="px-5 py-3"><strong className="block max-w-44 truncate text-xs text-slate-900">{run.campaignId}</strong><span className="font-mono text-[10px] text-slate-400">{run.id.slice(0, 12)}{run.configurationVersion ? ` · limits v${run.configurationVersion}` : ""}</span></td>
                   <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: STATE_COLORS[run.state.toLowerCase()] ?? DEFAULT_CHART_COLOR }} />{humanize(run.state)}</span>
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: STATE_COLORS[run.state.toLowerCase()] ?? DEFAULT_CHART_COLOR }} />{humanize(run.state)}</span>
                     {run.pauseRequested ? <span className="ml-1 text-amber-600" title="Pause requested"><PauseCircle className="inline h-4 w-4" /></span> : null}
                     {run.budgetExhausted ? <span className="ml-1 text-red-600" title="Budget exhausted"><XCircle className="inline h-4 w-4" /></span> : null}
                   </td>
@@ -474,7 +470,7 @@ export function ContentGenerationControlCenter() {
                   <td className="px-4 py-3"><span className="block text-xs tabular-nums text-slate-700">{compactNumber(run.usage.requests)} req · {compactNumber(run.usage.totalTokens)} tok</span><span className="text-[11px] text-slate-500">{run.usage.toolCalls} tool calls</span></td>
                   <td className="px-5 py-3 text-right text-xs text-slate-500"><Clock3 className="mr-1 inline h-3 w-3" />{formatDate(run.updatedAt)}</td>
                 </tr>
-              )) : <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-slate-500">No content generation runs were recorded in this window.</td></tr>}
+              )) : <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-slate-500">No runs.</td></tr>}
             </tbody>
           </table>
         </div>

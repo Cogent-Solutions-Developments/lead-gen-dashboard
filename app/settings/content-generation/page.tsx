@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 import { AdminPanelShell } from "@/components/layout/AdminPanelShell";
 import { ContentGenerationControlCenter } from "@/components/settings/ContentGenerationControlCenter";
@@ -17,21 +17,7 @@ export default function ContentGenerationSettingsPage() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
         >
-          <div>
-            <nav aria-label="Breadcrumb" className="mb-1 flex items-center gap-1.5 text-sm text-slate-500">
-              <Link href="/settings" className="transition-colors hover:text-blue-700">
-                Settings
-              </Link>
-              <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-              <span aria-current="page" className="font-medium text-slate-700">
-                Content Generation
-              </span>
-            </nav>
-            <h1 className="text-2xl font-bold text-slate-900">Content Generation</h1>
-            <p className="mt-1 max-w-2xl text-slate-500">
-              Manage durable generation limits and monitor every workflow checkpoint from one place.
-            </p>
-          </div>
+          <h1 className="text-2xl font-bold text-slate-900">Content Generation</h1>
           <Link href="/settings">
             <Button
               type="button"
