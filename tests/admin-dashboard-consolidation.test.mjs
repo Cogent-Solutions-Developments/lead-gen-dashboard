@@ -27,7 +27,8 @@ test("super admins have one dashboard route while department workspaces remain a
   assert.match(shell, /sidebarExpanded \? "w-72 px-6 py-8" : "w-24 p-6"/);
   assert.match(shell, /sidebarExpanded \? "flex-1 opacity-100" : "w-0 overflow-hidden opacity-0"/);
   assert.match(shell, /sidebarExpanded \? "lg:ml-72" : "lg:ml-24"/);
-  assert.match(shell, /name: "Dashboard"[\s\S]*?name: "User & Role Management"[\s\S]*?name: "User Performance"[\s\S]*?name: "Event Registry"[\s\S]*?name: "Event Inquiries"[\s\S]*?name: "Category Registry"[\s\S]*?name: "Event Documents"[\s\S]*?name: "Knowledge Library"[\s\S]*?name: "Storage Control"[\s\S]*?name: "Lead Requests"[\s\S]*?name: "Settings"[\s\S]*?name: "System Monitor"[\s\S]*?name: "System Operations"/);
+  assert.match(shell, /name: "Dashboard"[\s\S]*?name: "User & Role Management"[\s\S]*?name: "User Performance"[\s\S]*?name: "Event Registry"[\s\S]*?name: "Event Inquiries"[\s\S]*?name: "Category Registry"[\s\S]*?name: "Event Documents"[\s\S]*?name: "Knowledge Library"[\s\S]*?name: "Storage Control"[\s\S]*?name: "Lead Requests"[\s\S]*?name: "Settings"/);
+  assert.doesNotMatch(shell, /name: "System Monitor"|name: "System Operations"/);
   assert.match(appShell, /isSuperAdmin && pathname === "\/dashboard"/);
   assert.match(appShell, /isSuperAdmin && pathname === "\/dashboard"[\s\S]*?router\.replace\("\/campaigns"\)/);
   assert.match(chooser, /setPersona\(next\);\s*router\.push\("\/campaigns"\)/);

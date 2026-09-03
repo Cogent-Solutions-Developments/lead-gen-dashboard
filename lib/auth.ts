@@ -2018,8 +2018,19 @@ export async function downloadAdminCategoryExport() {
   window.URL.revokeObjectURL(url);
 }
 
-export async function fetchSystemMonitorSnapshot() {
-  return authRequest<SystemMonitorSnapshot>("/api/admin/system-monitor");
+export async function fetchSystemMonitorSnapshot(signal?: AbortSignal) {
+  return authRequest<SystemMonitorSnapshot>("/api/admin/system-monitor", { signal, cache: "no-store" });
+}
+
+export async function fetchLiveSystemMonitor(minutes: number, signal?: AbortSignal) {
+  try {
+    return await authRequest<import("./systemMonitor").LiveMonitorSnapshot>(`/api/admin/system-monitor/live?minutes=${minutes}`, { signal, cache: "no-store" });
+  } catch (error) {
+    if (error && typeof error === "object" && "status" in error && error.status === 404) {
+      throw new Error("Live monitoring requires the updated backend API. Rebuild or deploy the API, then refresh.");
+    }
+    throw error;
+  }
 }
 
 export async function fetchAdminUserPerformance(options: {

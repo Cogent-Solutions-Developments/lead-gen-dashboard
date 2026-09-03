@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useState, type CSSProperties } from "react";
 import {
-  Activity,
   CalendarDays,
   ClipboardCheck,
   BrainCircuit,
@@ -14,7 +13,6 @@ import {
   HardDrive,
   LayoutDashboard,
   LogOut,
-  ServerCog,
   Settings,
   ShieldCheck,
   Tags,
@@ -93,19 +91,7 @@ const adminTabs = [
     name: "Settings",
     href: "/settings",
     icon: Settings,
-    match: (pathname: string) => pathname === "/settings",
-  },
-  {
-    name: "System Monitor",
-    href: "/settings/system-monitor",
-    icon: Activity,
-    match: (pathname: string) => pathname === "/settings/system-monitor",
-  },
-  {
-    name: "System Operations",
-    href: "/admin/system-operations",
-    icon: ServerCog,
-    match: (pathname: string) => pathname === "/admin/system-operations",
+    match: (pathname: string) => pathname === "/settings" || pathname.startsWith("/settings/") || pathname === "/admin/system-operations",
   },
 ];
 

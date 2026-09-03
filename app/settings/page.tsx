@@ -8,12 +8,12 @@ import { ArrowRightIcon } from "@phosphor-icons/react/dist/csr/ArrowRight";
 import { MagicWandIcon } from "@phosphor-icons/react/dist/csr/MagicWand";
 import { PulseIcon } from "@phosphor-icons/react/dist/csr/Pulse";
 import { ShieldSlashIcon } from "@phosphor-icons/react/dist/csr/ShieldSlash";
+import { WrenchIcon } from "@phosphor-icons/react/dist/csr/Wrench";
 import { ChevronRight, Webhook } from "lucide-react";
 
 import { AdminPanelShell } from "@/components/layout/AdminPanelShell";
 import { MarketingOptOutSettings } from "@/components/settings/MarketingOptOutSettings";
 import { OutreachMailWebhookSettings } from "@/components/settings/OutreachMailWebhookSettings";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { buildSettingsHref, parseSettingsSection, type SettingsSection } from "@/lib/settingsNavigation";
 
@@ -38,16 +38,6 @@ function SettingsContent() {
             <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
             <p className="text-slate-500">Manage admin settings</p>
           </div>
-          <Link href="/settings/system-monitor">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-10 border-slate-300 bg-white/90 text-slate-700 hover:bg-slate-50"
-            >
-              <PulseIcon className="mr-2 h-4 w-4" weight="duotone" aria-hidden="true" />
-              System Monitor
-            </Button>
-          </Link>
         </motion.div>
 
         {activeSection === "outreach" ? (
@@ -56,6 +46,26 @@ function SettingsContent() {
           <MarketingOptOutSettings onBack={() => navigateToSection(null)} />
         ) : (
           <div className="grid gap-6 lg:grid-cols-2">
+            <Link href="/settings/system-monitor" aria-label="Open System Monitor" className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+              <Card className="h-full border-slate-200 p-6 shadow-sm transition-colors group-hover:border-blue-200 group-hover:bg-blue-50/30">
+                <div className="flex items-start gap-4">
+                  <PulseIcon size={36} weight="duotone" className="shrink-0 text-blue-600" aria-hidden="true" />
+                  <div className="flex-1"><h2 className="font-semibold text-slate-900">System Monitor</h2><p className="mt-1 text-sm leading-6 text-slate-500">See live activity, system pressure, and how work moves through your platform.</p></div>
+                  <ArrowRightIcon className="mt-2 h-5 w-5 text-slate-400" aria-hidden="true" />
+                </div>
+                <div className="mt-6 flex flex-wrap gap-2 text-xs font-medium text-blue-700"><span className="rounded-lg bg-blue-50 px-3 py-2">Live traffic</span><span className="rounded-lg bg-blue-50 px-3 py-2">Active users</span><span className="rounded-lg bg-blue-50 px-3 py-2">Delivery health</span></div>
+              </Card>
+            </Link>
+            <Link href="/settings/system-operations" aria-label="Open System Operations" className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+              <Card className="h-full border-slate-200 p-6 shadow-sm transition-colors group-hover:border-blue-200 group-hover:bg-blue-50/30">
+                <div className="flex items-start gap-4">
+                  <WrenchIcon size={36} weight="duotone" className="shrink-0 text-blue-600" aria-hidden="true" />
+                  <div className="flex-1"><h2 className="font-semibold text-slate-900">System Operations</h2><p className="mt-1 text-sm leading-6 text-slate-500">Investigate incidents, inspect live logs, and safely recover interrupted work.</p></div>
+                  <ArrowRightIcon className="mt-2 h-5 w-5 text-slate-400" aria-hidden="true" />
+                </div>
+                <div className="mt-6 flex flex-wrap gap-2 text-xs font-medium text-slate-600"><span className="rounded-lg bg-slate-50 px-3 py-2">Service logs</span><span className="rounded-lg bg-slate-50 px-3 py-2">Guided recovery</span><span className="rounded-lg bg-slate-50 px-3 py-2">Admin only</span></div>
+              </Card>
+            </Link>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
