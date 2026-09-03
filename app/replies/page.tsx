@@ -27,22 +27,8 @@ import {
 } from "@/lib/apiRouter";
 import { toast } from "sonner";
 
-const waUiDebugEnabled =
-  process.env.NODE_ENV !== "production" ||
-  process.env.NEXT_PUBLIC_WA_DEBUG === "1" ||
-  (process.env.NEXT_PUBLIC_WA_DEBUG || "").toLowerCase() === "true";
-
 const UNREAD_POLL_MS = 10000;
 const NOTIFICATIONS_POLL_MS = 10000;
-
-function waUiLog(event: string, payload?: unknown) {
-  if (!waUiDebugEnabled) return;
-  if (typeof payload === "undefined") {
-    console.log(`[WA UI] ${event}`);
-    return;
-  }
-  console.log(`[WA UI] ${event}`, payload);
-}
 
 function safeDate(value: string) {
   const parsed = new Date(value);
@@ -122,7 +108,6 @@ export default function RepliesPage() {
   const unreadTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopAllPolling = useCallback(() => {
-    waUiLog("stopAllPolling");
     stopPollingRef.current?.();
     stopPollingRef.current = null;
     if (unreadTimerRef.current) {
@@ -133,7 +118,6 @@ export default function RepliesPage() {
   }, []);
 
   const beginUnreadPolling = useCallback((personId: string) => {
-    waUiLog("beginUnreadPolling", { personId });
     const poll = async () => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") {
         return;
@@ -141,10 +125,8 @@ export default function RepliesPage() {
 
       try {
         const data = await fetchUnreadCount(personId);
-        waUiLog("unreadPolling.tick.success", { personId, unreadCount: data.unreadCount });
         setUnreadCount(data.unreadCount);
       } catch (error) {
-        waUiLog("unreadPolling.tick.error", { personId, error });
         console.warn("unread count poll error", error);
       }
     };
@@ -157,7 +139,6 @@ export default function RepliesPage() {
 
   const openConversation = useCallback(
     (personId: string, seedMessage?: WhatsAppInbound) => {
-      waUiLog("openConversation.start", { personId, seedMessageId: seedMessage?.id ?? null });
       if (!personId) {
         toast.error("Missing contact ID for this reply.");
         return;
@@ -179,11 +160,6 @@ export default function RepliesPage() {
       const stop = startWhatsAppPolling(
         personId,
         (newMessages) => {
-          waUiLog("poll.onNewMessages", {
-            personId,
-            count: newMessages.length,
-            ids: newMessages.map((message) => message.id),
-          });
           setNotifications((prev) => sortByReceivedAtDesc(dedupeById([...newMessages, ...prev])));
 
           let latestIso: string | null = null;
@@ -195,7 +171,6 @@ export default function RepliesPage() {
 
           if (latestIso) {
             void markRead(personId, latestIso).then(() => setUnreadCount(0)).catch((error) => {
-              waUiLog("markRead.error", { personId, latestIso, error });
               console.warn("mark read failed", error);
             });
           }
@@ -207,12 +182,7 @@ export default function RepliesPage() {
           setConnected(true);
         },
         {
-          onPollSuccess: (data) => {
-            waUiLog("poll.onPollSuccess", {
-              personId,
-              count: data.messages.length,
-              nextSince: data.nextSince,
-            });
+          onPollSuccess: () => {
             if (!initialDone) {
               initialDone = true;
               setHistoryLoading(false);
@@ -220,7 +190,6 @@ export default function RepliesPage() {
             setConnected(true);
           },
           onError: (error) => {
-            waUiLog("poll.onError", { personId, error });
             setConnected(false);
             if (!initialDone) {
               initialDone = true;
@@ -241,10 +210,6 @@ export default function RepliesPage() {
 
   const handleNotificationClick = useCallback(
     async (notification: WhatsAppInbound) => {
-      waUiLog("notification.click", {
-        notificationId: notification.id,
-        personId: notification.personId ?? null,
-      });
       setActiveNotificationId(notification.id);
 
       if (!notification.personId) {
@@ -262,7 +227,6 @@ export default function RepliesPage() {
 
   const handleOpenByPerson = useCallback(async () => {
     const value = personIdInput.trim();
-    waUiLog("openByPerson.submit", { rawInput: personIdInput, personId: value || null });
     if (!value) {
       toast.error("Enter contact ID first.");
       return;
@@ -297,13 +261,10 @@ export default function RepliesPage() {
       }
 
       try {
-        waUiLog("notifications.load.request");
         const data = await fetchWhatsAppNotifications({ limit: 50, unreadOnly: false });
         if (cancelled) return;
-        waUiLog("notifications.load.response", { count: data.notifications.length });
         setNotifications((prev) => sortByReceivedAtDesc(dedupeById([...data.notifications, ...prev])));
       } catch (error) {
-        waUiLog("notifications.load.error", error);
         console.warn("failed to load whatsapp notifications", error);
       }
     };

@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { Suspense, useState, useEffect, useEffectEvent, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { AxiosInstance } from "axios";
 import { Card } from "@/components/ui/card";
@@ -38,7 +38,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { useParams, useRouter } from "next/navigation";
+import { controlGenerationJob, getActiveGenerationJob, getGenerationJob } from "@/lib/contentGenerationJobs";
+import { generationStatus } from "@/lib/contentGenerationState";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   approveSelectedCampaignLeads,
   deleteCampaignEmailTemplate,
@@ -66,6 +68,11 @@ import { consumeCampaignUploadSummary } from "@/lib/campaignUploadSummary";
 import { hasCampaignMessageContent, resolveCampaignMessageApproval } from "@/lib/campaignMessageApproval";
 import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  buildCampaignListReturnHref,
+  CAMPAIGN_RETURN_PAGE_QUERY_PARAM,
+  parseCampaignPageParam,
+} from "@/lib/campaignNavigation";
 
 // -----------------------------
 // Custom LinkedIn Icon
@@ -81,6 +88,20 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
     <path d="M12.04 2C6.5 2 2 6.4 2 11.84c0 1.93.58 3.81 1.67 5.43L2.28 22l4.94-1.29a10.15 10.15 0 004.82 1.21h.01c5.54 0 10.04-4.4 10.04-9.84C22.09 6.4 17.59 2 12.04 2zm0 18.18h-.01a8.43 8.43 0 01-4.28-1.16l-.31-.18-2.94.77.79-2.84-.2-.33a8.08 8.08 0 01-1.27-4.36c0-4.47 3.69-8.11 8.22-8.11 2.2 0 4.26.84 5.81 2.37a8 8 0 012.41 5.73c0 4.47-3.69 8.11-8.22 8.11zm4.5-6.02c-.25-.12-1.49-.73-1.72-.81-.23-.08-.4-.12-.57.12-.17.24-.65.81-.8.97-.15.16-.29.18-.54.06-.25-.12-1.05-.38-2-1.2-.74-.64-1.24-1.44-1.38-1.68-.15-.24-.02-.37.11-.49.12-.12.25-.3.37-.45.12-.14.16-.24.25-.4.08-.16.04-.3-.02-.42-.06-.12-.57-1.36-.78-1.86-.21-.5-.43-.43-.57-.44h-.49c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2 0 1.18.86 2.32.98 2.48.12.16 1.69 2.68 4.16 3.65 2.48.97 2.48.65 2.92.61.44-.04 1.49-.61 1.7-1.2.21-.59.21-1.09.15-1.2-.06-.1-.23-.16-.48-.28z" />
   </svg>
 );
+
+function BackToCampaignsLink({ campaignId }: { campaignId: string }) {
+  const searchParams = useSearchParams();
+  const returnPage = parseCampaignPageParam(searchParams.get(CAMPAIGN_RETURN_PAGE_QUERY_PARAM));
+
+  return (
+    <Link href={buildCampaignListReturnHref(returnPage, campaignId)}>
+      <Button className="analytics-frost-btn h-9 px-3.5">
+        <ArrowLeft className="h-4 w-4" />
+        Back to Campaigns
+      </Button>
+    </Link>
+  );
+}
 
 type ApprovalStatus = "pending" | "approved" | "rejected" | "suppressed";
 type ChannelApprovalStatus = "pending" | "approved" | "rejected";
@@ -143,6 +164,9 @@ type ContentGenerationStats = {
 };
 
 type ContentGenerationQueueState = ContentGenerationStats & {
+  jobId?: string | null;
+  budgetExhausted?: boolean;
+  message?: string;
   status: ContentGenerationQueueStatus;
   currentLeadId: string | null;
   remainingLeadIds: string[];
@@ -2439,6 +2463,45 @@ function SuperAdminCampaignDetailPage() {
   const isContentGenerationAbortError = (error: any) =>
     error?.code === "ERR_CANCELED" || error?.name === "CanceledError" || error?.name === "AbortError";
 
+  const refreshAfterGeneration = useEffectEvent(() => { void fetchAll({ silent: true }); });
+  const trackedJobId = contentGenerationQueue.jobId;
+  useEffect(() => {
+    if (!campaignId || !canManageLeadActions) return;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try {
+        const job = trackedJobId
+          ? await getGenerationJob(campaignId, trackedJobId, controller.signal)
+          : await getActiveGenerationJob(campaignId, controller.signal);
+        if (controller.signal.aborted) return;
+        if (job) {
+          const status = generationStatus(job);
+          if (status === "idle") {
+            setContentGenerationQueue({ ...EMPTY_CONTENT_GENERATION_QUEUE, remainingLeadIds: [] });
+            refreshAfterGeneration();
+            if (job.state === "FAILURE") toast.error("Generation stopped with an error", { description: job.message });
+            return;
+          }
+          const counts = job.leadStates || {};
+          const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+          setContentGenerationQueue((previous) => ({
+            ...previous, jobId: job.id, status, budgetExhausted: job.budget_exhausted, message: job.message,
+            total: total || previous.total,
+            completed: (counts.success || 0) + (counts.failed || 0) + (counts.suppressed || 0),
+            generated: counts.success || 0, failed: counts.failed || 0, suppressed: counts.suppressed || 0,
+          }));
+        }
+      } catch {
+        // A transient status failure must never restart or discard a saved run.
+      } finally {
+        if (!controller.signal.aborted) timer = setTimeout(() => void poll(), 4000);
+      }
+    };
+    void poll();
+    return () => { controller.abort(); clearTimeout(timer); };
+  }, [campaignId, canManageLeadActions, trackedJobId]);
+
   const resetContentGenerationQueue = () => {
     contentGenerationPauseRequestedRef.current = false;
     setContentGenerationQueue({ ...EMPTY_CONTENT_GENERATION_QUEUE, remainingLeadIds: [] });
@@ -2480,15 +2543,19 @@ function SuperAdminCampaignDetailPage() {
         leadIds,
         signal: controller.signal,
       });
-      completed += leadIds.length;
-      if (response?.queued) {
-        resetContentGenerationQueue();
+      if (response?.queued || response?.reusedActiveRun) {
+        setContentGenerationQueue((previous) => ({ ...previous, jobId: response.jobId, status: generationStatus(response) === "paused" ? "paused" : "running" }));
+        if (response.jobId && contentGenerationPauseRequestedRef.current) {
+          await controlGenerationJob(campaignId, response.jobId, "pause");
+          setContentGenerationQueue((previous) => ({ ...previous, status: "stopping" }));
+        }
         toast.success("Content generation queued", {
-          description: `${leadIds.length} lead${leadIds.length === 1 ? "" : "s"} sent to the content generation worker.`,
+          description: `${leadIds.length} lead${leadIds.length === 1 ? "" : "s"} queued in ${response.totalBatches ?? 1} durable batch${(response.totalBatches ?? 1) === 1 ? "" : "es"}${response.batchSize ? ` of up to ${response.batchSize}` : ""}.`,
         });
         await fetchAll({ silent: true, syncSelectedLeadId: options?.syncSelectedLeadId });
         return;
       }
+      completed += leadIds.length;
       generated += Number(response?.generatedCount ?? 0);
       failed += Number(response?.failedCount ?? 0);
       suppressed += Number(response?.suppressedCount ?? 0);
@@ -2569,28 +2636,34 @@ function SuperAdminCampaignDetailPage() {
     await runContentGenerationQueue([selectedLead.id], undefined, { syncSelectedLeadId: selectedLead.id });
   };
 
-  const handleStopContentGeneration = () => {
+  const handleStopContentGeneration = async () => {
     if (!canManageLeadActions || contentGenerationQueue.status !== "running") return;
     contentGenerationPauseRequestedRef.current = true;
-    contentGenerationControllerRef.current?.abort();
     setContentGenerationQueue((prev) => ({ ...prev, status: "stopping" }));
+    if (contentGenerationQueue.jobId) {
+      try {
+        await controlGenerationJob(campaignId, contentGenerationQueue.jobId, "pause");
+        toast.info("Pause requested", { description: "An in-flight request may finish and be saved. No new paid step will start." });
+      } catch (error: any) {
+        setContentGenerationQueue((prev) => ({ ...prev, status: "running" }));
+        toast.error("Could not pause generation", { description: error?.message });
+      }
+    }
   };
 
   const handleContinueContentGeneration = async () => {
     if (!canManageLeadActions || contentGenerationQueue.status !== "paused") return;
-    const remainingLeadIds = [...contentGenerationQueue.remainingLeadIds];
-    if (remainingLeadIds.length === 0) {
-      resetContentGenerationQueue();
+    if (!contentGenerationQueue.jobId || contentGenerationQueue.budgetExhausted) {
+      toast.error("This run cannot be resumed", { description: "Review its status and budget in Settings → Content Generation." });
       return;
     }
-    contentGenerationPauseRequestedRef.current = false;
-    await runContentGenerationQueue(remainingLeadIds, {
-      total: contentGenerationQueue.total,
-      completed: contentGenerationQueue.completed,
-      generated: contentGenerationQueue.generated,
-      failed: contentGenerationQueue.failed,
-      suppressed: contentGenerationQueue.suppressed,
-    });
+    try {
+      await controlGenerationJob(campaignId, contentGenerationQueue.jobId, "resume");
+      contentGenerationPauseRequestedRef.current = false;
+      setContentGenerationQueue((prev) => ({ ...prev, status: "running" }));
+    } catch (error: any) {
+      toast.error("Could not resume the saved run", { description: error?.message });
+    }
   };
 
   const handleBulkSendRequest = (channel: BulkSendChannel) => {
@@ -3414,12 +3487,16 @@ function SuperAdminCampaignDetailPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 self-start">
-            <Link href="/campaigns">
-              <Button className="analytics-frost-btn h-9 px-3.5">
-                <ArrowLeft className="h-4 w-4" />
-                Back to Campaigns
-              </Button>
-            </Link>
+            <Suspense
+              fallback={
+                <Button className="analytics-frost-btn h-9 px-3.5" disabled>
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to Campaigns
+                </Button>
+              }
+            >
+              <BackToCampaignsLink campaignId={campaignId} />
+            </Suspense>
           </div>
         </div>
 
@@ -3699,10 +3776,10 @@ function SuperAdminCampaignDetailPage() {
                   type="button"
                   onClick={handleStopContentGeneration}
                   className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-red-600 transition-colors hover:text-red-700"
-                  title="Stop content generation"
+                  title="Pause content generation at the next saved stage"
                 >
                   <Square className="h-3 w-3" />
-                  Stop
+                  Pause
                 </button>
               ) : contentGenerationQueue.status === "stopping" ? (
                 <button
@@ -3712,12 +3789,13 @@ function SuperAdminCampaignDetailPage() {
                   title="Stopping content generation"
                 >
                   <Loader2 className="h-3 w-3 animate-spin" />
-                  Stopping
+                  Pausing
                 </button>
               ) : contentGenerationQueue.status === "paused" ? (
                 <button
                   type="button"
                   onClick={() => void handleContinueContentGeneration()}
+                  disabled={contentGenerationQueue.budgetExhausted}
                   className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-emerald-700 transition-colors hover:text-emerald-800"
                   title={`Continue remaining ${contentGenerationQueue.remainingLeadIds.length} lead${
                     contentGenerationQueue.remainingLeadIds.length === 1 ? "" : "s"
@@ -3727,6 +3805,18 @@ function SuperAdminCampaignDetailPage() {
                   Continue
                 </button>
               ) : null}
+
+              {contentGenerationQueue.status === "paused" && contentGenerationQueue.jobId ? (
+                <button type="button" className="px-2 py-1 text-[11px] text-red-700" onClick={async () => {
+                  if (!window.confirm("Cancel this saved run? It cannot be resumed. Completed drafts and usage remain saved.")) return;
+                  try {
+                    await controlGenerationJob(campaignId, contentGenerationQueue.jobId!, "cancel");
+                    resetContentGenerationQueue();
+                    await fetchAll({ silent: true });
+                  } catch (error: any) { toast.error("Could not cancel generation", { description: error?.message }); }
+                }}>Cancel run</button>
+              ) : null}
+              {contentGenerationQueue.budgetExhausted ? <span role="status" className="text-xs text-amber-800">Budget limit reached — review Content Generation settings.</span> : null}
 
               <button
                 type="button"

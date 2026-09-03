@@ -3,20 +3,6 @@ import { apiClient } from "./apiClient";
 import { attachAuthToken, downloadProtectedFile, getAuthHeader } from "@/lib/auth";
 import { getLocalDevNgrokHeaders } from "@/lib/devNgrok";
 
-const waDebugEnabled =
-  process.env.NODE_ENV !== "production" ||
-  process.env.NEXT_PUBLIC_WA_DEBUG === "1" ||
-  (process.env.NEXT_PUBLIC_WA_DEBUG || "").toLowerCase() === "true";
-
-function waDebugLog(event: string, payload?: unknown) {
-  if (!waDebugEnabled || typeof window === "undefined") return;
-  if (typeof payload === "undefined") {
-    console.log(`[WA] ${event}`);
-    return;
-  }
-  console.log(`[WA] ${event}`, payload);
-}
-
 const LEAD_CONTENT_GENERATION_TIMEOUT_MS = 180000;
 
 
@@ -148,6 +134,8 @@ export type ContentGenerationJob = {
   step?: string | null;
   message?: string | null;
   cancelRequested?: boolean;
+  pauseRequested?: boolean;
+  budgetExhausted?: boolean;
   createdAt?: string | null;
   updatedAt?: string | null;
   finishedAt?: string | null;
@@ -474,9 +462,13 @@ export type GenerateSelectedLeadContentResponse = {
   }>;
   generationMode?: string | null;
   queued?: boolean;
+  reusedActiveRun?: boolean;
+  state?: string;
   jobId?: string | null;
   taskId?: string | null;
   queue?: string | null;
+  batchSize?: number;
+  totalBatches?: number;
 };
 
 export type CancelContentGenerationJobResponse = {
@@ -1448,9 +1440,7 @@ function getWhatsAppBaseUrl() {
 }
 
 function getWhatsAppHeaders() {
-  const apiKey = (process.env.NEXT_PUBLIC_API_KEY || "").trim();
   const headers: Record<string, string> = {};
-  if (apiKey) headers["x-api-key"] = apiKey;
   Object.assign(headers, getAuthHeader());
   Object.assign(headers, getLocalDevNgrokHeaders());
   return headers;
@@ -2502,17 +2492,8 @@ export async function fetchMessages(params: FetchMessagesParams) {
   url.searchParams.set("limit", String(limit));
   if (since) url.searchParams.set("since", since);
 
-  waDebugLog("fetchMessages.request", {
-    personId,
-    since,
-    limit,
-    url: url.toString(),
-    hasApiKey: Boolean(headers["x-api-key"]),
-  });
-
   const res = await fetch(url.toString(), { headers });
   if (!res.ok) {
-    waDebugLog("fetchMessages.error", { status: res.status });
     throw new Error(`messages fetch failed ${res.status}`);
   }
 
@@ -2523,11 +2504,6 @@ export async function fetchMessages(params: FetchMessagesParams) {
     messages: Array.isArray(data?.messages) ? (data.messages as WhatsAppInbound[]) : [],
     nextSince: typeof data?.nextSince === "string" ? data.nextSince : null,
   } as WhatsAppMessagesResponse;
-  waDebugLog("fetchMessages.response", {
-    personId: result.personId ?? personId,
-    count: result.messages.length,
-    nextSince: result.nextSince,
-  });
   return result;
 }
 
@@ -2545,15 +2521,8 @@ export async function fetchWhatsAppNotifications(params?: { limit?: number; unre
   url.searchParams.set("limit", String(params?.limit ?? 50));
   if (params?.unreadOnly) url.searchParams.set("unread_only", "true");
 
-  waDebugLog("fetchWhatsAppNotifications.request", {
-    url: url.toString(),
-    hasApiKey: Boolean(headers["x-api-key"]),
-    unreadOnly: Boolean(params?.unreadOnly),
-  });
-
   const res = await fetch(url.toString(), { headers });
   if (!res.ok) {
-    waDebugLog("fetchWhatsAppNotifications.error", { status: res.status });
     throw new Error(`notifications fetch failed ${res.status}`);
   }
 
@@ -2565,7 +2534,6 @@ export async function fetchWhatsAppNotifications(params?: { limit?: number; unre
       : [],
   } as WhatsAppNotificationsResponse;
 
-  waDebugLog("fetchWhatsAppNotifications.response", { count: result.notifications.length });
   return result;
 }
 
@@ -2577,43 +2545,27 @@ export function startWhatsAppPolling(
 ) {
   let nextSince: string | null = null;
   let stopped = false;
-  let tickCount = 0;
-
-  waDebugLog("poll.start", { personId });
 
   const tick = async () => {
-    tickCount += 1;
     if (typeof document !== "undefined" && document.visibilityState !== "visible") {
-      waDebugLog("poll.skip_hidden", { personId, tickCount });
       return;
     }
 
     try {
-      waDebugLog("poll.tick", { personId, tickCount, since: nextSince });
       const data = await fetchMessages({ personId, since: nextSince });
       if (stopped) return;
 
       options?.onPollSuccess?.(data);
 
       if (data.messages?.length) {
-        waDebugLog("poll.new_messages", {
-          personId,
-          tickCount,
-          count: data.messages.length,
-          nextSince: data.nextSince,
-        });
         onNewMessages(data.messages);
         nextSince = data.nextSince;
       } else if (!nextSince && data.nextSince) {
-        waDebugLog("poll.set_initial_cursor", { personId, nextSince: data.nextSince });
         nextSince = data.nextSince;
-      } else {
-        waDebugLog("poll.no_new_messages", { personId, tickCount, nextSince });
       }
     } catch (error) {
       if (stopped) return;
       options?.onError?.(error);
-      waDebugLog("poll.error", { personId, tickCount, error });
       console.error("poll error", error);
     }
   };
@@ -2626,7 +2578,6 @@ export function startWhatsAppPolling(
   return () => {
     stopped = true;
     clearInterval(timer);
-    waDebugLog("poll.stop", { personId, tickCount });
   };
 }
 
@@ -2638,15 +2589,8 @@ export async function fetchUnreadCount(personId: string) {
   const url = new URL(`${base}/api/whatsapp/unread-count`);
   url.searchParams.set("person_id", personId);
 
-  waDebugLog("fetchUnreadCount.request", {
-    personId,
-    url: url.toString(),
-    hasApiKey: Boolean(headers["x-api-key"]),
-  });
-
   const res = await fetch(url.toString(), { headers });
   if (!res.ok) {
-    waDebugLog("fetchUnreadCount.error", { personId, status: res.status });
     throw new Error(`unread count failed ${res.status}`);
   }
 
@@ -2654,7 +2598,6 @@ export async function fetchUnreadCount(personId: string) {
   const result = {
     unreadCount: Number(data?.unreadCount || 0),
   } as { unreadCount: number };
-  waDebugLog("fetchUnreadCount.response", result);
   return result;
 }
 
@@ -2667,25 +2610,16 @@ export async function markRead(personId: string, upToIso?: string | null) {
   url.searchParams.set("person_id", personId);
   if (upToIso) url.searchParams.set("up_to", upToIso);
 
-  waDebugLog("markRead.request", {
-    personId,
-    upToIso: upToIso ?? null,
-    url: url.toString(),
-    hasApiKey: Boolean(headers["x-api-key"]),
-  });
-
   const res = await fetch(url.toString(), {
     method: "POST",
     headers,
   });
 
   if (!res.ok) {
-    waDebugLog("markRead.error", { personId, status: res.status });
     throw new Error(`mark read failed ${res.status}`);
   }
 
   const data = await res.json();
-  waDebugLog("markRead.response", data);
   return data;
 }
 
@@ -2697,7 +2631,6 @@ export const api = axios.create({
   timeout: 60000,
   headers: {
     "Content-Type": "application/json",
-    "x-api-key": process.env.NEXT_PUBLIC_API_KEY || "",
     ...getLocalDevNgrokHeaders(),
   },
 });
