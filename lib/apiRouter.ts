@@ -104,6 +104,14 @@ export type {
   SendSelectedLeadsRequest,
   SendSelectedLeadsResponse,
   SendAdminLeadSmsResponse,
+  CreateDepartmentMailWebhookRequest,
+  UpdateDepartmentMailWebhookRequest,
+  DepartmentMailWebhook,
+  DepartmentMailWebhookDepartmentSummary,
+  DepartmentMailWebhookMutationResponse,
+  DeleteDepartmentMailWebhookResponse,
+  ListDepartmentMailWebhooksResponse,
+  OutreachDepartment,
   CreateWhatsAppOptOutRequest,
   CreateWhatsAppOptOutResponse,
   ListWhatsAppOptOutsResponse,
@@ -607,6 +615,14 @@ export const resetSelectedCampaignLeadContent: typeof sales.resetSelectedCampaig
 
 export const sendSelectedCampaignLeads: typeof sales.sendSelectedCampaignLeads = (...args) =>
   pickModule().sendSelectedCampaignLeads(...args);
+
+export const listDepartmentMailWebhooks = sales.listDepartmentMailWebhooks;
+
+export const createDepartmentMailWebhook = sales.createDepartmentMailWebhook;
+
+export const updateDepartmentMailWebhook = sales.updateDepartmentMailWebhook;
+
+export const deleteDepartmentMailWebhook = sales.deleteDepartmentMailWebhook;
 
 export const listWhatsAppOptOuts: typeof sales.listWhatsAppOptOuts = (...args) =>
   pickModule().listWhatsAppOptOuts(...args);

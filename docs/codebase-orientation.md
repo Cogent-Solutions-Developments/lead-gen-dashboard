@@ -281,21 +281,19 @@ File:
 
 - `app/campaigns/upload/page.tsx`
 
-Shared route, different wording/redirects:
+Role-scoped entry point:
 
-- Super admin sees `Campaign Upload`.
-- Pipeline users see `Upload Leads`.
+- Super admin sees the one-page `Campaign Upload` form.
+- Pipeline users are redirected to the existing `/my-leads?upload=1` flow.
 
 Flow:
 
-1. Load active event registry through `listActiveEventRegistry()`.
-2. User selects event.
-3. User optionally adds category/notes.
-4. User uploads `.csv` or `.xlsx`.
-5. `createCampaignFromUpload()` posts multipart form data to the persona-aware campaign endpoint.
-6. Upload summary is persisted locally by campaign ID.
-7. Super admin redirects to `/campaigns/<id>`.
-8. Pipeline users redirect to `/leads?event=<canonicalEventKey>` when available, otherwise `/campaigns`.
+1. Load active admin events through `listAdminEvents(true)`.
+2. Show Event, Details, and Lead sheet together in one scrollable form.
+3. Admin selects an event and lead type, optionally adds category/notes, and uploads `.csv` or `.xlsx`.
+4. `createCampaignFromUpload()` posts multipart form data to the persona-aware campaign endpoint.
+5. Upload summary is persisted locally by campaign ID.
+6. Super admin redirects to `/campaigns/<id>`.
 
 ### Campaign Detail
 

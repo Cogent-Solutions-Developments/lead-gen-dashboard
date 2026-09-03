@@ -1,22 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { motion } from "framer-motion";
 import { ArrowRightIcon } from "@phosphor-icons/react/dist/csr/ArrowRight";
 import { MagicWandIcon } from "@phosphor-icons/react/dist/csr/MagicWand";
 import { PulseIcon } from "@phosphor-icons/react/dist/csr/Pulse";
 import { ShieldSlashIcon } from "@phosphor-icons/react/dist/csr/ShieldSlash";
+import { ChevronRight, Webhook } from "lucide-react";
 
 import { AdminPanelShell } from "@/components/layout/AdminPanelShell";
 import { MarketingOptOutSettings } from "@/components/settings/MarketingOptOutSettings";
+import { OutreachMailWebhookSettings } from "@/components/settings/OutreachMailWebhookSettings";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { buildSettingsHref, parseSettingsSection, type SettingsSection } from "@/lib/settingsNavigation";
 
-type SettingsSection = "opt-out" | null;
+function SettingsContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeSection = parseSettingsSection(searchParams.get("section"));
 
-export default function SettingsPage() {
-  const [activeSection, setActiveSection] = useState<SettingsSection>(null);
+  const navigateToSection = (section: SettingsSection) => {
+    router.push(buildSettingsHref(searchParams.toString(), section), { scroll: false });
+  };
 
   return (
     <AdminPanelShell>
@@ -42,8 +50,10 @@ export default function SettingsPage() {
           </Link>
         </motion.div>
 
-        {activeSection === "opt-out" ? (
-          <MarketingOptOutSettings onBack={() => setActiveSection(null)} />
+        {activeSection === "outreach" ? (
+          <OutreachMailWebhookSettings onBack={() => navigateToSection(null)} />
+        ) : activeSection === "opt-out" ? (
+          <MarketingOptOutSettings onBack={() => navigateToSection(null)} />
         ) : (
           <div className="grid gap-6 lg:grid-cols-2">
             <motion.div
@@ -93,8 +103,38 @@ export default function SettingsPage() {
               type="button"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.14 }}
+              onClick={() => navigateToSection("outreach")}
+              aria-label="Open Outreach Configuration"
+              className="group text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            >
+              <Card className="h-full p-6 transition-colors group-hover:border-blue-200 group-hover:bg-blue-50/30">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100">
+                      <Webhook className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h2 className="font-semibold text-slate-900">Outreach Configuration</h2>
+                      <p className="mt-1 text-sm leading-6 text-slate-500">Manage department-wise mail delivery webhooks and active routing.</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="mt-2 h-5 w-5 shrink-0 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-blue-600" />
+                </div>
+                <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50/70 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Available configuration</p>
+                  <p className="mt-2 text-sm font-medium text-slate-700">Mail webhook</p>
+                  <p className="mt-1 text-xs text-slate-500">Sales, Delegate, and Production departments</p>
+                </div>
+              </Card>
+            </motion.button>
+
+            <motion.button
+              type="button"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.18 }}
-              onClick={() => setActiveSection("opt-out")}
+              onClick={() => navigateToSection("opt-out")}
               aria-label="Open Marketing Opt-out"
               className="group h-full w-full rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2"
             >
@@ -133,5 +173,13 @@ export default function SettingsPage() {
         )}
       </div>
     </AdminPanelShell>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={null}>
+      <SettingsContent />
+    </Suspense>
   );
 }
