@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
@@ -19,19 +19,26 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Tag,
+  Trash2,
+  Undo2,
   UsersRound,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { DeleteEventInquiryDialog } from "@/components/event-submissions/DeleteEventInquiryDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { isManagerRole } from "@/lib/auth";
 import { submittedDayEnd, submittedDayStart } from "@/lib/eventSubmissionFilters";
+import { canDeleteEventInquiry, isInquiryDeleteConfirmed } from "@/lib/eventSubmissionDeletion";
 import {
+  deleteEventSubmission,
+  restoreEventSubmission,
   fetchEventSubmission,
   fetchEventSubmissionOverview,
   fetchEventSubmissions,
   type EventSubmission,
+  type EventSubmissionDeletion,
   type EventSubmissionCluster,
   type EventSubmissionFilters,
   type EventSubmissionOverview,
@@ -62,8 +69,8 @@ type MatchFilter = "all" | "matched" | "unmatched" | "ambiguous";
 function getErrorMessage(error: unknown) {
   if (!(error instanceof Error)) return "Please try again.";
   try {
-    const parsed = JSON.parse(error.message) as { detail?: string };
-    return parsed.detail || error.message;
+    const parsed = JSON.parse(error.message) as { detail?: unknown };
+    return typeof parsed?.detail === "string" ? parsed.detail : error.message;
   } catch {
     return error.message;
   }
@@ -357,6 +364,7 @@ export default function EventSubmissionsPage() {
   const searchParams = useSearchParams();
   const { user, isAdminLike, isSuperAdmin } = useAuth();
   const canView = isAdminLike || isManagerRole(user?.role);
+  const canDelete = canDeleteEventInquiry(isSuperAdmin, pathname);
   const isLegacyAdminRoute = isSuperAdmin && pathname === "/event-submissions";
   const [overview, setOverview] = useState<EventSubmissionOverview>(EMPTY_OVERVIEW);
   const [browseOverview, setBrowseOverview] = useState<EventSubmissionOverview>(EMPTY_OVERVIEW);
@@ -381,6 +389,13 @@ export default function EventSubmissionsPage() {
   const [selectedId, setSelectedId] = useState("");
   const [selectedSubmission, setSelectedSubmission] = useState<EventSubmission | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<EventSubmission | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [lastDeleted, setLastDeleted] = useState<(EventSubmissionDeletion & { contactLabel: string }) | null>(null);
+  const [restoring, setRestoring] = useState(false);
+  const [restoreError, setRestoreError] = useState("");
+  const mutationInFlight = useRef(false);
   const notificationSubmissionId = searchParams.get("submissionId")?.trim() || "";
 
   useEffect(() => {
@@ -440,6 +455,9 @@ export default function EventSubmissionsPage() {
           fetchEventSubmissionOverview(filters, controller.signal),
           fetchEventSubmissions({ ...filters, sortBy: "submittedAt", sortOrder: "desc", limit: PAGE_SIZE, offset }, controller.signal),
         ]);
+        if (controller.signal.aborted) return;
+        const lastPageOffset = Math.max(0, Math.floor((listResponse.pagination.total - 1) / PAGE_SIZE) * PAGE_SIZE);
+        if (offset > lastPageOffset) { setOffset(lastPageOffset); return; }
         setOverview(overviewResponse.overview);
         setItems(listResponse.items);
         setTotal(listResponse.pagination.total);
@@ -463,7 +481,8 @@ export default function EventSubmissionsPage() {
       setDetailLoading(true);
       setSelectedSubmission(null);
       try {
-        setSelectedSubmission(await fetchEventSubmission(selectedId, controller.signal));
+        const detail = await fetchEventSubmission(selectedId, controller.signal);
+        if (!controller.signal.aborted) setSelectedSubmission(detail);
       } catch (requestError: unknown) {
         if (controller.signal.aborted) return;
         toast.error("Could not load submission", { description: getErrorMessage(requestError) });
@@ -487,6 +506,51 @@ export default function EventSubmissionsPage() {
     setSelectedSubmission(null);
     if (notificationSubmissionId) router.replace(pathname, { scroll: false });
   }, [notificationSubmissionId, pathname, router]);
+
+  const confirmDelete = async (confirmation: string) => {
+    if (!canDelete || !deleteTarget || mutationInFlight.current || !isInquiryDeleteConfirmed(confirmation)) return;
+    const target = deleteTarget;
+    mutationInFlight.current = true;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      const deleted = await deleteEventSubmission(target.id, confirmation);
+      setLastDeleted({ ...deleted, contactLabel: contactName(target) });
+      setRestoreError("");
+      setItems((current) => current.filter((item) => item.id !== target.id));
+      setDeleteTarget(null);
+      if (selectedId === target.id) closeDetail();
+      setRefreshKey((current) => current + 1);
+      toast.success("Inquiry deleted", { description: "You can Undo this deletion below the page heading." });
+    } catch (requestError: unknown) {
+      setDeleteError(getErrorMessage(requestError));
+    } finally {
+      mutationInFlight.current = false;
+      setDeleting(false);
+    }
+  };
+
+  const undoDelete = async () => {
+    if (!canDelete || !lastDeleted || mutationInFlight.current) return;
+    mutationInFlight.current = true;
+    setRestoring(true);
+    setRestoreError("");
+    try {
+      await restoreEventSubmission(lastDeleted.id, lastDeleted.deletedAt);
+      setLastDeleted(null);
+      setRefreshKey((current) => current + 1);
+      toast.success("Inquiry restored");
+    } catch (requestError: unknown) {
+      setRestoreError(getErrorMessage(requestError));
+    } finally {
+      mutationInFlight.current = false;
+      setRestoring(false);
+    }
+  };
+
+  const deleteAction = (submission: EventSubmission) => canDelete ? (
+    <button type="button" disabled={deleting || restoring} onClick={() => { setDeleteError(""); setDeleteTarget(submission); }} aria-label={`Delete inquiry from ${contactName(submission)} for ${submission.event.eventName}`} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-red-200 bg-white px-3 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"><Trash2 className="h-3.5 w-3.5" />Delete</button>
+  ) : null;
 
   const activeFilterCount = [search, eventName, formType !== "all" ? formType : "", matchStatus !== "all" ? matchStatus : "", fromDate, toDate, categoryFilter, sponsorFilter].filter(Boolean).length;
   const eventOptions = useMemo(
@@ -532,6 +596,13 @@ export default function EventSubmissionsPage() {
           {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />} Refresh
         </Button>
       </header>
+
+      {canDelete && lastDeleted ? (
+        <section aria-label="Inquiry deletion recovery" aria-live="polite" className="mb-5 rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-blue-900">Inquiry from <strong>{lastDeleted.contactLabel}</strong> deleted. The record is retained for recovery.</p><Button type="button" variant="outline" disabled={restoring || deleting} onClick={() => void undoDelete()} className="h-9 border-blue-200 bg-white text-blue-700 hover:bg-blue-100">{restoring ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Undo2 className="mr-2 h-4 w-4" />}{restoring ? "Restoring..." : "Undo deletion"}</Button></div>
+          {restoreError ? <p role="alert" className="mt-3 text-sm text-red-700">Could not restore: {restoreError}</p> : null}
+        </section>
+      ) : null}
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Submission summary">
         <MetricCard icon={<Inbox className="h-5 w-5" />} label="Submissions" value={overview.metrics.total} />
@@ -601,14 +672,14 @@ export default function EventSubmissionsPage() {
           <>
             <div className="admin-table-wrap hidden lg:block">
               <table className="w-full min-w-[980px] border-collapse text-left">
-                <thead className="bg-zinc-50"><tr className="border-b border-zinc-100 text-[11px] font-bold uppercase tracking-wider text-zinc-400"><th className="px-5 py-3">Contact</th><th className="px-4 py-3">Event</th><th className="px-4 py-3">Form</th><th className="px-4 py-3">Company</th><th className="px-4 py-3">Submitted</th><th className="px-5 py-3 text-right">Details</th></tr></thead>
+                <thead className="bg-zinc-50"><tr className="border-b border-zinc-100 text-[11px] font-bold uppercase tracking-wider text-zinc-400"><th className="px-5 py-3">Contact</th><th className="px-4 py-3">Event</th><th className="px-4 py-3">Form</th><th className="px-4 py-3">Company</th><th className="px-4 py-3">Submitted</th><th className="px-5 py-3 text-right">{canDelete ? "Actions" : "Details"}</th></tr></thead>
                 <tbody className="divide-y divide-zinc-100">{items.map((submission) => (
-                  <tr key={submission.id} className="group transition-colors hover:bg-zinc-50"><td className="px-5 py-4"><p className="font-semibold text-zinc-900">{contactName(submission)}</p><p className="mt-1 text-xs text-zinc-500">{submission.contact.workEmail || submission.contact.mobileNumber || "-"}</p></td><td className="max-w-[16rem] px-4 py-4"><p className="truncate text-sm font-medium text-zinc-800">{submission.event.eventName}</p></td><td className="max-w-[20rem] px-4 py-4"><SubmissionTypeBadge type={submission.submissionType} /><p className="mt-2 truncate text-xs text-zinc-500" title={submissionSelectionSummary(submission)}>{submissionSelectionSummary(submission)}</p></td><td className="max-w-[13rem] px-4 py-4"><p className="truncate text-sm font-medium text-zinc-800">{submission.contact.company || "-"}</p><p className="mt-1 text-xs text-zinc-500">{submission.contact.country || "-"}</p></td><td className="whitespace-nowrap px-4 py-4 text-sm text-zinc-600">{formatDateTime(submission.submittedAt)}</td><td className="px-5 py-4 text-right"><button type="button" onClick={() => setSelectedId(submission.id)} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 transition-colors hover:bg-zinc-50">View <ArrowRight className="h-3.5 w-3.5" /></button></td></tr>
+                  <tr key={submission.id} className="group transition-colors hover:bg-zinc-50"><td className="px-5 py-4"><p className="font-semibold text-zinc-900">{contactName(submission)}</p><p className="mt-1 text-xs text-zinc-500">{submission.contact.workEmail || submission.contact.mobileNumber || "-"}</p></td><td className="max-w-[16rem] px-4 py-4"><p className="truncate text-sm font-medium text-zinc-800">{submission.event.eventName}</p></td><td className="max-w-[20rem] px-4 py-4"><SubmissionTypeBadge type={submission.submissionType} /><p className="mt-2 truncate text-xs text-zinc-500" title={submissionSelectionSummary(submission)}>{submissionSelectionSummary(submission)}</p></td><td className="max-w-[13rem] px-4 py-4"><p className="truncate text-sm font-medium text-zinc-800">{submission.contact.company || "-"}</p><p className="mt-1 text-xs text-zinc-500">{submission.contact.country || "-"}</p></td><td className="whitespace-nowrap px-4 py-4 text-sm text-zinc-600">{formatDateTime(submission.submittedAt)}</td><td className="px-5 py-4 text-right"><div className="flex items-center justify-end gap-2"><button type="button" onClick={() => setSelectedId(submission.id)} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 transition-colors hover:bg-zinc-50">View <ArrowRight className="h-3.5 w-3.5" /></button>{deleteAction(submission)}</div></td></tr>
                 ))}</tbody>
               </table>
             </div>
             <div className="divide-y divide-zinc-100 lg:hidden">{items.map((submission) => (
-              <button key={submission.id} type="button" onClick={() => setSelectedId(submission.id)} className="block w-full p-5 text-left transition-colors hover:bg-blue-50/35"><div className="flex items-start justify-between gap-4"><div className="min-w-0"><p className="truncate font-semibold text-zinc-900">{contactName(submission)}</p><p className="mt-1 truncate text-xs text-zinc-500">{submission.contact.company || submission.contact.workEmail || "No company provided"}</p></div><SubmissionTypeBadge type={submission.submissionType} /></div><p className="mt-3 truncate text-sm font-medium text-zinc-700">{submission.event.eventName}</p><p className="mt-1 truncate text-xs text-zinc-500">{submissionSelectionSummary(submission)}</p><div className="mt-4 flex items-center justify-between text-xs text-zinc-400"><span>{formatDateTime(submission.submittedAt)}</span><span className="inline-flex items-center gap-1 font-semibold text-blue-700">View <ChevronRight className="h-3.5 w-3.5" /></span></div></button>
+              <div key={submission.id}><button type="button" onClick={() => setSelectedId(submission.id)} className="block w-full p-5 text-left transition-colors hover:bg-blue-50/35"><div className="flex items-start justify-between gap-4"><div className="min-w-0"><p className="truncate font-semibold text-zinc-900">{contactName(submission)}</p><p className="mt-1 truncate text-xs text-zinc-500">{submission.contact.company || submission.contact.workEmail || "No company provided"}</p></div><SubmissionTypeBadge type={submission.submissionType} /></div><p className="mt-3 truncate text-sm font-medium text-zinc-700">{submission.event.eventName}</p><p className="mt-1 truncate text-xs text-zinc-500">{submissionSelectionSummary(submission)}</p><div className="mt-4 flex items-center justify-between text-xs text-zinc-400"><span>{formatDateTime(submission.submittedAt)}</span><span className="inline-flex items-center gap-1 font-semibold text-blue-700">View <ChevronRight className="h-3.5 w-3.5" /></span></div></button>{canDelete ? <div className="px-5 pb-4">{deleteAction(submission)}</div> : null}</div>
             ))}</div>
             <footer className="flex flex-col gap-3 border-t border-zinc-100 bg-zinc-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-zinc-500"><strong className="font-semibold text-zinc-800">{firstItem}-{lastItem}</strong> / <strong className="font-semibold text-zinc-800">{formatNumber(total)}</strong></p><div className="flex items-center gap-2"><Button type="button" variant="outline" disabled={offset === 0 || loading} onClick={() => setOffset((current) => Math.max(0, current - PAGE_SIZE))} className="h-9 border-zinc-300 bg-white px-3 text-xs"><ChevronLeft className="mr-1 h-3.5 w-3.5" /> Prev</Button><span className="px-2 text-xs font-medium text-zinc-500">{Math.floor(offset / PAGE_SIZE) + 1}</span><Button type="button" variant="outline" disabled={!hasMore || loading} onClick={() => setOffset((current) => current + PAGE_SIZE)} className="h-9 border-zinc-300 bg-white px-3 text-xs">Next <ChevronRight className="ml-1 h-3.5 w-3.5" /></Button></div></footer>
           </>
@@ -616,6 +687,7 @@ export default function EventSubmissionsPage() {
       </section>
 
       {selectedId ? <DetailDrawer submission={selectedSubmission} loading={detailLoading} onClose={closeDetail} /> : null}
+      {canDelete && deleteTarget ? <DeleteEventInquiryDialog key={deleteTarget.id} submission={deleteTarget} contactLabel={contactName(deleteTarget)} submittedLabel={formatDateTime(deleteTarget.submittedAt)} busy={deleting} error={deleteError} onCancel={() => { if (!mutationInFlight.current) setDeleteTarget(null); }} onConfirm={(confirmation) => void confirmDelete(confirmation)} /> : null}
     </main>
   );
 }
