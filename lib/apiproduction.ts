@@ -160,7 +160,6 @@ const apiClientProduction = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
   timeout: 60000,
   headers: {
-    "x-api-key": process.env.NEXT_PUBLIC_API_KEY || "",
     ...getLocalDevNgrokHeaders(),
   },
   withCredentials: true,
@@ -1003,7 +1002,6 @@ export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
   timeout: 60000,
   headers: {
-    "x-api-key": process.env.NEXT_PUBLIC_API_KEY || "",
     ...getLocalDevNgrokHeaders(),
   },
 });

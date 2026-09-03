@@ -23,9 +23,10 @@ import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { controlGenerationJob } from "@/lib/contentGenerationJobs";
+import { generationStatus } from "@/lib/contentGenerationState";
 
 import {
-  cancelCampaignContentGenerationJob,
   deleteCampaign,
   forceDeleteCampaign,
   generateCampaignLeadContent,
@@ -100,7 +101,7 @@ const filterOnlyStatuses = [
 ] as const;
 
 const CAMPAIGN_LIST_POLL_MS = 30000;
-const CONTENT_JOB_ACTIVE_STATES = new Set(["PENDING", "STARTED", "PROGRESS", "RETRY"]);
+const CONTENT_JOB_ACTIVE_STATES = new Set(["PENDING", "QUEUED", "STARTED", "PROGRESS", "RETRY", "PAUSING"]);
 
 type CampaignContentGenerationStatus = "preparing" | "running" | "stopping" | "paused";
 
@@ -115,6 +116,7 @@ type CampaignContentGenerationState = {
   remainingLeadIds: string[];
   jobId?: string | null;
   message?: string | null;
+  budgetExhausted?: boolean;
 };
 
 type CampaignContentSummary = {
@@ -192,15 +194,14 @@ function isManualUploadCampaign(
 }
 
 function stateFromContentGenerationJob(
-  job: CampaignListItem["contentGenerationJob"] | null | undefined,
-  campaign: CampaignListItem
+  job: CampaignListItem["contentGenerationJob"] | null | undefined
 ): CampaignContentGenerationState | null {
   if (!job?.id) return null;
   const state = String(job.state || "").trim().toUpperCase();
   const pct = Math.max(0, Math.min(100, Number(job.pct || 0)));
   if (CONTENT_JOB_ACTIVE_STATES.has(state)) {
     return {
-      status: job.cancelRequested ? "stopping" : "running",
+      status: job.pauseRequested || state === "PAUSING" ? "stopping" : "running",
       total: 100,
       completed: pct,
       generated: 0,
@@ -212,23 +213,10 @@ function stateFromContentGenerationJob(
       message: job.message || null,
     };
   }
-  if (state === "CANCELLED" || job.cancelRequested) {
+  if (state === "PAUSED") {
     return {
       status: "paused",
-      total: 100,
-      completed: pct,
-      generated: 0,
-      failed: 0,
-      suppressed: 0,
-      currentLeadId: null,
-      remainingLeadIds: [],
-      jobId: job.id,
-      message: job.message || null,
-    };
-  }
-  if ((campaign.toApprove || 0) > 0 && state === "FAILURE") {
-    return {
-      status: "paused",
+      budgetExhausted: job.budgetExhausted,
       total: 100,
       completed: pct,
       generated: 0,
@@ -614,7 +602,7 @@ function SuperAdminCampaignsPage() {
       let changed = false;
       const next = { ...prev };
       for (const campaign of items) {
-        const serverState = stateFromContentGenerationJob(campaign.contentGenerationJob, campaign);
+        const serverState = stateFromContentGenerationJob(campaign.contentGenerationJob);
         if (serverState) {
           const current = next[campaign.id];
           if (
@@ -632,7 +620,7 @@ function SuperAdminCampaignsPage() {
         const summaryConfirmsAllDraftsFilled = Boolean(
           summary?.loaded && summary.emptyLeadIds.length === 0
         );
-        const serverJobIsTerminal = Boolean(campaign.contentGenerationJob?.id);
+        const serverJobIsTerminal = ["SUCCESS", "FAILURE", "CANCELLED"].includes(String(campaign.contentGenerationJob?.state || "").toUpperCase()) && campaign.contentGenerationJob?.id === next[campaign.id]?.jobId;
         if (next[campaign.id]?.jobId && (serverJobIsTerminal || summaryConfirmsAllDraftsFilled)) {
           delete next[campaign.id];
           changed = true;
@@ -864,7 +852,7 @@ function SuperAdminCampaignsPage() {
       .filter((campaign) => {
         const state =
           contentGenerationByCampaign[campaign.id] ||
-          stateFromContentGenerationJob(campaign.contentGenerationJob, campaign);
+          stateFromContentGenerationJob(campaign.contentGenerationJob);
         return (
           state?.status === "preparing" ||
           state?.status === "running" ||
@@ -930,10 +918,13 @@ function SuperAdminCampaignsPage() {
         leadIds,
         signal: controller.signal,
       });
-      if (response?.queued) {
+      if (response?.queued || response?.reusedActiveRun) {
+        if (response.jobId && contentGenerationStopRequestedRef.current.has(campaignId)) {
+          await controlGenerationJob(campaignId, response.jobId, "pause");
+        }
         queued = leadIds.length;
         setCampaignContentGenerationState(campaignId, {
-          status: "running",
+          status: generationStatus(response) === "paused" ? "paused" : "running",
           total,
           completed,
           generated,
@@ -1089,19 +1080,19 @@ function SuperAdminCampaignsPage() {
     const campaign = items.find((item) => item.id === campaignId);
     const state =
       contentGenerationByCampaign[campaignId] ||
-      (campaign ? stateFromContentGenerationJob(campaign.contentGenerationJob, campaign) : null);
+      (campaign ? stateFromContentGenerationJob(campaign.contentGenerationJob) : null);
     if (!state || state.status === "paused" || state.status === "stopping") return;
 
     contentGenerationStopRequestedRef.current.add(campaignId);
     const controller = contentGenerationControllersRef.current.get(campaignId);
-    const stopMessage = "Stop requested. The current lead step will finish before the worker stops.";
+    const stopMessage = "Pause requested. An in-flight request may finish and be saved; no new paid step will start.";
     setContentGenerationByCampaign((prev) => ({
       ...prev,
       [campaignId]: { ...state, status: "stopping", message: stopMessage },
     }));
     if (state.jobId) {
       try {
-        await cancelCampaignContentGenerationJob(campaignId, state.jobId);
+        await controlGenerationJob(campaignId, state.jobId, "pause");
         toast.info("Content generation stop requested", {
           description: stopMessage,
         });
@@ -1115,7 +1106,8 @@ function SuperAdminCampaignsPage() {
       }
       return;
     }
-    if (controller) controller.abort();
+    // Do not abort an enqueue request: the server may already have accepted it.
+    if (controller) toast.info("Waiting for the saved job before pausing.");
   };
 
   const handleContinueCampaignContentGeneration = async (campaignId: string, event?: React.MouseEvent) => {
@@ -1124,8 +1116,23 @@ function SuperAdminCampaignsPage() {
     const campaign = items.find((item) => item.id === campaignId);
     const state =
       contentGenerationByCampaign[campaignId] ||
-      (campaign ? stateFromContentGenerationJob(campaign.contentGenerationJob, campaign) : null);
+      (campaign ? stateFromContentGenerationJob(campaign.contentGenerationJob) : null);
     if (!state || state.status !== "paused") return;
+
+    if (state.jobId) {
+      if (state.budgetExhausted) {
+        toast.error("Budget limit reached", { description: "This run cannot resume beyond its approved budget. Review its usage in Settings → Content Generation." });
+        return;
+      }
+      try {
+        await controlGenerationJob(campaignId, state.jobId, "resume");
+        setCampaignContentGenerationState(campaignId, { ...state, status: "running" });
+        await fetchData({ silent: true, showErrors: false });
+      } catch (error) {
+        toast.error("Could not resume the saved run", { description: getErrorMessage(error) });
+      }
+      return;
+    }
 
     const remainingLeadIds = [...state.remainingLeadIds];
     if (remainingLeadIds.length === 0) {
@@ -1399,7 +1406,7 @@ function SuperAdminCampaignsPage() {
                   : "Creator not recorded";
                 const contentGenerationState =
                   contentGenerationByCampaign[campaign.id] ||
-                  stateFromContentGenerationJob(campaign.contentGenerationJob, campaign);
+                  stateFromContentGenerationJob(campaign.contentGenerationJob);
                 const contentSummary = contentSummaryByCampaign[campaign.id];
                 const emptyContentLeadIds = contentSummary?.emptyLeadIds || [];
                 const emptyContentCount = emptyContentLeadIds.length;
@@ -1585,7 +1592,7 @@ function SuperAdminCampaignsPage() {
                               ) : (
                                 <Square className="mr-1.5 h-3 w-3 fill-current" />
                               )}
-                              {contentGenerationState?.status === "stopping" ? "Stopping after lead" : "Stop"}
+                              {contentGenerationState?.status === "stopping" ? "Pausing" : "Pause"}
                               {contentProgressLabel ? (
                                 <span className="ml-1.5 rounded-full bg-white/70 px-1.5 py-0.5 text-[10px]">
                                   {contentProgressLabel}

@@ -155,13 +155,11 @@ export async function sendActivityHeartbeat(
 
   const baseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || "").trim().replace(/\/+$/, "");
   if (!baseUrl) throw new Error("NEXT_PUBLIC_API_BASE_URL is not configured.");
-  const apiKey = (process.env.NEXT_PUBLIC_API_KEY || "").trim();
   const response = await fetch(`${baseUrl}/api/me/activity/heartbeat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...authHeaders,
-      ...(apiKey ? { "x-api-key": apiKey } : {}),
       ...getLocalDevNgrokHeaders(),
     },
     body: JSON.stringify(request),

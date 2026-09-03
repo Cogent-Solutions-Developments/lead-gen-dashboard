@@ -39,7 +39,9 @@ test("control center exposes durable limits, visual tracking, and recovery state
   assert.doesNotMatch(center, /DB managed/);
   assert.match(center, /Promise\.allSettled/);
   assert.match(center, /setInterval\(\(\) => void load\(true\), 30000\)/);
-  assert.match(center, /status\?: number[\s\S]*?=== 409\) await load\(true, true\)/);
+  assert.match(center, /status\?: number[\s\S]*?=== 409\) await load\(true\)/);
+  assert.match(center, /expectedVersion: draftBase.version/);
+  assert.match(center, /configurationChanged/);
   assert.match(center, /Save guardrails/);
   assert.match(center, />Spend & usage</);
   assert.match(center, />Outcomes</);

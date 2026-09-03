@@ -24,7 +24,7 @@ function getBaseUrl() {
 }
 
 function getApiKey() {
-  return (process.env.NEXT_PUBLIC_API_KEY || "").trim();
+  return (process.env.BACKEND_SERVICE_API_KEY || "").trim();
 }
 
 function normalizeSalesUser(user: BackendUser) {
@@ -60,7 +60,6 @@ export async function GET(request: NextRequest) {
   const authCheck = await fetch(`${baseUrl}/api/auth/me`, {
     headers: {
       Authorization: authorization,
-      "x-api-key": apiKey,
     },
     cache: "no-store",
   });

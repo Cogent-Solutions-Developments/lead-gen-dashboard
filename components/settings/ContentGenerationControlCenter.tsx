@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MagicWandIcon } from "@phosphor-icons/react/dist/csr/MagicWand";
 import {
   Activity, AlertTriangle, Boxes, Check, ChevronDown, CircleDollarSign, Clock3,
@@ -261,6 +261,8 @@ function BudgetBar({ label, value, detail, tone = "blue" }: {
 export function ContentGenerationControlCenter() {
   const [configuration, setConfiguration] = useState<ContentGenerationConfiguration | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [draftBase, setDraftBase] = useState<ContentGenerationConfiguration | null>(null);
+  const loadSequence = useRef(0);
   const [overview, setOverview] = useState<ContentGenerationOverview | null>(null);
   const [recentChanges, setRecentChanges] = useState<ContentGenerationConfigChange[]>([]);
   const [loading, setLoading] = useState(true);
@@ -275,18 +277,26 @@ export function ContentGenerationControlCenter() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async (quiet = false, replaceDraft = false) => {
+    const sequence = ++loadSequence.current;
     if (quiet) setRefreshing(true);
     else setLoading(true);
     const [configurationResult, overviewResult] = await Promise.allSettled([
       getContentGenerationConfiguration(),
       getContentGenerationOverview(14, 8),
     ]);
+    if (sequence !== loadSequence.current) return;
     const failures: string[] = [];
     if (configurationResult.status === "fulfilled") {
       setConfiguration(configurationResult.value.configuration);
       setRecentChanges(configurationResult.value.recentChanges ?? []);
-      if (replaceDraft) setDraft(draftFromConfig(configurationResult.value.configuration));
-      else setDraft((current) => current ?? draftFromConfig(configurationResult.value.configuration));
+      const latest = configurationResult.value.configuration;
+      if (replaceDraft) {
+        setDraft(draftFromConfig(latest));
+        setDraftBase(latest);
+      } else {
+        setDraft((current) => current ?? draftFromConfig(latest));
+        setDraftBase((current) => current ?? latest);
+      }
     } else failures.push(errorMessage(configurationResult.reason));
     if (overviewResult.status === "fulfilled") setOverview(overviewResult.value);
     else failures.push(errorMessage(overviewResult.reason));
@@ -297,9 +307,10 @@ export function ContentGenerationControlCenter() {
   }, []);
 
   useEffect(() => {
+    const sequenceRef = loadSequence;
     void load();
     const interval = window.setInterval(() => void load(true), 30000);
-    return () => window.clearInterval(interval);
+    return () => { ++sequenceRef.current; window.clearInterval(interval); };
   }, [load]);
 
   useEffect(() => {
@@ -332,9 +343,10 @@ export function ContentGenerationControlCenter() {
     };
   }, [selectedRunId]);
 
-  const dirty = useMemo(() => configuration && draft
-    ? JSON.stringify(draft) !== JSON.stringify(draftFromConfig(configuration))
-    : false, [configuration, draft]);
+  const dirty = useMemo(() => draftBase && draft
+    ? JSON.stringify(draft) !== JSON.stringify(draftFromConfig(draftBase))
+    : false, [draftBase, draft]);
+  const configurationChanged = Boolean(draftBase && configuration && draftBase.version !== configuration.version);
 
   const invalidFields = useMemo(() => {
     if (!draft) return new Set<FieldKey>();
@@ -353,25 +365,27 @@ export function ContentGenerationControlCenter() {
   }, [draft]);
 
   const save = async () => {
-    if (!draft || !configuration || invalidFields.size) {
+    if (!draft || !draftBase || !configuration || configurationChanged || invalidFields.size) {
       toast.error("Review the highlighted guardrails before saving.");
       return;
     }
     try {
       setSaving(true);
+      ++loadSequence.current;
       const response = await updateContentGenerationConfiguration({
         ...draft,
-        expectedVersion: configuration.version,
+        expectedVersion: draftBase.version,
       });
       setConfiguration(response.configuration);
       setDraft(draftFromConfig(response.configuration));
+      setDraftBase(response.configuration);
       toast.success("Content generation guardrails updated", {
         description: `Database configuration v${response.configuration.version} is active for new runs.`,
       });
       await load(true);
     } catch (error) {
       toast.error("Configuration was not saved", { description: errorMessage(error) });
-      if ((error as { status?: number })?.status === 409) await load(true, true);
+      if ((error as { status?: number })?.status === 409) await load(true);
     } finally {
       setSaving(false);
     }
@@ -450,7 +464,7 @@ export function ContentGenerationControlCenter() {
                           value={draft[field.key]}
                           aria-invalid={invalidFields.has(field.key)}
                           className={invalidFields.has(field.key) ? "border-red-400 ring-red-100" : "border-slate-300"}
-                          onChange={(event) => setDraft({ ...draft, [field.key]: Number(event.target.value) })}
+                          onChange={(event) => { const value = Number(event.target.value); setDraft((current) => current ? { ...current, [field.key]: value } : current); }}
                         />
                         <span className={`mt-1 block text-[11px] leading-4 ${invalidFields.has(field.key) ? "text-red-600" : "text-slate-500"}`}>
                           {field.key === "runLeaseSeconds" && invalidFields.has(field.key)
@@ -481,7 +495,7 @@ export function ContentGenerationControlCenter() {
                       maxLength={100}
                       aria-invalid={invalidFields.has(key)}
                       className={invalidFields.has(key) ? "border-red-400 ring-red-100" : "border-slate-300"}
-                      onChange={(event) => setDraft({ ...draft, [key]: event.target.value.trim() })}
+                      onChange={(event) => { const value = event.target.value.trim(); setDraft((current) => current ? { ...current, [key]: value } : current); }}
                     />
                     <span className={`mt-1 block text-[11px] leading-4 ${invalidFields.has(key) ? "text-red-600" : "text-slate-500"}`}>
                       {invalidFields.has(key) ? "Enter a valid provider model identifier." : help}
@@ -493,7 +507,7 @@ export function ContentGenerationControlCenter() {
                 <input
                   type="checkbox"
                   checked={draft.promptCacheEnabled}
-                  onChange={(event) => setDraft({ ...draft, promptCacheEnabled: event.target.checked })}
+                  onChange={(event) => { const checked = event.target.checked; setDraft((current) => current ? { ...current, promptCacheEnabled: checked } : current); }}
                   className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600"
                 />
                 <span><strong className="block text-xs text-slate-800">Reuse cached campaign context</strong><span className="mt-0.5 block text-[11px] leading-4 text-slate-500">Reduces repeated input-token cost without changing the content-quality gates.</span></span>
@@ -505,10 +519,11 @@ export function ContentGenerationControlCenter() {
                 <span><strong>Maximum plan:</strong> {compactNumber(Math.ceil(draft.maxCampaignLeads / draft.maxLeadsPerRun))} batches, up to {compactNumber(draft.maxCampaignLeads * draft.maxRequestsPerLead)} provider requests and {formatUsd(draft.maxCampaignCostUsd)}. Changes are versioned, audited, and apply to new work.</span>
               </div>
               <div className="flex shrink-0 gap-2">
-                <Button type="button" variant="outline" className="border-slate-300 bg-white" disabled={!dirty || saving} onClick={() => setDraft(draftFromConfig(configuration))}>
+                {configurationChanged && <p role="alert" className="text-sm text-amber-800">Another admin changed these settings. Your edits are preserved. Reload before editing the latest version.</p>}
+                <Button type="button" variant="outline" className="border-slate-300 bg-white" disabled={(!dirty && !configurationChanged) || saving} onClick={() => { setDraft(draftFromConfig(configuration)); setDraftBase(configuration); }}>
                   <RotateCcw className="mr-2 h-4 w-4" />Reset
                 </Button>
-                <Button type="button" className="bg-blue-600 hover:bg-blue-700" disabled={!dirty || saving || invalidFields.size > 0} onClick={() => void save()}>
+                <Button type="button" className="bg-blue-600 hover:bg-blue-700" disabled={!dirty || saving || configurationChanged || invalidFields.size > 0} onClick={() => void save()}>
                   {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save guardrails
                 </Button>
               </div>

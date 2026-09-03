@@ -42,11 +42,9 @@ export async function verifyBackendUser(request: Request): Promise<VerifiedBacke
 
   let response: Response;
   try {
-    const configuredApiKey = (process.env.NEXT_PUBLIC_API_KEY || "").trim();
     response = await fetch(`${baseUrl}/api/auth/me`, {
       headers: {
         Authorization: authorization,
-        ...(configuredApiKey ? { "x-api-key": configuredApiKey } : {}),
         ...getLocalDevNgrokHeaders(),
       },
       cache: "no-store",

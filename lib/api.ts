@@ -148,6 +148,8 @@ export type ContentGenerationJob = {
   step?: string | null;
   message?: string | null;
   cancelRequested?: boolean;
+  pauseRequested?: boolean;
+  budgetExhausted?: boolean;
   createdAt?: string | null;
   updatedAt?: string | null;
   finishedAt?: string | null;
@@ -474,6 +476,8 @@ export type GenerateSelectedLeadContentResponse = {
   }>;
   generationMode?: string | null;
   queued?: boolean;
+  reusedActiveRun?: boolean;
+  state?: string;
   jobId?: string | null;
   taskId?: string | null;
   queue?: string | null;
@@ -1450,9 +1454,7 @@ function getWhatsAppBaseUrl() {
 }
 
 function getWhatsAppHeaders() {
-  const apiKey = (process.env.NEXT_PUBLIC_API_KEY || "").trim();
   const headers: Record<string, string> = {};
-  if (apiKey) headers["x-api-key"] = apiKey;
   Object.assign(headers, getAuthHeader());
   Object.assign(headers, getLocalDevNgrokHeaders());
   return headers;
@@ -2699,7 +2701,6 @@ export const api = axios.create({
   timeout: 60000,
   headers: {
     "Content-Type": "application/json",
-    "x-api-key": process.env.NEXT_PUBLIC_API_KEY || "",
     ...getLocalDevNgrokHeaders(),
   },
 });

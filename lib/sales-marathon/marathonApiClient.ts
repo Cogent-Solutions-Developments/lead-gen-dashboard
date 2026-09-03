@@ -89,7 +89,6 @@ export class MarathonApiClient {
     const response = await fetch(`${this.baseUrl}/api/auth/me`, {
       headers: {
         Authorization: authorization,
-        "x-api-key": this.apiKey,
       },
       cache: "no-store",
     });

@@ -5,8 +5,7 @@ export const dynamic = "force-dynamic";
 
 function getBackendConfig() {
   const baseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || "").trim().replace(/\/+$/, "");
-  const apiKey = (process.env.NEXT_PUBLIC_API_KEY || "").trim();
-  return { baseUrl, apiKey };
+  return { baseUrl };
 }
 
 function jsonResponse(payload: unknown, status: number) {
@@ -17,12 +16,9 @@ function jsonResponse(payload: unknown, status: number) {
 }
 
 export async function GET(request: NextRequest) {
-  const { baseUrl, apiKey } = getBackendConfig();
+  const { baseUrl } = getBackendConfig();
   if (!baseUrl) {
     return jsonResponse({ detail: "NEXT_PUBLIC_API_BASE_URL is not configured." }, 500);
-  }
-  if (!apiKey) {
-    return jsonResponse({ detail: "NEXT_PUBLIC_API_KEY is not configured." }, 500);
   }
 
   let user;
@@ -48,7 +44,6 @@ export async function GET(request: NextRequest) {
       headers: {
         Accept: "text/event-stream",
         Authorization: authorization,
-        "x-api-key": apiKey,
       },
       cache: "no-store",
       signal: controller.signal,

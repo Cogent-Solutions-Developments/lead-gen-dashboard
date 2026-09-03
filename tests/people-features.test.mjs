@@ -426,9 +426,9 @@ test("manager summary and filtered detail requests use their matching backend ro
   }
 });
 
-test("heartbeat requests never send without bearer auth and keepalive preserves API-key headers", () => {
+test("heartbeat requests require bearer auth without exposing service keys", () => {
   const source = read("lib/peopleApi.ts");
   assert.match(source, /if \(!authHeaders\.Authorization\)/);
-  assert.match(source, /NEXT_PUBLIC_API_KEY/);
-  assert.match(source, /"x-api-key": apiKey/);
+  assert.doesNotMatch(source, /NEXT_PUBLIC_API_KEY|"x-api-key"/);
+  assert.match(source, /\.\.\.authHeaders/);
 });
