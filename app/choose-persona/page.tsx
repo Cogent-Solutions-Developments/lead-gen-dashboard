@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
 import { clearPersona, getStoredPersona } from "@/lib/persona";
-import { availablePersonasForUser, clearAuthSession } from "@/lib/auth";
+import { clearAuthSession } from "@/lib/auth";
 import { toast } from "sonner";
 
 type PersonaValue = "sales" | "delegate-sales" | "delegates" | "production";
@@ -61,7 +61,7 @@ const workspaceCards = [
 export default function ChoosePersonaPage() {
   const router = useRouter();
   const { persona, setPersona } = usePersona();
-  const { isSuperAdmin, user } = useAuth();
+  const { isSuperAdmin } = useAuth();
   const stored = getStoredPersona();
   const [rotation, setRotation] = useState(0);
 
@@ -69,9 +69,7 @@ export default function ChoosePersonaPage() {
     stored === "delegate-sales" || stored === "delegates" || stored === "production" || stored === "sales" ? stored : "sales";
   const activePersona =
     persona === "delegate-sales" || persona === "delegates" || persona === "production" || persona === "sales" ? persona : currentPersona;
-  const availableWorkspaceCards = workspaceCards.filter((workspace) =>
-    availablePersonasForUser(user).includes(workspace.id)
-  );
+  const availableWorkspaceCards = isSuperAdmin ? workspaceCards : [];
   const selectPersona = (next: PersonaValue) => {
     setPersona(next);
     router.push("/campaigns");

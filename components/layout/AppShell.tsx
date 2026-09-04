@@ -67,7 +67,9 @@ function isCeoAllowedAdminPath(pathname: string) {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const isChooser = pathname === "/" || pathname === "/choose-persona";
+  const isAdminChooser = pathname === "/" || pathname === "/choose-persona";
+  const isAssignedChooser = pathname === "/select-workspace";
+  const isChooser = isAdminChooser || isAssignedChooser;
   const isAuthRoute = pathname === "/sign-in";
   const isFlushContentRoute = pathname === "/nizo-ai" || pathname === "/dashboard";
   const [selected, setSelected] = useState<boolean>(() => hasPersona());
@@ -156,7 +158,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (pathname === "/autocall") return;
 
     if (isAuthRoute) {
-      router.replace(requiresPersonaChoice ? "/choose-persona" : getAuthLandingPath(role));
+      router.replace(requiresPersonaChoice ? "/select-workspace" : getAuthLandingPath(role));
+      return;
+    }
+
+    if (isAssignedChooser && !requiresPersonaChoice) {
+      router.replace(getAuthLandingPath(role));
       return;
     }
 
@@ -220,9 +227,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
     if (requiresPersonaChoice) {
       const selectedPersona = getStoredPersona();
-      if (!isChooser && (!selectedPersona || !canUserUsePersona(session.user, selectedPersona))) {
+      if (
+        isAdminChooser ||
+        (!isAssignedChooser && (!selectedPersona || !canUserUsePersona(session.user, selectedPersona)))
+      ) {
         clearPersona();
-        router.replace("/choose-persona");
+        router.replace("/select-workspace");
         return;
       }
     }
@@ -243,9 +253,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const selectedPersona = getStoredPersona();
     if (selectedPersona && !canUserUsePersona(session.user, selectedPersona)) {
       clearPersona();
-      router.replace(requiresPersonaChoice ? "/choose-persona" : getAuthLandingPath(role));
+      router.replace(requiresPersonaChoice ? "/select-workspace" : getAuthLandingPath(role));
     }
-  }, [authChecked, businessLandingPath, forcedPersona, isAdminAreaRoute, isAuthRoute, isBusiness, isCeo, isChooser, isClient, isManager, isSuperAdmin, pathname, requiresPersonaChoice, role, router, selected, session]);
+  }, [authChecked, businessLandingPath, forcedPersona, isAdminAreaRoute, isAdminChooser, isAssignedChooser, isAuthRoute, isBusiness, isCeo, isChooser, isClient, isManager, isSuperAdmin, pathname, requiresPersonaChoice, role, router, selected, session]);
 
   if (!authChecked) return null;
 
@@ -303,6 +313,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (isCeo && isChooser) return null;
+  if (isAssignedChooser && !requiresPersonaChoice) return null;
+  if (isAdminChooser && requiresPersonaChoice) return null;
 
   if (isAuthRoute || isChooser) {
     return (

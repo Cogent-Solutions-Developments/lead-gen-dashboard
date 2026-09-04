@@ -13,7 +13,7 @@ test("Delegate Sales is managed inside the update-user role selection", () => {
 });
 
 test("saving an edited user persists the primary and Delegate Sales selections", () => {
-  assert.match(source, /const updated = await updateAuthUser\(editingId/);
+  assert.match(source, /(?:const|let) updated = await updateAuthUser\(editingId/);
   assert.match(source, /shouldAssignDelegateSales/);
   assert.match(source, /savedUser = await updateAuthUserDepartmentAssignments/);
 });
