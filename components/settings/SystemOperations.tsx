@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   useCallback,
   useEffect,
@@ -43,6 +42,7 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SettingsBackButton } from "@/components/settings/SettingsBackButton";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
@@ -526,13 +526,16 @@ export default function SystemOperationsPage() {
         );
       } else {
         const fileData = await listSystemOperationLogServices("file");
+        const dockerLogsIntentionallyDisabled = dockerData.enabled === false;
         setLogSource("file");
         setDockerLogsEnabled(true);
         setDockerLogsDisabledReason(
-          `${
-            dockerData.reason ||
-            "Docker service logs are unavailable. Start the Docker engine and try again."
-          } Showing application file logs instead.`,
+          dockerLogsIntentionallyDisabled
+            ? null
+            : `${
+                dockerData.reason ||
+                "Docker service logs are unavailable. Start the Docker engine and try again."
+              } Showing application file logs instead.`,
         );
         setServices(Array.isArray(fileData.services) ? fileData.services : []);
       }
@@ -848,9 +851,7 @@ export default function SystemOperationsPage() {
     <div className="admin-page flex min-h-[calc(100dvh-3rem)] flex-col bg-transparent">
       <div className="admin-page-header flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <Link href="/settings" className="admin-eyebrow hover:text-blue-600">
-            Settings /
-          </Link>
+          <SettingsBackButton href="/settings" />
           <h1 className="admin-title">Operations Center</h1>
           <p className="admin-description">
             See what needs attention, safely check the cause, and recover one

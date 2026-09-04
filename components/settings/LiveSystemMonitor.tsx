@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useId, useMemo, useState, type ReactNode } from "react";
 import {
   Activity,
-  ArrowLeft,
   ArrowRight,
   CheckCircle2,
   Clock3,
@@ -35,6 +34,7 @@ import {
 } from "recharts";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { SettingsBackButton } from "@/components/settings/SettingsBackButton";
 import { fetchLiveSystemMonitor, fetchSystemMonitorSnapshot } from "@/lib/auth";
 import {
   deliveryDistribution,
@@ -364,13 +364,7 @@ export default function LiveSystemMonitor() {
     <div className="space-y-5 pb-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <Link
-            href="/settings"
-            className="mb-3 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-blue-600"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Settings
-          </Link>
+          <SettingsBackButton href="/settings" />
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             System Monitor
           </h1>

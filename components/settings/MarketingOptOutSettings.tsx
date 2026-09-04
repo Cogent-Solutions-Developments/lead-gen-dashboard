@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeftIcon } from "@phosphor-icons/react/dist/csr/ArrowLeft";
 import { ArrowsClockwiseIcon } from "@phosphor-icons/react/dist/csr/ArrowsClockwise";
 import { CloudArrowUpIcon } from "@phosphor-icons/react/dist/csr/CloudArrowUp";
 import { ShieldSlashIcon } from "@phosphor-icons/react/dist/csr/ShieldSlash";
@@ -11,6 +10,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { SettingsBackButton } from "@/components/settings/SettingsBackButton";
 import { usePersona } from "@/hooks/usePersona";
 import {
   createWhatsAppOptOut,
@@ -166,15 +166,7 @@ export function MarketingOptOutSettings({ onBack }: { onBack: () => void }) {
       <Card className="border-slate-200 p-6 shadow-sm">
         <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onBack}
-              className="mb-4 -ml-3 h-9 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-            >
-              <ArrowLeftIcon className="mr-2 h-4 w-4" weight="bold" aria-hidden="true" />
-              Settings
-            </Button>
+            <SettingsBackButton onClick={onBack} />
             <div className="flex items-start gap-4">
               <ShieldSlashIcon
                 size={36}

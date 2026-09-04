@@ -78,6 +78,7 @@ function renderMonitor({ traffic = null, health = null, error = null, suspended 
     recharts: new Proxy({}, { get: () => () => null }),
     "@/components/ui/card": { Card: element("section") },
     "@/components/ui/button": { Button: element("button") },
+    "@/components/settings/SettingsBackButton": { SettingsBackButton: element("a") },
     "@/lib/auth": { fetchLiveSystemMonitor: () => {}, fetchSystemMonitorSnapshot: () => {} },
     "@/lib/systemMonitor": monitor,
     "@/hooks/useMonitorPolling": { useMonitorPolling: () => ({ data: pollIndex++ === 0 ? traffic : health, pending: false, error, suspended }) },
