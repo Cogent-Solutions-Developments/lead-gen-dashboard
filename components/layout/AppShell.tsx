@@ -15,6 +15,7 @@ import {
   fetchCurrentAuthUser,
   getAuthLandingPath,
   getStoredAuthSession,
+  hasDelegateSalesAssignment,
   isCeoRole,
   isBusinessRole,
   isClientRole,
@@ -80,6 +81,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isBusiness = isBusinessRole(role);
   const isManager = isManagerRole(role);
   const forcedPersona = forcedPersonaForUser(session?.user);
+  const requiresPersonaChoice = hasDelegateSalesAssignment(session?.user);
   const businessWorkspace = businessWorkspaceForRole(role);
   const businessLandingPath = businessWorkspace ? `/business/${businessWorkspace}` : null;
   const isCeoWorkspaceAdminRoute = isCeo && isCeoAllowedAdminPath(pathname);
@@ -154,7 +156,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (pathname === "/autocall") return;
 
     if (isAuthRoute) {
-      router.replace(getAuthLandingPath(role));
+      router.replace(requiresPersonaChoice ? "/choose-persona" : getAuthLandingPath(role));
       return;
     }
 
@@ -216,6 +218,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    if (requiresPersonaChoice) {
+      const selectedPersona = getStoredPersona();
+      if (!isChooser && (!selectedPersona || !canUserUsePersona(session.user, selectedPersona))) {
+        clearPersona();
+        router.replace("/choose-persona");
+        return;
+      }
+    }
+
     if (!isSuperAdmin && isSuperOnlyPath(pathname)) {
       if (isCeo && isCeoAllowedAdminPath(pathname)) {
         return;
@@ -232,9 +243,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const selectedPersona = getStoredPersona();
     if (selectedPersona && !canUserUsePersona(session.user, selectedPersona)) {
       clearPersona();
-      router.replace(getAuthLandingPath(role));
+      router.replace(requiresPersonaChoice ? "/choose-persona" : getAuthLandingPath(role));
     }
-  }, [authChecked, businessLandingPath, forcedPersona, isAdminAreaRoute, isAuthRoute, isBusiness, isCeo, isChooser, isClient, isManager, isSuperAdmin, pathname, role, router, selected, session]);
+  }, [authChecked, businessLandingPath, forcedPersona, isAdminAreaRoute, isAuthRoute, isBusiness, isCeo, isChooser, isClient, isManager, isSuperAdmin, pathname, requiresPersonaChoice, role, router, selected, session]);
 
   if (!authChecked) return null;
 
