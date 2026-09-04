@@ -47,7 +47,7 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  buildSystemOperationDockerLogStreamUrl,
+  buildSystemOperationLogStreamUrl,
   fetchSystemOperationLog,
   fetchSystemOperationRecoveryGuide,
   getAuthHeader,
@@ -439,6 +439,7 @@ export default function SystemOperationsPage() {
   const [services, setServices] = useState<SystemOperationLogService[]>([]);
   const [servicesLoading, setServicesLoading] = useState(true);
   const [servicesError, setServicesError] = useState<string | null>(null);
+  const [logSource, setLogSource] = useState<"docker" | "file">("docker");
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [logLines, setLogLines] = useState<string[]>([]);
   const [logFilter, setLogFilter] = useState<LogFilter>("all");
@@ -511,17 +512,33 @@ export default function SystemOperationsPage() {
     setServicesLoading(true);
     setServicesError(null);
     try {
-      const data = await listSystemOperationLogServices();
-      if (data.error) throw new Error(data.error);
-      setDockerLogsEnabled(data.enabled !== false);
-      setDockerLogsDisabledReason(
-        data.enabled === false
-          ? data.reason || "Docker log access is disabled."
-          : null,
-      );
-      setServices(Array.isArray(data.services) ? data.services : []);
+      const dockerData = await listSystemOperationLogServices("docker");
+      const dockerAvailable =
+        dockerData.enabled !== false &&
+        dockerData.available !== false &&
+        !dockerData.error;
+      if (dockerAvailable) {
+        setLogSource("docker");
+        setDockerLogsEnabled(true);
+        setDockerLogsDisabledReason(null);
+        setServices(
+          Array.isArray(dockerData.services) ? dockerData.services : [],
+        );
+      } else {
+        const fileData = await listSystemOperationLogServices("file");
+        setLogSource("file");
+        setDockerLogsEnabled(true);
+        setDockerLogsDisabledReason(
+          `${
+            dockerData.reason ||
+            "Docker service logs are unavailable. Start the Docker engine and try again."
+          } Showing application file logs instead.`,
+        );
+        setServices(Array.isArray(fileData.services) ? fileData.services : []);
+      }
     } catch (error: unknown) {
       setServicesError(getErrorMessage(error));
+      setDockerLogsEnabled(false);
       setServices([]);
     } finally {
       setServicesLoading(false);
@@ -562,110 +579,122 @@ export default function SystemOperationsPage() {
     setRefreshingAll(false);
   }, [loadGuide, loadIncidents, loadServices]);
 
-  const loadInitialLog = useCallback(async (service: string) => {
-    setLogsLoading(true);
-    setLogsError(null);
-    setLogLines([]);
-    try {
-      const data = await fetchSystemOperationLog(service, { tail: 200 });
-      if (data.enabled === false) {
-        setDockerLogsEnabled(false);
-        setDockerLogsDisabledReason(
-          data.reason || "Docker log access is disabled for this environment.",
-        );
-        setLogPath("");
-        setLogContainerName(null);
-        setLogContainerStatus(null);
-        setLogExists(false);
-        return;
-      }
-      setDockerLogsEnabled(true);
-      setDockerLogsDisabledReason(null);
-      setLogPath(data.path || "");
-      setLogContainerName(data.containerName || null);
-      setLogContainerStatus(data.status || null);
-      setLogExists(Boolean(data.exists));
-      setLogLines(
-        Array.isArray(data.lines) ? data.lines.slice(-MAX_LOG_LINES) : [],
-      );
-    } catch (error: unknown) {
-      setLogsError(getErrorMessage(error));
+  const loadInitialLog = useCallback(
+    async (service: string) => {
+      setLogsLoading(true);
+      setLogsError(null);
       setLogLines([]);
-    } finally {
-      setLogsLoading(false);
-    }
-  }, []);
+      try {
+        const data = await fetchSystemOperationLog(service, {
+          tail: 200,
+          source: logSource,
+        });
+        if (data.enabled === false || data.available === false) {
+          setDockerLogsEnabled(false);
+          setDockerLogsDisabledReason(
+            data.reason ||
+              "Docker service logs are unavailable. Start the Docker engine and try again.",
+          );
+          setLogPath("");
+          setLogContainerName(null);
+          setLogContainerStatus(null);
+          setLogExists(false);
+          return;
+        }
+        setDockerLogsEnabled(true);
+        setDockerLogsDisabledReason(null);
+        setLogPath(data.path || "");
+        setLogContainerName(data.containerName || null);
+        setLogContainerStatus(data.status || null);
+        setLogExists(Boolean(data.exists));
+        setLogLines(
+          Array.isArray(data.lines) ? data.lines.slice(-MAX_LOG_LINES) : [],
+        );
+      } catch (error: unknown) {
+        setLogsError(getErrorMessage(error));
+        setLogLines([]);
+      } finally {
+        setLogsLoading(false);
+      }
+    },
+    [logSource],
+  );
 
-  const startDockerLogStream = useCallback(async (service: string) => {
-    streamAbortRef.current?.abort();
-    const controller = new AbortController();
-    streamAbortRef.current = controller;
-    try {
-      const response = await fetch(
-        buildSystemOperationDockerLogStreamUrl(service, 1),
-        {
-          headers: { ...getAuthHeader(), ...getLocalDevNgrokHeaders() },
-          signal: controller.signal,
-        },
-      );
-      if (!response.ok)
-        throw new Error(response.statusText || "Live log connection failed");
-      if (!response.body) throw new Error("Live logs are unavailable");
+  const startLogStream = useCallback(
+    async (service: string) => {
+      streamAbortRef.current?.abort();
+      const controller = new AbortController();
+      streamAbortRef.current = controller;
+      try {
+        const response = await fetch(
+          buildSystemOperationLogStreamUrl(service, 1, logSource),
+          {
+            headers: { ...getAuthHeader(), ...getLocalDevNgrokHeaders() },
+            signal: controller.signal,
+          },
+        );
+        if (!response.ok)
+          throw new Error(response.statusText || "Live log connection failed");
+        if (!response.body) throw new Error("Live logs are unavailable");
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      while (!controller.signal.aborted) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const events = buffer.split("\n\n");
-        buffer = events.pop() || "";
-        for (const eventText of events) {
-          const eventLine = eventText
-            .split("\n")
-            .find((line) => line.startsWith("event:"));
-          const dataLine = eventText
-            .split("\n")
-            .find((line) => line.startsWith("data:"));
-          const eventName =
-            eventLine?.replace(/^event:\s*/, "").trim() || "message";
-          const rawData = dataLine?.replace(/^data:\s*/, "").trim();
-          if (!rawData) continue;
-          const payload = JSON.parse(rawData) as {
-            line?: string;
-            reason?: string;
-            service?: string;
-            containerName?: string;
-            status?: string;
-          };
-          if (eventName === "unavailable") {
-            setDockerLogsEnabled(false);
-            setDockerLogsDisabledReason(
-              payload.reason || "Docker log access is disabled.",
-            );
-          } else if (eventName === "missing") {
-            setLogExists(false);
-            setLogsError(
-              `No Docker container was found for ${payload.service || service}.`,
-            );
-          } else if (eventName === "log" && payload.line) {
-            setLogExists(true);
-            if (payload.containerName)
-              setLogContainerName(payload.containerName);
-            if (payload.status) setLogContainerStatus(payload.status);
-            setLogLines((previous) =>
-              previous.at(-1) === payload.line
-                ? previous
-                : [...previous, payload.line as string].slice(-MAX_LOG_LINES),
-            );
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (!controller.signal.aborted) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const events = buffer.split("\n\n");
+          buffer = events.pop() || "";
+          for (const eventText of events) {
+            const eventLine = eventText
+              .split("\n")
+              .find((line) => line.startsWith("event:"));
+            const dataLine = eventText
+              .split("\n")
+              .find((line) => line.startsWith("data:"));
+            const eventName =
+              eventLine?.replace(/^event:\s*/, "").trim() || "message";
+            const rawData = dataLine?.replace(/^data:\s*/, "").trim();
+            if (!rawData) continue;
+            const payload = JSON.parse(rawData) as {
+              line?: string;
+              reason?: string;
+              service?: string;
+              containerName?: string;
+              status?: string;
+            };
+            if (eventName === "unavailable") {
+              setDockerLogsEnabled(false);
+              setDockerLogsDisabledReason(
+                payload.reason || "Docker log access is disabled.",
+              );
+            } else if (eventName === "missing") {
+              setLogExists(false);
+              setLogsError(
+                logSource === "docker"
+                  ? `No Docker container was found for ${payload.service || service}.`
+                  : `No application log file was found for ${payload.service || service}.`,
+              );
+            } else if (eventName === "log" && payload.line) {
+              setLogExists(true);
+              if (payload.containerName)
+                setLogContainerName(payload.containerName);
+              if (payload.status) setLogContainerStatus(payload.status);
+              setLogLines((previous) =>
+                previous.at(-1) === payload.line
+                  ? previous
+                  : [...previous, payload.line as string].slice(-MAX_LOG_LINES),
+              );
+            }
           }
         }
+      } catch (error: unknown) {
+        if (!controller.signal.aborted) setLogsError(getErrorMessage(error));
       }
-    } catch (error: unknown) {
-      if (!controller.signal.aborted) setLogsError(getErrorMessage(error));
-    }
-  }, []);
+    },
+    [logSource],
+  );
 
   const openService = (service: string) => {
     setSelectedService(service);
@@ -749,9 +778,9 @@ export default function SystemOperationsPage() {
 
   useEffect(() => {
     if (!selectedService || logsPaused || dockerLogsEnabled === false) return;
-    void startDockerLogStream(selectedService);
+    void startLogStream(selectedService);
     return () => streamAbortRef.current?.abort();
-  }, [dockerLogsEnabled, logsPaused, selectedService, startDockerLogStream]);
+  }, [dockerLogsEnabled, logsPaused, selectedService, startLogStream]);
 
   useEffect(() => () => streamAbortRef.current?.abort(), []);
 
@@ -1101,7 +1130,7 @@ export default function SystemOperationsPage() {
                 retry={() => void loadServices()}
               />
             ) : null}
-            {dockerLogsEnabled === false ? (
+            {dockerLogsDisabledReason ? (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
                 {dockerLogsDisabledReason ||
                   "Docker log access is disabled for this environment."}
@@ -1124,7 +1153,7 @@ export default function SystemOperationsPage() {
                   <button
                     key={meta.key}
                     type="button"
-                    disabled={dockerLogsEnabled === false}
+                    disabled={servicesLoading || dockerLogsEnabled === false}
                     onClick={() => openService(meta.key)}
                     aria-pressed={active}
                     className={`rounded-xl border p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
@@ -1186,7 +1215,11 @@ export default function SystemOperationsPage() {
                       </p>
                       <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-zinc-300">
                         {logContainerStatus ||
-                          (logExists ? "available" : "unavailable")}
+                          (logExists
+                            ? logSource === "file"
+                              ? "file log"
+                              : "available"
+                            : "unavailable")}
                       </span>
                       <span className="text-[11px] text-zinc-400">
                         {logsPaused ? "Paused" : "Live"}

@@ -754,6 +754,7 @@ export type SystemOperationLogService = {
 export type SystemOperationLogServicesResponse = {
   source?: "file" | "docker" | string;
   enabled?: boolean;
+  available?: boolean;
   reason?: string;
   error?: string;
   services: SystemOperationLogService[];
@@ -762,6 +763,7 @@ export type SystemOperationLogServicesResponse = {
 export type SystemOperationLogResponse = {
   source?: "file" | "docker" | string;
   enabled?: boolean;
+  available?: boolean;
   service: string;
   path?: string;
   exists: boolean;
@@ -2207,8 +2209,10 @@ export async function fetchManagerPerformance(options: {
   return authRequest<ManagerPerformanceResponse>(`/api/manager/performance${suffix}`);
 }
 
-export async function listSystemOperationLogServices() {
-  return authRequest<SystemOperationLogServicesResponse>("/api/admin/system-operations/logs/services?source=docker");
+export async function listSystemOperationLogServices(source: "docker" | "file" = "docker") {
+  return authRequest<SystemOperationLogServicesResponse>(
+    `/api/admin/system-operations/logs/services?source=${source}`
+  );
 }
 
 export async function fetchSystemOperationLog(
@@ -2224,12 +2228,20 @@ export async function fetchSystemOperationLog(
   );
 }
 
-export function buildSystemOperationDockerLogStreamUrl(service: string, tail = 200) {
+export function buildSystemOperationLogStreamUrl(
+  service: string,
+  tail = 200,
+  source: "docker" | "file" = "docker"
+) {
   const params = new URLSearchParams({
-    source: "docker",
+    source,
     tail: String(tail),
   });
   return `${getBaseUrl()}/api/admin/system-operations/logs/${encodeURIComponent(service)}/stream?${params.toString()}`;
+}
+
+export function buildSystemOperationDockerLogStreamUrl(service: string, tail = 200) {
+  return buildSystemOperationLogStreamUrl(service, tail, "docker");
 }
 
 export async function listSystemOperationIncidents(limit = 50) {

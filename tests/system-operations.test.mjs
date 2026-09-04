@@ -99,5 +99,13 @@ test("operations UI keeps safe checks primary and protects real recovery", () =>
   assert.match(source, /role="dialog"/);
   assert.match(source, /Advanced service logs/);
   assert.match(source, /Promise\.allSettled/);
+  assert.match(source, /dockerData\.available !== false/);
+  assert.doesNotMatch(source, /throw new Error\(data\.error\)/);
+  assert.match(source, /listSystemOperationLogServices\("file"\)/);
+  assert.match(source, /Showing application file logs instead/);
+  assert.match(
+    source,
+    /buildSystemOperationLogStreamUrl\(service, 1, logSource\)/,
+  );
   assert.doesNotMatch(source, /Service Selector/);
 });
