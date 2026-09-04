@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, CheckCircle2, Loader2, PauseCircle, Pencil, PlayCircle, RefreshCw, RotateCw, Trash2, Webhook } from "lucide-react";
+import { CheckCircle2, Loader2, PauseCircle, Pencil, PlayCircle, RefreshCw, RotateCw, Trash2, Webhook } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { SettingsBackButton } from "@/components/settings/SettingsBackButton";
 import {
   createDepartmentMailWebhook,
   deleteDepartmentMailWebhook,
@@ -269,9 +270,7 @@ export function OutreachMailWebhookSettings({ onBack }: { onBack: () => void }) 
       <Card className="p-6">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <Button type="button" variant="ghost" onClick={onBack} className="mb-4 -ml-3 h-9 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-              <ArrowLeft className="mr-2 h-4 w-4" />All settings
-            </Button>
+            <SettingsBackButton onClick={onBack} />
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100"><Webhook className="h-5 w-5 text-blue-600" /></div>
               <div>

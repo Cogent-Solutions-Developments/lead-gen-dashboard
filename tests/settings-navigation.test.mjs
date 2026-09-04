@@ -45,7 +45,7 @@ function settingsBrowser(initialHref = "/settings") {
       }),
     },
     "framer-motion": { motion: { div: element("div"), button: element("button") } },
-    "lucide-react": { ChevronRight: () => null, Webhook: () => null },
+    "lucide-react": { ArrowRight: () => null, FilePenLine: () => null, MonitorDot: () => null, UserRoundMinus: () => null, Workflow: () => null },
     "@/components/layout/AdminPanelShell": { AdminPanelShell: element("main") },
     "@/components/settings/MarketingOptOutSettings": { MarketingOptOutSettings: sectionView("opt-out") },
     "@/components/settings/OutreachMailWebhookSettings": { OutreachMailWebhookSettings: sectionView("outreach") },
