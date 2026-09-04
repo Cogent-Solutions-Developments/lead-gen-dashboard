@@ -4,7 +4,7 @@ import test from "node:test";
 
 const source = fs.readFileSync(new URL("../app/admin/users/page.tsx", import.meta.url), "utf8");
 
-test("Delegate Sales is managed inside the update-user roles multi-select", () => {
+test("Delegate Sales is managed inside the update-user role selection", () => {
   assert.match(source, /function UserRoleMultiSelect/);
   assert.match(source, /role="menuitemcheckbox"/);
   assert.match(source, /Choose one primary role and optionally add Delegate Sales\./);

@@ -984,6 +984,10 @@ export function getAuthLandingPath(role: AuthRole | null | undefined) {
   return isSuperAdminRole(role) ? "/choose-persona" : "/dashboard";
 }
 
+export function isAuthenticationFailure(error: unknown) {
+  return Boolean(error && typeof error === "object" && (error as AuthError).status === 401);
+}
+
 function getBaseUrl() {
   const base = (process.env.NEXT_PUBLIC_API_BASE_URL || "").trim();
   if (!base) throw new Error("NEXT_PUBLIC_API_BASE_URL is not configured.");

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import {
   getAuthLandingPath,
   getStoredAuthSession,
+  hasDelegateSalesAssignment,
   isCeoRole,
   isMfaLoginChallenge,
   loginWithPassword,
@@ -20,7 +21,7 @@ import {
   type AuthSession,
   type MfaLoginChallenge,
 } from "@/lib/auth";
-import { setPersona } from "@/lib/persona";
+import { clearPersona, setPersona } from "@/lib/persona";
 
 const LOGIN_REVEAL_DELAY_MS = 6000;
 const HERO_GIF_SRC = "/videos/supernizo-figure-cropped.webp";
@@ -73,6 +74,11 @@ export default function SignInPage() {
     const checkSession = async () => {
       const session = getStoredAuthSession();
       if (!active || !session) return;
+      if (hasDelegateSalesAssignment(session.user)) {
+        clearPersona();
+        router.replace("/choose-persona");
+        return;
+      }
       const forcedPersona = forcedPersonaForUser(session.user) ?? personaForRole(session.user.role);
       if (forcedPersona) {
         setPersona(forcedPersona);
@@ -109,15 +115,20 @@ export default function SignInPage() {
   }, []);
 
   const completeSignIn = (session: AuthSession) => {
-    const forcedPersona = forcedPersonaForUser(session.user) ?? personaForRole(session.user.role);
-    if (forcedPersona) {
+    const requiresPersonaChoice = hasDelegateSalesAssignment(session.user);
+    const forcedPersona = requiresPersonaChoice
+      ? null
+      : forcedPersonaForUser(session.user) ?? personaForRole(session.user.role);
+    if (requiresPersonaChoice) {
+      clearPersona();
+    } else if (forcedPersona) {
       setPersona(forcedPersona);
     } else if (isCeoRole(session.user.role)) {
       setPersona("ceo");
     }
 
     toast.success("Signed in successfully.");
-    router.replace(getAuthLandingPath(session.user.role));
+    router.replace(requiresPersonaChoice ? "/choose-persona" : getAuthLandingPath(session.user.role));
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {

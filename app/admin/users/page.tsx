@@ -249,7 +249,7 @@ function UserRoleMultiSelect({
 
   return (
     <details
-      className="group relative"
+      className="group"
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.removeAttribute("open");
       }}
@@ -263,60 +263,80 @@ function UserRoleMultiSelect({
         onClick={(event) => {
           if (disabled) event.preventDefault();
         }}
-        className={`flex h-10 list-none items-center justify-between gap-2 rounded-md border border-zinc-300 bg-white px-3 text-sm text-slate-900 outline-none [&::-webkit-details-marker]:hidden ${
-          disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-blue-300 focus:ring-2 focus:ring-blue-100"
+        className={`flex h-11 list-none items-center justify-between gap-3 rounded-lg border border-zinc-300 bg-white px-3.5 text-sm text-slate-900 shadow-none outline-none transition [&::-webkit-details-marker]:hidden ${
+          disabled
+            ? "cursor-not-allowed opacity-60"
+            : "cursor-pointer hover:border-blue-300 focus-visible:border-blue-500 focus-visible:ring-3 focus-visible:ring-blue-100"
         }`}
       >
         <span className="flex min-w-0 items-center gap-2 overflow-hidden">
-          <span className="truncate">{primaryRole ? getRoleLabel(primaryRole) : "Select role"}</span>
+          <span className="truncate">{primaryRole ? getRoleLabel(primaryRole) : "Select primary role"}</span>
           {delegateSalesAssigned ? (
             <span className="shrink-0 rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700">
-              Delegate Sales
+              + Delegate Sales
             </span>
           ) : null}
         </span>
-        <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400 transition group-open:rotate-180" />
+        <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400 transition-transform group-open:rotate-180" />
       </summary>
 
-      <div role="menu" className="absolute bottom-full left-0 z-[100] mb-1 max-h-72 w-full min-w-64 overflow-y-auto rounded-lg border border-zinc-200 bg-white p-1.5 shadow-xl">
-        <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Primary role</p>
-        {roleOptions.map((role) => {
-          const selected = primaryRole === role;
-          return (
-            <button
-              key={role}
-              type="button"
-              role="menuitemradio"
-              aria-checked={selected}
-              disabled={disabled}
-              onClick={() => onPrimaryRoleChange(role)}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm text-zinc-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${selected ? "border-blue-600 bg-blue-600 text-white" : "border-zinc-300"}`}>
-                {selected ? <Check className="h-3 w-3" /> : null}
-              </span>
-              {getRoleLabel(role)}
-            </button>
-          );
-        })}
+      <div
+        role="menu"
+        aria-label="User roles"
+        className="mt-2 max-h-72 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-[0_16px_38px_-22px_rgba(15,23,42,0.45)]"
+      >
+        <p className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-400">Primary role</p>
+          {roleOptions.map((role) => {
+            const selected = primaryRole === role;
+            return (
+              <button
+                key={role}
+                type="button"
+                role="menuitemradio"
+                aria-checked={selected}
+                disabled={disabled}
+                onClick={() => onPrimaryRoleChange(role)}
+                className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition ${
+                  selected ? "bg-blue-50 font-medium text-blue-800" : "text-zinc-700 hover:bg-zinc-50"
+                } disabled:cursor-not-allowed disabled:opacity-50`}
+              >
+                <span
+                  className={`flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border ${
+                    selected ? "border-blue-600 bg-blue-600 text-white" : "border-zinc-300 bg-white"
+                  }`}
+                >
+                  {selected ? <Check className="h-3 w-3" /> : null}
+                </span>
+                {getRoleLabel(role)}
+              </button>
+            );
+          })}
 
         <div className="mt-1 border-t border-zinc-100 pt-1">
-          <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Additional role</p>
+          <p className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-400">Additional role</p>
           <button
             type="button"
             role="menuitemcheckbox"
             aria-checked={delegateSalesAssigned}
             disabled={disabled || !delegateSalesAvailable}
             onClick={() => onDelegateSalesChange(!delegateSalesAssigned)}
-            className="flex w-full items-start gap-2 rounded-md px-2 py-2 text-left hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-45"
+            className={`flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition ${
+              delegateSalesAssigned ? "bg-violet-50 text-violet-800" : "text-zinc-700 hover:bg-violet-50/60"
+            } disabled:cursor-not-allowed disabled:opacity-45`}
           >
-            <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${delegateSalesAssigned ? "border-violet-600 bg-violet-600 text-white" : "border-zinc-300 bg-white"}`}>
+            <span
+              className={`mt-0.5 flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded border ${
+                delegateSalesAssigned ? "border-violet-600 bg-violet-600 text-white" : "border-zinc-300 bg-white"
+              }`}
+            >
               {delegateSalesAssigned ? <Check className="h-3 w-3" /> : null}
             </span>
-            <span>
-              <span className="block text-sm font-medium text-violet-700">Delegate Sales</span>
-              <span className="mt-0.5 block text-xs text-zinc-400">
-                {delegateSalesAvailable ? "Adds the secondary Sales workspace." : "Available for pipeline employees and managers."}
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold">Delegate Sales</span>
+              <span className="mt-0.5 block text-xs leading-5 text-zinc-500">
+                {delegateSalesAvailable
+                  ? "Add this role alongside the selected primary role."
+                  : "Available for pipeline employees and managers."}
               </span>
             </span>
           </button>
@@ -1558,96 +1578,133 @@ export default function AdminUsersPage() {
       ) : null}
 
       {editingId ? (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-blue-950/35 p-4 backdrop-blur-[3px]">
-          <Card className="admin-modal-panel w-full max-w-2xl overflow-hidden rounded-2xl border border-blue-100 bg-white">
-            <div className="flex items-start justify-between gap-4 border-b border-zinc-100 px-5 py-4">
-              <div>
-                <p className="text-xs font-semibold uppercase text-blue-700">User Details</p>
-                <h3 className="mt-1 text-lg font-semibold text-slate-900">Update User</h3>
-                <p className="mt-1 text-sm text-zinc-500">Update profile, role, and account status without leaving the Users tab.</p>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-[4px] sm:p-6">
+          <Card
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="update-user-title"
+            className="admin-modal-panel flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_30px_90px_-28px_rgba(15,23,42,0.65)]"
+          >
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-zinc-100 bg-zinc-50/60 px-5 py-4 sm:px-6 sm:py-5">
+              <div className="flex min-w-0 items-start gap-3.5">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-700">
+                  <UserCog className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold uppercase tracking-wide text-blue-700">User Management</p>
+                  <h3 id="update-user-title" className="mt-0.5 text-xl font-semibold tracking-tight text-slate-950">Update User</h3>
+                  <p className="mt-1 text-sm leading-5 text-zinc-500">Edit profile details, workspace access, and account status.</p>
+                </div>
               </div>
               <Button
                 type="button"
                 variant="ghost"
                 onClick={resetForm}
-                className="h-8 w-8 rounded-md border border-zinc-300 bg-white p-0 text-zinc-500 hover:bg-blue-50 hover:text-blue-700"
+                className="h-9 w-9 shrink-0 rounded-lg border border-zinc-200 bg-white p-0 text-zinc-500 shadow-sm hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                 aria-label="Close edit form"
               >
                 <X className="h-4 w-4" />
               </Button>
             </div>
 
-            <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase text-zinc-500">Username</label>
-                <Input
-                  name="admin-user-edit-username"
-                  value={form.username}
-                  onChange={(event) => setForm((prev) => ({ ...prev, username: event.target.value }))}
-                  placeholder="Enter username"
-                  className="h-10 border-zinc-300 bg-white"
-                  autoComplete="off"
-                />
-              </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.82fr)]">
+                <section className="rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5" aria-labelledby="user-profile-section">
+                  <div className="mb-4 flex items-center gap-3 border-b border-zinc-100 pb-4">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+                      <UserRound className="h-4.5 w-4.5" />
+                    </span>
+                    <div>
+                      <h4 id="user-profile-section" className="text-sm font-semibold text-slate-900">Profile</h4>
+                      <p className="text-xs text-zinc-500">The details used to identify this user.</p>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-zinc-600">Username</label>
+                      <Input
+                        name="admin-user-edit-username"
+                        value={form.username}
+                        onChange={(event) => setForm((prev) => ({ ...prev, username: event.target.value }))}
+                        placeholder="Enter username"
+                        className="h-11 rounded-lg border-zinc-300 bg-white px-3.5 shadow-none focus-visible:border-blue-500 focus-visible:ring-blue-100"
+                        autoComplete="off"
+                      />
+                    </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase text-zinc-500">Full Name</label>
-                <Input
-                  name="admin-user-edit-full-name"
-                  value={form.fullName}
-                  onChange={(event) => setForm((prev) => ({ ...prev, fullName: event.target.value }))}
-                  placeholder="Enter full name"
-                  className="h-10 border-zinc-300 bg-white"
-                  autoComplete="off"
-                />
-              </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-zinc-600">Full Name</label>
+                      <Input
+                        name="admin-user-edit-full-name"
+                        value={form.fullName}
+                        onChange={(event) => setForm((prev) => ({ ...prev, fullName: event.target.value }))}
+                        placeholder="Enter full name"
+                        className="h-11 rounded-lg border-zinc-300 bg-white px-3.5 shadow-none focus-visible:border-blue-500 focus-visible:ring-blue-100"
+                        autoComplete="off"
+                      />
+                    </div>
+                  </div>
+                </section>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase text-zinc-500">Roles</label>
-                <UserRoleMultiSelect
-                  primaryRole={form.role}
-                  delegateSalesAssigned={form.delegateSalesAssigned}
-                  roleOptions={roleOptions}
-                  disabled={editingSelf}
-                  onPrimaryRoleChange={(role) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      role,
-                      delegateSalesAssigned: canRoleUseDelegateSales(role) ? prev.delegateSalesAssigned : false,
-                    }))
-                  }
-                  onDelegateSalesChange={(delegateSalesAssigned) =>
-                    setForm((prev) => ({ ...prev, delegateSalesAssigned }))
-                  }
-                />
-                <p className="text-xs text-zinc-400">
-                  Choose one primary role and optionally add Delegate Sales.
-                </p>
-                {editingSelf ? <p className="text-xs text-zinc-400">Your own roles are protected while editing.</p> : null}
-              </div>
+                <section className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-4 sm:p-5" aria-labelledby="user-access-section">
+                  <div className="mb-4 flex items-center gap-3 border-b border-zinc-200/80 pb-4">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-50 text-violet-700">
+                      <ShieldCheck className="h-4.5 w-4.5" />
+                    </span>
+                    <div>
+                      <h4 id="user-access-section" className="text-sm font-semibold text-slate-900">Access & Status</h4>
+                      <p className="text-xs text-zinc-500">Control workspace access and availability.</p>
+                    </div>
+                  </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase text-zinc-500">Status</label>
-                <Select
-                  value={form.status}
-                  disabled={editingSelf}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, status: value as UserStatusValue }))}
-                >
-                  <SelectTrigger className="h-10 border-zinc-300 bg-white">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent className="border-zinc-300 bg-white">
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="resigned">Resigned</SelectItem>
-                    <SelectItem value="terminated">Terminated</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-zinc-600">Primary Role</label>
+                      <UserRoleMultiSelect
+                        primaryRole={form.role}
+                        delegateSalesAssigned={form.delegateSalesAssigned}
+                        roleOptions={roleOptions}
+                        disabled={editingSelf}
+                        onPrimaryRoleChange={(role) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            role,
+                            delegateSalesAssigned: canRoleUseDelegateSales(role) ? prev.delegateSalesAssigned : false,
+                          }))
+                        }
+                        onDelegateSalesChange={(delegateSalesAssigned) =>
+                          setForm((prev) => ({ ...prev, delegateSalesAssigned }))
+                        }
+                      />
+                      <p className="sr-only">Choose one primary role and optionally add Delegate Sales.</p>
+                      {editingSelf ? <p className="text-xs leading-5 text-zinc-500">Your own access is protected while editing.</p> : null}
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-zinc-600">Account Status</label>
+                      <Select
+                        value={form.status}
+                        disabled={editingSelf}
+                        onValueChange={(value) => setForm((prev) => ({ ...prev, status: value as UserStatusValue }))}
+                      >
+                        <SelectTrigger className="h-11 w-full rounded-lg border-zinc-300 bg-white px-3.5 shadow-none focus-visible:border-blue-500 focus-visible:ring-blue-100">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent position="popper" align="start" className="rounded-xl border-zinc-200 bg-white p-1 shadow-xl">
+                          <SelectItem value="active" className="rounded-lg py-2">Active</SelectItem>
+                          <SelectItem value="inactive" className="rounded-lg py-2">Inactive</SelectItem>
+                          <SelectItem value="resigned" className="rounded-lg py-2">Resigned</SelectItem>
+                          <SelectItem value="terminated" className="rounded-lg py-2">Terminated</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </section>
               </div>
 
               {form.status !== "active" ? (
-                <div className="space-y-1.5 md:col-span-2">
-                  <label className="text-xs font-semibold uppercase text-zinc-500">Deactivation Reason</label>
+                <div className="mt-5 space-y-1.5 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
+                  <label className="text-xs font-semibold text-amber-900">Deactivation Reason</label>
                   <Input
                     name="admin-user-deactivation-reason"
                     value={form.deactivationReason}
@@ -1656,17 +1713,17 @@ export default function AdminUsersPage() {
                     }
                     placeholder="For example: Employment ended"
                     maxLength={500}
-                    className="h-10 border-zinc-300 bg-white"
+                    className="h-11 rounded-lg border-amber-200 bg-white shadow-none focus-visible:border-amber-500 focus-visible:ring-amber-100"
                     autoComplete="off"
                   />
-                  <p className="text-xs text-zinc-400">
+                  <p className="text-xs leading-5 text-amber-800/75">
                     This reason is retained with the account and is visible to authorized managers.
                   </p>
                 </div>
               ) : null}
 
               {form.role === "client_user" ? (
-                <div className="space-y-4 rounded-lg border border-blue-100 bg-blue-50/70 p-4 md:col-span-2">
+                <div className="mt-5 space-y-4 rounded-xl border border-blue-100 bg-blue-50/70 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-xs font-semibold uppercase text-blue-700">Client Access</p>
@@ -1743,17 +1800,17 @@ export default function AdminUsersPage() {
               ) : null}
             </div>
 
-            <div className="flex flex-col-reverse gap-2 border-t border-zinc-100 px-5 py-4 sm:flex-row sm:justify-end">
+            <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-zinc-100 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">
               <Button
                 type="button"
                 variant="ghost"
                 disabled={saving}
                 onClick={resetForm}
-                className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-700 hover:bg-zinc-50"
+                className="h-10 rounded-lg border border-zinc-300 bg-white px-4 text-zinc-700 hover:bg-zinc-50"
               >
                 Cancel
               </Button>
-              <Button type="button" disabled={saving} onClick={submitForm} className="h-9 rounded-md bg-blue-600 px-4 text-white hover:bg-blue-700">
+              <Button type="button" disabled={saving} onClick={submitForm} className="h-10 rounded-lg bg-blue-600 px-4.5 font-semibold text-white shadow-sm hover:bg-blue-700">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 Save User
               </Button>
