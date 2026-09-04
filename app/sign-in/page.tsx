@@ -76,7 +76,7 @@ export default function SignInPage() {
       if (!active || !session) return;
       if (hasDelegateSalesAssignment(session.user)) {
         clearPersona();
-        router.replace("/choose-persona");
+        router.replace("/select-workspace");
         return;
       }
       const forcedPersona = forcedPersonaForUser(session.user) ?? personaForRole(session.user.role);
@@ -128,7 +128,7 @@ export default function SignInPage() {
     }
 
     toast.success("Signed in successfully.");
-    router.replace(requiresPersonaChoice ? "/choose-persona" : getAuthLandingPath(session.user.role));
+    router.replace(requiresPersonaChoice ? "/select-workspace" : getAuthLandingPath(session.user.role));
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
