@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { usePersona } from "@/hooks/usePersona";
-import { getAuthHeader, getCachedAuthUserDisplayName, listActiveEventRegistry, personaForRole, type AdminEventItem } from "@/lib/auth";
+import { canUserUsePersona, getAuthHeader, getCachedAuthUserDisplayName, listActiveEventRegistry, type AdminEventItem } from "@/lib/auth";
 import { getDailyDealBellMedia } from "@/lib/dealBellMedia";
 import {
   getTeamLeadErrorMessage,
@@ -829,8 +829,7 @@ export function MyLeadsWorkspace({
   const router = useRouter();
   const { persona } = usePersona();
   const { isSuperAdmin, role, user } = useAuth();
-  const expectedPersona = personaForRole(role);
-  const hasPersonaMismatch = Boolean(expectedPersona && expectedPersona !== persona);
+  const hasPersonaMismatch = Boolean(user && !canUserUsePersona(user, persona));
   const emailGenerationRequestRef = useRef(0);
   const rowsRequestRef = useRef(0);
   const dealBellMedia = useMemo(
@@ -944,7 +943,7 @@ export function MyLeadsWorkspace({
       templateUpload.category.trim() &&
       templateUpload.leadType
   );
-  const canUseDealBellFlow = role === "sales_user";
+  const canUseDealBellFlow = persona === "sales" || persona === "delegate-sales";
   const isCommentOnly = Boolean(
     pendingStatusChange &&
       pendingStatusChange.nextStatus === pendingStatusChange.item.workflowStatus
@@ -2412,7 +2411,7 @@ export function MyLeadsWorkspace({
         >
           <MyLeadEditForm
             lead={editingLead}
-            requireContact={persona === "sales"}
+            requireContact={persona === "sales" || persona === "delegate-sales"}
             onCancel={() => setEditingLeadId("")}
             onSubmit={submitLeadEdit}
           />

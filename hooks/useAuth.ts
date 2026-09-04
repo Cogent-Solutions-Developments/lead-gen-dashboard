@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  forcedPersonaForUser,
   getRoleLabel,
+  hasDelegateSalesAssignment,
   getStoredAuthSession,
   isAdminLikeRole,
   isBusinessRole,
@@ -10,7 +12,6 @@ import {
   isClientRole,
   isSuperAdminRole,
   onAuthSessionChange,
-  personaForRole,
   type AuthRole,
   type AuthSession,
 } from "@/lib/auth";
@@ -44,10 +45,10 @@ export function useAuth() {
       isClient,
       isBusiness,
       isPipelineUser: Boolean(role && !isAdminLike && !isClient && !isBusiness),
-      forcedPersona: personaForRole(role),
+      forcedPersona: forcedPersonaForUser(session?.user),
       canManageUsers: isAdminLike,
       canManageCampaignActions: isSuperAdmin,
-      canUseRoleChooser: isSuperAdmin,
+      canUseRoleChooser: isSuperAdmin || hasDelegateSalesAssignment(session?.user),
     };
   }, [session]);
 }

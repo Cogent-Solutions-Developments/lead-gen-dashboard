@@ -104,7 +104,9 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
   const personaLabel =
     persona === "ceo"
       ? "CEO"
-      : persona === "delegates"
+      : persona === "delegate-sales"
+        ? "Delegate Sales"
+        : persona === "delegates"
         ? "Delegates"
         : persona === "production"
           ? "Production"
@@ -282,7 +284,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
         })}
       </nav>
 
-      {!isBusiness && !isSuperAdmin && !isCeo && persona === "sales" ? (
+      {!isBusiness && !isSuperAdmin && !isCeo && (persona === "sales" || persona === "delegate-sales") ? (
         <div className={`${isExpanded ? "-mx-2" : "mx-0"} pb-6 transition-all duration-300`}>
           <motion.div
             initial={{ opacity: 0, y: 16 }}

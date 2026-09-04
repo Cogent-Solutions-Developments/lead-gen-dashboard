@@ -801,7 +801,7 @@ function SuperAdminTotalLeads() {
   const requestSequenceRef = useRef(0);
   const targetLeadRowRef = useRef<HTMLTableRowElement | null>(null);
   const initialLeadLoadRef = useRef(true);
-  const contentGenerationEnabled = persona === "sales" || persona === "delegates" || persona === "production";
+  const contentGenerationEnabled = persona === "sales" || persona === "delegate-sales" || persona === "delegates" || persona === "production";
 
   const clearAdvancedFilters = useCallback(() => {
     setNameFilter("");
