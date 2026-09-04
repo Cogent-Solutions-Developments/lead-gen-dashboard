@@ -61,10 +61,15 @@ test("Settings owns both tools while old Operations links keep working", () => {
 });
 
 function renderMonitor({ traffic = null, health = null, error = null, suspended = null, live = true } = {}) {
-  const module = { exports: {} };
+  const compiledModule = { exports: {} };
   let pollIndex = 0;
   let stateIndex = 0;
-  const element = (tag) => ({ children, ...props }) => React.createElement(tag, props, children);
+  const element = (tag) => {
+    function TestElement({ children, ...props }) {
+      return React.createElement(tag, props, children);
+    }
+    return TestElement;
+  };
   const dependencies = {
     react: { ...React, useState: (initial) => React.useState(stateIndex++ === 0 ? live : initial) },
     "react/jsx-runtime": jsxRuntime,
@@ -78,10 +83,10 @@ function renderMonitor({ traffic = null, health = null, error = null, suspended 
     "@/hooks/useMonitorPolling": { useMonitorPolling: () => ({ data: pollIndex++ === 0 ? traffic : health, pending: false, error, suspended }) },
   };
   runInNewContext(compile("components/settings/LiveSystemMonitor.tsx"), {
-    module, exports: module.exports,
+    module: compiledModule, exports: compiledModule.exports,
     require: (name) => { assert.ok(name in dependencies, name); return dependencies[name]; },
   });
-  return renderToStaticMarkup(React.createElement(module.exports.default));
+  return renderToStaticMarkup(React.createElement(compiledModule.exports.default));
 }
 
 const measured = {
@@ -127,15 +132,15 @@ function pollingHarness({ live = true, online = true, visibility = "visible", lo
   const listeners = new Map();
   const navigation = { onLine: online };
   const document = { visibilityState: visibility, addEventListener: (event, callback) => listeners.set(event, callback), removeEventListener: (event) => listeners.delete(event) };
-  const module = { exports: {} };
+  const compiledModule = { exports: {} };
   runInNewContext(compile("hooks/useMonitorPolling.ts"), {
-    module, exports: module.exports, AbortController, Date, Error, navigator: navigation, document,
+    module: compiledModule, exports: compiledModule.exports, AbortController, Date, Error, navigator: navigation, document,
     window: { addEventListener: (event, callback) => listeners.set(event, callback), removeEventListener: (event) => listeners.delete(event) },
     setTimeout: (callback, delay) => { timers.set(++nextTimer, { callback, delay }); return nextTimer; },
     clearTimeout: (id) => timers.delete(id),
     require: () => ({ useState: (initial) => { const index = stateIndex++; states[index] = initial; return [initial, (value) => { states[index] = value; }]; }, useEffect: (callback) => { effect = callback; } }),
   });
-  module.exports.useMonitorPolling(load, 5000, live, 0);
+  compiledModule.exports.useMonitorPolling(load, 5000, live, 0);
   const cleanup = effect();
   return { states, timers, listeners, cleanup, document, navigation,
     tick: async (delay) => { const found = [...timers].find(([, timer]) => timer.delay === delay); assert.ok(found, `No ${delay}ms timer`); timers.delete(found[0]); found[1].callback(); await settle(); },
