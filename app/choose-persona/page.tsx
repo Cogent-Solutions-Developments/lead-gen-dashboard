@@ -18,10 +18,10 @@ import { Button } from "@/components/ui/button";
 import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
 import { clearPersona, getStoredPersona } from "@/lib/persona";
-import { clearAuthSession } from "@/lib/auth";
+import { availablePersonasForUser, clearAuthSession } from "@/lib/auth";
 import { toast } from "sonner";
 
-type PersonaValue = "sales" | "delegates" | "production";
+type PersonaValue = "sales" | "delegate-sales" | "delegates" | "production";
 
 const workspaceCards = [
   {
@@ -31,6 +31,14 @@ const workspaceCards = [
     accentBar: "bg-blue-600",
     iconClassName: "bg-blue-600 text-white",
     activeRing: "border-blue-300 bg-blue-50/70 shadow-[0_20px_55px_-38px_rgba(37,99,235,0.75)]",
+  },
+  {
+    id: "delegate-sales" as const,
+    title: "Delegate Sales",
+    icon: BarChart3,
+    accentBar: "bg-violet-600",
+    iconClassName: "bg-violet-600 text-white",
+    activeRing: "border-violet-300 bg-violet-50/70 shadow-[0_20px_55px_-38px_rgba(124,58,237,0.75)]",
   },
   {
     id: "delegates" as const,
@@ -53,14 +61,17 @@ const workspaceCards = [
 export default function ChoosePersonaPage() {
   const router = useRouter();
   const { persona, setPersona } = usePersona();
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, user } = useAuth();
   const stored = getStoredPersona();
   const [rotation, setRotation] = useState(0);
 
   const currentPersona: PersonaValue =
-    stored === "delegates" || stored === "production" || stored === "sales" ? stored : "sales";
+    stored === "delegate-sales" || stored === "delegates" || stored === "production" || stored === "sales" ? stored : "sales";
   const activePersona =
-    persona === "delegates" || persona === "production" || persona === "sales" ? persona : currentPersona;
+    persona === "delegate-sales" || persona === "delegates" || persona === "production" || persona === "sales" ? persona : currentPersona;
+  const availableWorkspaceCards = workspaceCards.filter((workspace) =>
+    availablePersonasForUser(user).includes(workspace.id)
+  );
   const selectPersona = (next: PersonaValue) => {
     setPersona(next);
     router.push("/campaigns");
@@ -171,8 +182,8 @@ export default function ChoosePersonaPage() {
           </div>
         </motion.section>
 
-        <section className="grid gap-4 md:grid-cols-3">
-          {workspaceCards.map((workspace, index) => {
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {availableWorkspaceCards.map((workspace, index) => {
             const Icon = workspace.icon;
             const isActive = activePersona === workspace.id;
 

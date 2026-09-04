@@ -399,6 +399,7 @@ function normalizeAdminUser(raw: unknown): AuthUser {
   const lifecycleStatus = source.lifecycleStatus ?? source.lifecycle_status;
   const deactivatedAt = source.deactivatedAt ?? source.deactivated_at;
   const deactivationReason = source.deactivationReason ?? source.deactivation_reason;
+  const departmentAssignments = source.departmentAssignments ?? source.department_assignments;
 
   return {
     id: String(source.id || ""),
@@ -428,6 +429,9 @@ function normalizeAdminUser(raw: unknown): AuthUser {
           : "active",
     deactivatedAt: deactivatedAt == null ? null : String(deactivatedAt),
     deactivationReason: deactivationReason == null ? "" : String(deactivationReason),
+    departmentAssignments: Array.isArray(departmentAssignments)
+      ? departmentAssignments.map((value) => String(value))
+      : [],
   };
 }
 
@@ -532,6 +536,14 @@ export async function updateAuthUser(userId: string, payload: AuthUserUpdateInpu
   const data = await adminAuthRequest<{ user: AuthUser }>(`/api/auth/users/${userId}`, {
     method: "PUT",
     body: JSON.stringify(payload),
+  });
+  return normalizeAdminUser(data.user);
+}
+
+export async function updateAuthUserDepartmentAssignments(userId: string, departments: string[]) {
+  const data = await adminAuthRequest<{ user: AuthUser }>(`/api/auth/users/${userId}/department-assignments`, {
+    method: "PUT",
+    body: JSON.stringify({ departments }),
   });
   return normalizeAdminUser(data.user);
 }
@@ -848,6 +860,7 @@ export async function fetchManagerUserPerformance(options: {
 export async function fetchManagerPerformance(options: {
   period?: ManagerPerformancePeriod;
   date?: string;
+  pipeline?: "sales" | "delegate_sales" | "delegate" | "production";
   userId?: string;
   search?: string;
   workflowStatus?: string;
@@ -858,6 +871,7 @@ export async function fetchManagerPerformance(options: {
   const params = new URLSearchParams();
   if (options.period) params.set("period", options.period);
   if (options.date) params.set("date", options.date);
+  if (options.pipeline) params.set("pipeline", options.pipeline);
   if (options.userId) params.set("userId", options.userId);
   if (options.search) params.set("search", options.search);
   if (options.workflowStatus) params.set("workflowStatus", options.workflowStatus);

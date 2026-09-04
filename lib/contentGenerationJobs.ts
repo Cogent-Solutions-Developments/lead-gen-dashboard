@@ -13,7 +13,7 @@ export type GenerationJob = {
 
 function campaignPath(campaignId: string) {
   const persona = getPersona();
-  const prefix = persona === "delegates" ? "/api/delegates" : persona === "production" ? "/api/productions" : "/api";
+  const prefix = persona === "delegate-sales" ? "/api/delegate-sales" : persona === "delegates" ? "/api/delegates" : persona === "production" ? "/api/productions" : "/api";
   return `${prefix}/campaigns/${encodeURIComponent(campaignId)}/content`;
 }
 

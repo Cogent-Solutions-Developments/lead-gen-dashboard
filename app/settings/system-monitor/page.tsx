@@ -250,6 +250,7 @@ function executiveStatusColor(status?: SystemMonitorStatus | null) {
 
 function normalizePipelineName(value?: string | null) {
   const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "delegate_sales" || normalized === "delegate-sales") return "delegate_sales";
   if (normalized === "delegates") return "delegate";
   if (normalized === "delegate") return "delegate";
   if (normalized === "production") return "production";
@@ -522,6 +523,7 @@ function CeoSystemMonitorView({
   });
   const departmentRows = [
     { key: "sales", label: "Sales", count: departmentMap.get("sales") || 0, fill: "#1d4ed8" },
+    { key: "delegate_sales", label: "Delegate Sales", count: departmentMap.get("delegate_sales") || 0, fill: "#7c3aed" },
     { key: "delegate", label: "Delegate", count: departmentMap.get("delegate") || 0, fill: "#0f766e" },
     { key: "production", label: "Production", count: departmentMap.get("production") || 0, fill: "#6d28d9" },
   ];

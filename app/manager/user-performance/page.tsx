@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { UserAvatar } from "@/components/profile/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { usePersona } from "@/hooks/usePersona";
 import {
   fetchManagerPerformance,
   isManagerRole,
@@ -462,6 +463,15 @@ function ActivityRow({ activity }: { activity: ManagerPerformanceActivity }) {
 
 export default function ManagerUserPerformancePage() {
   const { user } = useAuth();
+  const { persona } = usePersona();
+  const performancePipeline: "sales" | "delegate_sales" | "delegate" | "production" =
+    persona === "delegate-sales"
+      ? "delegate_sales"
+      : persona === "delegates"
+        ? "delegate"
+        : persona === "production"
+          ? "production"
+          : "sales";
   const [period, setPeriod] = useState<ManagerPerformancePeriod>("daily");
   const [date, setDate] = useState(todayValue);
   const [userId, setUserId] = useState("all");
@@ -482,6 +492,7 @@ export default function ManagerUserPerformancePage() {
       const next = await fetchManagerPerformance({
         period,
         date,
+        pipeline: performancePipeline,
         userId,
         search: search.trim() || undefined,
         workflowStatus: workflowStatus.trim() || undefined,
@@ -496,7 +507,7 @@ export default function ManagerUserPerformancePage() {
     } finally {
       setLoading(false);
     }
-  }, [date, eventKey, period, search, userId, workflowStatus]);
+  }, [date, eventKey, performancePipeline, period, search, userId, workflowStatus]);
 
   const loadVersionUsage = useCallback(async () => {
     try {
@@ -549,7 +560,7 @@ export default function ManagerUserPerformancePage() {
   );
   const selectedKpiCount = selectedPerformance?.totals.kpiCount ?? activeTotals.kpi;
   const selectedRevenueUsd = selectedPerformance?.totals.revenueUsd ?? activeTotals.revenue;
-  const isSalesPerformance = data?.managerScope?.persona === "sales";
+  const isSalesPerformance = (data?.managerScope?.persona === "sales" || data?.managerScope?.persona === "delegate-sales");
   const versionUsage = useMemo(
     () => {
       if (userId !== "all") return versionUsageByUser[userId] || { light: 0, heavy: 0 };

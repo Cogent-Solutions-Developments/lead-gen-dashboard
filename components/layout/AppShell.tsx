@@ -8,7 +8,7 @@ import { NotificationCenter } from "@/components/notifications/NotificationCente
 import { useActivityTracking } from "@/hooks/useActivityTracking";
 import { clearPersona, getStoredPersona, hasPersona, onPersonaChange, setPersona } from "@/lib/persona";
 import {
-  canRoleUsePersona,
+  canUserUsePersona,
   businessWorkspaceForRole,
   clearAuthSession,
   fetchCurrentAuthUser,
@@ -20,7 +20,7 @@ import {
   isManagerRole,
   isSuperAdminRole,
   onAuthSessionChange,
-  personaForRole,
+  forcedPersonaForUser,
   type AuthSession,
 } from "@/lib/auth";
 
@@ -78,7 +78,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isClient = isClientRole(role);
   const isBusiness = isBusinessRole(role);
   const isManager = isManagerRole(role);
-  const forcedPersona = personaForRole(role);
+  const forcedPersona = forcedPersonaForUser(session?.user);
   const businessWorkspace = businessWorkspaceForRole(role);
   const businessLandingPath = businessWorkspace ? `/business/${businessWorkspace}` : null;
   const isCeoWorkspaceAdminRoute = isCeo && isCeoAllowedAdminPath(pathname);
@@ -225,7 +225,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
 
     const selectedPersona = getStoredPersona();
-    if (selectedPersona && !canRoleUsePersona(role, selectedPersona)) {
+    if (selectedPersona && !canUserUsePersona(session.user, selectedPersona)) {
       clearPersona();
       router.replace(getAuthLandingPath(role));
     }

@@ -13,6 +13,7 @@ import {
   isCeoRole,
   isMfaLoginChallenge,
   loginWithPassword,
+  forcedPersonaForUser,
   personaForRole,
   verifyMfaLogin,
   verifyMfaRecoveryCode,
@@ -72,7 +73,7 @@ export default function SignInPage() {
     const checkSession = async () => {
       const session = getStoredAuthSession();
       if (!active || !session) return;
-      const forcedPersona = personaForRole(session.user.role);
+      const forcedPersona = forcedPersonaForUser(session.user) ?? personaForRole(session.user.role);
       if (forcedPersona) {
         setPersona(forcedPersona);
       } else if (isCeoRole(session.user.role)) {
@@ -108,7 +109,7 @@ export default function SignInPage() {
   }, []);
 
   const completeSignIn = (session: AuthSession) => {
-    const forcedPersona = personaForRole(session.user.role);
+    const forcedPersona = forcedPersonaForUser(session.user) ?? personaForRole(session.user.role);
     if (forcedPersona) {
       setPersona(forcedPersona);
     } else if (isCeoRole(session.user.role)) {

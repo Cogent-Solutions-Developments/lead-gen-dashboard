@@ -50,6 +50,7 @@ import {
   resetAuthUserMfa,
   updateAdminClientCredential,
   updateAuthUser,
+  updateAuthUserDepartmentAssignments,
   updateAuthUserPassword,
   updateStoredAuthUser,
   type AdminClientCredential,
@@ -75,6 +76,7 @@ type DepartmentDefinition = {
   label: string;
   description: string;
   roles: AuthRole[];
+  assignment?: string;
   icon: typeof UsersRound;
 };
 
@@ -101,6 +103,14 @@ const departmentDefinitions: DepartmentDefinition[] = [
     description: "Sales managers and outreach operators.",
     roles: ["sales_manager_user", "sales_user"],
     icon: BriefcaseBusiness,
+  },
+  {
+    id: "delegate-sales",
+    label: "Delegate Sales",
+    description: "Existing pipeline users assigned to the secondary Sales workspace.",
+    roles: [],
+    assignment: "delegate_sales",
+    icon: UsersRound,
   },
   {
     id: "delegate",
@@ -210,6 +220,8 @@ function UserCard({
   clientCredentials = [],
   onEdit,
   onPassword,
+  onToggleDelegateSales,
+  assignmentSaving,
   onResetMfa,
   onRecover,
   onDelete,
@@ -222,6 +234,8 @@ function UserCard({
   clientCredentials?: AdminClientCredential[];
   onEdit: () => void;
   onPassword: () => void;
+  onToggleDelegateSales: () => void;
+  assignmentSaving: boolean;
   onResetMfa: () => void;
   onRecover: () => void;
   onDelete: () => void;
@@ -229,6 +243,15 @@ function UserCard({
   onPermanentDelete: () => void;
 }) {
   const manager = isManagerRole(item.role);
+  const delegateSalesAssigned = item.departmentAssignments?.includes("delegate_sales") ?? false;
+  const assignmentEligible = [
+    "sales_user",
+    "sales_manager_user",
+    "delegate_user",
+    "delegate_manager_user",
+    "production_user",
+    "production_manager_user",
+  ].includes(item.role);
   const clientCredential =
     showClientAccess && item.role === "client_user" ? selectPrimaryClientCredential(clientCredentials) : null;
 
@@ -273,6 +296,12 @@ function UserCard({
             <span className={`font-semibold ${item.mfaEnabled ? "text-emerald-700" : "text-zinc-400"}`}>
               {item.mfaEnabled ? "MFA enabled" : "MFA off"}
             </span>
+            {delegateSalesAssigned ? (
+              <>
+                <span className="text-zinc-300">|</span>
+                <span className="font-semibold text-violet-700">Delegate Sales</span>
+              </>
+            ) : null}
           </div>
 
           <p className="mt-3 text-xs text-zinc-500">Last login: {formatDateTime(item.lastLoginAt)}</p>
@@ -304,6 +333,18 @@ function UserCard({
         </div>
 
         <div className="flex flex-wrap gap-2 lg:justify-end">
+          {assignmentEligible ? (
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={assignmentSaving}
+              onClick={onToggleDelegateSales}
+              className="h-8 rounded-md border border-violet-200 bg-white px-3 text-xs text-violet-700 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {assignmentSaving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+              {delegateSalesAssigned ? "Remove Delegate Sales" : "Assign Delegate Sales"}
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="ghost"
@@ -390,6 +431,7 @@ export default function AdminUsersPage() {
   const [deleteTarget, setDeleteTarget] = useState<AuthUser | null>(null);
   const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<AuthUser | null>(null);
   const [permanentDeleteConfirmation, setPermanentDeleteConfirmation] = useState("");
+  const [assignmentSavingId, setAssignmentSavingId] = useState<string | null>(null);
 
   const [events, setEvents] = useState<AdminEventItem[]>([]);
   const [credentials, setCredentials] = useState<AdminClientCredential[]>([]);
@@ -523,7 +565,11 @@ export default function AdminUsersPage() {
   const departmentGroups = useMemo(
     () =>
       visibleDepartments.map((department) => {
-        const rows = filteredUsers.filter((item) => department.roles.includes(item.role));
+        const rows = filteredUsers.filter((item) =>
+          department.assignment
+            ? item.departmentAssignments?.includes(department.assignment)
+            : department.roles.includes(item.role)
+        );
         const managers = rows.filter((item) => isManagerRole(item.role));
         const normalUsers = rows.filter((item) => !isManagerRole(item.role));
         return { ...department, rows, managers, normalUsers };
@@ -676,6 +722,26 @@ export default function AdminUsersPage() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const toggleDelegateSales = async (item: AuthUser) => {
+    const assigned = item.departmentAssignments?.includes("delegate_sales") ?? false;
+    setAssignmentSavingId(item.id);
+    try {
+      const updated = await updateAuthUserDepartmentAssignments(
+        item.id,
+        assigned ? [] : ["delegate_sales"]
+      );
+      setUsers((prev) => prev.map((user) => (user.id === updated.id ? updated : user)));
+      if (updated.id === currentUser?.id) updateStoredAuthUser(updated);
+      toast.success(assigned ? "Delegate Sales removed" : "Delegate Sales assigned", {
+        description: updated.fullName || updated.username,
+      });
+    } catch (error) {
+      toast.error("Department assignment failed", { description: getErrorMessage(error) });
+    } finally {
+      setAssignmentSavingId(null);
     }
   };
 
@@ -1071,6 +1137,8 @@ export default function AdminUsersPage() {
                           showClientAccess
                           clientCredentials={clientCredentialsByUserId.get(item.id) || []}
                           onEdit={() => startEdit(item)}
+                          onToggleDelegateSales={() => void toggleDelegateSales(item)}
+                          assignmentSaving={assignmentSavingId === item.id}
                           onPassword={() => {
                             setPasswordTarget(item);
                             setNewPassword("");

@@ -151,10 +151,10 @@ test("user upload dialogs default lead type to event leads", () => {
   }
 });
 
-test("My Leads page enforces role persona and redirects admins", () => {
+test("My Leads page enforces assigned personas and redirects unauthorized users", () => {
   const page = read("app/my-leads/page.tsx");
   assert.match(page, /router\.replace\("\/leads"\)/);
-  assert.match(page, /const expectedPersona = personaForRole\(role\)/);
+  assert.match(page, /const hasPersonaMismatch = Boolean\(user && !canUserUsePersona\(user, persona\)\)/);
   assert.match(page, /if \(hasPersonaMismatch\) router\.replace\("\/dashboard"\)/);
 });
 

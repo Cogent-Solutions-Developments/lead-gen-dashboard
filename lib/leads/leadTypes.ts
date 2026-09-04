@@ -5,10 +5,11 @@ export const LEAD_TYPE_OPTIONS: ReadonlyArray<{ value: LeadType; label: string }
   { value: "media_partner", label: "Media Partner" },
 ];
 
-export type LeadGroup = "sales" | "delegate" | "production" | "media_partner";
+export type LeadGroup = "sales" | "delegate_sales" | "delegate" | "production" | "media_partner";
 
 export const LEAD_GROUP_OPTIONS: ReadonlyArray<{ value: LeadGroup; label: string }> = [
   { value: "sales", label: "Sales" },
+  { value: "delegate_sales", label: "Delegate Sales" },
   { value: "delegate", label: "Delegate" },
   { value: "production", label: "Production" },
   { value: "media_partner", label: "Media Partner" },

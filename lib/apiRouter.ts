@@ -1,10 +1,11 @@
 import * as sales from "@/lib/api";
+import * as delegateSales from "@/lib/apidelegatesales";
 import * as delegates from "@/lib/apidele";
 import * as production from "@/lib/apiproduction";
 import { apiClient } from "@/lib/apiClient";
 import { getPersona, type Persona } from "@/lib/persona";
 
-type DepartmentPersona = Extract<Persona, "sales" | "delegates" | "production">;
+type DepartmentPersona = Extract<Persona, "sales" | "delegate-sales" | "delegates" | "production">;
 
 export type {
   CampaignImportSummary,
@@ -124,6 +125,7 @@ export type {
 
 const pickModule = (persona?: Persona) => {
   const selected = persona ?? getPersona();
+  if (selected === "delegate-sales") return delegateSales;
   if (selected === "delegates") return delegates;
   if (selected === "production") return production;
   return sales;
@@ -131,6 +133,7 @@ const pickModule = (persona?: Persona) => {
 
 const getMyLeadsPrefix = (persona?: Persona) => {
   const selected = persona ?? getPersona();
+  if (selected === "delegate-sales") return "/api/delegate-sales/my-leads";
   if (selected === "delegates") return "/api/delegates/my-leads";
   if (selected === "production") return "/api/productions/my-leads";
   return "/api/my-leads";
