@@ -98,6 +98,13 @@ test("operations UI keeps safe checks primary and protects real recovery", () =>
   assert.match(source, /I understand this changes only this campaign/);
   assert.match(source, /role="dialog"/);
   assert.match(source, /Advanced service logs/);
+  assert.match(
+    readFileSync(
+      new URL("../lib/systemOperations.ts", import.meta.url),
+      "utf8",
+    ),
+    /callback_worker/,
+  );
   assert.match(source, /Promise\.allSettled/);
   assert.match(source, /dockerData\.available !== false/);
   assert.match(source, /dockerData\.enabled === false/);

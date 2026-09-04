@@ -30,6 +30,11 @@ export const SYSTEM_OPERATION_SERVICES = [
     detail: "Processes outbound email and messaging work",
   },
   {
+    key: "callback_worker",
+    name: "Delivery callbacks",
+    detail: "Processes provider delivery status callbacks",
+  },
+  {
     key: "auth_worker",
     name: "Account processing",
     detail: "Handles authentication background work",
