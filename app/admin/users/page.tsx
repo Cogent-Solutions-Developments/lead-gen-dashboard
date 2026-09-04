@@ -8,6 +8,8 @@ import {
   BriefcaseBusiness,
   Building2,
   CalendarClock,
+  Check,
+  ChevronDown,
   Crown,
   Eye,
   EyeOff,
@@ -69,6 +71,7 @@ type UserFormState = {
   password: string;
   status: UserStatusValue | "";
   deactivationReason: string;
+  delegateSalesAssigned: boolean;
 };
 
 type DepartmentDefinition = {
@@ -87,6 +90,7 @@ const blankForm: UserFormState = {
   password: "",
   status: "",
   deactivationReason: "",
+  delegateSalesAssigned: false,
 };
 
 const departmentDefinitions: DepartmentDefinition[] = [
@@ -213,6 +217,115 @@ function upsertCredential(rows: AdminClientCredential[], credential: AdminClient
   return [credential, ...rows];
 }
 
+const DELEGATE_SALES_ASSIGNABLE_ROLES: AuthRole[] = [
+  "sales_user",
+  "sales_manager_user",
+  "delegate_user",
+  "delegate_manager_user",
+  "production_user",
+  "production_manager_user",
+];
+
+function canRoleUseDelegateSales(role: AuthRole | "") {
+  return Boolean(role && DELEGATE_SALES_ASSIGNABLE_ROLES.includes(role));
+}
+
+function UserRoleMultiSelect({
+  primaryRole,
+  delegateSalesAssigned,
+  roleOptions,
+  disabled,
+  onPrimaryRoleChange,
+  onDelegateSalesChange,
+}: {
+  primaryRole: AuthRole | "";
+  delegateSalesAssigned: boolean;
+  roleOptions: AuthRole[];
+  disabled: boolean;
+  onPrimaryRoleChange: (role: AuthRole) => void;
+  onDelegateSalesChange: (assigned: boolean) => void;
+}) {
+  const delegateSalesAvailable = canRoleUseDelegateSales(primaryRole);
+
+  return (
+    <details
+      className="group relative"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.removeAttribute("open");
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") event.currentTarget.removeAttribute("open");
+      }}
+    >
+      <summary
+        aria-disabled={disabled}
+        aria-haspopup="menu"
+        onClick={(event) => {
+          if (disabled) event.preventDefault();
+        }}
+        className={`flex h-10 list-none items-center justify-between gap-2 rounded-md border border-zinc-300 bg-white px-3 text-sm text-slate-900 outline-none [&::-webkit-details-marker]:hidden ${
+          disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-blue-300 focus:ring-2 focus:ring-blue-100"
+        }`}
+      >
+        <span className="flex min-w-0 items-center gap-2 overflow-hidden">
+          <span className="truncate">{primaryRole ? getRoleLabel(primaryRole) : "Select role"}</span>
+          {delegateSalesAssigned ? (
+            <span className="shrink-0 rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700">
+              Delegate Sales
+            </span>
+          ) : null}
+        </span>
+        <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400 transition group-open:rotate-180" />
+      </summary>
+
+      <div role="menu" className="absolute bottom-full left-0 z-[100] mb-1 max-h-72 w-full min-w-64 overflow-y-auto rounded-lg border border-zinc-200 bg-white p-1.5 shadow-xl">
+        <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Primary role</p>
+        {roleOptions.map((role) => {
+          const selected = primaryRole === role;
+          return (
+            <button
+              key={role}
+              type="button"
+              role="menuitemradio"
+              aria-checked={selected}
+              disabled={disabled}
+              onClick={() => onPrimaryRoleChange(role)}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm text-zinc-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${selected ? "border-blue-600 bg-blue-600 text-white" : "border-zinc-300"}`}>
+                {selected ? <Check className="h-3 w-3" /> : null}
+              </span>
+              {getRoleLabel(role)}
+            </button>
+          );
+        })}
+
+        <div className="mt-1 border-t border-zinc-100 pt-1">
+          <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Additional role</p>
+          <button
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={delegateSalesAssigned}
+            disabled={disabled || !delegateSalesAvailable}
+            onClick={() => onDelegateSalesChange(!delegateSalesAssigned)}
+            className="flex w-full items-start gap-2 rounded-md px-2 py-2 text-left hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${delegateSalesAssigned ? "border-violet-600 bg-violet-600 text-white" : "border-zinc-300 bg-white"}`}>
+              {delegateSalesAssigned ? <Check className="h-3 w-3" /> : null}
+            </span>
+            <span>
+              <span className="block text-sm font-medium text-violet-700">Delegate Sales</span>
+              <span className="mt-0.5 block text-xs text-zinc-400">
+                {delegateSalesAvailable ? "Adds the secondary Sales workspace." : "Available for pipeline employees and managers."}
+              </span>
+            </span>
+          </button>
+        </div>
+      </div>
+    </details>
+  );
+}
+
 function UserCard({
   item,
   isSelf,
@@ -220,8 +333,6 @@ function UserCard({
   clientCredentials = [],
   onEdit,
   onPassword,
-  onToggleDelegateSales,
-  assignmentSaving,
   onResetMfa,
   onRecover,
   onDelete,
@@ -234,8 +345,6 @@ function UserCard({
   clientCredentials?: AdminClientCredential[];
   onEdit: () => void;
   onPassword: () => void;
-  onToggleDelegateSales: () => void;
-  assignmentSaving: boolean;
   onResetMfa: () => void;
   onRecover: () => void;
   onDelete: () => void;
@@ -244,14 +353,6 @@ function UserCard({
 }) {
   const manager = isManagerRole(item.role);
   const delegateSalesAssigned = item.departmentAssignments?.includes("delegate_sales") ?? false;
-  const assignmentEligible = [
-    "sales_user",
-    "sales_manager_user",
-    "delegate_user",
-    "delegate_manager_user",
-    "production_user",
-    "production_manager_user",
-  ].includes(item.role);
   const clientCredential =
     showClientAccess && item.role === "client_user" ? selectPrimaryClientCredential(clientCredentials) : null;
 
@@ -333,18 +434,6 @@ function UserCard({
         </div>
 
         <div className="flex flex-wrap gap-2 lg:justify-end">
-          {assignmentEligible ? (
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={assignmentSaving}
-              onClick={onToggleDelegateSales}
-              className="h-8 rounded-md border border-violet-200 bg-white px-3 text-xs text-violet-700 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {assignmentSaving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
-              {delegateSalesAssigned ? "Remove Delegate Sales" : "Assign Delegate Sales"}
-            </Button>
-          ) : null}
           <Button
             type="button"
             variant="ghost"
@@ -431,7 +520,6 @@ export default function AdminUsersPage() {
   const [deleteTarget, setDeleteTarget] = useState<AuthUser | null>(null);
   const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<AuthUser | null>(null);
   const [permanentDeleteConfirmation, setPermanentDeleteConfirmation] = useState("");
-  const [assignmentSavingId, setAssignmentSavingId] = useState<string | null>(null);
 
   const [events, setEvents] = useState<AdminEventItem[]>([]);
   const [credentials, setCredentials] = useState<AdminClientCredential[]>([]);
@@ -635,6 +723,7 @@ export default function AdminUsersPage() {
       password: "",
       status: userLifecycleStatus(item),
       deactivationReason: item.deactivationReason || "",
+      delegateSalesAssigned: item.departmentAssignments?.includes("delegate_sales") ?? false,
     });
     setEditingCredentialId(primaryCredential?.id || "");
     setEditingCredentialExpiry(toDateInputValue(primaryCredential?.expiresAt));
@@ -680,8 +769,18 @@ export default function AdminUsersPage() {
           deactivationReason:
             isSelf || form.status === "active" ? undefined : form.deactivationReason.trim(),
         });
-        setUsers((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
-        if (isSelf) updateStoredAuthUser(updated);
+        let savedUser = updated;
+        const wasDelegateSalesAssigned =
+          users.find((item) => item.id === editingId)?.departmentAssignments?.includes("delegate_sales") ?? false;
+        const shouldAssignDelegateSales = canRoleUseDelegateSales(form.role) && form.delegateSalesAssigned;
+        if (!isSelf && wasDelegateSalesAssigned !== shouldAssignDelegateSales) {
+          savedUser = await updateAuthUserDepartmentAssignments(
+            editingId,
+            shouldAssignDelegateSales ? ["delegate_sales"] : []
+          );
+        }
+        setUsers((prev) => prev.map((item) => (item.id === savedUser.id ? savedUser : item)));
+        if (isSelf) updateStoredAuthUser(savedUser);
         if (
           shouldUpdateClientExpiry &&
           selectedEditingCredential &&
@@ -725,25 +824,6 @@ export default function AdminUsersPage() {
     }
   };
 
-  const toggleDelegateSales = async (item: AuthUser) => {
-    const assigned = item.departmentAssignments?.includes("delegate_sales") ?? false;
-    setAssignmentSavingId(item.id);
-    try {
-      const updated = await updateAuthUserDepartmentAssignments(
-        item.id,
-        assigned ? [] : ["delegate_sales"]
-      );
-      setUsers((prev) => prev.map((user) => (user.id === updated.id ? updated : user)));
-      if (updated.id === currentUser?.id) updateStoredAuthUser(updated);
-      toast.success(assigned ? "Delegate Sales removed" : "Delegate Sales assigned", {
-        description: updated.fullName || updated.username,
-      });
-    } catch (error) {
-      toast.error("Department assignment failed", { description: getErrorMessage(error) });
-    } finally {
-      setAssignmentSavingId(null);
-    }
-  };
 
   const submitPassword = async () => {
     if (!passwordTarget) return;
@@ -1137,8 +1217,6 @@ export default function AdminUsersPage() {
                           showClientAccess
                           clientCredentials={clientCredentialsByUserId.get(item.id) || []}
                           onEdit={() => startEdit(item)}
-                          onToggleDelegateSales={() => void toggleDelegateSales(item)}
-                          assignmentSaving={assignmentSavingId === item.id}
                           onPassword={() => {
                             setPasswordTarget(item);
                             setNewPassword("");
@@ -1525,24 +1603,27 @@ export default function AdminUsersPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase text-zinc-500">Role</label>
-                <Select
-                  value={form.role}
+                <label className="text-xs font-semibold uppercase text-zinc-500">Roles</label>
+                <UserRoleMultiSelect
+                  primaryRole={form.role}
+                  delegateSalesAssigned={form.delegateSalesAssigned}
+                  roleOptions={roleOptions}
                   disabled={editingSelf}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, role: value as AuthRole }))}
-                >
-                  <SelectTrigger className="h-10 border-zinc-300 bg-white">
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent className="border-zinc-300 bg-white">
-                    {roleOptions.map((role) => (
-                      <SelectItem key={role} value={role}>
-                        {getRoleLabel(role)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {editingSelf ? <p className="text-xs text-zinc-400">Your own role is protected while editing.</p> : null}
+                  onPrimaryRoleChange={(role) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      role,
+                      delegateSalesAssigned: canRoleUseDelegateSales(role) ? prev.delegateSalesAssigned : false,
+                    }))
+                  }
+                  onDelegateSalesChange={(delegateSalesAssigned) =>
+                    setForm((prev) => ({ ...prev, delegateSalesAssigned }))
+                  }
+                />
+                <p className="text-xs text-zinc-400">
+                  Choose one primary role and optionally add Delegate Sales.
+                </p>
+                {editingSelf ? <p className="text-xs text-zinc-400">Your own roles are protected while editing.</p> : null}
               </div>
 
               <div className="space-y-1.5">
