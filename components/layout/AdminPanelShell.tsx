@@ -21,12 +21,13 @@ import {
   Webhook,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { clearAuthSession, isCeoRole, isManagerRole } from "@/lib/auth";
+import { revokeAutocallSession, clearAuthSession, isCeoRole, isManagerRole } from "@/lib/auth";
 import { clearPersona } from "@/lib/persona";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 const adminTabs = [
+  { name: "Autocall", href: "/autocall", icon: Webhook, match: (pathname: string) => pathname === "/autocall" },
   {
     name: "Dashboard",
     href: "/admin",
@@ -116,6 +117,7 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = async () => {
     try {
+      await revokeAutocallSession();
       clearAuthSession();
       clearPersona();
       router.replace("/sign-in");

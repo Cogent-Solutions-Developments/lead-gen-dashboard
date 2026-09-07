@@ -25,6 +25,7 @@ export type AuthUser = {
   id: string;
   username: string;
   role: AuthRole;
+  departmentAssignments?: string[];
   email?: string;
   fullName?: string;
   designation?: string;
@@ -990,6 +991,7 @@ function normalizeUser(raw: unknown): AuthUser {
     id: String(source.id || ""),
     username: String(source.username || ""),
     role: normalizeAuthRole(source.role),
+    departmentAssignments: Array.isArray(source.departmentAssignments) ? source.departmentAssignments.filter((item): item is string => typeof item === "string") : [],
     email: source.email == null ? undefined : String(source.email),
     fullName: fullName == null ? "" : String(fullName),
     designation: designation == null ? "" : String(designation),
@@ -2265,4 +2267,22 @@ export async function runSystemOperationRecoveryAction(
       body: JSON.stringify(payload),
     }
   );
+}
+
+
+export async function authorizeAutocall(challenge: string) {
+  return authRequest<{ code: string; callbackUrl: string }>("/api/auth/autocall/authorize", {
+    method: "POST", body: JSON.stringify({ challenge }),
+  });
+}
+
+export async function setAutocallAccess(userId: string, enabled: boolean) {
+  return authRequest<{ enabled: boolean }>(`/api/auth/autocall/users/${encodeURIComponent(userId)}`, {
+    method: "PUT", body: JSON.stringify({ enabled }),
+  });
+}
+
+
+export async function revokeAutocallSession() {
+  await authRequest<{ signedOut: boolean }>("/api/auth/autocall/logout", { method: "POST" });
 }

@@ -148,6 +148,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    if (pathname === "/autocall") return;
+
     if (isAuthRoute) {
       router.replace(getAuthLandingPath(role));
       return;
@@ -246,10 +248,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return null;
   }
 
+  if (session && pathname === "/autocall") return <main className="min-h-screen">{children}</main>;
+
   if (forcedPersona) {
     if (getStoredPersona() !== forcedPersona) return null;
     if (isChooser || isSuperOnlyPath(pathname)) return null;
   }
+
 
   if (isClient) {
     if (pathname !== "/dashboard") return null;

@@ -1,4 +1,5 @@
 "use client";
+import { AutocallAccessToggle } from "@/components/autocall/AutocallAccessToggle";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -215,6 +216,7 @@ function UserCard({
   onDelete,
   canPermanentlyDelete,
   onPermanentDelete,
+  onAutocallChange,
 }: {
   item: AuthUser;
   isSelf: boolean;
@@ -227,6 +229,7 @@ function UserCard({
   onDelete: () => void;
   canPermanentlyDelete: boolean;
   onPermanentDelete: () => void;
+  onAutocallChange?: (enabled: boolean) => void;
 }) {
   const manager = isManagerRole(item.role);
   const clientCredential =
@@ -238,6 +241,7 @@ function UserCard({
         manager ? "border-blue-300 ring-1 ring-blue-100" : "border-zinc-200"
       }`}
     >
+      <AutocallAccessToggle user={item} onChange={onAutocallChange} />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -1066,6 +1070,7 @@ export default function AdminUsersPage() {
                       [...selectedDepartment.managers, ...selectedDepartment.normalUsers].map((item) => (
                         <UserCard
                           key={item.id}
+                          onAutocallChange={(enabled) => setUsers((current) => current.map((row) => row.id === item.id ? { ...row, departmentAssignments: enabled ? [...(row.departmentAssignments ?? []).filter((value) => value !== "autocall"), "autocall"] : (row.departmentAssignments ?? []).filter((value) => value !== "autocall") } : row))}
                           item={item}
                           isSelf={item.id === currentUser?.id}
                           showClientAccess
