@@ -142,6 +142,31 @@ test("normal upload entry points route to My Leads upload", () => {
   assert.match(quickActions, /normalHref:\s*"\/my-leads\?upload=1"/);
 });
 
+test("admin campaign upload is one continuous, space-efficient form without step UI", () => {
+  const uploadPage = read("app/campaigns/upload/page.tsx");
+
+  assert.match(
+    uploadPage,
+    /campaign-upload-form-heading[\s\S]*Choose an event[\s\S]*campaign-upload-lead-type[\s\S]*campaign-upload-category[\s\S]*campaign-upload-notes[\s\S]*type="file"/
+  );
+  assert.match(uploadPage, /form="upload-campaign-form"/);
+  assert.doesNotMatch(
+    uploadPage,
+    /Step 0[123]|campaign-upload-event-heading|campaign-upload-details-heading|campaign-upload-lead-sheet-heading/
+  );
+  assert.doesNotMatch(
+    uploadPage,
+    /currentStep|uploadSteps|goNext|Select active event|Capture details|Synchronize lead sheet/
+  );
+  assert.doesNotMatch(uploadPage, />\s*Continue\s*</);
+  assert.match(uploadPage, /xl:grid-cols-\[minmax\(18rem,0\.85fr\)_minmax\(0,1\.15fr\)\]/);
+  assert.match(uploadPage, /xl:col-start-2 xl:row-span-2/);
+  assert.match(uploadPage, /flex min-h-full w-full flex-col/);
+  assert.match(uploadPage, /xl:grid-rows-\[auto_minmax\(0,1fr\)\]/);
+  assert.match(uploadPage, /min-h-\[15rem\][\s\S]*?flex-1 resize-none rounded-\[1\.75rem\]/);
+  assert.doesNotMatch(uploadPage, /max-w-5xl|min-h-40/);
+});
+
 test("user upload dialogs default lead type to event leads", () => {
   const myLeads = read("app/my-leads/page.tsx");
   const sharedLeadSheet = read("components/leads/NormalUserEventLeadSheet.tsx");

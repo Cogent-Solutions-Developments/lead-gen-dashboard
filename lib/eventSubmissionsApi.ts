@@ -141,3 +141,21 @@ export async function fetchEventSubmission(submissionId: string, signal?: AbortS
   );
   return response.data.submission;
 }
+
+export type EventSubmissionDeletion = { id: string; deleted: true; deletedAt: string };
+
+export async function deleteEventSubmission(submissionId: string, confirmation: string) {
+  const response = await apiClient.delete<EventSubmissionDeletion>(
+    `/api/admin/event-submissions/${encodeURIComponent(submissionId)}`,
+    { data: { submissionId, confirmation } }
+  );
+  return response.data;
+}
+
+export async function restoreEventSubmission(submissionId: string, deletedAt: string) {
+  const response = await apiClient.post<{ id: string; restored: true }>(
+    `/api/admin/event-submissions/${encodeURIComponent(submissionId)}/restore`,
+    { deletedAt }
+  );
+  return response.data;
+}

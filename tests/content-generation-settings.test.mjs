@@ -9,7 +9,7 @@ test("settings links to a dedicated content generation control center", () => {
   const contentGenerationPage = read("app/settings/content-generation/page.tsx");
 
   assert.match(settings, /href="\/settings\/content-generation"/);
-  assert.match(settings, />Content Generation</);
+  assert.match(settings, /title="Content Generation"/);
   assert.doesNotMatch(settings, /<ContentGenerationControlCenter\s*\/>/);
   assert.match(contentGenerationPage, /<ContentGenerationControlCenter\s*\/>/);
   assert.doesNotMatch(contentGenerationPage, /aria-label="Breadcrumb"/);
