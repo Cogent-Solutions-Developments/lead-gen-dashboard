@@ -13,6 +13,7 @@ import {
   HardDrive,
   LayoutDashboard,
   LogOut,
+  Phone,
   Settings,
   ShieldCheck,
   Tags,
@@ -27,13 +28,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 const adminTabs = [
-  { name: "Autocall", href: "/autocall", icon: Webhook, match: (pathname: string) => pathname === "/autocall" },
   {
     name: "Dashboard",
     href: "/admin",
     icon: LayoutDashboard,
     match: (pathname: string) => pathname === "/admin",
   },
+  { name: "Autocall", href: "/autocall", icon: Phone, match: (pathname: string) => pathname === "/autocall" },
   {
     name: "User & Role Management",
     href: "/admin/users",
