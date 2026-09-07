@@ -1,5 +1,4 @@
 "use client";
-import { AutocallAccessToggle } from "@/components/autocall/AutocallAccessToggle";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -35,6 +34,7 @@ import { EventRegistryPicker } from "@/components/events/EventRegistryPicker";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
+import { setAutocallAccess } from "@/lib/auth";
 import {
   AUTH_ROLES,
   createAdminClientCredential,
@@ -69,6 +69,7 @@ type UserFormState = {
   password: string;
   status: UserStatusValue | "";
   deactivationReason: string;
+  autocallAccess: boolean;
 };
 
 type DepartmentDefinition = {
@@ -86,6 +87,7 @@ const blankForm: UserFormState = {
   password: "",
   status: "",
   deactivationReason: "",
+  autocallAccess: false,
 };
 
 const departmentDefinitions: DepartmentDefinition[] = [
@@ -216,7 +218,6 @@ function UserCard({
   onDelete,
   canPermanentlyDelete,
   onPermanentDelete,
-  onAutocallChange,
 }: {
   item: AuthUser;
   isSelf: boolean;
@@ -229,7 +230,6 @@ function UserCard({
   onDelete: () => void;
   canPermanentlyDelete: boolean;
   onPermanentDelete: () => void;
-  onAutocallChange?: (enabled: boolean) => void;
 }) {
   const manager = isManagerRole(item.role);
   const clientCredential =
@@ -241,7 +241,6 @@ function UserCard({
         manager ? "border-blue-300 ring-1 ring-blue-100" : "border-zinc-200"
       }`}
     >
-      <AutocallAccessToggle user={item} onChange={onAutocallChange} />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -277,6 +276,12 @@ function UserCard({
             <span className={`font-semibold ${item.mfaEnabled ? "text-emerald-700" : "text-zinc-400"}`}>
               {item.mfaEnabled ? "MFA enabled" : "MFA off"}
             </span>
+            {item.role !== "client_user" && item.departmentAssignments?.includes("autocall") ? (
+              <>
+                <span className="text-zinc-300">|</span>
+                <span className="font-semibold text-emerald-700">Autocall access enabled</span>
+              </>
+            ) : null}
           </div>
 
           <p className="mt-3 text-xs text-zinc-500">Last login: {formatDateTime(item.lastLoginAt)}</p>
@@ -593,6 +598,7 @@ export default function AdminUsersPage() {
       password: "",
       status: userLifecycleStatus(item),
       deactivationReason: item.deactivationReason || "",
+      autocallAccess: item.departmentAssignments?.includes("autocall") ?? false,
     });
     setEditingCredentialId(primaryCredential?.id || "");
     setEditingCredentialExpiry(toDateInputValue(primaryCredential?.expiresAt));
@@ -640,6 +646,25 @@ export default function AdminUsersPage() {
         });
         setUsers((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
         if (isSelf) updateStoredAuthUser(updated);
+        if (
+          isSuperAdmin &&
+          updated.role !== "super_admin_user" &&
+          updated.role !== "client_user" &&
+          form.autocallAccess !== (updated.departmentAssignments?.includes("autocall") ?? false)
+        ) {
+          try {
+            const { enabled } = await setAutocallAccess(editingId, form.autocallAccess);
+            const assignments = (updated.departmentAssignments ?? []).filter((value) => value !== "autocall");
+            const savedUser = {
+              ...updated,
+              departmentAssignments: enabled ? [...assignments, "autocall"] : assignments,
+            };
+            setUsers((prev) => prev.map((item) => (item.id === savedUser.id ? savedUser : item)));
+            if (isSelf) updateStoredAuthUser(savedUser);
+          } catch (error) {
+            throw new Error(`User details saved, but Autocall access could not be updated. ${getErrorMessage(error)}`);
+          }
+        }
         if (
           shouldUpdateClientExpiry &&
           selectedEditingCredential &&
@@ -1070,7 +1095,6 @@ export default function AdminUsersPage() {
                       [...selectedDepartment.managers, ...selectedDepartment.normalUsers].map((item) => (
                         <UserCard
                           key={item.id}
-                          onAutocallChange={(enabled) => setUsers((current) => current.map((row) => row.id === item.id ? { ...row, departmentAssignments: enabled ? [...(row.departmentAssignments ?? []).filter((value) => value !== "autocall"), "autocall"] : (row.departmentAssignments ?? []).filter((value) => value !== "autocall") } : row))}
                           item={item}
                           isSelf={item.id === currentUser?.id}
                           showClientAccess
@@ -1480,6 +1504,19 @@ export default function AdminUsersPage() {
                   </SelectContent>
                 </Select>
                 {editingSelf ? <p className="text-xs text-zinc-400">Your own role is protected while editing.</p> : null}
+                {isSuperAdmin && form.role !== "super_admin_user" && form.role !== "client_user" ? (
+                  <label className="flex items-center gap-2 pt-2 text-sm font-medium text-slate-600">
+                    <input
+                      name="admin-user-edit-autocall-access"
+                      type="checkbox"
+                      checked={form.autocallAccess}
+                      disabled={saving}
+                      onChange={(event) => setForm((prev) => ({ ...prev, autocallAccess: event.target.checked }))}
+                      className="h-4 w-4 rounded border-zinc-300 accent-blue-600"
+                    />
+                    Autocall access
+                  </label>
+                ) : null}
               </div>
 
               <div className="space-y-1.5">
