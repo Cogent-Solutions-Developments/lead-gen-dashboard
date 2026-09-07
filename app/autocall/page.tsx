@@ -4,5 +4,5 @@ export const metadata = { title: "Autocall | Supernizo", referrer: "no-referrer"
 export const dynamic = "force-dynamic";
 
 export default function AutocallPage() {
-  return <AutocallLaunch baseUrl={process.env.AUTOCALL_PUBLIC_URL ?? ""} portal="light" />;
+  return <AutocallLaunch allowLocalHttp={process.env.NODE_ENV === "development"} baseUrl={process.env.AUTOCALL_PUBLIC_URL ?? ""} portal="light" />;
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { validateSessionOnReload } from "@/lib/session-validation";
 import { useEffect, useState, type CSSProperties } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ReleaseAnnouncement } from "@/components/layout/ReleaseAnnouncement";
@@ -122,15 +123,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       }
 
       setSession(current);
-      try {
-        await fetchCurrentAuthUser();
-      } catch {
-        clearAuthSession();
-        clearPersona();
-        if (active) setSession(null);
-      } finally {
-        if (active) setAuthChecked(true);
-      }
+      await validateSessionOnReload({
+        refresh: fetchCurrentAuthUser,
+        isCurrent: () => active && getStoredAuthSession()?.accessToken === current.accessToken,
+        invalidate: () => {
+          clearAuthSession();
+          clearPersona();
+          setSession(null);
+        },
+      });
+      if (active) setAuthChecked(true);
     };
 
     void boot();

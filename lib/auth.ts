@@ -1186,7 +1186,12 @@ export function attachAuthToken(config: InternalAxiosRequestConfig) {
 
 async function parseResponse<T>(response: Response): Promise<T> {
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  let data: { detail?: unknown; message?: unknown } | null = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    if (response.ok) throw new Error("The server returned an invalid response. Please retry.");
+  }
   if (response.ok) return data as T;
 
   const detail = data?.detail;
@@ -1507,11 +1512,25 @@ export async function resetAuthUserMfa(userId: string) {
   return { ...data, user: normalizeUser(data.user) };
 }
 
-export async function fetchCurrentAuthUser() {
-  const data = await authRequest<{ user: AuthUser }>("/api/auth/me");
-  const user = normalizeUser(data.user);
-  updateStoredAuthUser(user);
-  return user;
+let currentUserRequest: { token: string; promise: Promise<AuthUser> } | undefined;
+
+export function fetchCurrentAuthUser(): Promise<AuthUser> {
+  const token = getAuthToken();
+  if (currentUserRequest?.token === token) return currentUserRequest.promise;
+  const promise = (async () => {
+    const data = await authRequest<{ user: AuthUser }>("/api/auth/me", {
+      cache: "no-store", signal: AbortSignal.timeout(8000),
+    });
+    const user = normalizeUser(data.user);
+    // A response from an older login must never overwrite a new account/session.
+    if (getAuthToken() === token) updateStoredAuthUser(user);
+    return user;
+  })();
+  currentUserRequest = { token, promise };
+  void promise.finally(() => {
+    if (currentUserRequest?.promise === promise) currentUserRequest = undefined;
+  }).catch(() => {});
+  return promise;
 }
 
 export async function listAuthUsers() {

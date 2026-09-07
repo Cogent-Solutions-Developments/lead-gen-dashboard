@@ -12,3 +12,15 @@ describe("Autocall access", () => {
     for (const url of ["http://app.example/autocall-db", "https://user:pass@app.example/autocall-db", "https://app.example/", "https://app.example/autocall-db?next=evil"]) assert.throws(() => autocallBaseUrl(url));
   });
 });
+
+it("allows loopback HTTP only with the development opt-in", () => {
+  for (const host of ["localhost", "127.0.0.1", "[::1]"]) {
+    const url = `http://${host}:3001/autocall-db`;
+    assert.equal(autocallBaseUrl(url, true).href, url);
+    assert.throws(() => autocallBaseUrl(url));
+  }
+  for (const url of ["http://localhost.evil.example/autocall-db", "http://192.168.1.1/autocall-db", "http://example.com/autocall-db", "http://localhost:3001/autocall-db?next=evil"]) {
+    assert.throws(() => autocallBaseUrl(url, true));
+  }
+  assert.throws(() => autocallBaseUrl(""), /Set AUTOCALL_PUBLIC_URL/);
+});

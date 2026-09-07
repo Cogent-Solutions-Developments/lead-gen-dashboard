@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { authorizeAutocall, fetchCurrentAuthUser } from "@/lib/auth";
 import { autocallBaseUrl, canAccessAutocall } from "@/lib/autocall-access";
 
-export function AutocallLaunch({ baseUrl, portal }: { baseUrl: string; portal: string }) {
+export function AutocallLaunch({ baseUrl, portal, allowLocalHttp = false }: { baseUrl: string; portal: string; allowLocalHttp?: boolean }) {
   const started = useRef(false);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -14,7 +14,7 @@ export function AutocallLaunch({ baseUrl, portal }: { baseUrl: string; portal: s
     const launch = async () => {
       const user = await fetchCurrentAuthUser();
       if (!canAccessAutocall(user)) throw new Error("Autocall access has not been assigned. Contact your administrator.");
-      const base = autocallBaseUrl(baseUrl);
+      const base = autocallBaseUrl(baseUrl, allowLocalHttp);
       const params = new URL(window.location.href).searchParams;
       const challenge = params.get("challenge");
       const state = params.get("state");
@@ -36,9 +36,9 @@ export function AutocallLaunch({ baseUrl, portal }: { baseUrl: string; portal: s
       window.location.replace(callback.href);
     };
     void launch().catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Unable to open Autocall. Try again."));
-  }, [baseUrl, portal, attempt]);
+  }, [baseUrl, portal, attempt, allowLocalHttp]);
   return <section className="mx-auto grid min-h-[60vh] max-w-lg place-content-center gap-4 p-6 text-center">
-    <h1 className="text-2xl font-semibold">{error ? "Unable to open Autocall" : "Opening Autocall…"}</h1>
+    <h1 className="text-2xl font-semibold">{error ? "Unable to open Autocall" : "Opening Autocallâ€¦"}</h1>
     <p role="status" className="text-sm opacity-75">{error || "Checking your Supernizo access."}</p>
     {error ? <button type="button" onClick={() => { started.current = false; setError(""); setAttempt((value) => value + 1); }} className="underline">Try again</button> : null}
   </section>;
