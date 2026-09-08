@@ -1,6 +1,6 @@
 import { it } from "node:test";
 import assert from "node:assert/strict";
-import { validateSessionOnReload } from "../lib/session-validation.ts";
+import { validateSessionOnReload, watchSessionValidation } from "../lib/session-validation.ts";
 
 it("keeps the session through consecutive rate limits, outages, and network failures", async () => {
   let invalidations = 0;
@@ -35,4 +35,29 @@ it("ignores old authentication failures after another login or unmount", async (
     invalidate: () => { invalidations++; },
   }), "superseded");
   assert.equal(invalidations, 0);
+});
+
+it("refreshes open sessions on a timer, tab return and reconnection, with cleanup", async () => {
+  const host = new EventTarget();
+  const visibility = Object.assign(new EventTarget(), {visibilityState: "visible"});
+  let tick = () => {};
+  let cleared = false;
+  Object.assign(host, {setInterval(fn, delay) { assert.equal(delay, 15000); tick = fn; return 1; }, clearInterval() {cleared = true;} });
+  let calls = 0;
+  let release;
+  const stop = watchSessionValidation(async () => {calls++; await new Promise(resolve => {release = resolve;});}, host, visibility);
+  assert.equal(calls, 1);
+  tick(); host.dispatchEvent(new Event("focus"));
+  assert.equal(calls, 1, "requests must not overlap");
+  release(); await new Promise(resolve => setTimeout(resolve, 0));
+  tick(); assert.equal(calls, 2);
+  release(); await new Promise(resolve => setTimeout(resolve, 0));
+  visibility.dispatchEvent(new Event("visibilitychange")); assert.equal(calls, 3);
+  release(); await new Promise(resolve => setTimeout(resolve, 0));
+  host.dispatchEvent(new Event("online")); assert.equal(calls, 4);
+  release(); await new Promise(resolve => setTimeout(resolve, 0));
+  host.dispatchEvent(new Event("focus")); assert.equal(calls, 5);
+  stop(); release(); await new Promise(resolve => setTimeout(resolve, 0));
+  tick(); host.dispatchEvent(new Event("focus")); visibility.dispatchEvent(new Event("visibilitychange"));
+  assert.equal(calls, 5); assert.equal(cleared, true);
 });

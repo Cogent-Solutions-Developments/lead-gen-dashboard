@@ -518,6 +518,12 @@ export async function listAuthUsers() {
   return Array.isArray(data.users) ? data.users.map(normalizeAdminUser) : [];
 }
 
+export async function getAuthUser(userId: string) {
+  const data = await adminAuthRequest<{ user: AuthUser }>(`/api/auth/users/${encodeURIComponent(userId)}`, {cache: "no-store"});
+  if (!Array.isArray(data.user?.departmentAssignments)) throw new Error("The server omitted the saved user permissions.");
+  return normalizeAdminUser(data.user);
+}
+
 export async function listAuthRoles() {
   const data = await adminAuthRequest<{ roles: AuthRole[] }>("/api/auth/roles");
   return Array.isArray(data.roles) ? data.roles.map(normalizeAdminRole) : [];

@@ -34,6 +34,7 @@ import { EventRegistryPicker } from "@/components/events/EventRegistryPicker";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
+import { saveAutocallAccess } from "@/lib/save-autocall-access";
 import { setAutocallAccess } from "@/lib/auth";
 import {
   AUTH_ROLES,
@@ -42,6 +43,7 @@ import {
   deleteAuthUser,
   getRoleLabel,
   listAuthRoles,
+  getAuthUser,
   listAdminClientCredentials,
   listAdminEvents,
   listAuthUsers,
@@ -636,7 +638,7 @@ export default function AdminUsersPage() {
       let updatedCredential: AdminClientCredential | null = null;
       if (editingId) {
         const isSelf = editingId === currentUser?.id;
-        const updated = await updateAuthUser(editingId, {
+        let updated = await updateAuthUser(editingId, {
           username,
           fullName: form.fullName.trim(),
           role: isSelf ? undefined : form.role,
@@ -644,27 +646,22 @@ export default function AdminUsersPage() {
           deactivationReason:
             isSelf || form.status === "active" ? undefined : form.deactivationReason.trim(),
         });
-        setUsers((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
-        if (isSelf) updateStoredAuthUser(updated);
         if (
           isSuperAdmin &&
           updated.role !== "super_admin_user" &&
-          updated.role !== "client_user" &&
-          form.autocallAccess !== (updated.departmentAssignments?.includes("autocall") ?? false)
+          updated.role !== "client_user"
         ) {
           try {
-            const { enabled } = await setAutocallAccess(editingId, form.autocallAccess);
-            const assignments = (updated.departmentAssignments ?? []).filter((value) => value !== "autocall");
-            const savedUser = {
-              ...updated,
-              departmentAssignments: enabled ? [...assignments, "autocall"] : assignments,
-            };
-            setUsers((prev) => prev.map((item) => (item.id === savedUser.id ? savedUser : item)));
-            if (isSelf) updateStoredAuthUser(savedUser);
+            updated = await saveAutocallAccess(editingId, form.autocallAccess, {
+              save: setAutocallAccess,
+              read: getAuthUser,
+            });
           } catch (error) {
             throw new Error(`User details saved, but Autocall access could not be updated. ${getErrorMessage(error)}`);
           }
         }
+        setUsers((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+        if (isSelf) updateStoredAuthUser(updated);
         if (
           shouldUpdateClientExpiry &&
           selectedEditingCredential &&
