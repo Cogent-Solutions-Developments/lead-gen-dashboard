@@ -13,6 +13,7 @@ import {
   HardDrive,
   LayoutDashboard,
   LogOut,
+  Phone,
   Settings,
   ShieldCheck,
   Tags,
@@ -21,7 +22,7 @@ import {
   Webhook,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { clearAuthSession, isCeoRole, isManagerRole } from "@/lib/auth";
+import { revokeAutocallSession, clearAuthSession, isCeoRole, isManagerRole } from "@/lib/auth";
 import { clearPersona } from "@/lib/persona";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -33,6 +34,7 @@ const adminTabs = [
     icon: LayoutDashboard,
     match: (pathname: string) => pathname === "/admin",
   },
+  { name: "Autocall", href: "/autocall", icon: Phone, match: (pathname: string) => pathname === "/autocall" },
   {
     name: "User & Role Management",
     href: "/admin/users",
@@ -116,6 +118,7 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = async () => {
     try {
+      await revokeAutocallSession();
       clearAuthSession();
       clearPersona();
       router.replace("/sign-in");

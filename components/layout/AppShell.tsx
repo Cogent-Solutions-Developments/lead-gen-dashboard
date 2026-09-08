@@ -1,5 +1,6 @@
 "use client";
 
+import { validateSessionOnReload } from "@/lib/session-validation";
 import { useEffect, useState, type CSSProperties } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ReleaseAnnouncement } from "@/components/layout/ReleaseAnnouncement";
@@ -122,15 +123,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       }
 
       setSession(current);
-      try {
-        await fetchCurrentAuthUser();
-      } catch {
-        clearAuthSession();
-        clearPersona();
-        if (active) setSession(null);
-      } finally {
-        if (active) setAuthChecked(true);
-      }
+      await validateSessionOnReload({
+        refresh: fetchCurrentAuthUser,
+        isCurrent: () => active && getStoredAuthSession()?.accessToken === current.accessToken,
+        invalidate: () => {
+          clearAuthSession();
+          clearPersona();
+          setSession(null);
+        },
+      });
+      if (active) setAuthChecked(true);
     };
 
     void boot();
@@ -147,6 +149,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       if (!isAuthRoute) router.replace("/sign-in");
       return;
     }
+
+    if (pathname === "/autocall") return;
 
     if (isAuthRoute) {
       router.replace(getAuthLandingPath(role));
@@ -246,10 +250,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return null;
   }
 
+  if (session && pathname === "/autocall") return <main className="min-h-screen">{children}</main>;
+
   if (forcedPersona) {
     if (getStoredPersona() !== forcedPersona) return null;
     if (isChooser || isSuperOnlyPath(pathname)) return null;
   }
+
 
   if (isClient) {
     if (pathname !== "/dashboard") return null;

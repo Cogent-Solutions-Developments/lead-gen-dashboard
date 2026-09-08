@@ -27,7 +27,6 @@ Most pages import from `@/lib/apiRouter`, which selects the correct API module b
 - Notifications: Sonner.
 - External backend config:
   - `NEXT_PUBLIC_API_BASE_URL`
-  - `NEXT_PUBLIC_API_KEY`
   - `NEXT_PUBLIC_WA_DEBUG`
 - Supabase helper exists in `lib/supabaseClient.ts`, but no current app usage was found.
 
@@ -41,7 +40,7 @@ Most pages import from `@/lib/apiRouter`, which selects the correct API module b
    - `lib/api.ts` for sales.
    - `lib/apidele.ts` for delegates.
    - `lib/apiproduction.ts` for production.
-6. Axios request interceptors attach `Authorization: Bearer <token>`. Most clients also include `x-api-key`.
+6. Axios request interceptors attach `Authorization: Bearer <token>`.
 
 ## Auth And Roles
 

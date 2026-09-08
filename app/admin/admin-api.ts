@@ -404,6 +404,9 @@ function normalizeAdminUser(raw: unknown): AuthUser {
     id: String(source.id || ""),
     username: String(source.username || ""),
     role: normalizeAdminRole(source.role),
+    departmentAssignments: Array.isArray(source.departmentAssignments)
+      ? source.departmentAssignments.filter((item): item is string => typeof item === "string")
+      : [],
     fullName: fullName == null ? "" : String(fullName),
     designation: designation == null ? "" : String(designation),
     dateOfBirth: dateOfBirth == null ? null : String(dateOfBirth),

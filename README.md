@@ -1,36 +1,26 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Supernizo Light
 
-## Getting Started
+The Light frontend provides user and role administration and launches Autocall
+through the Supernizo SSO handoff. Business data and authentication remain in
+the LeadGen backend.
 
-First, run the development server:
+## Local development
+
+Copy `.env.example` to `.env.local`, set the required values, then run:
 
 ```bash
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Run `npm run lint`, `npm run type-check`, `npm test`, and `npm run build`
+before submitting a release.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deployment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Production deployments use the GitHub Actions workflow because `vercel.json`
+disables Vercel's native Git deployment. See
+[`docs/production-deployment.md`](docs/production-deployment.md) for the
+required Vercel values, GitHub secrets, release process, and rollback
+procedure. The Autocall handshake is documented in
+[`docs/autocall-integration.md`](docs/autocall-integration.md).

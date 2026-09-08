@@ -1,10 +1,12 @@
 "use client";
+import { revokeAutocallSession } from "@/lib/auth";
 
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  Phone,
   Activity,
   BookOpenText,
   Brain,
@@ -31,6 +33,7 @@ import { useMemo, useState } from "react";
 import { clearPersona } from "@/lib/persona";
 import { usePersona } from "@/hooks/usePersona";
 import { businessWorkspaceForRole, clearAuthSession, getAuthHeader, isBusinessRole, isManagerRole } from "@/lib/auth";
+import { canAccessAutocall } from "@/lib/autocall-access";
 import { useAuth } from "@/hooks/useAuth";
 import { UserAvatar } from "@/components/profile/UserAvatar";
 import { toast } from "sonner";
@@ -50,6 +53,7 @@ type SidebarNavItem = {
 
 const navItems: SidebarNavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Autocall", href: "/autocall", icon: Phone },
   { name: "Campaigns", normalLabel: "Conferences", href: "/campaigns", icon: Rocket },
   { name: "New Campaign", href: "/campaigns/new", icon: Plus, superOnly: true },
   { name: "Upload Campaign", href: "/campaigns/upload", icon: Upload, superOnly: true },
@@ -112,6 +116,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
 
   const handleSignOut = async () => {
     try {
+      await revokeAutocallSession();
       clearAuthSession();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to sign out.";
@@ -216,8 +221,9 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
           isExpanded ? "-mx-4" : "-mx-6"
         }`}
       >
-        {(isBusiness ? businessNavItems : navItems)
+        {(isBusiness ? [...businessNavItems, { name: "Autocall", href: "/autocall", icon: Phone }] : navItems)
           .filter((item) => {
+            if (item.href === "/autocall") return canAccessAutocall(user);
             if (isBusiness) return true;
             if (item.submissionViewerOnly) return !isSuperAdmin && (isCeo || isManager);
             if (isSuperAdmin) {
