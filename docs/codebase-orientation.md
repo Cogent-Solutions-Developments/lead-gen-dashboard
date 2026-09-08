@@ -11,7 +11,6 @@ This document is a working map of the current `lead-gen-dashboard` codebase. It 
 The frontend does not own the main business data model. It stores auth/persona state in the browser and talks to an external backend through:
 
 - `NEXT_PUBLIC_API_BASE_URL`
-- `NEXT_PUBLIC_API_KEY`
 - `TEAMS_DEAL_BELL_WEBHOOK_URL` for the local deal-bell proxy route
 - `NEXT_PUBLIC_WA_DEBUG` for WhatsApp debug logging
 
@@ -107,7 +106,6 @@ Shared endpoints that are not persona-prefixed include:
 Axios clients attach:
 
 - `Authorization: Bearer <token>` from `lib/auth.ts`.
-- `x-api-key` from `NEXT_PUBLIC_API_KEY`.
 - `ngrok-skip-browser-warning: true` in local development if the backend is an ngrok host.
 
 ## Persona UI Differences
