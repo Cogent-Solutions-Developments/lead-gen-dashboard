@@ -475,10 +475,11 @@ test("offboarding retains accounts and supports lifecycle reasons", () => {
   assert.doesNotMatch(usersPage, /Delete User/);
   assert.match(adminApi, /deactivated\?: boolean/);
   assert.match(adminApi, /retained\?: boolean/);
-  const updatePayload = usersPage.slice(
-    usersPage.indexOf("const updated = await updateAuthUser"),
-    usersPage.indexOf("setUsers((prev)", usersPage.indexOf("const updated = await updateAuthUser")),
+  const updateCall = usersPage.match(
+    /\bupdateAuthUser\(\s*editingId,\s*(\{[\s\S]*?\})\s*\)/,
   );
+  assert.ok(updateCall, "Expected the edited user's updateAuthUser payload");
+  const updatePayload = updateCall[1];
   assert.match(updatePayload, /lifecycleStatus:/);
   assert.doesNotMatch(updatePayload, /isActive:/);
 });
