@@ -1,6 +1,6 @@
 "use client";
 
-import { validateSessionOnReload } from "@/lib/session-validation";
+import { validateSessionOnReload, watchSessionValidation } from "@/lib/session-validation";
 import { useEffect, useState, type CSSProperties } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ReleaseAnnouncement } from "@/components/layout/ReleaseAnnouncement";
@@ -135,10 +135,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       if (active) setAuthChecked(true);
     };
 
-    void boot();
+    const stopValidation = watchSessionValidation(boot);
 
     return () => {
       active = false;
+      stopValidation();
     };
   }, []);
 

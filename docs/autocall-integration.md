@@ -75,3 +75,16 @@ Use distinct local ports: light frontend `3000`, Autocall `3001`, heavy frontend
 HTTP is allowed only for loopback hosts (`localhost`, `127.0.0.1`, IPv6 loopback) in Next.js development mode; the backend additionally requires the explicit local flag. Production continues to require HTTPS, including the private exchange. The local HTTP flow cookie stays HttpOnly, SameSite=Lax and scoped to `/autocall-db`; HTTPS uses Secure cookies.
 
 Reload validation retains the stored Supernizo session on network failures, rate limits, forbidden resources and server errors. Only a 401 for the current login clears it; delayed failures from an earlier login are ignored. Concurrent profile lookups share an in-flight request, and stale responses cannot overwrite a newer login. Autocall denies protected requests when upstream authorization is unavailable but propagates a temporary service error instead of redirecting that session to sign-in. Expired/revoked sessions still require authentication.
+
+## Revocation in open tabs
+
+The application shell refreshes the current user every 15 seconds and on window focus, tab visibility restoration and network reconnection. Fresh permissions update navigation. A 401 from the current session clears the login; an old response cannot invalidate a newer login. Requests do not overlap, and timers/listeners are removed on unmount. Temporary outages preserve the session and retry. Access changes rotate the backend token version, so revocation requires a fresh sign-in. Deploy this portal and Autocall's dashboard session guard together.
+
+
+## Permission save regression (2026-09-08)
+
+User/profile update responses previously serialized an empty department assignment list despite existing database grants. The admin editor compared an unchecked checkbox with that empty response, skipped the dedicated revoke call, and incorrectly reported success. A subsequent refresh restored the still-persisted grant.
+
+Backend user/profile mutations now include persisted department assignments. The Light admin editor explicitly sends the desired Autocall value (including false), reads the user back with no caching, and verifies it before success. A failed or inconsistent permission save keeps the editor open with an error. Other assignments are preserved; no database migration is needed.
+
+Regression verification: both old backend mutation-response tests failed before the fix; 86 auth/profile tests pass after it. Five frontend persistence tests pass. A local production-build browser check reproduced the old empty response and verified uncheck, save, Refresh and full reload, plus explicit write failure. Deploy the backend API and Light together; Heavy and Autocall need no additional changes for this persistence fix.
