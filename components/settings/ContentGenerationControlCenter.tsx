@@ -16,10 +16,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ContentGenerationRecoveryPanel } from "@/components/settings/ContentGenerationRecoveryPanel";
 import {
   getContentGenerationConfiguration,
   getContentGenerationOverview,
   getContentGenerationRunDetails,
+  getPausedContentGenerationRuns,
   updateContentGenerationConfiguration,
   type ContentGenerationConfigChange,
   type ContentGenerationConfiguration,
@@ -60,7 +62,7 @@ const FIELD_GROUPS: Array<{
     description: "Pauses work before request, token, or estimated-cost limits are exceeded.",
     fields: [
       { key: "maxRequestsPerLead", label: "Requests per lead", help: "Total model calls available to one lead across all stages.", min: 1, max: 25 },
-      { key: "maxTotalTokensPerRun", label: "Tokens per batch", help: "Token circuit breaker applied to each campaign batch.", min: 10000, max: 20000000 },
+      { key: "maxTotalTokensPerRun", label: "Tokens per batch", help: "Multiplied by the number of batches to set the total campaign token allowance.", min: 10000, max: 20000000 },
       { key: "maxCostPerLeadUsd", label: "Cost per lead (USD)", help: "Target maximum estimated provider cost for one draft.", min: 0.01, max: 1, step: 0.01, integer: false },
       { key: "maxCampaignCostUsd", label: "Campaign cost (USD)", help: "Absolute cost breaker for the complete campaign run.", min: 0.1, max: 10000, step: 0.1, integer: false },
     ],
@@ -156,7 +158,7 @@ function StateCounts({ values, emptyLabel }: { values: Record<string, number>; e
   );
 }
 
-function RunDetailsPanel({ details }: { details: ContentGenerationRunDetails }) {
+function RunDetailsPanel({ details, onContinued }: { details: ContentGenerationRunDetails; onContinued: () => void }) {
   const { run, tracking } = details;
   const costUtilization = run.usage.costUtilization ?? 0;
   return (
@@ -174,6 +176,8 @@ function RunDetailsPanel({ details }: { details: ContentGenerationRunDetails }) 
           <div className="flex justify-between gap-3"><span>Estimated spend</span><strong className="tabular-nums text-slate-900">{formatUsd(run.usage.estimatedCostUsd)}</strong></div>
           <div className="mt-2 flex justify-between gap-3"><span>Campaign breaker</span><strong className="tabular-nums text-slate-900">{formatUsd(run.usage.costLimitUsd)}</strong></div>
           <div className="mt-3"><BudgetBar label="Cost budget used" value={costUtilization} detail={`${costUtilization.toFixed(1)}%`} tone={costUtilization > 80 ? "amber" : "blue"} /></div>
+          <div className="mt-3"><BudgetBar label="Token budget used" value={run.usage.tokenUtilization} detail={`${compactNumber(run.usage.totalTokens)} / ${compactNumber(run.usage.tokenLimit)}`} tone={run.usage.tokenUtilization > 80 ? "amber" : "blue"} /></div>
+          <div className="mt-3"><BudgetBar label="Request budget used" value={run.usage.requestUtilization} detail={`${compactNumber(run.usage.requests)} / ${compactNumber(run.usage.requestLimit)}`} /></div>
         </div>
       </div>
       <div>
@@ -198,6 +202,9 @@ function RunDetailsPanel({ details }: { details: ContentGenerationRunDetails }) 
           ) : <p className="px-3 py-8 text-center text-xs text-slate-500">The durable queue plan has not been initialized.</p>}
         </div>
       </div>
+      {run.state === "PAUSED" && details.recovery ? (
+        <div className="lg:col-span-2"><ContentGenerationRecoveryPanel key={run.id} details={{ ...details, recovery: details.recovery }} onContinued={onContinued} /></div>
+      ) : null}
     </div>
   );
 }
@@ -275,6 +282,28 @@ export function ContentGenerationControlCenter() {
   const [runDetailsError, setRunDetailsError] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [showPaused, setShowPaused] = useState(false);
+  const [pausedOffset, setPausedOffset] = useState(0);
+  const [pausedRuns, setPausedRuns] = useState<Awaited<ReturnType<typeof getPausedContentGenerationRuns>> | null>(null);
+  const [pausedError, setPausedError] = useState<string | null>(null);
+  const [pausedLoading, setPausedLoading] = useState(false);
+
+  useEffect(() => {
+    if (!showPaused) return;
+    let active = true;
+    const refreshPaused = async () => {
+      setPausedLoading(true);
+      try {
+        const response = await getPausedContentGenerationRuns(pausedOffset);
+        if (active) { setPausedRuns(response); setPausedError(null); }
+      } catch (error) {
+        if (active) setPausedError(errorMessage(error));
+      } finally { if (active) setPausedLoading(false); }
+    };
+    void refreshPaused();
+    const interval = window.setInterval(() => void refreshPaused(), 30000);
+    return () => { active = false; window.clearInterval(interval); };
+  }, [showPaused, pausedOffset, lastSynced]);
 
   const load = useCallback(async (quiet = false, replaceDraft = false) => {
     const sequence = ++loadSequence.current;
@@ -408,6 +437,7 @@ export function ContentGenerationControlCenter() {
   const activeBatches = overview?.activeBatches ?? [];
   const maxStageCount = Math.max(1, ...activeStages.map((item) => item.count));
   const totalActiveBatches = activeBatches.reduce((total, item) => total + item.count, 0);
+  const visibleRuns = showPaused ? (pausedRuns?.offset === pausedOffset ? pausedRuns.items : []) : overview?.recentRuns ?? [];
 
   return (
     <section className="space-y-4" data-testid="content-generation-control-center">
@@ -516,7 +546,7 @@ export function ContentGenerationControlCenter() {
             <div className="mt-4 flex flex-col justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/70 p-4 sm:flex-row sm:items-center">
               <div className="flex items-start gap-2 text-xs leading-5 text-blue-900">
                 <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
-                <span><strong>Maximum plan:</strong> {compactNumber(Math.ceil(draft.maxCampaignLeads / draft.maxLeadsPerRun))} batches, up to {compactNumber(draft.maxCampaignLeads * draft.maxRequestsPerLead)} provider requests and {formatUsd(draft.maxCampaignCostUsd)}. Changes are versioned, audited, and apply to new work.</span>
+                <span><strong>Maximum plan:</strong> {compactNumber(Math.ceil(draft.maxCampaignLeads / Math.max(1, draft.maxLeadsPerRun)))} batches, up to {compactNumber(Math.ceil(draft.maxCampaignLeads / Math.max(1, draft.maxLeadsPerRun)) * draft.maxTotalTokensPerRun)} tokens, {compactNumber(draft.maxCampaignLeads * draft.maxRequestsPerLead)} provider requests and {formatUsd(draft.maxCampaignCostUsd)}. Changes apply to new runs. Use Resolve and continue to update an existing paused run.</span>
               </div>
               <div className="flex shrink-0 gap-2">
                 {configurationChanged && <p role="alert" className="text-sm text-amber-800">Another admin changed these settings. Your edits are preserved. Reload before editing the latest version.</p>}
@@ -661,16 +691,18 @@ export function ContentGenerationControlCenter() {
         </Card>
       </div>
 
-      <Card className="border-slate-200 shadow-sm">
+      <Card className="@container border-slate-200 shadow-sm">
         <div className="flex flex-col justify-between gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center">
           <div><h3 className="font-semibold text-slate-900">Recent runs</h3><p className="text-xs text-slate-500">Latest activity.</p></div>
           <span className="text-xs text-slate-500">Updated {formatDate(configuration?.updatedAt)}</span>
+          <label className="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={showPaused} onChange={(event) => { setShowPaused(event.target.checked); setSelectedRunId(null); }} />Show all paused runs</label>
         </div>
+        {showPaused && pausedError ? <p role="alert" className="px-5 py-3 text-sm text-amber-800">{pausedError}</p> : null}
         <div className="overflow-x-auto">
           <table className="w-full min-w-[940px] text-left text-sm">
             <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500"><tr><th className="px-5 py-3">Campaign / run</th><th className="px-4 py-3">State</th><th className="px-4 py-3">Current checkpoint</th><th className="px-4 py-3">Progress</th><th className="px-4 py-3">Usage & cost</th><th className="px-4 py-3">Updated</th><th className="px-5 py-3 text-right">Tracking</th></tr></thead>
             <tbody className="divide-y divide-slate-100">
-              {(overview?.recentRuns ?? []).length ? overview?.recentRuns.map((run) => (
+              {visibleRuns.length ? visibleRuns.map((run) => (
                 <Fragment key={run.id}>
                   <tr className="bg-white hover:bg-slate-50/70">
                     <td className="px-5 py-3"><strong className="block max-w-44 truncate text-xs text-slate-900">{run.campaignId}</strong><span className="font-mono text-[10px] text-slate-400">{run.id.slice(0, 12)}{run.configurationVersion ? ` · limits v${run.configurationVersion}` : ""}</span></td>
@@ -688,17 +720,24 @@ export function ContentGenerationControlCenter() {
                   {selectedRunId === run.id ? (
                     <tr className="bg-slate-50/60">
                       <td colSpan={7} className="px-5 py-4">
+                        <div className="sticky left-5 w-[calc(100cqw-40px)]">
                         {runDetailsLoading ? <div className="flex items-center justify-center gap-2 py-8 text-xs text-slate-500"><Loader2 className="h-4 w-4 animate-spin text-blue-600" />Loading durable run tracking…</div> : null}
                         {!runDetailsLoading && runDetailsError ? <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{runDetailsError}</div> : null}
-                        {!runDetailsLoading && !runDetailsError && runDetails?.run.id === run.id ? <RunDetailsPanel details={runDetails} /> : null}
+                        {!runDetailsLoading && !runDetailsError && runDetails?.run.id === run.id ? <RunDetailsPanel details={runDetails} onContinued={() => { setSelectedRunId(null); void load(true); }} /> : null}
+                        </div>
                       </td>
                     </tr>
                   ) : null}
                 </Fragment>
-              )) : <tr><td colSpan={7} className="px-5 py-10 text-center text-sm text-slate-500">No runs.</td></tr>}
+              )) : <tr><td colSpan={7} className="px-5 py-10 text-center text-sm text-slate-500">{showPaused && pausedLoading ? "Loading paused runs…" : "No runs."}</td></tr>}
             </tbody>
           </table>
         </div>
+        {showPaused ? <div className="flex items-center justify-end gap-3 border-t border-slate-100 px-5 py-3 text-xs text-slate-500">
+          <Button type="button" variant="outline" size="sm" disabled={pausedLoading || pausedOffset === 0} onClick={() => { setSelectedRunId(null); setPausedOffset((value) => Math.max(0, value - 25)); }}>Previous</Button>
+          <span>Page {Math.floor(pausedOffset / 25) + 1}</span>
+          <Button type="button" variant="outline" size="sm" disabled={pausedLoading || !pausedRuns?.hasMore} onClick={() => { setSelectedRunId(null); setPausedOffset((value) => value + 25); }}>Next</Button>
+        </div> : null}
       </Card>
     </section>
   );
