@@ -24,3 +24,5 @@ disables Vercel's native Git deployment. See
 required Vercel values, GitHub secrets, release process, and rollback
 procedure. The Autocall handshake is documented in
 [`docs/autocall-integration.md`](docs/autocall-integration.md).
+
+.
