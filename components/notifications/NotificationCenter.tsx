@@ -22,7 +22,7 @@ import {
 import { downloadEventAgendaFile, downloadEventDocumentFile } from "@/lib/apiRouter";
 import { autocallNotificationHref } from "@/lib/autocall-deep-link";
 
-const NOTIFICATION_POLL_MS = 30_000;
+const NOTIFICATION_POLL_MS = 5_000;
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Notifications could not be loaded.";
