@@ -20,8 +20,9 @@ import {
   notificationsWithinReadRetention,
 } from "@/lib/peopleUtils";
 import { downloadEventAgendaFile, downloadEventDocumentFile } from "@/lib/apiRouter";
+import { autocallNotificationHref } from "@/lib/autocall-deep-link";
 
-const NOTIFICATION_POLL_MS = 60_000;
+const NOTIFICATION_POLL_MS = 30_000;
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Notifications could not be loaded.";
@@ -268,7 +269,15 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
       }
     }
 
-    if (notification.type === "event_inquiry") {
+    if (notification.type === "autocall_chat_message") {
+      try {
+        const actionHref = autocallNotificationHref(notification.metadata);
+        setOpen(false);
+        router.push(actionHref);
+      } catch (error) {
+        setError(errorMessage(error));
+      }
+    } else if (notification.type === "event_inquiry") {
       const actionHref = metadataText(notification, "actionHref");
       if (actionHref.startsWith("/event-submissions")) {
         setOpen(false);
@@ -430,6 +439,7 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
                   const isMemberBirthday = notification.type === "member_birthday";
                   const isEventInquiry = notification.type === "event_inquiry";
                   const isLeadRequest = notification.type === "lead_request_created" || notification.type === "lead_request_updated";
+                  const isAutocallMessage = notification.type === "autocall_chat_message";
                   const documentNotification = eventDocumentNotification(notification);
                   const isEventDocumentUpload = Boolean(documentNotification);
                   const detail = isEventInquiry
@@ -438,7 +448,9 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
                       ? [eventDocumentName(notification, documentNotification.fallbackName), metadataText(notification, "uploadedByUsername") ? `Uploaded by ${metadataText(notification, "uploadedByUsername")}` : ""].filter(Boolean).join(" - ")
                       : isLeadRequest
                         ? [metadataText(notification, "eventName"), metadataText(notification, "requesterName")].filter(Boolean).join(" - ")
-                      : "";
+                      : isAutocallMessage
+                        ? metadataText(notification, "siteName")
+                        : "";
                   return (
                     <button
                       key={notification.id}
@@ -488,9 +500,11 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
                             {documentNotification?.categoryLabel}
                           </span>
                         ) : null}
-                        {isEventInquiry || isEventDocumentUpload || isLeadRequest ? (
+                        {isEventInquiry || isEventDocumentUpload || isLeadRequest || isAutocallMessage ? (
                           <span className="mt-1.5 block text-xs font-bold text-blue-700">
-                            {isEventInquiry
+                            {isAutocallMessage
+                              ? "Open conversation in Autocall"
+                              : isEventInquiry
                               ? "View inquiry details"
                               : isEventDocumentUpload
                                 ? documentNotification?.actionLabel

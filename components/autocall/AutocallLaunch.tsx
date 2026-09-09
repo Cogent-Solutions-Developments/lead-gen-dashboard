@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { authorizeAutocall, fetchCurrentAuthUser } from "@/lib/auth";
 import { autocallBaseUrl, canAccessAutocall } from "@/lib/autocall-access";
+import { appendAutocallTarget, autocallTargetFromSearchParams } from "@/lib/autocall-deep-link";
 
 type AutocallLaunchProps = Readonly<{
   allowLocalHttp?: boolean;
@@ -30,9 +31,12 @@ export function AutocallLaunch({ baseUrl, portal, allowLocalHttp = false }: Auto
       const params = new URL(window.location.href).searchParams;
       const challenge = params.get("challenge");
       const state = params.get("state");
+      const target = autocallTargetFromSearchParams(params);
       window.history.replaceState(null, "", window.location.pathname);
       if (!challenge && !state) {
-        window.location.replace(`${base.href.replace(/\/$/, "")}/sso/start?portal=${portal}`);
+        const start = new URL(`${base.href.replace(/\/$/, "")}/sso/start`);
+        start.searchParams.set("portal", portal);
+        window.location.replace(appendAutocallTarget(start, target).href);
         return;
       }
       if (
@@ -50,6 +54,7 @@ export function AutocallLaunch({ baseUrl, portal, allowLocalHttp = false }: Auto
       }
       callback.searchParams.set("code", result.code);
       callback.searchParams.set("state", validState);
+      appendAutocallTarget(callback, target);
       window.location.replace(callback.href);
     };
 
