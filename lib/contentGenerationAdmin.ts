@@ -22,6 +22,8 @@ export type ContentGenerationConfiguration = {
   updatedByUsername: string;
   updatedAt?: string | null;
   derivedLimits: {
+    maxProviderRequestsPerCampaign?: number;
+    maxTotalTokensPerCampaign?: number;
     maxProviderRequestsPerRun: number;
     maxTheoreticalOutputTokens: number;
     maximumCampaignBatches: number;
@@ -148,6 +150,7 @@ export type ContentGenerationBatch = {
 };
 
 export type ContentGenerationRunDetails = {
+  recovery?: ContentGenerationRecovery;
   run: ContentGenerationRun;
   tracking: {
     leadStates: Record<string, number>;
@@ -159,6 +162,36 @@ export type ContentGenerationRunDetails = {
     checkpointStates: Record<string, number>;
   };
 };
+
+export type ContentGenerationRecoveryLimits = {
+  tokenLimit: number;
+  requestLimit: number;
+  costLimitUsd: number;
+};
+
+export type ContentGenerationRecovery = {
+  canContinue: boolean;
+  blockedReason: string | null;
+  expectedUpdatedAt: string;
+  reasons: string[];
+  completedLeads: number;
+  successfulLeads: number;
+  failedLeads: number;
+  remainingLeads: number;
+  currentLimits: ContentGenerationRecoveryLimits;
+  suggestedLimits: ContentGenerationRecoveryLimits;
+  maximumLimits: ContentGenerationRecoveryLimits;
+};
+
+export function continueContentGenerationRun(
+  jobId: string,
+  payload: ContentGenerationRecoveryLimits & { expectedUpdatedAt: string },
+) {
+  return adminRequest<{ jobId: string; status: "resume_queued" | "recovery_pending"; message: string }>(
+    `/api/admin/content-generation/runs/${encodeURIComponent(jobId)}/continue`,
+    { method: "POST", body: JSON.stringify(payload) },
+  );
+}
 
 export type ContentGenerationConfigurationUpdate = Omit<
   ContentGenerationConfiguration,
@@ -223,5 +256,11 @@ export function getContentGenerationOverview(days = 14, recentLimit = 8) {
 export function getContentGenerationRunDetails(jobId: string) {
   return adminRequest<ContentGenerationRunDetails>(
     `/api/admin/content-generation/runs/${encodeURIComponent(jobId)}`,
+  );
+}
+
+export function getPausedContentGenerationRuns(offset = 0) {
+  return adminRequest<{ items: ContentGenerationRun[]; hasMore: boolean; offset: number }>(
+    `/api/admin/content-generation/paused-runs?offset=${offset}&limit=25`,
   );
 }
