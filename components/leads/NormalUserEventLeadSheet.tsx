@@ -173,6 +173,7 @@ type ContactChoiceLead = {
 };
 
 type EmailGenerationDialogState = {
+  generationJobId?: string;
   requestId: number;
   lead: LeadSheetRow;
   platform: LeadContentPlatform | null;
@@ -1340,6 +1341,8 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
   }>({ loading: false, speakerList: null, delegateList: null, error: "", downloadingId: "", viewingId: "" });
   const targetLeadRowRef = useRef<HTMLDivElement | null>(null);
   const emailGenerationRequestRef = useRef(0);
+  const previewAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => previewAbortRef.current?.abort(), []);
   const previousSelectedEventKeyRef = useRef("");
   const latestPersonaRef = useRef(effectivePersona);
   const initialDataRequestRef = useRef(0);
@@ -2408,6 +2411,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
   };
 
   const closeEmailDialog = () => {
+    previewAbortRef.current?.abort();
     setEmailDialog(null);
   };
 
@@ -2444,7 +2448,11 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
       return;
     }
 
+    const previous = emailDialog?.lead.id === item.id && emailDialog.platform === platform ? emailDialog : null;
     const feedback = asText(options.feedback).slice(0, 1200);
+    previewAbortRef.current?.abort();
+    const controller = new AbortController();
+    previewAbortRef.current = controller;
     const requestId = emailGenerationRequestRef.current + 1;
     emailGenerationRequestRef.current = requestId;
     setEmailDialog({
@@ -2452,11 +2460,12 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
       lead: item,
       platform,
       loading: true,
-      subject: "",
-      body: "",
+      subject: previous?.subject || "",
+      body: previous?.body || "",
       feedback,
       generatedAt: "",
-      model: "",
+      model: previous?.model || "",
+      generationJobId: previous?.generationJobId,
       error: "",
       copiedAction: null,
     });
@@ -2468,6 +2477,11 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
         {
           platform,
           ...(feedback.trim() ? { feedback: feedback.trim() } : {}),
+          signal: controller.signal,
+          ...(previous?.body ? {
+            parentJobId: previous.generationJobId,
+            previousContent: { email_subject: previous.subject, email_body: platform === "email" ? previous.body : "", whatsapp_message: platform === "whatsapp" ? previous.body : "" },
+          } : {}),
         }
       );
       const subject = asText(response.contentEmailSubject);
@@ -2485,12 +2499,14 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
               body,
               generatedAt: asText(response.generatedAt),
               model: asText(response.model),
+              generationJobId: response.generationJobId,
               error: "",
               copiedAction: null,
             }
           : current
       );
     } catch (error: unknown) {
+      if (controller.signal.aborted) return;
       const message = getErrorMessage(error);
       setEmailDialog((current) =>
         current?.requestId === requestId
@@ -2514,7 +2530,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
   };
 
   const copyEmailDraft = async (mode: "subject" | "body" | "full") => {
-    if (!emailDialog || emailDialog.loading || emailDialog.error) return;
+    if (!emailDialog || emailDialog.loading || (emailDialog.error && !emailDialog.body)) return;
     const subject = emailDialog.subject.trim();
     const body = emailDialog.body.trim();
     const text =
@@ -3591,7 +3607,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
           onClose={closeEmailDialog}
           compact
         >
-          {!emailDialog.platform && !emailDialog.loading && !emailDialog.error ? (
+          {!emailDialog.platform && !emailDialog.loading && !emailDialog.error && !emailDialog.body ? (
             <div className="space-y-7">
               <div className="border-b border-zinc-100 pb-6">
                 <h3 className="text-2xl font-light tracking-tight text-zinc-950">
@@ -3659,7 +3675,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                 ))}
               </div>
             </div>
-          ) : emailDialog.error ? (
+          ) : emailDialog.error && !emailDialog.body ? (
             <div className="space-y-6">
               <div className="border border-red-200 bg-red-50 p-5">
                 <p className="text-sm font-medium text-red-700">Draft was not ready</p>

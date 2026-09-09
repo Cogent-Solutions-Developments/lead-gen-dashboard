@@ -146,6 +146,7 @@ type AddLeadFormState = {
 };
 
 type EmailGenerationDialogState = {
+  generationJobId?: string;
   requestId: number;
   lead: MyLeadRow;
   platform: LeadContentPlatform | null;
@@ -832,6 +833,8 @@ export function MyLeadsWorkspace({
   const expectedPersona = personaForRole(role);
   const hasPersonaMismatch = Boolean(expectedPersona && expectedPersona !== persona);
   const emailGenerationRequestRef = useRef(0);
+  const previewAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => previewAbortRef.current?.abort(), []);
   const rowsRequestRef = useRef(0);
   const dealBellMedia = useMemo(
     () => getDailyDealBellMedia(user?.id || user?.username),
@@ -1526,6 +1529,7 @@ export function MyLeadsWorkspace({
   };
 
   const closeEmailDialog = () => {
+    previewAbortRef.current?.abort();
     setEmailDialog(null);
   };
 
@@ -1552,7 +1556,11 @@ export function MyLeadsWorkspace({
     platform: LeadContentPlatform,
     options: { feedback?: string } = {}
   ) => {
+    const previous = emailDialog?.lead.id === item.id && emailDialog.platform === platform ? emailDialog : null;
     const feedback = asText(options.feedback).slice(0, 1200);
+    previewAbortRef.current?.abort();
+    const controller = new AbortController();
+    previewAbortRef.current = controller;
     const requestId = emailGenerationRequestRef.current + 1;
     emailGenerationRequestRef.current = requestId;
     setEmailDialog({
@@ -1560,11 +1568,12 @@ export function MyLeadsWorkspace({
       lead: item,
       platform,
       loading: true,
-      subject: "",
-      body: "",
+      subject: previous?.subject || "",
+      body: previous?.body || "",
       feedback,
       generatedAt: "",
-      model: "",
+      model: previous?.model || "",
+      generationJobId: previous?.generationJobId,
       error: "",
       copiedAction: null,
     });
@@ -1573,6 +1582,11 @@ export function MyLeadsWorkspace({
       const response: LeadContentGenerationResponse = await generateLeadContent(item.id, {
         platform,
         ...(feedback.trim() ? { feedback: feedback.trim() } : {}),
+          signal: controller.signal,
+          ...(previous?.body ? {
+            parentJobId: previous.generationJobId,
+            previousContent: { email_subject: previous.subject, email_body: platform === "email" ? previous.body : "", whatsapp_message: platform === "whatsapp" ? previous.body : "" },
+          } : {}),
       });
       const subject = asText(response.contentEmailSubject);
       const body = platform === "whatsapp" ? asText(response.contentWhatsapp) : asText(response.contentEmail);
@@ -1589,12 +1603,14 @@ export function MyLeadsWorkspace({
               body,
               generatedAt: asText(response.generatedAt),
               model: asText(response.model),
+              generationJobId: response.generationJobId,
               error: "",
               copiedAction: null,
             }
           : current
       );
     } catch (error: unknown) {
+      if (controller.signal.aborted) return;
       const message = getApiErrorMessage(error);
       setEmailDialog((current) =>
         current?.requestId === requestId
@@ -1618,7 +1634,7 @@ export function MyLeadsWorkspace({
   };
 
   const copyEmailDraft = async (mode: "subject" | "body" | "full") => {
-    if (!emailDialog || emailDialog.loading || emailDialog.error) return;
+    if (!emailDialog || emailDialog.loading || (emailDialog.error && !emailDialog.body)) return;
     const subject = emailDialog.subject.trim();
     const body = emailDialog.body.trim();
     const text =
@@ -2798,7 +2814,7 @@ export function MyLeadsWorkspace({
           description=""
           onClose={closeEmailDialog}
         >
-          {!emailDialog.platform && !emailDialog.loading && !emailDialog.error ? (
+          {!emailDialog.platform && !emailDialog.loading && !emailDialog.error && !emailDialog.body ? (
             <div className="space-y-7">
               <div className="border-b border-zinc-100 pb-6">
                 <h3 className="text-2xl font-light tracking-tight text-zinc-950">
@@ -2866,7 +2882,7 @@ export function MyLeadsWorkspace({
                 ))}
               </div>
             </div>
-          ) : emailDialog.error ? (
+          ) : emailDialog.error && !emailDialog.body ? (
             <div className="space-y-6">
               <div className="border border-red-200 bg-red-50 p-5">
                 <p className="text-sm font-medium text-red-700">Draft was not ready</p>

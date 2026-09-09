@@ -3,6 +3,7 @@ import type { ContentGenerationRecovery, ContentGenerationRecoveryLimits } from 
 export const RECOVERY_REASON_LABELS: Record<string, string> = {
   token_limit: "Token allowance reached",
   request_limit: "Request allowance reached",
+  lead_request_limit: "This lead reached its request allowance",
   cost_limit: "Cost allowance reached",
   projected_cost_limit: "The next request exceeds the cost allowance",
   budget_limit: "Application budget reached",
@@ -32,6 +33,9 @@ export function validateRecoveryLimits(
   }
   if (recovery.reasons.includes("budget_limit") && fields.every(([key]) => limits[key] === recovery.currentLimits[key])) {
     return "Increase a budget before continuing this run.";
+  }
+  if (recovery.reasons.includes("lead_request_limit") && limits.requestLimit <= recovery.currentLimits.requestLimit) {
+    return "Increase the request allowance to continue this lead.";
   }
   return null;
 }

@@ -1,3 +1,4 @@
+import { generateDurablePreview } from "@/lib/contentPreview";
 ﻿import axios from "axios";
 import { attachAuthToken } from "@/lib/auth";
 import { getLocalDevNgrokHeaders } from "@/lib/devNgrok";
@@ -654,12 +655,7 @@ export async function generateLeadEmailContent(id: string, payload?: LeadEmailGe
 }
 
 export async function generateLeadContent(id: string, payload: LeadContentGenerationRequest) {
-  const { data } = await apiClientDelegate.post<LeadContentGenerationResponse>(
-    `/api/delegates/leads/${id}/content/generate`,
-    payload,
-    { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS }
-  );
-  return data;
+  return generateDurablePreview<LeadContentGenerationResponse>(apiClientDelegate, `/api/delegates/leads/${id}/content/previews`, payload);
 }
 
 export async function updateLeadWorkflowStatus(

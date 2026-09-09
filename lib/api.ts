@@ -1,3 +1,4 @@
+import { generateDurablePreview } from "@/lib/contentPreview";
 import axios, { type AxiosInstance } from "axios";
 import { apiClient } from "./apiClient";
 import { attachAuthToken, downloadProtectedFile, getAuthHeader } from "@/lib/auth";
@@ -1077,6 +1078,9 @@ export type LeadEmailGenerationRequest = {
 export type LeadContentPlatform = "email" | "whatsapp";
 
 export type LeadContentGenerationRequest = {
+  parentJobId?: string;
+  previousContent?: { email_subject?: string; email_body?: string; whatsapp_message?: string };
+  signal?: AbortSignal;
   platform: LeadContentPlatform;
   feedback?: string;
 };
@@ -1093,6 +1097,7 @@ export type LeadEmailGenerationResponse = {
 };
 
 export type LeadContentGenerationResponse = {
+  generationJobId?: string;
   id: string;
   platform: LeadContentPlatform;
   contentEmailSubject?: string | null;
@@ -2176,12 +2181,7 @@ export async function generateLeadEmailContent(id: string, payload?: LeadEmailGe
 }
 
 export async function generateLeadContent(id: string, payload: LeadContentGenerationRequest) {
-  const { data } = await apiClient.post<LeadContentGenerationResponse>(
-    `/api/leads/${id}/content/generate`,
-    payload,
-    { timeout: LEAD_CONTENT_GENERATION_TIMEOUT_MS }
-  );
-  return data;
+  return generateDurablePreview<LeadContentGenerationResponse>(apiClient, `/api/leads/${id}/content/previews`, payload);
 }
 
 export async function updateLeadWorkflowStatus(
