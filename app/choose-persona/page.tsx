@@ -166,9 +166,9 @@ export default function ChoosePersonaPage() {
               scale: { type: "spring", stiffness: 260, damping: 20 },
               rotate: { duration: 2, ease: "easeInOut" },
             }}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.9)]"
+            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.9)]"
           >
-            <SupernizoMark className="h-6 w-6" />
+            <SupernizoMark className="h-5 w-5" />
           </motion.div>
           <div>
             <p className="text-base font-semibold text-blue-950">supernizo</p>
