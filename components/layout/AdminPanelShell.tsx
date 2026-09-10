@@ -280,7 +280,7 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sidebar-secondary text-sidebar-primary-foreground">
-              <SupernizoMark className="h-5 w-5" />
+              <SupernizoMark className="h-6 w-6" />
             </div>
             <div className="min-w-0">
               <p className="truncate text-lg font-medium tracking-wide text-sidebar-foreground">supernizo</p>
