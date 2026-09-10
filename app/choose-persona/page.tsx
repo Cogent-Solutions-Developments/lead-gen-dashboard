@@ -149,7 +149,7 @@ export default function ChoosePersonaPage() {
         <motion.section
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-[2rem] border border-white/80 bg-white/75 p-7 shadow-[0_30px_80px_-58px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-9"
+          className="rounded-[2rem] border border-white/80 bg-white/75 p-7 shadow-[0_30px_80px_-58px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-9 lg:h-[31.5rem]"
         >
           <h1 className="max-w-sm text-4xl font-semibold leading-[1.04] tracking-tight text-blue-950 sm:text-5xl">
             Workspaces
@@ -180,15 +180,12 @@ export default function ChoosePersonaPage() {
           </div>
         </motion.section>
 
-        <section className="rounded-[2rem] border border-white/80 bg-white/45 p-4 shadow-[0_30px_80px_-62px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-5">
-          <div className="mb-4 flex items-end justify-between gap-4 px-1">
+        <section className="rounded-[2rem] border border-white/80 bg-white/45 p-4 shadow-[0_30px_80px_-62px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-5 lg:h-[31.5rem]">
+          <div className="mb-4 px-1">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Departments</p>
               <p className="mt-1 text-sm text-slate-500">Choose the workspace you want to open.</p>
             </div>
-            <span className="hidden rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-medium text-slate-400 sm:inline-flex">
-              {availableWorkspaceCards.length} available
-            </span>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
