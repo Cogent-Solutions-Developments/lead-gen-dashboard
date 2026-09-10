@@ -145,25 +145,25 @@ export default function ChoosePersonaPage() {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto grid min-h-[calc(100dvh-5.25rem)] w-full max-w-7xl items-center gap-8 px-5 pb-8 sm:px-8 lg:grid-cols-[0.72fr_1.55fr]">
+      <main className="relative z-10 mx-auto grid min-h-[calc(100dvh-5.25rem)] w-full max-w-7xl items-center gap-8 px-5 pb-8 sm:px-8 lg:grid-cols-[0.68fr_1.55fr] lg:gap-10">
         <motion.section
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-[2rem] border border-white/80 bg-white/75 p-6 shadow-[0_30px_80px_-58px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-8"
+          className="rounded-[2rem] border border-white/80 bg-white/75 p-7 shadow-[0_30px_80px_-58px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-9"
         >
-          <h1 className="max-w-sm text-5xl font-semibold leading-[1.02] text-blue-950 sm:text-6xl">
+          <h1 className="max-w-sm text-4xl font-semibold leading-[1.04] tracking-tight text-blue-950 sm:text-5xl">
             Workspaces
           </h1>
 
-          <div className="mt-8">
+          <div className="mt-9">
             {isSuperAdmin ? (
               <Link
                 href="/admin"
-                className="group block overflow-hidden rounded-3xl border border-blue-100 bg-blue-600 text-white shadow-[0_26px_64px_-44px_rgba(37,99,235,0.95)] transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-[0_34px_76px_-46px_rgba(37,99,235,0.95)]"
+                className="group block overflow-hidden rounded-2xl border border-blue-100 bg-blue-600 text-white shadow-[0_26px_64px_-44px_rgba(37,99,235,0.95)] transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-[0_34px_76px_-46px_rgba(37,99,235,0.95)]"
               >
-                <span className="flex items-center justify-between gap-4 p-4">
+                <span className="flex items-center justify-between gap-4 p-3.5">
                   <span className="flex items-center gap-3">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 text-white ring-1 ring-white/20">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 text-white ring-1 ring-white/20">
                       <ShieldCheck className="h-5 w-5" />
                     </span>
                     <span>
@@ -180,46 +180,53 @@ export default function ChoosePersonaPage() {
           </div>
         </motion.section>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {availableWorkspaceCards.map((workspace, index) => {
-            const Icon = workspace.icon;
-            const isActive = activePersona === workspace.id;
+        <section className="rounded-[2rem] border border-white/80 bg-white/45 p-4 shadow-[0_30px_80px_-62px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-5">
+          <div className="mb-4 flex items-end justify-between gap-4 px-1">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Departments</p>
+              <p className="mt-1 text-sm text-slate-500">Choose the workspace you want to open.</p>
+            </div>
+            <span className="hidden rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-medium text-slate-400 sm:inline-flex">
+              {availableWorkspaceCards.length} available
+            </span>
+          </div>
 
-            return (
-              <motion.button
-                key={workspace.id}
-                type="button"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.06 * index }}
-                onClick={() => selectPersona(workspace.id)}
-                className={`group relative flex min-h-[15.5rem] flex-col justify-between overflow-hidden rounded-[1.75rem] border bg-white/90 p-5 text-left shadow-[0_24px_70px_-54px_rgba(15,23,42,0.65)] backdrop-blur-xl transition-all duration-200 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_34px_82px_-56px_rgba(37,99,235,0.55)] ${
-                  isActive ? workspace.activeRing : "border-white/80"
-                }`}
-              >
-                <span className={`absolute inset-x-0 top-0 h-1 ${workspace.accentBar}`} />
-                <span className="absolute right-5 top-5 flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white">
-                  {isActive ? <span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> : null}
-                </span>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {availableWorkspaceCards.map((workspace, index) => {
+              const Icon = workspace.icon;
+              const isActive = activePersona === workspace.id;
 
-                <span>
-                  <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${workspace.iconClassName} shadow-[0_18px_36px_-26px_rgba(37,99,235,0.85)]`}>
-                    <Icon className="h-5 w-5" />
+              return (
+                <motion.button
+                  key={workspace.id}
+                  type="button"
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.06 * index }}
+                  onClick={() => selectPersona(workspace.id)}
+                  className={`group relative flex min-h-[12.5rem] flex-col justify-between overflow-hidden rounded-2xl border bg-white/90 p-5 text-left shadow-[0_18px_50px_-42px_rgba(15,23,42,0.55)] backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-[0_26px_60px_-42px_rgba(37,99,235,0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+                    isActive ? workspace.activeRing : "border-slate-200/80"
+                  }`}
+                >
+                  <span className="flex items-start justify-between gap-4">
+                    <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${workspace.iconClassName} shadow-[0_14px_28px_-22px_rgba(37,99,235,0.75)]`}>
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <span className={`flex h-6 w-6 items-center justify-center rounded-full border ${isActive ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-white"}`}>
+                      {isActive ? <span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> : null}
+                    </span>
                   </span>
-                  <span className="mt-7 block text-2xl font-semibold text-slate-900">{workspace.title}</span>
-                </span>
 
-                <span>
-                  <span className="flex items-center justify-between border-t border-slate-100 pt-4 text-sm font-semibold text-blue-700">
-                    Enter workspace
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 transition-transform group-hover:translate-x-1 group-hover:bg-blue-600 group-hover:text-white">
+                  <span className="mt-7 flex items-end justify-between gap-4">
+                    <span className="block text-xl font-semibold tracking-tight text-slate-900">{workspace.title}</span>
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-700 transition-transform group-hover:translate-x-1 group-hover:bg-blue-600 group-hover:text-white">
                       <ArrowRight className="h-4 w-4" />
                     </span>
                   </span>
-                </span>
-              </motion.button>
-            );
-          })}
+                </motion.button>
+              );
+            })}
+          </div>
         </section>
       </main>
     </div>
