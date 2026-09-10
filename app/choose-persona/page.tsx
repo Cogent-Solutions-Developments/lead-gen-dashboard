@@ -11,9 +11,9 @@ import {
   Home,
   LogOut,
   ShieldCheck,
-  Webhook,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { SupernizoMark } from "@/components/brand/SupernizoMark";
 import { Button } from "@/components/ui/button";
 import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
@@ -168,7 +168,7 @@ export default function ChoosePersonaPage() {
             }}
             className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.9)]"
           >
-            <Webhook className="h-5 w-5" />
+            <SupernizoMark className="h-5 w-5" />
           </motion.div>
           <div>
             <p className="text-base font-semibold text-blue-950">supernizo</p>

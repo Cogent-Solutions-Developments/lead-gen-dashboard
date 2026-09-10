@@ -19,8 +19,8 @@ import {
   Tags,
   UserRound,
   UsersRound,
-  Webhook,
 } from "lucide-react";
+import { SupernizoMark } from "@/components/brand/SupernizoMark";
 import { Button } from "@/components/ui/button";
 import { revokeAutocallSession, clearAuthSession, isCeoRole, isManagerRole } from "@/lib/auth";
 import { clearPersona } from "@/lib/persona";
@@ -145,7 +145,7 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
             sidebarExpanded ? "-right-40" : "-right-72"
           }`}
         >
-          <Webhook aria-hidden="true" className="h-[46rem] w-[46rem] text-white/14" strokeWidth={2} />
+          <SupernizoMark aria-hidden="true" className="h-[46rem] w-[46rem] text-white/14" />
         </div>
 
         <div
@@ -280,7 +280,7 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sidebar-secondary text-sidebar-primary-foreground">
-              <Webhook className="h-5 w-5" />
+              <SupernizoMark className="h-5 w-5" />
             </div>
             <div className="min-w-0">
               <p className="truncate text-lg font-medium tracking-wide text-sidebar-foreground">supernizo</p>
