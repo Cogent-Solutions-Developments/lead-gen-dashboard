@@ -58,6 +58,58 @@ const workspaceCards = [
   },
 ];
 
+function AdminRoleIllustration() {
+  return (
+    <div className="relative mt-7 flex min-h-[14rem] flex-1 items-center justify-center overflow-hidden rounded-2xl border border-blue-100/80 bg-gradient-to-br from-blue-50/90 via-white to-indigo-50/80 px-5 py-4">
+      <div className="absolute -left-12 -top-16 h-40 w-40 rounded-full bg-blue-200/25 blur-3xl" />
+      <div className="absolute -bottom-20 -right-10 h-44 w-44 rounded-full bg-indigo-200/30 blur-3xl" />
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 360 220"
+        className="relative h-auto w-full max-w-[21rem]"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <defs>
+          <linearGradient id="adminShieldFill" x1="180" y1="38" x2="180" y2="166" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#3B82F6" />
+            <stop offset="1" stopColor="#1D4ED8" />
+          </linearGradient>
+          <linearGradient id="adminNodeFill" x1="0" y1="0" x2="1" y2="1">
+            <stop stopColor="#FFFFFF" />
+            <stop offset="1" stopColor="#EFF6FF" />
+          </linearGradient>
+          <filter id="adminIllustrationShadow" x="-40%" y="-40%" width="180%" height="180%" colorInterpolationFilters="sRGB">
+            <feDropShadow dx="0" dy="12" stdDeviation="10" floodColor="#1D4ED8" floodOpacity="0.16" />
+          </filter>
+        </defs>
+
+        <path d="M52 52H308M34 110H326M64 176H296" stroke="#BFDBFE" strokeOpacity="0.55" strokeDasharray="4 8" />
+        <path d="M94 72L143 92M266 72L217 92M104 161L148 140M256 161L212 140" stroke="#93C5FD" strokeWidth="1.5" strokeDasharray="4 5" />
+
+        <g filter="url(#adminIllustrationShadow)">
+          <circle cx="86" cy="64" r="25" fill="url(#adminNodeFill)" stroke="#BFDBFE" strokeWidth="2" />
+          <circle cx="274" cy="64" r="25" fill="url(#adminNodeFill)" stroke="#BFDBFE" strokeWidth="2" />
+          <circle cx="76" cy="166" r="25" fill="url(#adminNodeFill)" stroke="#BFDBFE" strokeWidth="2" />
+          <circle cx="284" cy="166" r="25" fill="url(#adminNodeFill)" stroke="#BFDBFE" strokeWidth="2" />
+
+          <path d="M86 53.5C81.9 53.5 78.5 56.9 78.5 61C78.5 65.1 81.9 68.5 86 68.5C90.1 68.5 93.5 65.1 93.5 61C93.5 56.9 90.1 53.5 86 53.5ZM74.5 76.5C75.7 71.8 80.2 69 86 69C91.8 69 96.3 71.8 97.5 76.5" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" />
+          <path d="M265 64.5H282M268.5 59.5H278.5V69.5H268.5V59.5Z" stroke="#4F46E5" strokeWidth="2.5" strokeLinejoin="round" />
+          <path d="M76 153.5V178.5M67 162.5H85M68.5 174.5H83.5" stroke="#0EA5E9" strokeWidth="2.5" strokeLinecap="round" />
+          <path d="M284 152.5L287.4 157.4L293 158.8L289.4 163.3L289.7 169L284 167L278.3 169L278.6 163.3L275 158.8L280.6 157.4L284 152.5Z" stroke="#6366F1" strokeWidth="2" strokeLinejoin="round" />
+
+          <path d="M180 31L224 48V92C224 122 205.5 148 180 160C154.5 148 136 122 136 92V48L180 31Z" fill="url(#adminShieldFill)" stroke="#1E40AF" strokeWidth="2" />
+          <path d="M157 95L173 111L205 77" stroke="white" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M180 50V64" stroke="#DBEAFE" strokeWidth="3" strokeLinecap="round" />
+        </g>
+
+        <circle cx="180" cy="181" r="5" fill="#2563EB" />
+        <circle cx="180" cy="181" r="12" stroke="#93C5FD" strokeOpacity="0.7" strokeDasharray="2 4" />
+      </svg>
+    </div>
+  );
+}
+
 export default function ChoosePersonaPage() {
   const router = useRouter();
   const { persona, setPersona } = usePersona();
@@ -149,7 +201,7 @@ export default function ChoosePersonaPage() {
         <motion.section
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-[2rem] border border-white/80 bg-white/75 p-7 shadow-[0_30px_80px_-58px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-9 lg:h-[31.5rem]"
+          className="flex flex-col rounded-[2rem] border border-white/80 bg-white/75 p-7 shadow-[0_30px_80px_-58px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-9 lg:h-[31.5rem]"
         >
           <h1 className="max-w-sm text-4xl font-semibold leading-[1.04] tracking-tight text-blue-950 sm:text-5xl">
             Workspaces
@@ -178,6 +230,7 @@ export default function ChoosePersonaPage() {
               </Link>
             ) : null}
           </div>
+          <AdminRoleIllustration />
         </motion.section>
 
         <section className="rounded-[2rem] border border-white/80 bg-white/45 p-4 shadow-[0_30px_80px_-62px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-5 lg:h-[31.5rem]">
