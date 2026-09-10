@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -251,24 +252,85 @@ function UserRoleMultiSelect({
   onDelegateSalesChange: (assigned: boolean) => void;
 }) {
   const delegateSalesAvailable = canRoleUseDelegateSales(primaryRole);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    maxHeight: number;
+  } | null>(null);
+
+  const positionMenu = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+
+    const rect = trigger.getBoundingClientRect();
+    const viewportPadding = 12;
+    const gap = 8;
+    const preferredHeight = 288;
+    const spaceBelow = window.innerHeight - rect.bottom - viewportPadding - gap;
+    const spaceAbove = rect.top - viewportPadding - gap;
+    const opensAbove = spaceBelow < preferredHeight && spaceAbove > spaceBelow;
+    const availableHeight = Math.max(140, Math.min(preferredHeight, opensAbove ? spaceAbove : spaceBelow));
+    const width = Math.min(Math.max(rect.width, 280), window.innerWidth - viewportPadding * 2);
+
+    setMenuPosition({
+      top: opensAbove ? rect.top - availableHeight - gap : rect.bottom + gap,
+      left: Math.min(rect.left, window.innerWidth - width - viewportPadding),
+      width,
+      maxHeight: availableHeight,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    positionMenu();
+    const frame = window.requestAnimationFrame(positionMenu);
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) {
+        setOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    window.addEventListener("resize", positionMenu);
+    window.addEventListener("scroll", positionMenu, true);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener("resize", positionMenu);
+      window.removeEventListener("scroll", positionMenu, true);
+    };
+  }, [open, positionMenu]);
 
   return (
-    <details
-      className="group"
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.removeAttribute("open");
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") event.currentTarget.removeAttribute("open");
-      }}
-    >
-      <summary
+    <div className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
         aria-disabled={disabled}
+        aria-expanded={open}
         aria-haspopup="menu"
-        onClick={(event) => {
-          if (disabled) event.preventDefault();
+        disabled={disabled}
+        onClick={() => setOpen((current) => !current)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setOpen(false);
+          if (event.key === "ArrowDown" && !open) {
+            event.preventDefault();
+            setOpen(true);
+          }
         }}
-        className={`flex h-11 list-none items-center justify-between gap-3 rounded-lg border border-zinc-300 bg-white px-3.5 text-sm text-slate-900 shadow-none outline-none transition [&::-webkit-details-marker]:hidden ${
+        className={`flex h-11 w-full items-center justify-between gap-3 rounded-lg border border-zinc-300 bg-white px-3.5 text-sm text-slate-900 shadow-none outline-none transition ${
           disabled
             ? "cursor-not-allowed opacity-60"
             : "cursor-pointer hover:border-blue-300 focus-visible:border-blue-500 focus-visible:ring-3 focus-visible:ring-blue-100"
@@ -282,14 +344,23 @@ function UserRoleMultiSelect({
             </span>
           ) : null}
         </span>
-        <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400 transition-transform group-open:rotate-180" />
-      </summary>
+        <ChevronDown className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
 
-      <div
-        role="menu"
-        aria-label="User roles"
-        className="mt-2 max-h-72 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-[0_16px_38px_-22px_rgba(15,23,42,0.45)]"
-      >
+      {open && menuPosition && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              ref={menuRef}
+              role="menu"
+              aria-label="User roles"
+              style={{
+                top: menuPosition.top,
+                left: menuPosition.left,
+                width: menuPosition.width,
+                maxHeight: menuPosition.maxHeight,
+              }}
+              className="fixed z-[200] overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-[0_16px_38px_-22px_rgba(15,23,42,0.45)]"
+            >
         <p className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-400">Primary role</p>
           {roleOptions.map((role) => {
             const selected = primaryRole === role;
@@ -300,7 +371,10 @@ function UserRoleMultiSelect({
                 role="menuitemradio"
                 aria-checked={selected}
                 disabled={disabled}
-                onClick={() => onPrimaryRoleChange(role)}
+                onClick={() => {
+                  onPrimaryRoleChange(role);
+                  setOpen(false);
+                }}
                 className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition ${
                   selected ? "bg-blue-50 font-medium text-blue-800" : "text-zinc-700 hover:bg-zinc-50"
                 } disabled:cursor-not-allowed disabled:opacity-50`}
@@ -324,7 +398,10 @@ function UserRoleMultiSelect({
             role="menuitemcheckbox"
             aria-checked={delegateSalesAssigned}
             disabled={disabled || !delegateSalesAvailable}
-            onClick={() => onDelegateSalesChange(!delegateSalesAssigned)}
+            onClick={() => {
+              onDelegateSalesChange(!delegateSalesAssigned);
+              setOpen(false);
+            }}
             className={`flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition ${
               delegateSalesAssigned ? "bg-violet-50 text-violet-800" : "text-zinc-700 hover:bg-violet-50/60"
             } disabled:cursor-not-allowed disabled:opacity-45`}
@@ -346,8 +423,11 @@ function UserRoleMultiSelect({
             </span>
           </button>
         </div>
-      </div>
-    </details>
+            </div>,
+            document.body
+          )
+        : null}
+    </div>
   );
 }
 
