@@ -37,6 +37,7 @@ import { canAccessAutocall } from "@/lib/autocall-access";
 import { useAuth } from "@/hooks/useAuth";
 import { UserAvatar } from "@/components/profile/UserAvatar";
 import { SupernizoMark } from "@/components/brand/SupernizoMark";
+import { SupernizoWordmark } from "@/components/brand/SupernizoWordmark";
 import { toast } from "sonner";
 import { getDailyDealBellMedia } from "@/lib/dealBellMedia";
 
@@ -76,8 +77,6 @@ const navItems: SidebarNavItem[] = [
   { name: "System Monitor", href: "/settings/system-monitor", icon: Activity, ceoOnly: true },
   { name: "Admin Panel", href: "/admin", icon: ShieldCheck, superOnly: true },
 ];
-const APP_VERSION_LABEL = "v0.3.0";
-
 type SidebarProps = {
   isExpanded: boolean;
   onHoverChange: (next: boolean) => void;
@@ -186,22 +185,9 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
         <SupernizoMark className="h-[46rem] w-[46rem] text-white/14" />
       </div>
 
-      <div className={`mb-8 min-h-8 min-w-0 px-1 transition-all duration-300 ${isExpanded ? "opacity-100" : "opacity-0"}`}>
-        <div className="flex min-w-0 items-baseline gap-2 whitespace-nowrap">
-          <span className="text-2xl font-normal tracking-wide text-white">
-            supernizo
-          </span>
-          <span
-            className="text-[1.35rem] font-normal leading-none tracking-wide text-white/78"
-            style={{ fontFamily: '"Bungee Hairline", sans-serif' }}
-          >
-            Lite
-          </span>
-        </div>
-        <span className="mt-1 block text-[10px] font-light tracking-[0.22em] text-white/40">
-          {APP_VERSION_LABEL}
-        </span>
-      </div>
+      <SupernizoWordmark
+        className={`mb-8 min-h-8 px-1 transition-all duration-300 ${isExpanded ? "opacity-100" : "opacity-0"}`}
+      />
 
       {/* 1. Navigation Items (Scrollable if needed) */}
       <nav

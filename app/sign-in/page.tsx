@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import { SupernizoWordmark } from "@/components/brand/SupernizoWordmark";
 import { Button } from "@/components/ui/button";
 import {
   getAuthLandingPath,
@@ -30,8 +31,6 @@ const HERO_DESCRIPTION =
   "I am an enterprise agentic AI platform that intelligently identifies your dream customers and prospects, autonomously manages outreach, and streamlines customer engagement at scale.";
 const HERO_MEDIA_TRANSITION = { duration: 1.45, ease: [0.16, 1, 0.3, 1] } as const;
 const LAPTOP_HERO_VIEWPORT_QUERY = "(min-width: 1024px) and (max-width: 1728px) and (max-height: 940px)";
-const APP_VERSION_LABEL = "v0.3.0";
-
 export default function SignInPage() {
   const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
@@ -190,22 +189,7 @@ export default function SignInPage() {
     <div className="relative h-dvh overflow-hidden bg-[#f7f7f7] font-sans text-zinc-950">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,#ffffff_0%,#fafafa_42%,#f3f6fb_100%)]" />
       <header className="absolute left-5 right-5 top-4 z-40 flex h-12 items-start justify-between border-b border-zinc-200/80 pb-3 sm:left-7 sm:right-7 sm:top-5">
-        <div>
-          <div className="flex items-baseline gap-2 whitespace-nowrap">
-            <span className="text-xl font-normal tracking-normal text-zinc-950">
-              supernizo
-            </span>
-            <span
-              className="text-[1.1rem] font-normal leading-none tracking-normal text-zinc-700"
-              style={{ fontFamily: '"Bungee Hairline", sans-serif' }}
-            >
-              Lite
-            </span>
-          </div>
-          <span className="mt-0.5 block text-[9px] font-light tracking-[0.18em] text-zinc-400">
-            {APP_VERSION_LABEL}
-          </span>
-        </div>
+        <SupernizoWordmark tone="dark" size="sm" />
       </header>
 
       <main

@@ -12,8 +12,7 @@ import {
   LogOut,
   ShieldCheck,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { SupernizoMark } from "@/components/brand/SupernizoMark";
+import { SupernizoWordmark } from "@/components/brand/SupernizoWordmark";
 import { Button } from "@/components/ui/button";
 import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
@@ -115,7 +114,6 @@ export default function ChoosePersonaPage() {
   const { persona, setPersona } = usePersona();
   const { isSuperAdmin } = useAuth();
   const stored = getStoredPersona();
-  const [rotation, setRotation] = useState(0);
 
   const currentPersona: PersonaValue =
     stored === "delegate-sales" || stored === "delegates" || stored === "production" || stored === "sales" ? stored : "sales";
@@ -140,41 +138,12 @@ export default function ChoosePersonaPage() {
     router.replace("/sign-in");
   };
 
-  useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
-
-    const rotateIcon = () => {
-      setRotation((prev) => prev + 360);
-      const randomDelay = Math.floor(Math.random() * 7000) + 3000;
-      timeoutId = setTimeout(rotateIcon, randomDelay);
-    };
-
-    timeoutId = setTimeout(rotateIcon, 2000);
-    return () => clearTimeout(timeoutId);
-  }, []);
-
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-slate-50 text-slate-900">
       <div className="pointer-events-none absolute inset-y-0 right-0 w-[46%] bg-blue-600/5 [clip-path:polygon(18%_0,100%_0,100%_100%,0_100%)]" />
 
       <header className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
-        <div className="flex items-center gap-3">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1, rotate: rotation }}
-            transition={{
-              scale: { type: "spring", stiffness: 260, damping: 20 },
-              rotate: { duration: 2, ease: "easeInOut" },
-            }}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.9)]"
-          >
-            <SupernizoMark className="h-5 w-5" />
-          </motion.div>
-          <div>
-            <p className="text-base font-semibold text-blue-950">supernizo</p>
-            <p className="text-xs font-medium text-slate-500">campaigns</p>
-          </div>
-        </div>
+        <SupernizoWordmark tone="dark" size="sm" />
 
         <div className="flex items-center gap-2">
           <Link href={isSuperAdmin ? "/admin" : "/campaigns"}>
