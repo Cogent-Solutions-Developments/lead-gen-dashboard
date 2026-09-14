@@ -20,7 +20,7 @@ import {
   notificationsWithinReadRetention,
 } from "@/lib/peopleUtils";
 import { downloadEventAgendaFile, downloadEventDocumentFile } from "@/lib/apiRouter";
-import { autocallNotificationHref } from "@/lib/autocall-deep-link";
+import { autocallIncomingCallHref, autocallNotificationHref } from "@/lib/autocall-deep-link";
 
 const NOTIFICATION_POLL_MS = 30_000;
 
@@ -269,7 +269,15 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
       }
     }
 
-    if (notification.type === "autocall_chat_message") {
+    if (notification.type === "autocall_incoming_call") {
+      try {
+        const actionHref = autocallIncomingCallHref(notification.metadata);
+        setOpen(false);
+        router.push(actionHref);
+      } catch (error) {
+        setError(errorMessage(error));
+      }
+    } else if (notification.type === "autocall_chat_message") {
       try {
         const actionHref = autocallNotificationHref(notification.metadata);
         setOpen(false);
@@ -440,6 +448,7 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
                   const isEventInquiry = notification.type === "event_inquiry";
                   const isLeadRequest = notification.type === "lead_request_created" || notification.type === "lead_request_updated";
                   const isAutocallMessage = notification.type === "autocall_chat_message";
+                  const isAutocallIncomingCall = notification.type === "autocall_incoming_call";
                   const documentNotification = eventDocumentNotification(notification);
                   const isEventDocumentUpload = Boolean(documentNotification);
                   const detail = isEventInquiry
@@ -448,7 +457,7 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
                       ? [eventDocumentName(notification, documentNotification.fallbackName), metadataText(notification, "uploadedByUsername") ? `Uploaded by ${metadataText(notification, "uploadedByUsername")}` : ""].filter(Boolean).join(" - ")
                       : isLeadRequest
                         ? [metadataText(notification, "eventName"), metadataText(notification, "requesterName")].filter(Boolean).join(" - ")
-                      : isAutocallMessage
+                      : isAutocallMessage || isAutocallIncomingCall
                         ? metadataText(notification, "siteName")
                         : "";
                   return (
