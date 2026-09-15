@@ -13,9 +13,11 @@ export type AuthRole =
   | "sales_user"
   | "delegate_user"
   | "production_user"
+  | "delegate_sales_user"
   | "sales_manager_user"
   | "delegate_manager_user"
   | "production_manager_user"
+  | "delegate_sales_manager_user"
   | "client_user"
   | "marketing_user"
   | "operational_user"
@@ -25,7 +27,6 @@ export type AuthUser = {
   id: string;
   username: string;
   role: AuthRole;
-  departmentAssignments?: string[];
   email?: string;
   fullName?: string;
   designation?: string;
@@ -46,6 +47,7 @@ export type AuthUser = {
   lifecycleStatus?: TeamLeadLifecycleStatus;
   deactivatedAt?: string | null;
   deactivationReason?: string;
+  departmentAssignments?: string[];
 };
 
 export type AuthSession = {
@@ -90,6 +92,7 @@ export type AuthUserCreateInput = {
   username: string;
   password: string;
   role: AuthRole;
+  departmentAssignments?: string[];
   fullName?: string;
   isActive?: boolean;
   lifecycleStatus?: TeamLeadLifecycleStatus;
@@ -99,6 +102,7 @@ export type AuthUserCreateInput = {
 export type AuthUserUpdateInput = {
   username?: string;
   role?: AuthRole;
+  departmentAssignments?: string[];
   fullName?: string;
   isActive?: boolean;
 };
@@ -860,6 +864,10 @@ const ROLE_ALIASES: Record<string, AuthRole> = {
   production_usert: "production_user",
   production_manager: "production_manager_user",
   production_manager_user: "production_manager_user",
+  delegate_sales_user: "delegate_sales_user",
+  delegate_sales: "delegate_sales_user",
+  delegate_sales_manager: "delegate_sales_manager_user",
+  delegate_sales_manager_user: "delegate_sales_manager_user",
   client: "client_user",
   client_user: "client_user",
   event_client: "client_user",
@@ -882,6 +890,8 @@ export const AUTH_ROLES: AuthRole[] = [
   "delegate_manager_user",
   "production_user",
   "production_manager_user",
+  "delegate_sales_user",
+  "delegate_sales_manager_user",
   "marketing_user",
   "operational_user",
   "finance_user",
@@ -899,12 +909,14 @@ export function getRoleLabel(role: AuthRole | null | undefined) {
   if (role === "sales_manager_user") return "Sales Manager";
   if (role === "delegate_manager_user") return "Delegate Manager";
   if (role === "production_manager_user") return "Production Manager";
+  if (role === "delegate_sales_manager_user") return "Delegate Sales Manager";
   if (role === "marketing_user") return "Marketing";
   if (role === "operational_user") return "Operations";
   if (role === "finance_user") return "Finance";
   if (role === "client_user") return "Client";
   if (role === "delegate_user") return "Delegate";
   if (role === "production_user") return "Production";
+  if (role === "delegate_sales_user") return "Delegate Sales";
   return "Sales";
 }
 
@@ -929,14 +941,48 @@ export function isBusinessRole(role: AuthRole | null | undefined) {
 }
 
 export function isManagerRole(role: AuthRole | null | undefined) {
-  return role === "sales_manager_user" || role === "delegate_manager_user" || role === "production_manager_user";
+  return role === "sales_manager_user" || role === "delegate_manager_user" || role === "production_manager_user" || role === "delegate_sales_manager_user";
 }
 
 export function personaForRole(role: AuthRole | null | undefined): Persona | null {
   if (role === "sales_user" || role === "sales_manager_user") return "sales";
   if (role === "delegate_user" || role === "delegate_manager_user") return "delegates";
   if (role === "production_user" || role === "production_manager_user") return "production";
+  if (role === "delegate_sales_user" || role === "delegate_sales_manager_user") return "delegate-sales";
   return null;
+}
+
+export const DELEGATE_SALES_DEPARTMENT = "delegate_sales";
+
+export function hasDelegateSalesAssignment(user: Pick<AuthUser, "departmentAssignments"> | null | undefined) {
+  return Boolean(user?.departmentAssignments?.includes(DELEGATE_SALES_DEPARTMENT));
+}
+
+const ASSIGNMENT_PERSONAS: Record<string, Persona> = {
+  sales: "sales",
+  delegate_sales: "delegate-sales",
+  delegate: "delegates",
+  production: "production",
+};
+
+export function availablePersonasForUser(user: AuthUser | null | undefined): Persona[] {
+  if (!user) return [];
+  if (isSuperAdminRole(user.role)) return ["sales", "delegate-sales", "delegates", "production"];
+  if (isCeoRole(user.role)) return ["ceo"];
+  return Array.from(new Set([
+    personaForRole(user.role),
+    ...(user.departmentAssignments || []).map((assignment) => ASSIGNMENT_PERSONAS[assignment]),
+  ].filter((value): value is Persona => Boolean(value))));
+}
+
+export function canUserUsePersona(user: AuthUser | null | undefined, persona: Persona | null) {
+  if (!user || !persona) return false;
+  return availablePersonasForUser(user).includes(persona);
+}
+
+export function forcedPersonaForUser(user: AuthUser | null | undefined): Persona | null {
+  const available = availablePersonasForUser(user);
+  return available.length === 1 ? available[0] : null;
 }
 
 export function businessWorkspaceForRole(role: AuthRole | null | undefined): BusinessWorkspaceSlug | null {
@@ -957,6 +1003,10 @@ export function getAuthLandingPath(role: AuthRole | null | undefined) {
   const workspace = businessWorkspaceForRole(role);
   if (workspace) return `/business/${workspace}`;
   return isSuperAdminRole(role) ? "/choose-persona" : "/dashboard";
+}
+
+export function isAuthenticationFailure(error: unknown) {
+  return Boolean(error && typeof error === "object" && (error as AuthError).status === 401);
 }
 
 function getBaseUrl() {
@@ -986,12 +1036,12 @@ function normalizeUser(raw: unknown): AuthUser {
   const lifecycleStatus = source.lifecycleStatus ?? source.lifecycle_status;
   const deactivatedAt = source.deactivatedAt ?? source.deactivated_at;
   const deactivationReason = source.deactivationReason ?? source.deactivation_reason;
+  const departmentAssignments = source.departmentAssignments ?? source.department_assignments;
 
   return {
     id: String(source.id || ""),
     username: String(source.username || ""),
     role: normalizeAuthRole(source.role),
-    departmentAssignments: Array.isArray(source.departmentAssignments) ? source.departmentAssignments.filter((item): item is string => typeof item === "string") : [],
     email: source.email == null ? undefined : String(source.email),
     fullName: fullName == null ? "" : String(fullName),
     designation: designation == null ? "" : String(designation),
@@ -1017,6 +1067,9 @@ function normalizeUser(raw: unknown): AuthUser {
           : "active",
     deactivatedAt: deactivatedAt == null ? null : String(deactivatedAt),
     deactivationReason: deactivationReason == null ? "" : String(deactivationReason),
+    departmentAssignments: Array.isArray(departmentAssignments)
+      ? departmentAssignments.map((value) => String(value))
+      : [],
   };
 }
 
@@ -1559,6 +1612,16 @@ export async function updateAuthUser(userId: string, payload: AuthUserUpdateInpu
   const data = await authRequest<{ user: AuthUser }>(`/api/auth/users/${userId}`, {
     method: "PUT",
     body: JSON.stringify(payload),
+  });
+  const user = normalizeUser(data.user);
+  cacheAuthUserDisplayName(user);
+  return user;
+}
+
+export async function updateAuthUserDepartmentAssignments(userId: string, departments: string[]) {
+  const data = await authRequest<{ user: AuthUser }>(`/api/auth/users/${userId}/department-assignments`, {
+    method: "PUT",
+    body: JSON.stringify({ departments }),
   });
   const user = normalizeUser(data.user);
   cacheAuthUserDisplayName(user);
@@ -2210,6 +2273,7 @@ export async function fetchManagerUserPerformance(options: {
 export async function fetchManagerPerformance(options: {
   period?: ManagerPerformancePeriod;
   date?: string;
+  pipeline?: "sales" | "delegate_sales" | "delegate" | "production";
   userId?: string;
   search?: string;
   workflowStatus?: string;
@@ -2220,6 +2284,7 @@ export async function fetchManagerPerformance(options: {
   const params = new URLSearchParams();
   if (options.period) params.set("period", options.period);
   if (options.date) params.set("date", options.date);
+  if (options.pipeline) params.set("pipeline", options.pipeline);
   if (options.userId) params.set("userId", options.userId);
   if (options.search) params.set("search", options.search);
   if (options.workflowStatus) params.set("workflowStatus", options.workflowStatus);

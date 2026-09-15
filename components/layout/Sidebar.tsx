@@ -14,6 +14,9 @@ import {
   ChartNoAxesCombined,
   Database,
   BriefcaseBusiness,
+  Factory,
+  Handshake,
+  Megaphone,
   LayoutDashboard,
   Rocket,
   Plus,
@@ -30,12 +33,14 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { clearPersona } from "@/lib/persona";
+import { clearPersona, setPersona, type Persona } from "@/lib/persona";
 import { usePersona } from "@/hooks/usePersona";
-import { businessWorkspaceForRole, clearAuthSession, getAuthHeader, isBusinessRole, isManagerRole } from "@/lib/auth";
+import { availablePersonasForUser, businessWorkspaceForRole, clearAuthSession, getAuthHeader, isBusinessRole, isManagerRole } from "@/lib/auth";
 import { canAccessAutocall } from "@/lib/autocall-access";
 import { useAuth } from "@/hooks/useAuth";
 import { UserAvatar } from "@/components/profile/UserAvatar";
+import { SupernizoMark } from "@/components/brand/SupernizoMark";
+import { SupernizoWordmark } from "@/components/brand/SupernizoWordmark";
 import { toast } from "sonner";
 import { getDailyDealBellMedia } from "@/lib/dealBellMedia";
 
@@ -75,8 +80,20 @@ const navItems: SidebarNavItem[] = [
   { name: "System Monitor", href: "/settings/system-monitor", icon: Activity, ceoOnly: true },
   { name: "Admin Panel", href: "/admin", icon: ShieldCheck, superOnly: true },
 ];
-const APP_VERSION_LABEL = "v0.3.0";
 
+const workspaceLabels: Record<Exclude<Persona, "ceo">, string> = {
+  sales: "Sales",
+  "delegate-sales": "Delegate Sales",
+  delegates: "Delegate",
+  production: "Production",
+};
+
+const workspaceIcons: Record<Exclude<Persona, "ceo">, LucideIcon> = {
+  sales: BriefcaseBusiness,
+  "delegate-sales": Megaphone,
+  delegates: Handshake,
+  production: Factory,
+};
 type SidebarProps = {
   isExpanded: boolean;
   onHoverChange: (next: boolean) => void;
@@ -86,9 +103,13 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { persona } = usePersona();
-  const { canUseRoleChooser, isCeo, isSuperAdmin, user } = useAuth();
+  const { isCeo, isSuperAdmin, user } = useAuth();
   const isManager = isManagerRole(user?.role);
   const isBusiness = isBusinessRole(user?.role);
+  const availablePersonas = availablePersonasForUser(user).filter(
+    (value): value is Exclude<Persona, "ceo"> => value !== "ceo",
+  );
+  const canSwitchWorkspace = !isBusiness && !isSuperAdmin && !isCeo && availablePersonas.length > 1;
   const businessWorkspace = businessWorkspaceForRole(user?.role);
   const businessLabel =
     businessWorkspace === "operations"
@@ -104,7 +125,9 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
   const personaLabel =
     persona === "ceo"
       ? "CEO"
-      : persona === "delegates"
+      : persona === "delegate-sales"
+        ? "Delegate Sales"
+        : persona === "delegates"
         ? "Delegates"
         : persona === "production"
           ? "Production"
@@ -180,40 +203,12 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
           isExpanded ? "-right-40" : "-right-72"
         }`}
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="h-[46rem] w-[46rem] text-white/14"
-        >
-          <path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2" />
-          <path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06" />
-          <path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8" />
-        </svg>
+        <SupernizoMark className="h-[46rem] w-[46rem] text-white/14" />
       </div>
 
-      <div className={`mb-8 min-h-8 min-w-0 px-1 transition-all duration-300 ${isExpanded ? "opacity-100" : "opacity-0"}`}>
-        <div className="flex min-w-0 items-baseline gap-2 whitespace-nowrap">
-          <span className="text-2xl font-normal tracking-wide text-white">
-            supernizo
-          </span>
-          <span
-            className="text-[1.35rem] font-normal leading-none tracking-wide text-white/78"
-            style={{ fontFamily: '"Bungee Hairline", sans-serif' }}
-          >
-            Lite
-          </span>
-        </div>
-        <span className="mt-1 block text-[10px] font-light tracking-[0.22em] text-white/40">
-          {APP_VERSION_LABEL}
-        </span>
-      </div>
+      <SupernizoWordmark
+        className={`mb-8 min-h-8 px-1 transition-all duration-300 ${isExpanded ? "opacity-100" : "opacity-0"}`}
+      />
 
       {/* 1. Navigation Items (Scrollable if needed) */}
       <nav
@@ -280,9 +275,57 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
             </motion.div>
           );
         })}
+        {canSwitchWorkspace ? (
+          <div className="mt-4 border-t border-white/10 pt-4">
+            <p
+              className={`mb-2 px-5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35 transition-all duration-200 ${
+                isExpanded ? "opacity-100" : "opacity-0"
+              }`}
+            >
+              Workspaces
+            </p>
+            {availablePersonas.map((workspace) => {
+              const WorkspaceIcon = workspaceIcons[workspace];
+              const isCurrent = workspace === persona;
+              return (
+                <button
+                  key={workspace}
+                  type="button"
+                  disabled={isCurrent}
+                  aria-current={isCurrent ? "page" : undefined}
+                  aria-label={isCurrent ? `Current workspace: ${workspaceLabels[workspace]}` : `Switch to ${workspaceLabels[workspace]}`}
+                  title={isCurrent ? `Current workspace: ${workspaceLabels[workspace]}` : `Switch to ${workspaceLabels[workspace]}`}
+                  onClick={() => {
+                    setPersona(workspace);
+                    router.replace("/campaigns");
+                  }}
+                  className={`group flex w-full min-w-0 items-center py-3.5 text-left transition-all duration-300 disabled:cursor-default ${
+                    isCurrent ? "bg-white/14 text-white" : "text-white/40 hover:bg-white/5 hover:text-white/80"
+                  } ${isExpanded ? "gap-4 px-5" : "justify-center px-0"}`}
+                >
+                  <span
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${
+                      isCurrent ? "bg-white/15 text-white" : "text-white/35 group-hover:bg-white/6 group-hover:text-white/70"
+                    }`}
+                  >
+                    <WorkspaceIcon className="h-5 w-5" />
+                  </span>
+                  <span
+                    className={`min-w-0 truncate whitespace-nowrap text-base tracking-tight transition-all duration-200 ${
+                      isExpanded ? "flex-1 opacity-100" : "w-0 overflow-hidden opacity-0"
+                    }`}
+                  >
+                    {workspaceLabels[workspace]}
+                    {isCurrent ? <span className="ml-2 text-[10px] uppercase tracking-[0.12em] text-white/45">Current</span> : null}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
       </nav>
 
-      {!isBusiness && !isSuperAdmin && !isCeo && persona === "sales" ? (
+      {!isBusiness && !isSuperAdmin && !isCeo && (persona === "sales" || persona === "delegate-sales") ? (
         <div className={`${isExpanded ? "-mx-2" : "mx-0"} pb-6 transition-all duration-300`}>
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -332,7 +375,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
 
       {/* 3. Bottom Section */}
       <div className="mt-auto flex min-w-0 flex-col gap-3 border-t border-white/10 pt-5">
-        {canUseRoleChooser ? (
+        {isSuperAdmin ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

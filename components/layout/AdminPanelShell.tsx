@@ -19,8 +19,9 @@ import {
   Tags,
   UserRound,
   UsersRound,
-  Webhook,
 } from "lucide-react";
+import { SupernizoMark } from "@/components/brand/SupernizoMark";
+import { SupernizoWordmark } from "@/components/brand/SupernizoWordmark";
 import { Button } from "@/components/ui/button";
 import { revokeAutocallSession, clearAuthSession, isCeoRole, isManagerRole } from "@/lib/auth";
 import { clearPersona } from "@/lib/persona";
@@ -97,8 +98,6 @@ const adminTabs = [
   },
 ];
 
-const APP_VERSION_LABEL = "v0.3.0";
-
 export function AdminPanelShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -141,31 +140,19 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
         }`}
       >
         <div
-          className={`pointer-events-none !absolute top-1/2 !z-0 -translate-y-1/2 rotate-12 opacity-40 transition-all duration-300 ${
+          aria-hidden="true"
+          className={`pointer-events-none !absolute top-1/2 !z-0 -translate-y-1/2 opacity-40 transition-all duration-300 ${
             sidebarExpanded ? "-right-40" : "-right-72"
           }`}
         >
-          <Webhook aria-hidden="true" className="h-[46rem] w-[46rem] text-white/14" strokeWidth={2} />
+          <SupernizoMark className="h-[46rem] w-[46rem] text-white/14" />
         </div>
 
-        <div
-          className={`mb-8 min-h-8 min-w-0 px-1 transition-all duration-300 ${
+        <SupernizoWordmark
+          className={`mb-8 min-h-8 px-1 transition-all duration-300 ${
             sidebarExpanded ? "opacity-100" : "opacity-0"
           }`}
-        >
-          <div className="flex min-w-0 items-baseline gap-2 whitespace-nowrap">
-            <span className="text-2xl font-normal tracking-wide text-white">supernizo</span>
-            <span
-              className="text-[1.35rem] font-normal leading-none tracking-wide text-white/78"
-              style={{ fontFamily: '"Bungee Hairline", sans-serif' }}
-            >
-              Lite
-            </span>
-          </div>
-          <span className="mt-1 block text-[10px] font-light tracking-[0.22em] text-white/40">
-            {APP_VERSION_LABEL}
-          </span>
-        </div>
+        />
 
         <nav
           className={`scrollbar-hide min-w-0 flex-1 overflow-y-auto overflow-x-hidden pt-2 transition-[margin] duration-300 ${
@@ -279,11 +266,8 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
       <div className="sidebar-modern fixed inset-x-0 top-0 z-40 border-b border-white/10 px-3 py-3 text-sidebar-foreground lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sidebar-secondary text-sidebar-primary-foreground">
-              <Webhook className="h-5 w-5" />
-            </div>
             <div className="min-w-0">
-              <p className="truncate text-lg font-medium tracking-wide text-sidebar-foreground">supernizo</p>
+              <SupernizoWordmark size="sm" />
               <p className="text-xs text-sidebar-foreground/70">{isManager ? "Manager Panel" : isCeo ? "CEO Panel" : "Admin Panel"}</p>
             </div>
           </div>

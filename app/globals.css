@@ -493,13 +493,17 @@
   .sidebar-modern::before {
     content: "";
     position: absolute;
-    inset: -35%;
+    inset: -8%;
     pointer-events: none;
     z-index: 0;
     background:
+      linear-gradient(146deg, transparent 0 17%, rgb(255 255 255 / 0.11) 17.2% 30%, transparent 30.2%),
+      linear-gradient(146deg, transparent 0 43%, rgb(5 53 147 / 0.18) 43.2% 61%, transparent 61.2%),
+      linear-gradient(32deg, transparent 0 51%, rgb(255 255 255 / 0.06) 51.2% 62%, transparent 62.2%),
       radial-gradient(circle at 20% 30%, rgb(105 169 255 / 0.32) 0%, transparent 44%),
       radial-gradient(circle at 75% 65%, rgb(17 74 186 / 0.28) 0%, transparent 50%);
-    filter: blur(14px);
+    filter: blur(2px);
+    opacity: 0.9;
     mix-blend-mode: soft-light;
   }
 
