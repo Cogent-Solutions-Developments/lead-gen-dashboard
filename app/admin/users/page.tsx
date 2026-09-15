@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -56,7 +55,6 @@ import {
   resetAuthUserMfa,
   updateAdminClientCredential,
   updateAuthUser,
-  updateAuthUserDepartmentAssignments,
   updateAuthUserPassword,
   updateStoredAuthUser,
   type AdminClientCredential,
@@ -72,11 +70,11 @@ type UserFormState = {
   username: string;
   fullName: string;
   role: AuthRole | "";
+  selectedRoles: AuthRole[];
   password: string;
   status: UserStatusValue | "";
   deactivationReason: string;
   autocallAccess: boolean;
-  delegateSalesAssigned: boolean;
 };
 
 type DepartmentDefinition = {
@@ -92,11 +90,11 @@ const blankForm: UserFormState = {
   username: "",
   fullName: "",
   role: "",
+  selectedRoles: [],
   password: "",
   status: "",
   deactivationReason: "",
   autocallAccess: false,
-  delegateSalesAssigned: false,
 };
 
 const departmentDefinitions: DepartmentDefinition[] = [
@@ -117,8 +115,8 @@ const departmentDefinitions: DepartmentDefinition[] = [
   {
     id: "delegate-sales",
     label: "Delegate Sales",
-    description: "Existing pipeline users assigned to the secondary Sales workspace.",
-    roles: [],
+    description: "Delegate Sales managers and outreach operators.",
+    roles: ["delegate_sales_manager_user", "delegate_sales_user"],
     assignment: "delegate_sales",
     icon: UsersRound,
   },
@@ -223,100 +221,96 @@ function upsertCredential(rows: AdminClientCredential[], credential: AdminClient
   return [credential, ...rows];
 }
 
-const DELEGATE_SALES_ASSIGNABLE_ROLES: AuthRole[] = [
-  "sales_user",
-  "sales_manager_user",
-  "delegate_user",
-  "delegate_manager_user",
-  "production_user",
-  "production_manager_user",
-];
+const ROLE_PIPELINES: Partial<Record<AuthRole, string>> = {
+  sales_user: "sales",
+  sales_manager_user: "sales",
+  delegate_sales_user: "delegate_sales",
+  delegate_sales_manager_user: "delegate_sales",
+  delegate_user: "delegate",
+  delegate_manager_user: "delegate",
+  production_user: "production",
+  production_manager_user: "production",
+};
 
-function canRoleUseDelegateSales(role: AuthRole | "") {
-  return Boolean(role && DELEGATE_SALES_ASSIGNABLE_ROLES.includes(role));
+function secondaryDepartmentsForRoles(roles: AuthRole[], existing: string[] = []) {
+  const primaryPipeline = ROLE_PIPELINES[roles[0]];
+  const departments = new Set<string>(
+    primaryPipeline
+      ? existing.filter((department) => department === "autocall")
+      : []
+  );
+  for (const role of roles.slice(1)) {
+    const pipeline = ROLE_PIPELINES[role];
+    if (pipeline && pipeline !== primaryPipeline) departments.add(pipeline);
+  }
+  return [...departments];
+}
+
+function assignmentForDepartment(departmentId: string) {
+  return departmentId === "delegate-sales" ? "delegate_sales" : departmentId;
+}
+
+function assignedRoleForDepartment(user: AuthUser, department: string): AuthRole {
+  const manager = isManagerRole(user.role);
+  const managerRoles: Record<string, AuthRole> = {
+    sales: "sales_manager_user",
+    delegate_sales: "delegate_sales_manager_user",
+    delegate: "delegate_manager_user",
+    production: "production_manager_user",
+  };
+  const userRoles: Record<string, AuthRole> = {
+    sales: "sales_user",
+    delegate_sales: "delegate_sales_user",
+    delegate: "delegate_user",
+    production: "production_user",
+  };
+  return (manager ? managerRoles : userRoles)[department] || user.role;
+}
+
+function selectedRolesForUser(user: AuthUser): AuthRole[] {
+  const roles = [user.role];
+  for (const department of user.departmentAssignments || []) {
+    const role = assignedRoleForDepartment(user, department);
+    if (role && !roles.includes(role)) roles.push(role);
+  }
+  return roles;
+}
+
+function roleForDepartment(user: AuthUser, departmentId: string): AuthRole {
+  const department = assignmentForDepartment(departmentId);
+  const primaryPipeline = ROLE_PIPELINES[user.role];
+  if (primaryPipeline === department || !user.departmentAssignments?.includes(department)) {
+    return user.role;
+  }
+  return assignedRoleForDepartment(user, department);
 }
 
 function UserRoleMultiSelect({
-  primaryRole,
-  delegateSalesAssigned,
+  selectedRoles,
   roleOptions,
   disabled,
-  onPrimaryRoleChange,
-  onDelegateSalesChange,
+  onRolesChange,
 }: {
-  primaryRole: AuthRole | "";
-  delegateSalesAssigned: boolean;
+  selectedRoles: AuthRole[];
   roleOptions: AuthRole[];
   disabled: boolean;
-  onPrimaryRoleChange: (role: AuthRole) => void;
-  onDelegateSalesChange: (assigned: boolean) => void;
+  onRolesChange: (roles: AuthRole[]) => void;
 }) {
-  const delegateSalesAvailable = canRoleUseDelegateSales(primaryRole);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
-  const [menuPosition, setMenuPosition] = useState<{
-    top: number;
-    left: number;
-    width: number;
-    maxHeight: number;
-  } | null>(null);
-
-  const positionMenu = useCallback(() => {
-    const trigger = triggerRef.current;
-    if (!trigger) return;
-
-    const rect = trigger.getBoundingClientRect();
-    const viewportPadding = 12;
-    const gap = 8;
-    const preferredHeight = 288;
-    const spaceBelow = window.innerHeight - rect.bottom - viewportPadding - gap;
-    const spaceAbove = rect.top - viewportPadding - gap;
-    const opensAbove = spaceBelow < preferredHeight && spaceAbove > spaceBelow;
-    const availableHeight = Math.max(140, Math.min(preferredHeight, opensAbove ? spaceAbove : spaceBelow));
-    const width = Math.min(Math.max(rect.width, 280), window.innerWidth - viewportPadding * 2);
-
-    setMenuPosition({
-      top: opensAbove ? rect.top - availableHeight - gap : rect.bottom + gap,
-      left: Math.min(rect.left, window.innerWidth - width - viewportPadding),
-      width,
-      maxHeight: availableHeight,
-    });
-  }, []);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
-
-    positionMenu();
-    const frame = window.requestAnimationFrame(positionMenu);
-    const closeOnOutsidePointer = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (!triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) {
-        setOpen(false);
-      }
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
     };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-
-    document.addEventListener("pointerdown", closeOnOutsidePointer);
-    document.addEventListener("keydown", closeOnEscape);
-    window.addEventListener("resize", positionMenu);
-    window.addEventListener("scroll", positionMenu, true);
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-      document.removeEventListener("pointerdown", closeOnOutsidePointer);
-      document.removeEventListener("keydown", closeOnEscape);
-      window.removeEventListener("resize", positionMenu);
-      window.removeEventListener("scroll", positionMenu, true);
-    };
-  }, [open, positionMenu]);
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, [open]);
 
   return (
-    <div className="relative">
+    <div ref={containerRef} className="relative">
       <button
-        ref={triggerRef}
         type="button"
         aria-disabled={disabled}
         aria-expanded={open}
@@ -336,51 +330,34 @@ function UserRoleMultiSelect({
             : "cursor-pointer hover:border-blue-300 focus-visible:border-blue-500 focus-visible:ring-3 focus-visible:ring-blue-100"
         }`}
       >
-        <span className="flex min-w-0 items-center gap-2 overflow-hidden">
-          <span className="truncate">{primaryRole ? getRoleLabel(primaryRole) : "Select primary role"}</span>
-          {delegateSalesAssigned ? (
-            <span className="shrink-0 rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700">
-              + Delegate Sales
-            </span>
-          ) : null}
-        </span>
+        <span className="truncate">{selectedRoles.length ? selectedRoles.map(getRoleLabel).join(", ") : "Select department roles"}</span>
         <ChevronDown className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
-      {open && menuPosition && typeof document !== "undefined"
-        ? createPortal(
-            <div
-              ref={menuRef}
-              role="menu"
-              aria-label="User roles"
-              style={{
-                top: menuPosition.top,
-                left: menuPosition.left,
-                width: menuPosition.width,
-                maxHeight: menuPosition.maxHeight,
-              }}
-              className="fixed z-[200] overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-[0_16px_38px_-22px_rgba(15,23,42,0.45)]"
-            >
-        <p className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-400">Primary role</p>
+      {open ? (
+            <div role="menu" aria-label="User department roles" className="absolute left-0 top-full z-[200] mt-2 max-h-72 w-full min-w-72 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-[0_18px_42px_-20px_rgba(15,23,42,0.45)]">
+        <p className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-400">Department roles</p>
           {roleOptions.map((role) => {
-            const selected = primaryRole === role;
+            const selected = selectedRoles.includes(role);
             return (
               <button
                 key={role}
                 type="button"
-                role="menuitemradio"
+                role="menuitemcheckbox"
                 aria-checked={selected}
                 disabled={disabled}
                 onClick={() => {
-                  onPrimaryRoleChange(role);
-                  setOpen(false);
+                  const nextRoles = selected
+                    ? selectedRoles.filter((value) => value !== role)
+                    : [...selectedRoles, role];
+                  if (nextRoles.length) onRolesChange(nextRoles);
                 }}
                 className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition ${
                   selected ? "bg-blue-50 font-medium text-blue-800" : "text-zinc-700 hover:bg-zinc-50"
                 } disabled:cursor-not-allowed disabled:opacity-50`}
               >
                 <span
-                  className={`flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border ${
+                  className={`flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded border ${
                     selected ? "border-blue-600 bg-blue-600 text-white" : "border-zinc-300 bg-white"
                   }`}
                 >
@@ -390,49 +367,15 @@ function UserRoleMultiSelect({
               </button>
             );
           })}
-
-        <div className="mt-1 border-t border-zinc-100 pt-1">
-          <p className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-400">Additional role</p>
-          <button
-            type="button"
-            role="menuitemcheckbox"
-            aria-checked={delegateSalesAssigned}
-            disabled={disabled || !delegateSalesAvailable}
-            onClick={() => {
-              onDelegateSalesChange(!delegateSalesAssigned);
-              setOpen(false);
-            }}
-            className={`flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition ${
-              delegateSalesAssigned ? "bg-violet-50 text-violet-800" : "text-zinc-700 hover:bg-violet-50/60"
-            } disabled:cursor-not-allowed disabled:opacity-45`}
-          >
-            <span
-              className={`mt-0.5 flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded border ${
-                delegateSalesAssigned ? "border-violet-600 bg-violet-600 text-white" : "border-zinc-300 bg-white"
-              }`}
-            >
-              {delegateSalesAssigned ? <Check className="h-3 w-3" /> : null}
-            </span>
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold">Delegate Sales</span>
-              <span className="mt-0.5 block text-xs leading-5 text-zinc-500">
-                {delegateSalesAvailable
-                  ? "Add this role alongside the selected primary role."
-                  : "Available for pipeline employees and managers."}
-              </span>
-            </span>
-          </button>
-        </div>
-            </div>,
-            document.body
-          )
-        : null}
+            </div>
+        ) : null}
     </div>
   );
 }
 
 function UserCard({
   item,
+  departmentId,
   isSelf,
   showClientAccess,
   clientCredentials = [],
@@ -445,6 +388,7 @@ function UserCard({
   onPermanentDelete,
 }: {
   item: AuthUser;
+  departmentId: string;
   isSelf: boolean;
   showClientAccess: boolean;
   clientCredentials?: AdminClientCredential[];
@@ -456,8 +400,12 @@ function UserCard({
   canPermanentlyDelete: boolean;
   onPermanentDelete: () => void;
 }) {
-  const manager = isManagerRole(item.role);
-  const delegateSalesAssigned = item.departmentAssignments?.includes("delegate_sales") ?? false;
+  const displayRole = roleForDepartment(item, departmentId);
+  const manager = isManagerRole(displayRole);
+  const currentDepartment = assignmentForDepartment(departmentId);
+  const secondaryDepartmentLabels = (item.departmentAssignments || [])
+    .filter((department) => department !== "autocall" && department !== currentDepartment)
+    .map((department) => department.replaceAll("_", " "));
   const clientCredential =
     showClientAccess && item.role === "client_user" ? selectPrimaryClientCredential(clientCredentials) : null;
 
@@ -488,7 +436,7 @@ function UserCard({
 
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
             <span className={manager ? "font-semibold text-blue-700" : "font-medium text-zinc-600"}>
-              {getRoleLabel(item.role)}
+              {getRoleLabel(displayRole)}
             </span>
             <span className="text-zinc-300">|</span>
             <span className={manager ? "font-semibold text-blue-700" : "font-medium text-zinc-600"}>
@@ -508,10 +456,12 @@ function UserCard({
                 <span className="font-semibold text-emerald-700">Autocall access enabled</span>
               </>
             ) : null}
-            {delegateSalesAssigned ? (
+            {secondaryDepartmentLabels.length ? (
               <>
                 <span className="text-zinc-300">|</span>
-                <span className="font-semibold text-violet-700">Delegate Sales</span>
+                <span className="font-semibold text-violet-700">
+                  Additional: {secondaryDepartmentLabels.join(", ")}
+                </span>
               </>
             ) : null}
           </div>
@@ -744,10 +694,9 @@ export default function AdminUsersPage() {
     () =>
       availableRoles.filter((role) => {
         if (isCeo && (role === "super_admin_user" || role === "ceo_user")) return false;
-        if (role === "client_user" && form.role !== "client_user") return false;
         return true;
       }),
-    [availableRoles, form.role, isCeo]
+    [availableRoles, isCeo]
   );
 
   useEffect(() => {
@@ -765,9 +714,9 @@ export default function AdminUsersPage() {
     () =>
       visibleDepartments.map((department) => {
         const rows = filteredUsers.filter((item) =>
-          department.assignment
-            ? item.departmentAssignments?.includes(department.assignment)
-            : department.roles.includes(item.role)
+          department.roles.includes(item.role) ||
+          Boolean(department.assignment && item.departmentAssignments?.includes(department.assignment)) ||
+          item.departmentAssignments?.includes(department.id)
         );
         const managers = rows.filter((item) => isManagerRole(item.role));
         const normalUsers = rows.filter((item) => !isManagerRole(item.role));
@@ -835,7 +784,7 @@ export default function AdminUsersPage() {
       status: userLifecycleStatus(item),
       deactivationReason: item.deactivationReason || "",
       autocallAccess: item.departmentAssignments?.includes("autocall") ?? false,
-      delegateSalesAssigned: item.departmentAssignments?.includes("delegate_sales") ?? false,
+      selectedRoles: selectedRolesForUser(item),
     });
     setEditingCredentialId(primaryCredential?.id || "");
     setEditingCredentialExpiry(toDateInputValue(primaryCredential?.expiresAt));
@@ -877,6 +826,9 @@ export default function AdminUsersPage() {
           username,
           fullName: form.fullName.trim(),
           role: isSelf ? undefined : form.role,
+          departmentAssignments: isSelf
+            ? undefined
+            : secondaryDepartmentsForRoles(form.selectedRoles, users.find((item) => item.id === editingId)?.departmentAssignments || []),
           lifecycleStatus: isSelf ? undefined : form.status,
           deactivationReason:
             isSelf || form.status === "active" ? undefined : form.deactivationReason.trim(),
@@ -895,18 +847,7 @@ export default function AdminUsersPage() {
             throw new Error(`User details saved, but Autocall access could not be updated. ${getErrorMessage(error)}`);
           }
         }
-        let savedUser = updated;
-        const wasDelegateSalesAssigned =
-          users.find((item) => item.id === editingId)?.departmentAssignments?.includes("delegate_sales") ?? false;
-        const shouldAssignDelegateSales = canRoleUseDelegateSales(form.role) && form.delegateSalesAssigned;
-        if (!isSelf && wasDelegateSalesAssigned !== shouldAssignDelegateSales) {
-          const departments = (savedUser.departmentAssignments || []).filter((department) => department !== "delegate_sales");
-          if (shouldAssignDelegateSales) departments.push("delegate_sales");
-          savedUser = await updateAuthUserDepartmentAssignments(
-            editingId,
-            departments
-          );
-        }
+        const savedUser = updated;
         setUsers((prev) => prev.map((item) => (item.id === savedUser.id ? savedUser : item)));
         if (isSelf) updateStoredAuthUser(savedUser);
         if (
@@ -935,6 +876,7 @@ export default function AdminUsersPage() {
           username,
           password: form.password,
           role: form.role,
+          departmentAssignments: secondaryDepartmentsForRoles(form.selectedRoles),
           fullName: form.fullName.trim(),
           isActive: form.status === "active",
         });
@@ -1341,6 +1283,7 @@ export default function AdminUsersPage() {
                         <UserCard
                           key={item.id}
                           item={item}
+                          departmentId={selectedDepartment.id}
                           isSelf={item.id === currentUser?.id}
                           showClientAccess
                           clientCredentials={clientCredentialsByUserId.get(item.id) || []}
@@ -1424,24 +1367,20 @@ export default function AdminUsersPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase text-zinc-500">Role</label>
-                <Select
-                  value={form.role}
+                <label className="text-xs font-semibold uppercase text-zinc-500">Department roles</label>
+                <UserRoleMultiSelect
+                  selectedRoles={form.selectedRoles}
+                  roleOptions={roleOptions}
                   disabled={editingSelf}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, role: value as AuthRole }))}
-                >
-                  <SelectTrigger className="h-10 border-zinc-300 bg-white">
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent className="border-zinc-300 bg-white">
-                    {roleOptions.map((role) => (
-                      <SelectItem key={role} value={role}>
-                        {getRoleLabel(role)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {editingSelf ? <p className="text-xs text-zinc-400">Your own role is protected while editing.</p> : null}
+                  onRolesChange={(selectedRoles) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      selectedRoles,
+                      role: selectedRoles[0] || prev.role,
+                    }))
+                  }
+                />
+                <p className="text-xs leading-5 text-zinc-500">Select one or more roles. The first selected role is the primary account role.</p>
               </div>
 
               <div className="space-y-1.5">
@@ -1767,24 +1706,20 @@ export default function AdminUsersPage() {
 
                   <div className="space-y-4">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-zinc-600">Primary Role</label>
+                      <label className="text-xs font-semibold text-zinc-600">Department roles</label>
                       <UserRoleMultiSelect
-                        primaryRole={form.role}
-                        delegateSalesAssigned={form.delegateSalesAssigned}
+                        selectedRoles={form.selectedRoles}
                         roleOptions={roleOptions}
                         disabled={editingSelf}
-                        onPrimaryRoleChange={(role) =>
+                        onRolesChange={(selectedRoles) =>
                           setForm((prev) => ({
                             ...prev,
-                            role,
-                            delegateSalesAssigned: canRoleUseDelegateSales(role) ? prev.delegateSalesAssigned : false,
+                            selectedRoles,
+                            role: selectedRoles[0] || prev.role,
                           }))
                         }
-                        onDelegateSalesChange={(delegateSalesAssigned) =>
-                          setForm((prev) => ({ ...prev, delegateSalesAssigned }))
-                        }
                       />
-                      <p className="sr-only">Choose one primary role and optionally add Delegate Sales.</p>
+                      <p className="text-xs leading-5 text-zinc-500">Select one or more department roles. The first selected role is the primary account role.</p>
                       {editingSelf ? <p className="text-xs leading-5 text-zinc-500">Your own access is protected while editing.</p> : null}
                       {isSuperAdmin && form.role !== "super_admin_user" && form.role !== "client_user" ? (
                         <label className="flex items-center gap-2 pt-2 text-sm font-medium text-slate-600">

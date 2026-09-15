@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   forcedPersonaForUser,
   getRoleLabel,
-  hasDelegateSalesAssignment,
   getStoredAuthSession,
   isAdminLikeRole,
   isBusinessRole,
@@ -48,7 +47,6 @@ export function useAuth() {
       forcedPersona: forcedPersonaForUser(session?.user),
       canManageUsers: isAdminLike,
       canManageCampaignActions: isSuperAdmin,
-      canUseRoleChooser: isSuperAdmin || hasDelegateSalesAssignment(session?.user),
     };
   }, [session]);
 }

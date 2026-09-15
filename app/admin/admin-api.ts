@@ -36,6 +36,7 @@ export type AuthUserCreateInput = {
   username: string;
   password: string;
   role: AuthRole;
+  departmentAssignments?: string[];
   fullName?: string;
   isActive?: boolean;
 };
@@ -43,6 +44,7 @@ export type AuthUserCreateInput = {
 export type AuthUserUpdateInput = {
   username?: string;
   role?: AuthRole;
+  departmentAssignments?: string[];
   fullName?: string;
   isActive?: boolean;
   lifecycleStatus?: "active" | "inactive" | "resigned" | "terminated";
@@ -497,17 +499,19 @@ export function getRoleLabel(role: AuthRole | null | undefined) {
   if (role === "sales_manager_user") return "Sales Manager";
   if (role === "delegate_manager_user") return "Delegate Manager";
   if (role === "production_manager_user") return "Production Manager";
+  if (role === "delegate_sales_manager_user") return "Delegate Sales Manager";
   if (role === "marketing_user") return "Marketing";
   if (role === "operational_user") return "Operations";
   if (role === "finance_user") return "Finance";
   if (role === "client_user") return "Client";
   if (role === "delegate_user") return "Delegate";
   if (role === "production_user") return "Production";
+  if (role === "delegate_sales_user") return "Delegate Sales";
   return "Sales";
 }
 
 export function isManagerRole(role: AuthRole | string | null | undefined) {
-  return role === "sales_manager_user" || role === "delegate_manager_user" || role === "production_manager_user";
+  return role === "sales_manager_user" || role === "delegate_manager_user" || role === "production_manager_user" || role === "delegate_sales_manager_user";
 }
 
 export function updateStoredAuthUser(user: AuthUser) {

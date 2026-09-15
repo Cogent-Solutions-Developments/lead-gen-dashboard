@@ -139,13 +139,8 @@ export default function ChoosePersonaPage() {
   };
 
   return (
-    <div className="persona-chooser-page relative min-h-screen w-full overflow-hidden text-slate-900">
-      <div className="pointer-events-none absolute inset-y-0 right-0 z-0 w-[46%] bg-blue-600/5 [clip-path:polygon(18%_0,100%_0,100%_100%,0_100%)]" />
-      <div aria-hidden="true" className="persona-chooser-background">
-        <span className="persona-chooser-wave persona-chooser-wave-one" />
-        <span className="persona-chooser-wave persona-chooser-wave-two" />
-        <span className="persona-chooser-wave persona-chooser-wave-three" />
-      </div>
+    <div className="relative min-h-screen w-full overflow-hidden bg-slate-50 text-slate-900">
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-[46%] bg-blue-600/5 [clip-path:polygon(18%_0,100%_0,100%_100%,0_100%)]" />
 
       <header className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
         <SupernizoWordmark tone="dark" size="sm" />

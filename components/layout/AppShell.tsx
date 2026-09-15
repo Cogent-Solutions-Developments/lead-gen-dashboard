@@ -15,7 +15,6 @@ import {
   fetchCurrentAuthUser,
   getAuthLandingPath,
   getStoredAuthSession,
-  hasDelegateSalesAssignment,
   isCeoRole,
   isBusinessRole,
   isClientRole,
@@ -23,6 +22,7 @@ import {
   isSuperAdminRole,
   onAuthSessionChange,
   forcedPersonaForUser,
+  personaForRole,
   type AuthSession,
 } from "@/lib/auth";
 
@@ -82,8 +82,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isClient = isClientRole(role);
   const isBusiness = isBusinessRole(role);
   const isManager = isManagerRole(role);
+  const primaryPersona = personaForRole(role);
   const forcedPersona = forcedPersonaForUser(session?.user);
-  const requiresPersonaChoice = hasDelegateSalesAssignment(session?.user);
   const businessWorkspace = businessWorkspaceForRole(role);
   const businessLandingPath = businessWorkspace ? `/business/${businessWorkspace}` : null;
   const isCeoWorkspaceAdminRoute = isCeo && isCeoAllowedAdminPath(pathname);
@@ -158,11 +158,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (pathname === "/autocall") return;
 
     if (isAuthRoute) {
-      router.replace(requiresPersonaChoice ? "/select-workspace" : getAuthLandingPath(role));
+      router.replace(getAuthLandingPath(role));
       return;
     }
 
-    if (isAssignedChooser && !requiresPersonaChoice) {
+    if (isAssignedChooser) {
       router.replace(getAuthLandingPath(role));
       return;
     }
@@ -225,16 +225,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (requiresPersonaChoice) {
-      const selectedPersona = getStoredPersona();
-      if (
-        isAdminChooser ||
-        (!isAssignedChooser && (!selectedPersona || !canUserUsePersona(session.user, selectedPersona)))
-      ) {
-        clearPersona();
-        router.replace("/select-workspace");
-        return;
-      }
+    if (isAdminChooser && !isSuperAdmin) {
+      router.replace(getAuthLandingPath(role));
+      return;
     }
 
     if (!isSuperAdmin && isSuperOnlyPath(pathname)) {
@@ -246,16 +239,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
 
     if (!isChooser && !isAdminAreaRoute && !selected) {
-      router.replace("/");
+      if (primaryPersona) {
+        setPersona(primaryPersona);
+      } else {
+        router.replace("/");
+      }
       return;
     }
 
     const selectedPersona = getStoredPersona();
     if (selectedPersona && !canUserUsePersona(session.user, selectedPersona)) {
       clearPersona();
-      router.replace(requiresPersonaChoice ? "/select-workspace" : getAuthLandingPath(role));
+      router.replace(getAuthLandingPath(role));
     }
-  }, [authChecked, businessLandingPath, forcedPersona, isAdminAreaRoute, isAdminChooser, isAssignedChooser, isAuthRoute, isBusiness, isCeo, isChooser, isClient, isManager, isSuperAdmin, pathname, requiresPersonaChoice, role, router, selected, session]);
+  }, [authChecked, businessLandingPath, forcedPersona, isAdminAreaRoute, isAdminChooser, isAssignedChooser, isAuthRoute, isBusiness, isCeo, isChooser, isClient, isManager, isSuperAdmin, pathname, primaryPersona, role, router, selected, session]);
 
   if (!authChecked) return null;
 
@@ -313,10 +310,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (isCeo && isChooser) return null;
-  if (isAssignedChooser && !requiresPersonaChoice) return null;
-  if (isAdminChooser && requiresPersonaChoice) return null;
+  if (isAssignedChooser) return null;
+  if (isAdminChooser && !isSuperAdmin) return null;
 
-  if (isAuthRoute || isChooser) {
+  if (isAuthRoute || (isChooser && isSuperAdmin)) {
     return (
       <>
         <main className="min-h-screen bg-transparent">{children}</main>
