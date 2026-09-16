@@ -31,6 +31,7 @@ test("super admins have one dashboard route while department workspaces remain a
   assert.doesNotMatch(shell, /name: "System Monitor"|name: "System Operations"/);
   assert.match(appShell, /isSuperAdmin && pathname === "\/dashboard"/);
   assert.match(appShell, /isSuperAdmin && pathname === "\/dashboard"[\s\S]*?router\.replace\("\/campaigns"\)/);
+  assert.match(appShell, /if \(isAssignedChooser\) \{\s*router\.replace\(getAuthLandingPath\(role\)\)/);
   assert.match(chooser, /setPersona\(next\);\s*router\.push\("\/campaigns"\)/);
   assert.match(chooser, /<Link href=\{isSuperAdmin \? "\/admin" : "\/campaigns"\}>[\s\S]*?aria-label=\{isSuperAdmin \? "Go to Admin Panel" : "Go to department workspace"\}/);
   assert.match(chooser, /bg-slate-50/);

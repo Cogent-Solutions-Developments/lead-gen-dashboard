@@ -9,6 +9,10 @@ import { ThemeToggle } from "@/components/layout/ThemeToggle";
 export const metadata: Metadata = {
   title: "supernizo",
   description: "B2B Lead Generation Platform",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
