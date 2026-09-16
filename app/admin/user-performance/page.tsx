@@ -774,6 +774,7 @@ export default function AdminUserPerformancePage() {
         const next = await fetchManagerPerformance({
           period,
           date,
+          pipeline: cluster.pipeline as "sales" | "delegate_sales" | "delegate" | "production",
           userId,
           workflowStatus: cluster.metricKey || undefined,
           limit: 300,
@@ -909,7 +910,7 @@ export default function AdminUserPerformancePage() {
         </div>
       </div>
 
-      <section className="mt-4 grid gap-4 xl:grid-cols-3" aria-label="Department KPI contribution graphs">
+      <section className="mt-4 grid gap-4 lg:grid-cols-2" aria-label="Department KPI contribution graphs">
         {loading && !data ? (
           <div className="admin-card col-span-full flex min-h-64 items-center justify-center text-sm text-zinc-500">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

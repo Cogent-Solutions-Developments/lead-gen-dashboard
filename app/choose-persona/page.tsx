@@ -11,9 +11,8 @@ import {
   Home,
   LogOut,
   ShieldCheck,
-  Webhook,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { SupernizoWordmark } from "@/components/brand/SupernizoWordmark";
 import { Button } from "@/components/ui/button";
 import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,7 +20,7 @@ import { clearPersona, getStoredPersona } from "@/lib/persona";
 import { clearAuthSession } from "@/lib/auth";
 import { toast } from "sonner";
 
-type PersonaValue = "sales" | "delegates" | "production";
+type PersonaValue = "sales" | "delegate-sales" | "delegates" | "production";
 
 const workspaceCards = [
   {
@@ -31,6 +30,14 @@ const workspaceCards = [
     accentBar: "bg-blue-600",
     iconClassName: "bg-blue-600 text-white",
     activeRing: "border-blue-300 bg-blue-50/70 shadow-[0_20px_55px_-38px_rgba(37,99,235,0.75)]",
+  },
+  {
+    id: "delegate-sales" as const,
+    title: "Delegate Sales",
+    icon: BarChart3,
+    accentBar: "bg-violet-600",
+    iconClassName: "bg-violet-600 text-white",
+    activeRing: "border-violet-300 bg-violet-50/70 shadow-[0_20px_55px_-38px_rgba(124,58,237,0.75)]",
   },
   {
     id: "delegates" as const,
@@ -50,17 +57,69 @@ const workspaceCards = [
   },
 ];
 
+function AdminRoleIllustration() {
+  return (
+    <div className="relative mt-7 flex min-h-[14rem] flex-1 items-center justify-center overflow-hidden rounded-2xl border border-blue-100/80 bg-gradient-to-br from-blue-50/90 via-white to-indigo-50/80 px-5 py-4">
+      <div className="absolute -left-12 -top-16 h-40 w-40 rounded-full bg-blue-200/25 blur-3xl" />
+      <div className="absolute -bottom-20 -right-10 h-44 w-44 rounded-full bg-indigo-200/30 blur-3xl" />
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 360 220"
+        className="relative h-auto w-full max-w-[21rem]"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <defs>
+          <linearGradient id="adminShieldFill" x1="180" y1="38" x2="180" y2="166" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#3B82F6" />
+            <stop offset="1" stopColor="#1D4ED8" />
+          </linearGradient>
+          <linearGradient id="adminNodeFill" x1="0" y1="0" x2="1" y2="1">
+            <stop stopColor="#FFFFFF" />
+            <stop offset="1" stopColor="#EFF6FF" />
+          </linearGradient>
+          <filter id="adminIllustrationShadow" x="-40%" y="-40%" width="180%" height="180%" colorInterpolationFilters="sRGB">
+            <feDropShadow dx="0" dy="12" stdDeviation="10" floodColor="#1D4ED8" floodOpacity="0.16" />
+          </filter>
+        </defs>
+
+        <path d="M52 52H308M34 110H326M64 176H296" stroke="#BFDBFE" strokeOpacity="0.55" strokeDasharray="4 8" />
+        <path d="M94 72L143 92M266 72L217 92M104 161L148 140M256 161L212 140" stroke="#93C5FD" strokeWidth="1.5" strokeDasharray="4 5" />
+
+        <g filter="url(#adminIllustrationShadow)">
+          <circle cx="86" cy="64" r="25" fill="url(#adminNodeFill)" stroke="#BFDBFE" strokeWidth="2" />
+          <circle cx="274" cy="64" r="25" fill="url(#adminNodeFill)" stroke="#BFDBFE" strokeWidth="2" />
+          <circle cx="76" cy="166" r="25" fill="url(#adminNodeFill)" stroke="#BFDBFE" strokeWidth="2" />
+          <circle cx="284" cy="166" r="25" fill="url(#adminNodeFill)" stroke="#BFDBFE" strokeWidth="2" />
+
+          <path d="M86 53.5C81.9 53.5 78.5 56.9 78.5 61C78.5 65.1 81.9 68.5 86 68.5C90.1 68.5 93.5 65.1 93.5 61C93.5 56.9 90.1 53.5 86 53.5ZM74.5 76.5C75.7 71.8 80.2 69 86 69C91.8 69 96.3 71.8 97.5 76.5" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" />
+          <path d="M265 64.5H282M268.5 59.5H278.5V69.5H268.5V59.5Z" stroke="#4F46E5" strokeWidth="2.5" strokeLinejoin="round" />
+          <path d="M76 153.5V178.5M67 162.5H85M68.5 174.5H83.5" stroke="#0EA5E9" strokeWidth="2.5" strokeLinecap="round" />
+          <path d="M284 152.5L287.4 157.4L293 158.8L289.4 163.3L289.7 169L284 167L278.3 169L278.6 163.3L275 158.8L280.6 157.4L284 152.5Z" stroke="#6366F1" strokeWidth="2" strokeLinejoin="round" />
+
+          <path d="M180 31L224 48V92C224 122 205.5 148 180 160C154.5 148 136 122 136 92V48L180 31Z" fill="url(#adminShieldFill)" stroke="#1E40AF" strokeWidth="2" />
+          <path d="M157 95L173 111L205 77" stroke="white" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M180 50V64" stroke="#DBEAFE" strokeWidth="3" strokeLinecap="round" />
+        </g>
+
+        <circle cx="180" cy="181" r="5" fill="#2563EB" />
+        <circle cx="180" cy="181" r="12" stroke="#93C5FD" strokeOpacity="0.7" strokeDasharray="2 4" />
+      </svg>
+    </div>
+  );
+}
+
 export default function ChoosePersonaPage() {
   const router = useRouter();
   const { persona, setPersona } = usePersona();
   const { isSuperAdmin } = useAuth();
   const stored = getStoredPersona();
-  const [rotation, setRotation] = useState(0);
 
   const currentPersona: PersonaValue =
-    stored === "delegates" || stored === "production" || stored === "sales" ? stored : "sales";
+    stored === "delegate-sales" || stored === "delegates" || stored === "production" || stored === "sales" ? stored : "sales";
   const activePersona =
-    persona === "delegates" || persona === "production" || persona === "sales" ? persona : currentPersona;
+    persona === "delegate-sales" || persona === "delegates" || persona === "production" || persona === "sales" ? persona : currentPersona;
+  const availableWorkspaceCards = isSuperAdmin ? workspaceCards : [];
   const selectPersona = (next: PersonaValue) => {
     setPersona(next);
     router.push("/campaigns");
@@ -79,41 +138,12 @@ export default function ChoosePersonaPage() {
     router.replace("/sign-in");
   };
 
-  useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
-
-    const rotateIcon = () => {
-      setRotation((prev) => prev + 360);
-      const randomDelay = Math.floor(Math.random() * 7000) + 3000;
-      timeoutId = setTimeout(rotateIcon, randomDelay);
-    };
-
-    timeoutId = setTimeout(rotateIcon, 2000);
-    return () => clearTimeout(timeoutId);
-  }, []);
-
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-slate-50 text-slate-900">
       <div className="pointer-events-none absolute inset-y-0 right-0 w-[46%] bg-blue-600/5 [clip-path:polygon(18%_0,100%_0,100%_100%,0_100%)]" />
 
       <header className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
-        <div className="flex items-center gap-3">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1, rotate: rotation }}
-            transition={{
-              scale: { type: "spring", stiffness: 260, damping: 20 },
-              rotate: { duration: 2, ease: "easeInOut" },
-            }}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.9)]"
-          >
-            <Webhook className="h-5 w-5" />
-          </motion.div>
-          <div>
-            <p className="text-base font-semibold text-blue-950">supernizo</p>
-            <p className="text-xs font-medium text-slate-500">campaigns</p>
-          </div>
-        </div>
+        <SupernizoWordmark tone="dark" size="sm" />
 
         <div className="flex items-center gap-2">
           <Link href={isSuperAdmin ? "/admin" : "/campaigns"}>
@@ -136,25 +166,25 @@ export default function ChoosePersonaPage() {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto grid min-h-[calc(100dvh-5.25rem)] w-full max-w-7xl items-center gap-8 px-5 pb-8 sm:px-8 lg:grid-cols-[0.72fr_1.55fr]">
+      <main className="relative z-10 mx-auto grid min-h-[calc(100dvh-5.25rem)] w-full max-w-7xl items-center gap-8 px-5 pb-8 sm:px-8 lg:grid-cols-[0.68fr_1.55fr] lg:gap-10">
         <motion.section
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-[2rem] border border-white/80 bg-white/75 p-6 shadow-[0_30px_80px_-58px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-8"
+          className="flex flex-col rounded-[2rem] border border-white/80 bg-white/75 p-7 shadow-[0_30px_80px_-58px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-9 lg:h-[31.5rem]"
         >
-          <h1 className="max-w-sm text-5xl font-semibold leading-[1.02] text-blue-950 sm:text-6xl">
+          <h1 className="max-w-sm text-4xl font-semibold leading-[1.04] tracking-tight text-blue-950 sm:text-5xl">
             Workspaces
           </h1>
 
-          <div className="mt-8">
+          <div className="mt-9">
             {isSuperAdmin ? (
               <Link
                 href="/admin"
-                className="group block overflow-hidden rounded-3xl border border-blue-100 bg-blue-600 text-white shadow-[0_26px_64px_-44px_rgba(37,99,235,0.95)] transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-[0_34px_76px_-46px_rgba(37,99,235,0.95)]"
+                className="group block overflow-hidden rounded-2xl border border-blue-100 bg-blue-600 text-white shadow-[0_26px_64px_-44px_rgba(37,99,235,0.95)] transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-[0_34px_76px_-46px_rgba(37,99,235,0.95)]"
               >
-                <span className="flex items-center justify-between gap-4 p-4">
+                <span className="flex items-center justify-between gap-4 p-3.5">
                   <span className="flex items-center gap-3">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 text-white ring-1 ring-white/20">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 text-white ring-1 ring-white/20">
                       <ShieldCheck className="h-5 w-5" />
                     </span>
                     <span>
@@ -169,48 +199,53 @@ export default function ChoosePersonaPage() {
               </Link>
             ) : null}
           </div>
+          <AdminRoleIllustration />
         </motion.section>
 
-        <section className="grid gap-4 md:grid-cols-3">
-          {workspaceCards.map((workspace, index) => {
-            const Icon = workspace.icon;
-            const isActive = activePersona === workspace.id;
+        <section className="rounded-[2rem] border border-white/80 bg-white/45 p-4 shadow-[0_30px_80px_-62px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-5 lg:h-[31.5rem]">
+          <div className="mb-4 px-1">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Departments</p>
+              <p className="mt-1 text-sm text-slate-500">Choose the workspace you want to open.</p>
+            </div>
+          </div>
 
-            return (
-              <motion.button
-                key={workspace.id}
-                type="button"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.06 * index }}
-                onClick={() => selectPersona(workspace.id)}
-                className={`group relative flex min-h-[15.5rem] flex-col justify-between overflow-hidden rounded-[1.75rem] border bg-white/90 p-5 text-left shadow-[0_24px_70px_-54px_rgba(15,23,42,0.65)] backdrop-blur-xl transition-all duration-200 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_34px_82px_-56px_rgba(37,99,235,0.55)] ${
-                  isActive ? workspace.activeRing : "border-white/80"
-                }`}
-              >
-                <span className={`absolute inset-x-0 top-0 h-1 ${workspace.accentBar}`} />
-                <span className="absolute right-5 top-5 flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white">
-                  {isActive ? <span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> : null}
-                </span>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {availableWorkspaceCards.map((workspace, index) => {
+              const Icon = workspace.icon;
+              const isActive = activePersona === workspace.id;
 
-                <span>
-                  <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${workspace.iconClassName} shadow-[0_18px_36px_-26px_rgba(37,99,235,0.85)]`}>
-                    <Icon className="h-5 w-5" />
+              return (
+                <motion.button
+                  key={workspace.id}
+                  type="button"
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.06 * index }}
+                  onClick={() => selectPersona(workspace.id)}
+                  className={`group relative flex min-h-[12.5rem] flex-col justify-between overflow-hidden rounded-2xl border bg-white/90 p-5 text-left shadow-[0_18px_50px_-42px_rgba(15,23,42,0.55)] backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-[0_26px_60px_-42px_rgba(37,99,235,0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+                    isActive ? workspace.activeRing : "border-slate-200/80"
+                  }`}
+                >
+                  <span className="flex items-start justify-between gap-4">
+                    <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${workspace.iconClassName} shadow-[0_14px_28px_-22px_rgba(37,99,235,0.75)]`}>
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <span className={`flex h-6 w-6 items-center justify-center rounded-full border ${isActive ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-white"}`}>
+                      {isActive ? <span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> : null}
+                    </span>
                   </span>
-                  <span className="mt-7 block text-2xl font-semibold text-slate-900">{workspace.title}</span>
-                </span>
 
-                <span>
-                  <span className="flex items-center justify-between border-t border-slate-100 pt-4 text-sm font-semibold text-blue-700">
-                    Enter workspace
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 transition-transform group-hover:translate-x-1 group-hover:bg-blue-600 group-hover:text-white">
+                  <span className="mt-7 flex items-end justify-between gap-4">
+                    <span className="block text-xl font-semibold tracking-tight text-slate-900">{workspace.title}</span>
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-700 transition-transform group-hover:translate-x-1 group-hover:bg-blue-600 group-hover:text-white">
                       <ArrowRight className="h-4 w-4" />
                     </span>
                   </span>
-                </span>
-              </motion.button>
-            );
-          })}
+                </motion.button>
+              );
+            })}
+          </div>
         </section>
       </main>
     </div>

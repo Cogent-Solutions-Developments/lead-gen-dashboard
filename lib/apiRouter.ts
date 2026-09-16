@@ -1,10 +1,12 @@
 import * as sales from "@/lib/api";
+import * as delegateSales from "@/lib/apidelegatesales";
 import * as delegates from "@/lib/apidele";
 import * as production from "@/lib/apiproduction";
 import { apiClient } from "@/lib/apiClient";
-import { getPersona, type Persona } from "@/lib/persona";
+import { getPersona, getStoredPersona, type Persona } from "@/lib/persona";
+import { getStoredAuthSession, personaForRole } from "@/lib/auth";
 
-type DepartmentPersona = Extract<Persona, "sales" | "delegates" | "production">;
+type DepartmentPersona = Extract<Persona, "sales" | "delegate-sales" | "delegates" | "production">;
 
 export type {
   CampaignImportSummary,
@@ -131,14 +133,16 @@ export type {
 } from "@/lib/api";
 
 const pickModule = (persona?: Persona) => {
-  const selected = persona ?? getPersona();
+  const selected = persona ?? getStoredPersona() ?? personaForRole(getStoredAuthSession()?.user.role) ?? getPersona();
+  if (selected === "delegate-sales") return delegateSales;
   if (selected === "delegates") return delegates;
   if (selected === "production") return production;
   return sales;
 };
 
 const getMyLeadsPrefix = (persona?: Persona) => {
-  const selected = persona ?? getPersona();
+  const selected = persona ?? getStoredPersona() ?? personaForRole(getStoredAuthSession()?.user.role) ?? getPersona();
+  if (selected === "delegate-sales") return "/api/delegate-sales/my-leads";
   if (selected === "delegates") return "/api/delegates/my-leads";
   if (selected === "production") return "/api/productions/my-leads";
   return "/api/my-leads";
@@ -676,7 +680,7 @@ export async function saveCampaignHeyReachCampaignId(
   heyreachCampaignId: string,
   persona?: Persona
 ) {
-  const selected = persona ?? getPersona();
+  const selected = persona ?? getStoredPersona() ?? personaForRole(getStoredAuthSession()?.user.role) ?? getPersona();
   const prefix = selected === "delegates" ? "/api/delegates" : selected === "production" ? "/api/productions" : "/api";
   const { data } = await getApiKeyClient(selected).post(
     `${prefix}/campaigns/${encodeURIComponent(campaignId)}/info`,
@@ -690,7 +694,7 @@ export async function saveCampaignLinkedInSetup(
   payload: { heyreachCampaignId: string; linkedinTemplateBody: string },
   persona?: Persona
 ) {
-  const selected = persona ?? getPersona();
+  const selected = persona ?? getStoredPersona() ?? personaForRole(getStoredAuthSession()?.user.role) ?? getPersona();
   const prefix = selected === "delegates" ? "/api/delegates" : selected === "production" ? "/api/productions" : "/api";
   const { data } = await getApiKeyClient(selected).post(
     `${prefix}/campaigns/${encodeURIComponent(campaignId)}/info`,
@@ -700,7 +704,7 @@ export async function saveCampaignLinkedInSetup(
 }
 
 export async function sendCampaignLeadLinkedin(leadId: string, persona?: Persona) {
-  const selected = persona ?? getPersona();
+  const selected = persona ?? getStoredPersona() ?? personaForRole(getStoredAuthSession()?.user.role) ?? getPersona();
   const prefix = selected === "delegates" ? "/api/delegates" : selected === "production" ? "/api/productions" : "/api";
   return getApiKeyClient(selected).post(`${prefix}/leads/${encodeURIComponent(leadId)}/send-linkedin`);
 }

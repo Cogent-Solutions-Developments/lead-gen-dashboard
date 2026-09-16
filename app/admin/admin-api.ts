@@ -36,6 +36,7 @@ export type AuthUserCreateInput = {
   username: string;
   password: string;
   role: AuthRole;
+  departmentAssignments?: string[];
   fullName?: string;
   isActive?: boolean;
 };
@@ -43,6 +44,7 @@ export type AuthUserCreateInput = {
 export type AuthUserUpdateInput = {
   username?: string;
   role?: AuthRole;
+  departmentAssignments?: string[];
   fullName?: string;
   isActive?: boolean;
   lifecycleStatus?: "active" | "inactive" | "resigned" | "terminated";
@@ -399,14 +401,12 @@ function normalizeAdminUser(raw: unknown): AuthUser {
   const lifecycleStatus = source.lifecycleStatus ?? source.lifecycle_status;
   const deactivatedAt = source.deactivatedAt ?? source.deactivated_at;
   const deactivationReason = source.deactivationReason ?? source.deactivation_reason;
+  const departmentAssignments = source.departmentAssignments ?? source.department_assignments;
 
   return {
     id: String(source.id || ""),
     username: String(source.username || ""),
     role: normalizeAdminRole(source.role),
-    departmentAssignments: Array.isArray(source.departmentAssignments)
-      ? source.departmentAssignments.filter((item): item is string => typeof item === "string")
-      : [],
     fullName: fullName == null ? "" : String(fullName),
     designation: designation == null ? "" : String(designation),
     dateOfBirth: dateOfBirth == null ? null : String(dateOfBirth),
@@ -431,6 +431,9 @@ function normalizeAdminUser(raw: unknown): AuthUser {
           : "active",
     deactivatedAt: deactivatedAt == null ? null : String(deactivatedAt),
     deactivationReason: deactivationReason == null ? "" : String(deactivationReason),
+    departmentAssignments: Array.isArray(departmentAssignments)
+      ? departmentAssignments.map((value) => String(value))
+      : [],
   };
 }
 
@@ -496,17 +499,19 @@ export function getRoleLabel(role: AuthRole | null | undefined) {
   if (role === "sales_manager_user") return "Sales Manager";
   if (role === "delegate_manager_user") return "Delegate Manager";
   if (role === "production_manager_user") return "Production Manager";
+  if (role === "delegate_sales_manager_user") return "Delegate Sales Manager";
   if (role === "marketing_user") return "Marketing";
   if (role === "operational_user") return "Operations";
   if (role === "finance_user") return "Finance";
   if (role === "client_user") return "Client";
   if (role === "delegate_user") return "Delegate";
   if (role === "production_user") return "Production";
+  if (role === "delegate_sales_user") return "Delegate Sales";
   return "Sales";
 }
 
 export function isManagerRole(role: AuthRole | string | null | undefined) {
-  return role === "sales_manager_user" || role === "delegate_manager_user" || role === "production_manager_user";
+  return role === "sales_manager_user" || role === "delegate_manager_user" || role === "production_manager_user" || role === "delegate_sales_manager_user";
 }
 
 export function updateStoredAuthUser(user: AuthUser) {
@@ -541,6 +546,14 @@ export async function updateAuthUser(userId: string, payload: AuthUserUpdateInpu
   const data = await adminAuthRequest<{ user: AuthUser }>(`/api/auth/users/${userId}`, {
     method: "PUT",
     body: JSON.stringify(payload),
+  });
+  return normalizeAdminUser(data.user);
+}
+
+export async function updateAuthUserDepartmentAssignments(userId: string, departments: string[]) {
+  const data = await adminAuthRequest<{ user: AuthUser }>(`/api/auth/users/${userId}/department-assignments`, {
+    method: "PUT",
+    body: JSON.stringify({ departments }),
   });
   return normalizeAdminUser(data.user);
 }
@@ -857,6 +870,7 @@ export async function fetchManagerUserPerformance(options: {
 export async function fetchManagerPerformance(options: {
   period?: ManagerPerformancePeriod;
   date?: string;
+  pipeline?: "sales" | "delegate_sales" | "delegate" | "production";
   userId?: string;
   search?: string;
   workflowStatus?: string;
@@ -867,6 +881,7 @@ export async function fetchManagerPerformance(options: {
   const params = new URLSearchParams();
   if (options.period) params.set("period", options.period);
   if (options.date) params.set("date", options.date);
+  if (options.pipeline) params.set("pipeline", options.pipeline);
   if (options.userId) params.set("userId", options.userId);
   if (options.search) params.set("search", options.search);
   if (options.workflowStatus) params.set("workflowStatus", options.workflowStatus);

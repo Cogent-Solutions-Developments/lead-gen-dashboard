@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
   BriefcaseBusiness,
   Building2,
   CalendarClock,
+  Check,
+  ChevronDown,
   Crown,
   Eye,
   EyeOff,
@@ -68,6 +70,7 @@ type UserFormState = {
   username: string;
   fullName: string;
   role: AuthRole | "";
+  selectedRoles: AuthRole[];
   password: string;
   status: UserStatusValue | "";
   deactivationReason: string;
@@ -79,6 +82,7 @@ type DepartmentDefinition = {
   label: string;
   description: string;
   roles: AuthRole[];
+  assignment?: string;
   icon: typeof UsersRound;
 };
 
@@ -86,6 +90,7 @@ const blankForm: UserFormState = {
   username: "",
   fullName: "",
   role: "",
+  selectedRoles: [],
   password: "",
   status: "",
   deactivationReason: "",
@@ -106,6 +111,14 @@ const departmentDefinitions: DepartmentDefinition[] = [
     description: "Sales managers and outreach operators.",
     roles: ["sales_manager_user", "sales_user"],
     icon: BriefcaseBusiness,
+  },
+  {
+    id: "delegate-sales",
+    label: "Delegate Sales",
+    description: "Delegate Sales managers and outreach operators.",
+    roles: ["delegate_sales_manager_user", "delegate_sales_user"],
+    assignment: "delegate_sales",
+    icon: UsersRound,
   },
   {
     id: "delegate",
@@ -208,8 +221,161 @@ function upsertCredential(rows: AdminClientCredential[], credential: AdminClient
   return [credential, ...rows];
 }
 
+const ROLE_PIPELINES: Partial<Record<AuthRole, string>> = {
+  sales_user: "sales",
+  sales_manager_user: "sales",
+  delegate_sales_user: "delegate_sales",
+  delegate_sales_manager_user: "delegate_sales",
+  delegate_user: "delegate",
+  delegate_manager_user: "delegate",
+  production_user: "production",
+  production_manager_user: "production",
+};
+
+function secondaryDepartmentsForRoles(roles: AuthRole[], existing: string[] = []) {
+  const primaryPipeline = ROLE_PIPELINES[roles[0]];
+  const departments = new Set<string>(
+    primaryPipeline
+      ? existing.filter((department) => department === "autocall")
+      : []
+  );
+  for (const role of roles.slice(1)) {
+    const pipeline = ROLE_PIPELINES[role];
+    if (pipeline && pipeline !== primaryPipeline) departments.add(pipeline);
+  }
+  return [...departments];
+}
+
+function assignmentForDepartment(departmentId: string) {
+  return departmentId === "delegate-sales" ? "delegate_sales" : departmentId;
+}
+
+function assignedRoleForDepartment(user: AuthUser, department: string): AuthRole {
+  const manager = isManagerRole(user.role);
+  const managerRoles: Record<string, AuthRole> = {
+    sales: "sales_manager_user",
+    delegate_sales: "delegate_sales_manager_user",
+    delegate: "delegate_manager_user",
+    production: "production_manager_user",
+  };
+  const userRoles: Record<string, AuthRole> = {
+    sales: "sales_user",
+    delegate_sales: "delegate_sales_user",
+    delegate: "delegate_user",
+    production: "production_user",
+  };
+  return (manager ? managerRoles : userRoles)[department] || user.role;
+}
+
+function selectedRolesForUser(user: AuthUser): AuthRole[] {
+  const roles = [user.role];
+  for (const department of user.departmentAssignments || []) {
+    const role = assignedRoleForDepartment(user, department);
+    if (role && !roles.includes(role)) roles.push(role);
+  }
+  return roles;
+}
+
+function roleForDepartment(user: AuthUser, departmentId: string): AuthRole {
+  const department = assignmentForDepartment(departmentId);
+  const primaryPipeline = ROLE_PIPELINES[user.role];
+  if (primaryPipeline === department || !user.departmentAssignments?.includes(department)) {
+    return user.role;
+  }
+  return assignedRoleForDepartment(user, department);
+}
+
+function UserRoleMultiSelect({
+  selectedRoles,
+  roleOptions,
+  disabled,
+  onRolesChange,
+}: {
+  selectedRoles: AuthRole[];
+  roleOptions: AuthRole[];
+  disabled: boolean;
+  onRolesChange: (roles: AuthRole[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        aria-disabled={disabled}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        disabled={disabled}
+        onClick={() => setOpen((current) => !current)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setOpen(false);
+          if (event.key === "ArrowDown" && !open) {
+            event.preventDefault();
+            setOpen(true);
+          }
+        }}
+        className={`flex h-11 w-full items-center justify-between gap-3 rounded-lg border border-zinc-300 bg-white px-3.5 text-sm text-slate-900 shadow-none outline-none transition ${
+          disabled
+            ? "cursor-not-allowed opacity-60"
+            : "cursor-pointer hover:border-blue-300 focus-visible:border-blue-500 focus-visible:ring-3 focus-visible:ring-blue-100"
+        }`}
+      >
+        <span className="truncate">{selectedRoles.length ? selectedRoles.map(getRoleLabel).join(", ") : "Select department roles"}</span>
+        <ChevronDown className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open ? (
+            <div role="menu" aria-label="User department roles" className="absolute left-0 top-full z-[200] mt-2 max-h-72 w-full min-w-72 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-[0_18px_42px_-20px_rgba(15,23,42,0.45)]">
+        <p className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-400">Department roles</p>
+          {roleOptions.map((role) => {
+            const selected = selectedRoles.includes(role);
+            return (
+              <button
+                key={role}
+                type="button"
+                role="menuitemcheckbox"
+                aria-checked={selected}
+                disabled={disabled}
+                onClick={() => {
+                  const nextRoles = selected
+                    ? selectedRoles.filter((value) => value !== role)
+                    : [...selectedRoles, role];
+                  if (nextRoles.length) onRolesChange(nextRoles);
+                }}
+                className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition ${
+                  selected ? "bg-blue-50 font-medium text-blue-800" : "text-zinc-700 hover:bg-zinc-50"
+                } disabled:cursor-not-allowed disabled:opacity-50`}
+              >
+                <span
+                  className={`flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded border ${
+                    selected ? "border-blue-600 bg-blue-600 text-white" : "border-zinc-300 bg-white"
+                  }`}
+                >
+                  {selected ? <Check className="h-3 w-3" /> : null}
+                </span>
+                {getRoleLabel(role)}
+              </button>
+            );
+          })}
+            </div>
+        ) : null}
+    </div>
+  );
+}
+
 function UserCard({
   item,
+  departmentId,
   isSelf,
   showClientAccess,
   clientCredentials = [],
@@ -222,6 +388,7 @@ function UserCard({
   onPermanentDelete,
 }: {
   item: AuthUser;
+  departmentId: string;
   isSelf: boolean;
   showClientAccess: boolean;
   clientCredentials?: AdminClientCredential[];
@@ -233,7 +400,12 @@ function UserCard({
   canPermanentlyDelete: boolean;
   onPermanentDelete: () => void;
 }) {
-  const manager = isManagerRole(item.role);
+  const displayRole = roleForDepartment(item, departmentId);
+  const manager = isManagerRole(displayRole);
+  const currentDepartment = assignmentForDepartment(departmentId);
+  const secondaryDepartmentLabels = (item.departmentAssignments || [])
+    .filter((department) => department !== "autocall" && department !== currentDepartment)
+    .map((department) => department.replaceAll("_", " "));
   const clientCredential =
     showClientAccess && item.role === "client_user" ? selectPrimaryClientCredential(clientCredentials) : null;
 
@@ -264,7 +436,7 @@ function UserCard({
 
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
             <span className={manager ? "font-semibold text-blue-700" : "font-medium text-zinc-600"}>
-              {getRoleLabel(item.role)}
+              {getRoleLabel(displayRole)}
             </span>
             <span className="text-zinc-300">|</span>
             <span className={manager ? "font-semibold text-blue-700" : "font-medium text-zinc-600"}>
@@ -282,6 +454,14 @@ function UserCard({
               <>
                 <span className="text-zinc-300">|</span>
                 <span className="font-semibold text-emerald-700">Autocall access enabled</span>
+              </>
+            ) : null}
+            {secondaryDepartmentLabels.length ? (
+              <>
+                <span className="text-zinc-300">|</span>
+                <span className="font-semibold text-violet-700">
+                  Additional: {secondaryDepartmentLabels.join(", ")}
+                </span>
               </>
             ) : null}
           </div>
@@ -514,10 +694,9 @@ export default function AdminUsersPage() {
     () =>
       availableRoles.filter((role) => {
         if (isCeo && (role === "super_admin_user" || role === "ceo_user")) return false;
-        if (role === "client_user" && form.role !== "client_user") return false;
         return true;
       }),
-    [availableRoles, form.role, isCeo]
+    [availableRoles, isCeo]
   );
 
   useEffect(() => {
@@ -534,7 +713,11 @@ export default function AdminUsersPage() {
   const departmentGroups = useMemo(
     () =>
       visibleDepartments.map((department) => {
-        const rows = filteredUsers.filter((item) => department.roles.includes(item.role));
+        const rows = filteredUsers.filter((item) =>
+          department.roles.includes(item.role) ||
+          Boolean(department.assignment && item.departmentAssignments?.includes(department.assignment)) ||
+          item.departmentAssignments?.includes(department.id)
+        );
         const managers = rows.filter((item) => isManagerRole(item.role));
         const normalUsers = rows.filter((item) => !isManagerRole(item.role));
         return { ...department, rows, managers, normalUsers };
@@ -601,6 +784,7 @@ export default function AdminUsersPage() {
       status: userLifecycleStatus(item),
       deactivationReason: item.deactivationReason || "",
       autocallAccess: item.departmentAssignments?.includes("autocall") ?? false,
+      selectedRoles: selectedRolesForUser(item),
     });
     setEditingCredentialId(primaryCredential?.id || "");
     setEditingCredentialExpiry(toDateInputValue(primaryCredential?.expiresAt));
@@ -642,6 +826,9 @@ export default function AdminUsersPage() {
           username,
           fullName: form.fullName.trim(),
           role: isSelf ? undefined : form.role,
+          departmentAssignments: isSelf
+            ? undefined
+            : secondaryDepartmentsForRoles(form.selectedRoles, users.find((item) => item.id === editingId)?.departmentAssignments || []),
           lifecycleStatus: isSelf ? undefined : form.status,
           deactivationReason:
             isSelf || form.status === "active" ? undefined : form.deactivationReason.trim(),
@@ -660,8 +847,9 @@ export default function AdminUsersPage() {
             throw new Error(`User details saved, but Autocall access could not be updated. ${getErrorMessage(error)}`);
           }
         }
-        setUsers((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
-        if (isSelf) updateStoredAuthUser(updated);
+        const savedUser = updated;
+        setUsers((prev) => prev.map((item) => (item.id === savedUser.id ? savedUser : item)));
+        if (isSelf) updateStoredAuthUser(savedUser);
         if (
           shouldUpdateClientExpiry &&
           selectedEditingCredential &&
@@ -688,6 +876,7 @@ export default function AdminUsersPage() {
           username,
           password: form.password,
           role: form.role,
+          departmentAssignments: secondaryDepartmentsForRoles(form.selectedRoles),
           fullName: form.fullName.trim(),
           isActive: form.status === "active",
         });
@@ -704,6 +893,7 @@ export default function AdminUsersPage() {
       setSaving(false);
     }
   };
+
 
   const submitPassword = async () => {
     if (!passwordTarget) return;
@@ -1093,6 +1283,7 @@ export default function AdminUsersPage() {
                         <UserCard
                           key={item.id}
                           item={item}
+                          departmentId={selectedDepartment.id}
                           isSelf={item.id === currentUser?.id}
                           showClientAccess
                           clientCredentials={clientCredentialsByUserId.get(item.id) || []}
@@ -1176,24 +1367,20 @@ export default function AdminUsersPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase text-zinc-500">Role</label>
-                <Select
-                  value={form.role}
+                <label className="text-xs font-semibold uppercase text-zinc-500">Department roles</label>
+                <UserRoleMultiSelect
+                  selectedRoles={form.selectedRoles}
+                  roleOptions={roleOptions}
                   disabled={editingSelf}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, role: value as AuthRole }))}
-                >
-                  <SelectTrigger className="h-10 border-zinc-300 bg-white">
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent className="border-zinc-300 bg-white">
-                    {roleOptions.map((role) => (
-                      <SelectItem key={role} value={role}>
-                        {getRoleLabel(role)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {editingSelf ? <p className="text-xs text-zinc-400">Your own role is protected while editing.</p> : null}
+                  onRolesChange={(selectedRoles) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      selectedRoles,
+                      role: selectedRoles[0] || prev.role,
+                    }))
+                  }
+                />
+                <p className="text-xs leading-5 text-zinc-500">Select one or more roles. The first selected role is the primary account role.</p>
               </div>
 
               <div className="space-y-1.5">
@@ -1438,106 +1625,142 @@ export default function AdminUsersPage() {
       ) : null}
 
       {editingId ? (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-blue-950/35 p-4 backdrop-blur-[3px]">
-          <Card className="admin-modal-panel w-full max-w-2xl overflow-hidden rounded-2xl border border-blue-100 bg-white">
-            <div className="flex items-start justify-between gap-4 border-b border-zinc-100 px-5 py-4">
-              <div>
-                <p className="text-xs font-semibold uppercase text-blue-700">User Details</p>
-                <h3 className="mt-1 text-lg font-semibold text-slate-900">Update User</h3>
-                <p className="mt-1 text-sm text-zinc-500">Update profile, role, and account status without leaving the Users tab.</p>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-[4px] sm:p-6">
+          <Card
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="update-user-title"
+            className="admin-modal-panel flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_30px_90px_-28px_rgba(15,23,42,0.65)]"
+          >
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-zinc-100 bg-zinc-50/60 px-5 py-4 sm:px-6 sm:py-5">
+              <div className="flex min-w-0 items-start gap-3.5">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-700">
+                  <UserCog className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold uppercase tracking-wide text-blue-700">User Management</p>
+                  <h3 id="update-user-title" className="mt-0.5 text-xl font-semibold tracking-tight text-slate-950">Update User</h3>
+                  <p className="mt-1 text-sm leading-5 text-zinc-500">Edit profile details, workspace access, and account status.</p>
+                </div>
               </div>
               <Button
                 type="button"
                 variant="ghost"
                 onClick={resetForm}
-                className="h-8 w-8 rounded-md border border-zinc-300 bg-white p-0 text-zinc-500 hover:bg-blue-50 hover:text-blue-700"
+                className="h-9 w-9 shrink-0 rounded-lg border border-zinc-200 bg-white p-0 text-zinc-500 shadow-sm hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                 aria-label="Close edit form"
               >
                 <X className="h-4 w-4" />
               </Button>
             </div>
 
-            <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase text-zinc-500">Username</label>
-                <Input
-                  name="admin-user-edit-username"
-                  value={form.username}
-                  onChange={(event) => setForm((prev) => ({ ...prev, username: event.target.value }))}
-                  placeholder="Enter username"
-                  className="h-10 border-zinc-300 bg-white"
-                  autoComplete="off"
-                />
-              </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.82fr)]">
+                <section className="rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5" aria-labelledby="user-profile-section">
+                  <div className="mb-4 flex items-center gap-3 border-b border-zinc-100 pb-4">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+                      <UserRound className="h-4.5 w-4.5" />
+                    </span>
+                    <div>
+                      <h4 id="user-profile-section" className="text-sm font-semibold text-slate-900">Profile</h4>
+                      <p className="text-xs text-zinc-500">The details used to identify this user.</p>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-zinc-600">Username</label>
+                      <Input
+                        name="admin-user-edit-username"
+                        value={form.username}
+                        onChange={(event) => setForm((prev) => ({ ...prev, username: event.target.value }))}
+                        placeholder="Enter username"
+                        className="h-11 rounded-lg border-zinc-300 bg-white px-3.5 shadow-none focus-visible:border-blue-500 focus-visible:ring-blue-100"
+                        autoComplete="off"
+                      />
+                    </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase text-zinc-500">Full Name</label>
-                <Input
-                  name="admin-user-edit-full-name"
-                  value={form.fullName}
-                  onChange={(event) => setForm((prev) => ({ ...prev, fullName: event.target.value }))}
-                  placeholder="Enter full name"
-                  className="h-10 border-zinc-300 bg-white"
-                  autoComplete="off"
-                />
-              </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-zinc-600">Full Name</label>
+                      <Input
+                        name="admin-user-edit-full-name"
+                        value={form.fullName}
+                        onChange={(event) => setForm((prev) => ({ ...prev, fullName: event.target.value }))}
+                        placeholder="Enter full name"
+                        className="h-11 rounded-lg border-zinc-300 bg-white px-3.5 shadow-none focus-visible:border-blue-500 focus-visible:ring-blue-100"
+                        autoComplete="off"
+                      />
+                    </div>
+                  </div>
+                </section>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase text-zinc-500">Role</label>
-                <Select
-                  value={form.role}
-                  disabled={editingSelf}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, role: value as AuthRole }))}
-                >
-                  <SelectTrigger className="h-10 border-zinc-300 bg-white">
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent className="border-zinc-300 bg-white">
-                    {roleOptions.map((role) => (
-                      <SelectItem key={role} value={role}>
-                        {getRoleLabel(role)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {editingSelf ? <p className="text-xs text-zinc-400">Your own role is protected while editing.</p> : null}
-                {isSuperAdmin && form.role !== "super_admin_user" && form.role !== "client_user" ? (
-                  <label className="flex items-center gap-2 pt-2 text-sm font-medium text-slate-600">
-                    <input
-                      name="admin-user-edit-autocall-access"
-                      type="checkbox"
-                      checked={form.autocallAccess}
-                      disabled={saving}
-                      onChange={(event) => setForm((prev) => ({ ...prev, autocallAccess: event.target.checked }))}
-                      className="h-4 w-4 rounded border-zinc-300 accent-blue-600"
-                    />
-                    Autocall access
-                  </label>
-                ) : null}
-              </div>
+                <section className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-4 sm:p-5" aria-labelledby="user-access-section">
+                  <div className="mb-4 flex items-center gap-3 border-b border-zinc-200/80 pb-4">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-50 text-violet-700">
+                      <ShieldCheck className="h-4.5 w-4.5" />
+                    </span>
+                    <div>
+                      <h4 id="user-access-section" className="text-sm font-semibold text-slate-900">Access & Status</h4>
+                      <p className="text-xs text-zinc-500">Control workspace access and availability.</p>
+                    </div>
+                  </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase text-zinc-500">Status</label>
-                <Select
-                  value={form.status}
-                  disabled={editingSelf}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, status: value as UserStatusValue }))}
-                >
-                  <SelectTrigger className="h-10 border-zinc-300 bg-white">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent className="border-zinc-300 bg-white">
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="resigned">Resigned</SelectItem>
-                    <SelectItem value="terminated">Terminated</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-zinc-600">Department roles</label>
+                      <UserRoleMultiSelect
+                        selectedRoles={form.selectedRoles}
+                        roleOptions={roleOptions}
+                        disabled={editingSelf}
+                        onRolesChange={(selectedRoles) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            selectedRoles,
+                            role: selectedRoles[0] || prev.role,
+                          }))
+                        }
+                      />
+                      <p className="text-xs leading-5 text-zinc-500">Select one or more department roles. The first selected role is the primary account role.</p>
+                      {editingSelf ? <p className="text-xs leading-5 text-zinc-500">Your own access is protected while editing.</p> : null}
+                      {isSuperAdmin && form.role !== "super_admin_user" && form.role !== "client_user" ? (
+                        <label className="flex items-center gap-2 pt-2 text-sm font-medium text-slate-600">
+                          <input
+                            name="admin-user-edit-autocall-access"
+                            type="checkbox"
+                            checked={form.autocallAccess}
+                            disabled={saving}
+                            onChange={(event) => setForm((prev) => ({ ...prev, autocallAccess: event.target.checked }))}
+                            className="h-4 w-4 rounded border-zinc-300 accent-blue-600"
+                          />
+                          Autocall access
+                        </label>
+                      ) : null}
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-zinc-600">Account Status</label>
+                      <Select
+                        value={form.status}
+                        disabled={editingSelf}
+                        onValueChange={(value) => setForm((prev) => ({ ...prev, status: value as UserStatusValue }))}
+                      >
+                        <SelectTrigger className="h-11 w-full rounded-lg border-zinc-300 bg-white px-3.5 shadow-none focus-visible:border-blue-500 focus-visible:ring-blue-100">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent position="popper" align="start" className="rounded-xl border-zinc-200 bg-white p-1 shadow-xl">
+                          <SelectItem value="active" className="rounded-lg py-2">Active</SelectItem>
+                          <SelectItem value="inactive" className="rounded-lg py-2">Inactive</SelectItem>
+                          <SelectItem value="resigned" className="rounded-lg py-2">Resigned</SelectItem>
+                          <SelectItem value="terminated" className="rounded-lg py-2">Terminated</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </section>
               </div>
 
               {form.status !== "active" ? (
-                <div className="space-y-1.5 md:col-span-2">
-                  <label className="text-xs font-semibold uppercase text-zinc-500">Deactivation Reason</label>
+                <div className="mt-5 space-y-1.5 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
+                  <label className="text-xs font-semibold text-amber-900">Deactivation Reason</label>
                   <Input
                     name="admin-user-deactivation-reason"
                     value={form.deactivationReason}
@@ -1546,17 +1769,17 @@ export default function AdminUsersPage() {
                     }
                     placeholder="For example: Employment ended"
                     maxLength={500}
-                    className="h-10 border-zinc-300 bg-white"
+                    className="h-11 rounded-lg border-amber-200 bg-white shadow-none focus-visible:border-amber-500 focus-visible:ring-amber-100"
                     autoComplete="off"
                   />
-                  <p className="text-xs text-zinc-400">
+                  <p className="text-xs leading-5 text-amber-800/75">
                     This reason is retained with the account and is visible to authorized managers.
                   </p>
                 </div>
               ) : null}
 
               {form.role === "client_user" ? (
-                <div className="space-y-4 rounded-lg border border-blue-100 bg-blue-50/70 p-4 md:col-span-2">
+                <div className="mt-5 space-y-4 rounded-xl border border-blue-100 bg-blue-50/70 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-xs font-semibold uppercase text-blue-700">Client Access</p>
@@ -1633,17 +1856,17 @@ export default function AdminUsersPage() {
               ) : null}
             </div>
 
-            <div className="flex flex-col-reverse gap-2 border-t border-zinc-100 px-5 py-4 sm:flex-row sm:justify-end">
+            <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-zinc-100 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">
               <Button
                 type="button"
                 variant="ghost"
                 disabled={saving}
                 onClick={resetForm}
-                className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-700 hover:bg-zinc-50"
+                className="h-10 rounded-lg border border-zinc-300 bg-white px-4 text-zinc-700 hover:bg-zinc-50"
               >
                 Cancel
               </Button>
-              <Button type="button" disabled={saving} onClick={submitForm} className="h-9 rounded-md bg-blue-600 px-4 text-white hover:bg-blue-700">
+              <Button type="button" disabled={saving} onClick={submitForm} className="h-10 rounded-lg bg-blue-600 px-4.5 font-semibold text-white shadow-sm hover:bg-blue-700">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 Save User
               </Button>

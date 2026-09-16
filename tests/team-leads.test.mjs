@@ -64,7 +64,7 @@ test("primary sidebar pages use distinct, purpose-specific icons", () => {
   const sidebar = read("components/layout/Sidebar.tsx");
   const navBlock = sidebar.slice(
     sidebar.indexOf("const navItems:"),
-    sidebar.indexOf("const APP_VERSION_LABEL"),
+    sidebar.indexOf("type SidebarProps"),
   );
   const iconAssignments = [...navBlock.matchAll(/href:\s*"[^"]+",\s*icon:\s*(\w+)/g)].map(
     (match) => match[1],
