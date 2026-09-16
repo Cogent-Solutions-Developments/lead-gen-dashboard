@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   appendAutocallTarget,
+  autocallIncomingCallHref,
   autocallNotificationHref,
   autocallTargetFromSearchParams,
 } from "../lib/autocall-deep-link.ts";
@@ -22,8 +23,19 @@ describe("Autocall notification deep links", () => {
     assert.deepEqual(autocallTargetFromSearchParams(url.searchParams), target);
   });
 
+  it("builds and preserves a validated incoming-call link", () => {
+    const href = autocallIncomingCallHref({ callId: "call_123" });
+    assert.equal(href, "/autocall?callId=call_123");
+    assert.deepEqual(autocallTargetFromSearchParams(new URL(href, "https://app.test").searchParams), {
+      callId: "call_123",
+    });
+    const url = appendAutocallTarget(new URL("https://app.test/sso/start"), { callId: "call_123" });
+    assert.equal(url.searchParams.get("callId"), "call_123");
+  });
+
   it("rejects partial, malformed, and arbitrary redirect data", () => {
     assert.throws(() => autocallNotificationHref({ siteId: "site_123" }));
+    assert.throws(() => autocallIncomingCallHref({ callId: "../admin" }));
     assert.throws(() =>
       autocallTargetFromSearchParams(
         new URLSearchParams({ siteId: "../admin", visitorId: "visitor_123", threadId: "thread_123" })
