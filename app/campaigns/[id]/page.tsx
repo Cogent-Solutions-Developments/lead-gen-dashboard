@@ -1229,6 +1229,8 @@ function SuperAdminCampaignDetailPage() {
   const [showBulkSendConfirm, setShowBulkSendConfirm] = useState(false);
   const [bulkSendChannel, setBulkSendChannel] = useState<BulkSendChannel>("email");
   const [isBulkSending, setIsBulkSending] = useState(false);
+  const [showBulkFollowUpConfirm, setShowBulkFollowUpConfirm] = useState(false);
+  const [isBulkFollowUpSending, setIsBulkFollowUpSending] = useState(false);
   const [contentGenerationQueue, setContentGenerationQueue] = useState<ContentGenerationQueueState>(
     EMPTY_CONTENT_GENERATION_QUEUE
   );
@@ -1617,6 +1619,25 @@ function SuperAdminCampaignDetailPage() {
   );
   const selectedBulkEmailCount = selectedEmailSendLeads.length;
   const selectedBulkWhatsappCount = selectedWhatsappSendLeads.length;
+  const selectedFollowUpLeads = useMemo(
+    () =>
+      Array.from(selectedBulkLeadIds)
+        .map((leadId) => leadById.get(leadId))
+        .filter(
+          (lead): lead is Lead => {
+            if (!lead) return false;
+            const isMarketingOptedOut =
+              lead.contactReadOnly ||
+              lead.approvalStatus === "suppressed" ||
+              lead.isSuppressed ||
+              lead.suppression?.active ||
+              Boolean(leadOptOutById.get(lead.id));
+            return hasText(lead.email) && !isMarketingOptedOut && isLeadEmailActionCompleted(lead);
+          },
+        ),
+    [leadById, leadOptOutById, selectedBulkLeadIds]
+  );
+  const selectedFollowUpCount = selectedFollowUpLeads.length;
   const selectedBulkChannelCount = bulkSendChannel === "email" ? selectedBulkEmailCount : selectedBulkWhatsappCount;
   const isBulkGeneratingContent =
     contentGenerationQueue.status === "running" || contentGenerationQueue.status === "stopping";
@@ -2772,6 +2793,72 @@ function SuperAdminCampaignDetailPage() {
     }
   };
 
+  const handleBulkFollowUpRequest = () => {
+    if (!canManageLeadActions) return;
+    if (selectedFollowUpCount === 0) {
+      toast.error("Select at least one lead with a sent email");
+      return;
+    }
+    setShowBulkFollowUpConfirm(true);
+  };
+
+  const handleConfirmBulkFollowUp = async () => {
+    if (!canManageLeadActions || selectedFollowUpCount === 0 || isBulkFollowUpSending) return;
+    setIsBulkFollowUpSending(true);
+
+    let queued = 0;
+    let skipped = 0;
+    const failures: string[] = [];
+    try {
+      for (const lead of selectedFollowUpLeads) {
+        try {
+          const historyResponse = await api.get(`/api/leads/${lead.id}/follow-ups`);
+          const stage = Number(historyResponse?.data?.nextStage);
+          if (!Number.isInteger(stage) || stage < 1 || stage > FOLLOW_UP_STEPS.length) {
+            skipped += 1;
+            continue;
+          }
+
+          const content = followUpContentForStage(stage, lead);
+          await api.post(`/api/leads/${lead.id}/follow-ups`, {
+            stage,
+            templateId: content.templateId,
+            subject: content.subject,
+            body: content.body,
+            sendNow: true,
+          });
+          queued += 1;
+        } catch (error: any) {
+          failures.push(`${lead.employeeName || "Lead"}: ${error?.response?.data?.detail || error?.message || "send failed"}`);
+        }
+      }
+
+      setShowBulkFollowUpConfirm(false);
+      setBulkSelectMode(false);
+      setSelectedBulkLeadIds(new Set());
+      if (queued > 0) {
+        toast.success("Selected follow-ups queued", {
+          description: `${queued} follow-up${queued === 1 ? "" : "s"} queued${skipped ? `, ${skipped} already complete` : ""}.`,
+        });
+      }
+      if (skipped > 0 || failures.length > 0) {
+        toast.warning("Some follow-ups were skipped", {
+          description: `${skipped + failures.length} lead${skipped + failures.length === 1 ? "" : "s"} could not be queued.${failures[0] ? ` ${failures[0]}` : ""}`,
+        });
+      }
+      if (queued === 0 && skipped === 0 && failures.length === 0) {
+        toast.info("No follow-ups were queued");
+      }
+      await fetchAll();
+    } catch (error: any) {
+      toast.error("Failed to queue selected follow-ups", {
+        description: error?.response?.data?.detail || error?.message || "Please try again.",
+      });
+    } finally {
+      setIsBulkFollowUpSending(false);
+    }
+  };
+
   const handleReject = async (leadId: string) => {
     if (!canManageLeadActions) return;
     const lead = leadById.get(leadId);
@@ -3862,6 +3949,27 @@ function SuperAdminCampaignDetailPage() {
 
               <button
                 type="button"
+                onClick={handleBulkFollowUpRequest}
+                disabled={selectedFollowUpCount === 0 || isBulkFollowUpSending || isBulkSending}
+                title={
+                  selectedFollowUpCount === 0
+                    ? "Select leads with a sent email"
+                    : `Send next follow-up for ${selectedFollowUpCount} selected lead${
+                        selectedFollowUpCount === 1 ? "" : "s"
+                      }`
+                }
+                className="inline-flex items-center gap-1.5 px-2 py-1 text-[11px] font-semibold text-violet-700 transition-colors hover:text-violet-800 disabled:cursor-not-allowed disabled:text-zinc-300"
+              >
+                {isBulkFollowUpSending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Mail className="h-3.5 w-3.5" />
+                )}
+                {isBulkFollowUpSending ? "Sending follow-ups" : "Follow-up Selected"}
+              </button>
+
+              <button
+                type="button"
                 onClick={() => handleBulkSendRequest("whatsapp")}
                 disabled={selectedBulkWhatsappCount === 0 || isBulkSending}
                 title={
@@ -4614,6 +4722,67 @@ function SuperAdminCampaignDetailPage() {
                     </>
                   ) : (
                     `Send ${bulkSendChannel === "email" ? "Email" : "WhatsApp"}`
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {canManageLeadActions && showBulkFollowUpConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[72] flex items-center justify-center bg-zinc-950/50 p-4 backdrop-blur-[3px]"
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0, y: 8 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 8 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="w-full max-w-md overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_24px_40px_-28px_rgba(2,10,27,0.68)]"
+            >
+              <div className="space-y-2 border-b border-zinc-100 px-5 py-4">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md border border-violet-200 bg-violet-50 text-violet-700">
+                    <Mail className="h-4 w-4" />
+                  </div>
+                  <h3 className="text-base font-semibold text-zinc-900">Confirm selected follow-ups</h3>
+                </div>
+                <p className="text-sm text-zinc-600">
+                  Queue the next follow-up for{" "}
+                  <span className="font-semibold text-zinc-900">{selectedFollowUpCount}</span> selected lead
+                  {selectedFollowUpCount === 1 ? "" : "s"}?
+                </p>
+                <p className="text-xs text-zinc-500">
+                  Each lead uses its next available follow-up stage and personalized template.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 px-5 py-4">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={isBulkFollowUpSending}
+                  onClick={() => setShowBulkFollowUpConfirm(false)}
+                  className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleConfirmBulkFollowUp}
+                  disabled={isBulkFollowUpSending}
+                  className="h-9 rounded-md border border-violet-700/75 bg-violet-700 px-3.5 text-white hover:bg-violet-800 disabled:opacity-60"
+                >
+                  {isBulkFollowUpSending ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    "Send Follow-ups"
                   )}
                 </Button>
               </div>
