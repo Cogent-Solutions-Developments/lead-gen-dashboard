@@ -1,5 +1,6 @@
 import {
   fetchEventSubmissions,
+  fetchEventSubmission,
   type EventSubmission,
   type EventSubmissionFilters,
   type JsonValue,
@@ -43,34 +44,60 @@ function displayValue(value: JsonValue | undefined): string {
   return "";
 }
 
-function contactName(submission: EventSubmission) {
-  return [submission.contact.firstName, submission.contact.lastName].filter(Boolean).join(" ").trim();
+type FormEntry = { key: string; value: string };
+
+function normalizeKey(value: string) {
+  return value.replace(/[^a-z0-9]+/gi, "").toLowerCase();
 }
 
-function submissionComments(submission: EventSubmission) {
-  return [
-    submission.event.eventName && `Event: ${submission.event.eventName}`,
-    `Form: ${submission.submissionType === "registration" ? "Registration" : "Sponsor"}`,
-    submission.contact.country && `Country: ${submission.contact.country}`,
-    submission.submissionType === "registration"
-      ? submission.category?.length && `Interest: ${submission.category.map(displayValue).filter(Boolean).join(", ")}`
-      : submission.interested?.length && `Interest: ${submission.interested.map(displayValue).filter(Boolean).join(", ")}`,
-    submission.submittedAt && `Submitted: ${submission.submittedAt}`,
-  ].filter(Boolean).join("; ");
+function formEntries(formData: Record<string, JsonValue> | undefined) {
+  const entries: FormEntry[] = [];
+  const visit = (value: JsonValue, key: string) => {
+    if (Array.isArray(value)) {
+      value.forEach((item) => visit(item, key));
+      return;
+    }
+    if (value && typeof value === "object") {
+      const summary = displayValue(value);
+      if (summary) entries.push({ key, value: summary });
+      Object.entries(value).forEach(([childKey, childValue]) => visit(childValue, childKey));
+      return;
+    }
+    const text = displayValue(value);
+    if (text) entries.push({ key, value: text });
+  };
+  Object.entries(formData || {}).forEach(([key, value]) => visit(value, key));
+  return entries;
+}
+
+function formValue(entries: readonly FormEntry[], aliases: readonly string[]) {
+  const normalizedAliases = aliases.map(normalizeKey);
+  const genericAliases = new Set(["company", "title", "phone", "email", "name", "mobile", "linkedin", "website", "domain", "telephone"]);
+  return entries.find((entry) => normalizedAliases.includes(normalizeKey(entry.key)))?.value
+    || entries.find((entry) => normalizedAliases.some((alias) => !genericAliases.has(alias) && alias.length > 4 && normalizeKey(entry.key).includes(alias)))?.value
+    || "";
+}
+
+function contactName(submission: EventSubmission, entries: readonly FormEntry[]) {
+  const directName = [submission.contact.firstName, submission.contact.lastName].filter(Boolean).join(" ").trim();
+  if (directName) return directName;
+  const fallbackName = formValue(entries, ["fullName", "contactName", "personName", "name"]);
+  const fallbackParts = [formValue(entries, ["firstName"]), formValue(entries, ["lastName"])].filter(Boolean).join(" ").trim();
+  return fallbackName || fallbackParts || submission.contact.workEmail || "";
 }
 
 export function eventSubmissionExportRows(submissions: readonly EventSubmission[]): ExportRow[] {
-  return submissions.map((submission) => [
-    submission.contact.company || "",
-    contactName(submission),
-    submission.contact.jobTitle || "",
-    "",
-    submission.contact.mobileNumber || "",
-    submission.contact.workEmail || "",
-    "",
-    "",
-    submissionComments(submission),
-  ]);
+  return submissions.map((submission) => {
+    const entries = formEntries(submission.formData);
+    const company = submission.contact.company || formValue(entries, ["companyName", "company", "organization", "organisation", "employer", "firm"]);
+    const jobTitle = submission.contact.jobTitle || formValue(entries, ["jobTitle", "employeeTitle", "designation", "position", "title"]);
+    const email = submission.contact.workEmail || formValue(entries, ["workEmail", "businessEmail", "emailAddress", "contactEmail", "email"]);
+    const mobile = submission.contact.mobileNumber || formValue(entries, ["mobileNumber", "mobile", "phoneNumber", "phone", "contactNumber", "whatsapp"]);
+    const telephone = formValue(entries, ["telephoneNumber", "telephone", "landline", "officePhone"]);
+    const companyUrl = formValue(entries, ["companyWebUrl", "companyWebsiteUrl", "companyUrl", "companyWebsite", "websiteUrl", "website", "homepage", "domain"]);
+    const linkedinUrl = formValue(entries, ["linkedinProfileUrl", "linkedinUrl", "linkedinProfile", "linkedin"]);
+    return [company, contactName(submission, entries), jobTitle, telephone, mobile, email, companyUrl, linkedinUrl, ""];
+  });
 }
 
 function columnName(index: number) {
@@ -254,6 +281,24 @@ export function buildEventSubmissionsXlsx(submissions: readonly EventSubmission[
   ]);
 }
 
+async function loadSubmissionDetails(submissions: readonly EventSubmission[], signal?: AbortSignal) {
+  const detailed = [...submissions];
+  let nextIndex = 0;
+  const worker = async () => {
+    while (nextIndex < submissions.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      try {
+        detailed[index] = await fetchEventSubmission(submissions[index].id, signal);
+      } catch {
+        // Preserve the list record when a detail request fails so one incomplete record does not cancel the export.
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(6, submissions.length) }, () => worker()));
+  return detailed;
+}
+
 function exportFileName(filters: EventSubmissionFilters, count: number) {
   const eventSlug = filters.eventName?.trim()
     ? filters.eventName.trim().replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()
@@ -291,6 +336,7 @@ export async function downloadFilteredEventSubmissions(filters: EventSubmissionF
   }
 
   if (!submissions.length) return 0;
-  downloadBlob(buildEventSubmissionsXlsx(submissions), exportFileName(filters, submissions.length));
-  return submissions.length;
+  const detailedSubmissions = await loadSubmissionDetails(submissions, signal);
+  downloadBlob(buildEventSubmissionsXlsx(detailedSubmissions), exportFileName(filters, detailedSubmissions.length));
+  return detailedSubmissions.length;
 }
