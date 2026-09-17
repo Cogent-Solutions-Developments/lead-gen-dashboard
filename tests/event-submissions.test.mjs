@@ -46,8 +46,8 @@ test("dashboard uses the secured overview, list, and detail endpoints", () => {
 });
 
 test("filtered inquiry export uses the campaign upload columns and fetches complete results", () => {
-  assert.match(page, /downloadFilteredEventSubmissions\(filters\)/);
-  assert.match(page, /Download XLSX/);
+  assert.match(page, /downloadFilteredEventSubmissions\(\{ \.\.\.filters, eventName: selectedEventName \}\)/);
+  assert.match(page, /Download inquiries for \$\{cluster\.eventName\}/);
   assert.match(exportApi, /"Company",\s*"Full Name",\s*"Job Title"/s);
   assert.match(exportApi, /"Telephone Number",\s*"Mobile",\s*"Email"/s);
   assert.match(exportApi, /limit: EXPORT_PAGE_SIZE/);

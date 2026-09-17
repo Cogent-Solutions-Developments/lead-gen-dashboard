@@ -396,7 +396,7 @@ export default function EventSubmissionsPage() {
   const [deleting, setDeleting] = useState(false);
   const [lastDeleted, setLastDeleted] = useState<(EventSubmissionDeletion & { contactLabel: string }) | null>(null);
   const [restoring, setRestoring] = useState(false);
-  const [exporting, setExporting] = useState(false);
+  const [exportingEventName, setExportingEventName] = useState("");
   const [restoreError, setRestoreError] = useState("");
   const mutationInFlight = useRef(false);
   const notificationSubmissionId = searchParams.get("submissionId")?.trim() || "";
@@ -563,22 +563,22 @@ export default function EventSubmissionsPage() {
   const firstItem = total ? offset + 1 : 0;
   const lastItem = Math.min(offset + items.length, total);
 
-  const exportFilteredSubmissions = useCallback(async () => {
-    if (exporting) return;
-    setExporting(true);
+  const exportEventSubmissions = useCallback(async (selectedEventName: string) => {
+    if (exportingEventName) return;
+    setExportingEventName(selectedEventName);
     try {
-      const count = await downloadFilteredEventSubmissions(filters);
+      const count = await downloadFilteredEventSubmissions({ ...filters, eventName: selectedEventName });
       if (!count) {
-        toast.info("No inquiries to export", { description: "Adjust the filters and try again." });
+        toast.info("No inquiries to export", { description: `No inquiries matched ${selectedEventName}.` });
         return;
       }
-      toast.success("Inquiry export downloaded", { description: `${formatNumber(count)} filtered ${count === 1 ? "inquiry" : "inquiries"} saved as an Excel file.` });
+      toast.success("Event inquiry export downloaded", { description: `${formatNumber(count)} ${count === 1 ? "inquiry" : "inquiries"} for ${selectedEventName} saved as an Excel file.` });
     } catch (exportError: unknown) {
-      toast.error("Could not export inquiries", { description: getErrorMessage(exportError) });
+      toast.error("Could not export event inquiries", { description: getErrorMessage(exportError) });
     } finally {
-      setExporting(false);
+      setExportingEventName("");
     }
-  }, [exporting, filters]);
+  }, [exportingEventName, filters]);
 
   if (isLegacyAdminRoute) return null;
 
@@ -612,14 +612,9 @@ export default function EventSubmissionsPage() {
           <h1 className="admin-title">Event Inquiries</h1>
           <p className="admin-description">Review registrations and sponsor enquiries.</p>
         </div>
-        <div className="flex flex-wrap gap-2 self-start xl:self-auto">
-          <Button type="button" variant="outline" onClick={() => void exportFilteredSubmissions()} disabled={loading || exporting} className="h-10 border-zinc-300 bg-white px-4 text-zinc-700 hover:bg-zinc-50">
-            {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />} {exporting ? "Exporting" : "Download XLSX"}
-          </Button>
-          <Button type="button" variant="outline" onClick={() => setRefreshKey((current) => current + 1)} disabled={loading || exporting} className="h-10 border-zinc-300 bg-white px-4 text-zinc-700 hover:bg-zinc-50">
-            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />} Refresh
-          </Button>
-        </div>
+        <Button type="button" variant="outline" onClick={() => setRefreshKey((current) => current + 1)} disabled={loading || Boolean(exportingEventName)} className="h-10 self-start border-zinc-300 bg-white px-4 text-zinc-700 hover:bg-zinc-50 xl:self-auto">
+          {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />} Refresh
+        </Button>
       </header>
 
       {canDelete && lastDeleted ? (
@@ -669,10 +664,15 @@ export default function EventSubmissionsPage() {
             </div>
             <div className="grid max-h-72 gap-2 overflow-y-auto border-t border-zinc-200 p-4 scrollbar-modern sm:grid-cols-2 xl:grid-cols-3">
               {clusterView === "events" ? browseOverview.eventClusters.map((cluster) => (
-                <button key={cluster.eventName} type="button" onClick={() => { setEventName(cluster.eventName); setOffset(0); }} className="group flex min-w-0 items-center gap-3 rounded-lg border border-zinc-200 bg-white p-3 text-left transition-colors hover:border-blue-200 hover:bg-blue-50">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-300 bg-zinc-50 text-zinc-700"><CalendarDays className="h-4 w-4" /></span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-900">{cluster.eventName}</span><span className="text-sm font-semibold text-zinc-700">{cluster.count}</span>
-                </button>
+                <div key={cluster.eventName} className="group flex min-w-0 items-center gap-2 rounded-lg border border-zinc-200 bg-white p-2 transition-colors hover:border-blue-200 hover:bg-blue-50">
+                  <button type="button" onClick={() => { setEventName(cluster.eventName); setOffset(0); }} className="flex min-w-0 flex-1 items-center gap-3 rounded-md p-1.5 text-left">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-300 bg-zinc-50 text-zinc-700"><CalendarDays className="h-4 w-4" /></span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-900">{cluster.eventName}</span><span className="text-sm font-semibold text-zinc-700">{cluster.count}</span>
+                  </button>
+                  <button type="button" aria-label={`Download inquiries for ${cluster.eventName}`} title={`Download inquiries for ${cluster.eventName}`} onClick={() => void exportEventSubmissions(cluster.eventName)} disabled={Boolean(exportingEventName)} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500 transition-colors hover:border-blue-300 hover:bg-blue-600 hover:text-white disabled:cursor-wait disabled:opacity-45">
+                    <Download className={`h-4 w-4 ${exportingEventName === cluster.eventName ? "animate-pulse" : ""}`} />
+                  </button>
+                </div>
               )) : null}
               {clusterView === "categories" ? browseOverview.categoryClusters.map((cluster) => (
                 <button key={cluster.filterValue} type="button" onClick={() => { setCategoryFilter({ label: cluster.label, value: cluster.filterValue }); setSponsorFilter(null); setFormType("registration"); setOffset(0); }} className="group flex min-w-0 items-center gap-3 rounded-lg border border-zinc-200 bg-white p-3 text-left transition-colors hover:border-blue-200 hover:bg-blue-50">
