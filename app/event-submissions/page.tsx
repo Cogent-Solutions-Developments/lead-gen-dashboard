@@ -11,6 +11,7 @@ import {
   ChevronRight,
   ClipboardList,
   Copy,
+  Download,
   Inbox,
   Loader2,
   Mail,
@@ -45,6 +46,7 @@ import {
   type EventSubmissionType,
   type JsonValue,
 } from "@/lib/eventSubmissionsApi";
+import { downloadFilteredEventSubmissions } from "@/lib/eventSubmissionExport";
 
 const PAGE_SIZE = 25;
 const EMPTY_OVERVIEW: EventSubmissionOverview = {
@@ -394,6 +396,7 @@ export default function EventSubmissionsPage() {
   const [deleting, setDeleting] = useState(false);
   const [lastDeleted, setLastDeleted] = useState<(EventSubmissionDeletion & { contactLabel: string }) | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [restoreError, setRestoreError] = useState("");
   const mutationInFlight = useRef(false);
   const notificationSubmissionId = searchParams.get("submissionId")?.trim() || "";
@@ -560,6 +563,23 @@ export default function EventSubmissionsPage() {
   const firstItem = total ? offset + 1 : 0;
   const lastItem = Math.min(offset + items.length, total);
 
+  const exportFilteredSubmissions = useCallback(async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const count = await downloadFilteredEventSubmissions(filters);
+      if (!count) {
+        toast.info("No inquiries to export", { description: "Adjust the filters and try again." });
+        return;
+      }
+      toast.success("Inquiry export downloaded", { description: `${formatNumber(count)} filtered ${count === 1 ? "inquiry" : "inquiries"} saved as an Excel file.` });
+    } catch (exportError: unknown) {
+      toast.error("Could not export inquiries", { description: getErrorMessage(exportError) });
+    } finally {
+      setExporting(false);
+    }
+  }, [exporting, filters]);
+
   if (isLegacyAdminRoute) return null;
 
   if (!canView) {
@@ -592,9 +612,14 @@ export default function EventSubmissionsPage() {
           <h1 className="admin-title">Event Inquiries</h1>
           <p className="admin-description">Review registrations and sponsor enquiries.</p>
         </div>
-        <Button type="button" variant="outline" onClick={() => setRefreshKey((current) => current + 1)} disabled={loading} className="h-10 self-start border-zinc-300 bg-white px-4 text-zinc-700 hover:bg-zinc-50 xl:self-auto">
-          {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />} Refresh
-        </Button>
+        <div className="flex flex-wrap gap-2 self-start xl:self-auto">
+          <Button type="button" variant="outline" onClick={() => void exportFilteredSubmissions()} disabled={loading || exporting} className="h-10 border-zinc-300 bg-white px-4 text-zinc-700 hover:bg-zinc-50">
+            {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />} {exporting ? "Exporting" : "Download XLSX"}
+          </Button>
+          <Button type="button" variant="outline" onClick={() => setRefreshKey((current) => current + 1)} disabled={loading || exporting} className="h-10 border-zinc-300 bg-white px-4 text-zinc-700 hover:bg-zinc-50">
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />} Refresh
+          </Button>
+        </div>
       </header>
 
       {canDelete && lastDeleted ? (
