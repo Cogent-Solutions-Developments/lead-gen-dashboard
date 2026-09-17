@@ -4,6 +4,7 @@ import test from "node:test";
 
 const page = readFileSync(new URL("../app/event-submissions/page.tsx", import.meta.url), "utf8");
 const api = readFileSync(new URL("../lib/eventSubmissionsApi.ts", import.meta.url), "utf8");
+const exportApi = readFileSync(new URL("../lib/eventSubmissionExport.ts", import.meta.url), "utf8");
 const sidebar = readFileSync(new URL("../components/layout/Sidebar.tsx", import.meta.url), "utf8");
 const adminSidebar = readFileSync(
   new URL("../components/layout/AdminPanelShell.tsx", import.meta.url),
@@ -42,6 +43,16 @@ test("dashboard uses the secured overview, list, and detail endpoints", () => {
   assert.match(api, /\/api\/manager\/event-submissions\/overview/);
   assert.match(api, /"\/api\/manager\/event-submissions"/);
   assert.match(api, /\/api\/manager\/event-submissions\/\$\{encodeURIComponent\(submissionId\)\}/);
+});
+
+test("filtered inquiry export uses the campaign upload columns and fetches complete results", () => {
+  assert.match(page, /downloadFilteredEventSubmissions\(\{ \.\.\.filters, eventName: selectedEventName \}\)/);
+  assert.match(page, /Download inquiries for \$\{cluster\.eventName\}/);
+  assert.match(exportApi, /"Company",\s*"Full Name",\s*"Job Title"/s);
+  assert.match(exportApi, /"Telephone Number",\s*"Mobile",\s*"Email"/s);
+  assert.match(exportApi, /limit: EXPORT_PAGE_SIZE/);
+  assert.match(exportApi, /hasMore/);
+  assert.match(exportApi, /sheet name=\\?"Leads\\?"/);
 });
 
 test("registration categories and sponsor interests remain distinct", () => {
