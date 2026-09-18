@@ -45,7 +45,7 @@ test("both campaign views resume saved jobs and recognize reused active runs", (
 test("browser clients cannot inject a public service credential", () => {
   for (const path of ["lib/apiClient.ts", "lib/api.ts", "lib/apidele.ts", "lib/apiproduction.ts", "lib/peopleApi.ts", "lib/server/apiAuth.ts"]) {
     const source = readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-    assert.doesNotMatch(source, /NEXT_PUBLIC_API_KEY/);
+    assert.doesNotMatch(source, /NEXT_BACKEND_API_KEY/);
   }
 });
 

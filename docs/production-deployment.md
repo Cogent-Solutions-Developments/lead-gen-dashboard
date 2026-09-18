@@ -23,7 +23,7 @@ browser assets.
 | `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` | Yes | reCAPTCHA browser site key, allow-listed for the Light domain. |
 | `AUTOCALL_PUBLIC_URL` | Yes | Canonical HTTPS Autocall URL ending in `/autocall-db`. This is server runtime configuration. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Optional | Supabase project URL if the Supabase helper is enabled. |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Optional | Supabase anonymous browser key. Require Row Level Security before enabling it. |
+| `NEXT_SUPABASE_ANON_KEY` | Optional | Supabase anonymous browser key. Require Row Level Security before enabling it. |
 
 Do not set `RUN_TOKEN`, database credentials, provider secrets, or the
 Autocall SSO client secret as a `NEXT_PUBLIC_` value.

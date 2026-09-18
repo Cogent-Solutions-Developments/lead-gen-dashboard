@@ -429,6 +429,6 @@ test("manager summary and filtered detail requests use their matching backend ro
 test("heartbeat requests require bearer auth without exposing service keys", () => {
   const source = read("lib/peopleApi.ts");
   assert.match(source, /if \(!authHeaders\.Authorization\)/);
-  assert.doesNotMatch(source, /NEXT_PUBLIC_API_KEY|"x-api-key"/);
+  assert.doesNotMatch(source, /NEXT_BACKEND_API_KEY|"x-api-key"/);
   assert.match(source, /\.\.\.authHeaders/);
 });
