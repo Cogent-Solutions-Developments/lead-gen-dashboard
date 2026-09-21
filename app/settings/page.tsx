@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, FilePenLine, MonitorDot, UserRoundMinus, Workflow, type LucideIcon } from "lucide-react";
+import { ArrowRight, ChartNoAxesCombined, FilePenLine, MonitorDot, UserRoundMinus, Workflow, type LucideIcon } from "lucide-react";
 import { WebhooksLogoIcon } from "@phosphor-icons/react/dist/csr/WebhooksLogo";
 
 import { AdminPanelShell } from "@/components/layout/AdminPanelShell";
@@ -183,6 +183,17 @@ function SettingsContent() {
               detailDescription="Manage phone and email opt-outs across all outreach channels."
               delay={0.18}
               tone="rose"
+            />
+            <SettingsCard
+              href="/settings/outreach-analytics"
+              ariaLabel="Open Outreach Analytics"
+              icon={ChartNoAxesCombined}
+              title="Outreach Analytics"
+              description="Review email delivery estimates, possible opens, and replies by campaign."
+              detailLabel="Email insights"
+              detailTitle="Delivery, opens, and replies"
+              detailDescription="Track Make and Outlook results across outreach campaigns."
+              delay={0.22}
             />
           </div>
         )}

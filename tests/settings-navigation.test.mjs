@@ -23,7 +23,7 @@ function settingsBrowser(initialHref = "/settings") {
   const actions = new Map();
   const element = (tag) => function MockElement({ children, onClick, ...props }) {
     if (onClick) actions.set(props["aria-label"], onClick);
-    return React.createElement(tag, null, children);
+    return React.createElement(tag, { href: props.href, "aria-label": props["aria-label"] }, children);
   };
   const sectionView = (section) => function MockSettingsSection({ onBack }) {
     actions.set("All settings", onBack);
@@ -45,7 +45,7 @@ function settingsBrowser(initialHref = "/settings") {
       }),
     },
     "framer-motion": { motion: { div: element("div"), button: element("button") } },
-    "lucide-react": { ArrowRight: () => null, FilePenLine: () => null, MonitorDot: () => null, UserRoundMinus: () => null, Workflow: () => null },
+    "lucide-react": { ArrowRight: () => null, ChartNoAxesCombined: () => null, FilePenLine: () => null, MonitorDot: () => null, UserRoundMinus: () => null, Workflow: () => null },
     "@/components/layout/AdminPanelShell": { AdminPanelShell: element("main") },
     "@/components/settings/MarketingOptOutSettings": { MarketingOptOutSettings: sectionView("opt-out") },
     "@/components/settings/OutreachMailWebhookSettings": { OutreachMailWebhookSettings: sectionView("outreach") },
@@ -100,6 +100,12 @@ test("missing or unsupported settings sections safely show the overview", () => 
   for (const value of [null, "", "unknown", "content-generation", "https://example.test"]) {
     assert.equal(parseSettingsSection(value), null);
   }
+});
+
+test("the outreach analytics card links to its dedicated dashboard", () => {
+  const browser = settingsBrowser();
+  assert.match(browser.render(), /href="\/settings\/outreach-analytics"/);
+  assert.match(browser.render(), /Outreach Analytics/);
 });
 
 for (const [section, label] of [["outreach", "Open Outreach Configuration"], ["opt-out", "Open Marketing Opt-out"]]) {
