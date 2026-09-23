@@ -50,6 +50,9 @@ test("control center exposes durable limits, visual tracking, and recovery state
   assert.match(center, />Last 14 days</);
   assert.match(center, /<Line[\s\S]*?dataKey="estimatedCostUsd"/);
   assert.match(center, /<Line[\s\S]*?dataKey="requests"/);
+  assert.match(center, /<Line[\s\S]*?dataKey="leads"/);
+  assert.doesNotMatch(center, />Lead attempts</);
+  assert.doesNotMatch(center, />Model requests</);
   assert.doesNotMatch(center, /<Area[\s>]/);
   assert.match(center, />Outcomes</);
   assert.match(center, />Stage flow</);
