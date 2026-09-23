@@ -63,6 +63,8 @@ test("control center exposes durable limits, visual tracking, and recovery state
   assert.match(center, /Cost budget used/);
   assert.match(center, />Recent runs</);
   assert.match(center, /run\.displayState \|\| run\.state/);
+  assert.match(center, /completed_with_rejections" \? "completed"/);
+  assert.match(center, /labels=\{\{ failed: "Reject" \}\}/);
   assert.match(center, /"Lead-quality rejected"/);
   assert.match(center, /"Content-quality rejected"/);
   assert.match(center, /"System failures"/);

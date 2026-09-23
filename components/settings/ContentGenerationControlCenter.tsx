@@ -125,6 +125,11 @@ function humanize(value: string) {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function recentRunDisplayState(run: Pick<ContentGenerationRun, "displayState" | "state">) {
+  const state = run.displayState || run.state;
+  return state.toLowerCase() === "completed_with_rejections" ? "completed" : state;
+}
+
 function runOutcomeSummary(run: ContentGenerationRun) {
   const outcomes = run.outcomes;
   if (!outcomes?.totalLeads) return run.message || "Waiting for checkpoint update";
@@ -164,7 +169,7 @@ function draftFromConfig(config: ContentGenerationConfiguration): Draft {
   };
 }
 
-function StateCounts({ values, emptyLabel }: { values: Record<string, number>; emptyLabel: string }) {
+function StateCounts({ values, emptyLabel, labels = {} }: { values: Record<string, number>; emptyLabel: string; labels?: Record<string, string> }) {
   const entries = Object.entries(values);
   if (!entries.length) return <p className="text-xs text-slate-500">{emptyLabel}</p>;
   return (
@@ -172,7 +177,7 @@ function StateCounts({ values, emptyLabel }: { values: Record<string, number>; e
       {entries.map(([state, count]) => (
         <span key={state} className="inline-flex items-center gap-1.5 text-xs text-slate-600">
           <span className="h-2 w-2 rounded-full" style={{ backgroundColor: STATE_COLORS[state.toLowerCase()] ?? DEFAULT_CHART_COLOR }} />
-          {humanize(state)} <strong className="tabular-nums text-slate-900">{count}</strong>
+          {labels[state.toLowerCase()] ?? humanize(state)} <strong className="tabular-nums text-slate-900">{count}</strong>
         </span>
       ))}
     </div>
@@ -202,7 +207,7 @@ function RunDetailsPanel({ details, onContinued }: { details: ContentGenerationR
       <div className="space-y-4">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Lead states</p>
-          <div className="mt-2"><StateCounts values={tracking.leadStates} emptyLabel="Lead tracking is not available yet." /></div>
+          <div className="mt-2"><StateCounts values={tracking.leadStates} emptyLabel="Lead tracking is not available yet." labels={{ failed: "Reject" }} /></div>
         </div>
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Checkpoint states</p>
@@ -765,7 +770,7 @@ export function ContentGenerationControlCenter() {
                   <tr className="bg-white hover:bg-slate-50/70">
                     <td className="px-5 py-3"><strong className="block max-w-44 truncate text-xs text-slate-900">{run.campaignId}</strong><span className="font-mono text-[10px] text-slate-400">{run.id.slice(0, 12)}{run.configurationVersion ? ` · limits v${run.configurationVersion}` : ""}</span></td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: STATE_COLORS[(run.displayState || run.state).toLowerCase()] ?? DEFAULT_CHART_COLOR }} />{humanize(run.displayState || run.state)}</span>
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: STATE_COLORS[recentRunDisplayState(run).toLowerCase()] ?? DEFAULT_CHART_COLOR }} />{humanize(recentRunDisplayState(run))}</span>
                       {run.pauseRequested ? <span className="ml-1 text-amber-600" title="Pause requested"><PauseCircle className="inline h-4 w-4" /></span> : null}
                       {run.budgetExhausted ? <span className="ml-1 text-red-600" title="Budget exhausted"><XCircle className="inline h-4 w-4" /></span> : null}
                     </td>
