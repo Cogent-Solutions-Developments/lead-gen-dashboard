@@ -28,6 +28,8 @@ test("content generation settings use authenticated admin configuration and over
   assert.match(api, /\/api\/admin\/content-generation\/configuration/);
   assert.match(api, /method: "PUT"/);
   assert.match(api, /\/api\/admin\/content-generation\/overview/);
+  assert.match(api, /query\.set\("startDate"/);
+  assert.match(api, /query\.set\("endDate"/);
   assert.match(api, /\/api\/admin\/content-generation\/runs\/\$\{encodeURIComponent\(jobId\)\}/);
   assert.match(api, /expectedVersion: number/);
 });
@@ -44,6 +46,11 @@ test("control center exposes durable limits, visual tracking, and recovery state
   assert.match(center, /configurationChanged/);
   assert.match(center, /Save guardrails/);
   assert.match(center, />Spend & usage</);
+  assert.match(center, />Apply range</);
+  assert.match(center, />Last 14 days</);
+  assert.match(center, /<Line[\s\S]*?dataKey="estimatedCostUsd"/);
+  assert.match(center, /<Line[\s\S]*?dataKey="requests"/);
+  assert.doesNotMatch(center, /<Area[\s>]/);
   assert.match(center, />Outcomes</);
   assert.match(center, />Stage flow</);
   assert.match(center, /Atomic checkpoint ledger/);
@@ -52,6 +59,10 @@ test("control center exposes durable limits, visual tracking, and recovery state
   assert.match(center, /Batch execution plan/);
   assert.match(center, /Cost budget used/);
   assert.match(center, />Recent runs</);
+  assert.match(center, /run\.displayState \|\| run\.state/);
+  assert.match(center, /"Lead-quality rejected"/);
+  assert.match(center, /"Content-quality rejected"/);
+  assert.match(center, /"System failures"/);
   assert.match(center, /Recent configuration changes/);
   assert.match(center, /maxLeadsPerRun[\s\S]*?max: 1000/);
   assert.match(center, /maxCampaignLeads[\s\S]*?max: 100000/);
