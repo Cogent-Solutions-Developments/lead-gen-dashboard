@@ -11,6 +11,10 @@ test("the admin landing page uses the lead inventory dashboard", () => {
   assert.match(page, /<AdminLeadInventoryDashboard\s*\/>/);
   assert.match(dashboard, /getDashboardLeadInventory/);
   assert.match(dashboard, /<LeadInventoryOverview/);
+  assert.match(read("components/dashboard/LeadInventoryOverview.tsx"), /label: "Department coverage"[\s\S]*?label: "Outreach tracking"/);
+  assert.match(read("components/dashboard/OutreachTrackingPanel.tsx"), /getDashboardOutreachTracking/);
+  assert.match(read("components/dashboard/OutreachTrackingPanel.tsx"), /navigator\.clipboard\.writeText/);
+  assert.doesNotMatch(read("components/dashboard/OutreachTrackingPanel.tsx"), /firstSentAt|lastSentAt|first_sent_at|last_sent_at/);
   assert.doesNotMatch(page, /adminTasks|Admin Task Flow/);
 });
 
