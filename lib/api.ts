@@ -52,18 +52,35 @@ export type DashboardOutreachTrackingItem = {
   contactedLeadCount: number;
   initialEmailCount: number;
   followUpEmailCount: number;
+  firstFollowUpEmailCount: number;
+  secondFollowUpEmailCount: number;
+  thirdFollowUpEmailCount: number;
+  finalFollowUpEmailCount: number;
 };
 
 export type DashboardOutreachTracking = {
-  date: string;
-  timezone: "Asia/Colombo" | string;
+  date?: string | null;
+  startDate: string;
+  endDate: string;
+  timezone: string;
   totals: {
     campaignCount: number;
     sentEmailCount: number;
     contactedLeadCount: number;
     initialEmailCount: number;
     followUpEmailCount: number;
+    firstFollowUpEmailCount: number;
+    secondFollowUpEmailCount: number;
+    thirdFollowUpEmailCount: number;
+    finalFollowUpEmailCount: number;
   };
+  dailyActivity: Array<{
+    date: string;
+    sentEmailCount: number;
+    contactedLeadCount: number;
+    campaignCount: number;
+    followUpEmailCount: number;
+  }>;
   items: DashboardOutreachTrackingItem[];
   generatedAt?: string | null;
 };
@@ -1536,12 +1553,18 @@ export async function getDashboardLeadInventory() {
   };
 }
 
-export async function getDashboardOutreachTracking(date: string) {
+export async function getDashboardOutreachTracking(params: {
+  date?: string;
+  startDate?: string;
+  endDate?: string;
+  timezone: string;
+}) {
   const { data } = await apiClient.get<DashboardOutreachTracking>("/api/dashboard/outreach-tracking", {
-    params: { date },
+    params,
   });
   return {
     ...data,
+    dailyActivity: Array.isArray(data.dailyActivity) ? data.dailyActivity : [],
     items: Array.isArray(data.items) ? data.items : [],
   };
 }
