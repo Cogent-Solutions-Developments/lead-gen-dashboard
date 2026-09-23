@@ -18,7 +18,8 @@ test("the admin landing page uses the lead inventory dashboard", () => {
   assert.match(outreach, /resolvedOptions\(\)\.timeZone/);
   assert.match(outreach, />Last 7 days</);
   assert.match(outreach, /<ComposedChart[\s\S]*?dataKey="date"/);
-  assert.match(outreach, /<RadialBarChart/);
+  assert.match(outreach, /<RadarChart[\s\S]*?<PolarGrid[\s\S]*?<PolarAngleAxis[\s\S]*?<Radar name="Emails"/);
+  assert.doesNotMatch(outreach, /<RadialBarChart/);
   assert.match(outreach, /1st follow-up[\s\S]*?2nd follow-up[\s\S]*?3rd follow-up[\s\S]*?Final follow-up/);
   assert.equal([...outreach.matchAll(/<CopyValue value=/g)].length, 2);
   assert.doesNotMatch(outreach, /firstSentAt|lastSentAt|first_sent_at|last_sent_at/);
