@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDays, Check, Copy, GitBranch, Loader2, MailCheck, Megaphone, RefreshCw, UserRoundCheck } from "lucide-react";
 import { toast } from "sonner";
-import { Bar, Brush, CartesianGrid, Cell, ComposedChart, Legend, Line, RadialBar, RadialBarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, Brush, CartesianGrid, ComposedChart, Legend, Line, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getDashboardOutreachTracking, type DashboardOutreachTracking } from "@/lib/api";
 
 const MIX_COLORS = ["#2563eb", "#06b6d4", "#10b981", "#f59e0b", "#8b5cf6"];
@@ -147,12 +147,13 @@ export function OutreachTrackingPanel() {
 
   const activityData = rangeData?.dailyActivity ?? [];
   const mixData = useMemo(() => [
-    { name: "Initial", value: Number(rangeData?.totals.initialEmailCount || 0), fill: MIX_COLORS[0] },
-    { name: "1st follow-up", value: Number(rangeData?.totals.firstFollowUpEmailCount || 0), fill: MIX_COLORS[1] },
-    { name: "2nd follow-up", value: Number(rangeData?.totals.secondFollowUpEmailCount || 0), fill: MIX_COLORS[2] },
-    { name: "3rd follow-up", value: Number(rangeData?.totals.thirdFollowUpEmailCount || 0), fill: MIX_COLORS[3] },
-    { name: "Final follow-up", value: Number(rangeData?.totals.finalFollowUpEmailCount || 0), fill: MIX_COLORS[4] },
+    { name: "Initial", axisLabel: "Initial", value: Number(rangeData?.totals.initialEmailCount || 0), fill: MIX_COLORS[0] },
+    { name: "1st follow-up", axisLabel: "1st", value: Number(rangeData?.totals.firstFollowUpEmailCount || 0), fill: MIX_COLORS[1] },
+    { name: "2nd follow-up", axisLabel: "2nd", value: Number(rangeData?.totals.secondFollowUpEmailCount || 0), fill: MIX_COLORS[2] },
+    { name: "3rd follow-up", axisLabel: "3rd", value: Number(rangeData?.totals.thirdFollowUpEmailCount || 0), fill: MIX_COLORS[3] },
+    { name: "Final follow-up", axisLabel: "Final", value: Number(rangeData?.totals.finalFollowUpEmailCount || 0), fill: MIX_COLORS[4] },
   ], [rangeData?.totals]);
+  const mixDomainMax = Math.max(1, ...mixData.map((entry) => entry.value));
 
   return (
     <div id="inventory-panel-outreach" role="tabpanel" aria-labelledby="inventory-tab-outreach" className="space-y-4">
@@ -214,15 +215,20 @@ export function OutreachTrackingPanel() {
             </section>
 
             <section className="border border-zinc-200 bg-white p-5 shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
-              <h3 className="text-base font-semibold tracking-tight text-zinc-950">Email mix</h3>
-              <div className="relative mt-1 h-[17rem]">
+              <div className="flex items-baseline justify-between gap-3">
+                <h3 className="text-base font-semibold tracking-tight text-zinc-950">Email mix</h3>
+                <span className="text-xs tabular-nums text-zinc-400">{number(rangeData.totals.sentEmailCount)} sent</span>
+              </div>
+              <div className="mt-1 h-[17rem]" role="img" aria-label={`Email mix spider chart. ${mixData.map((entry) => `${entry.name}: ${number(entry.value)}`).join(", ")}`}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <RadialBarChart data={mixData} cx="50%" cy="50%" innerRadius="18%" outerRadius="96%" startAngle={90} endAngle={-270} barSize={13}>
-                    <RadialBar dataKey="value" background={{ fill: "#f4f4f5" }} cornerRadius={8}>{mixData.map((entry) => <Cell key={entry.name} fill={entry.fill} />)}</RadialBar>
-                    <Tooltip contentStyle={{ border: "1px solid #e4e4e7", borderRadius: 0, fontSize: 12 }} />
-                  </RadialBarChart>
+                  <RadarChart data={mixData} cx="50%" cy="50%" outerRadius="70%" margin={{ top: 10, right: 24, bottom: 10, left: 24 }}>
+                    <PolarGrid gridType="polygon" stroke="#e4e4e7" radialLines />
+                    <PolarAngleAxis dataKey="axisLabel" tick={{ fill: "#71717a", fontSize: 11, fontWeight: 600 }} tickLine={false} />
+                    <PolarRadiusAxis domain={[0, mixDomainMax]} tick={false} axisLine={false} />
+                    <Radar name="Emails" dataKey="value" stroke="#2563eb" strokeWidth={2.5} fill="#2563eb" fillOpacity={0.2} dot={{ r: 3.5, fill: "#2563eb", stroke: "#ffffff", strokeWidth: 1.5 }} activeDot={{ r: 5 }} />
+                    <Tooltip labelFormatter={(label) => mixData.find((entry) => entry.axisLabel === label)?.name ?? String(label)} formatter={(value) => [number(Number(value)), "Emails"]} contentStyle={{ border: "1px solid #e4e4e7", borderRadius: 0, boxShadow: "0 12px 35px -22px rgba(15,23,42,.55)", fontSize: 12 }} />
+                  </RadarChart>
                 </ResponsiveContainer>
-                <div className="pointer-events-none absolute inset-0 grid place-items-center text-center"><div><p className="text-3xl font-light tabular-nums text-zinc-950">{number(rangeData.totals.sentEmailCount)}</p><p className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-zinc-400">sent</p></div></div>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 xl:grid-cols-2 2xl:grid-cols-5">
                 {mixData.map((entry) => <div key={entry.name} className="min-w-0 bg-zinc-50 px-2.5 py-2.5"><span className="mb-1.5 block h-1 w-6" style={{ backgroundColor: entry.fill }} /><p className="text-base font-light tabular-nums text-zinc-950">{number(entry.value)}</p><p className="truncate text-[0.58rem] font-semibold uppercase tracking-wider text-zinc-400" title={entry.name}>{entry.name}</p></div>)}
