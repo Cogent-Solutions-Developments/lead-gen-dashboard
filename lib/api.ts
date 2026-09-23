@@ -45,6 +45,29 @@ export type DashboardLeadInventory = {
   generatedAt?: string | null;
 };
 
+export type DashboardOutreachTrackingItem = {
+  campaignId: string;
+  campaignName: string;
+  sentEmailCount: number;
+  contactedLeadCount: number;
+  initialEmailCount: number;
+  followUpEmailCount: number;
+};
+
+export type DashboardOutreachTracking = {
+  date: string;
+  timezone: "Asia/Colombo" | string;
+  totals: {
+    campaignCount: number;
+    sentEmailCount: number;
+    contactedLeadCount: number;
+    initialEmailCount: number;
+    followUpEmailCount: number;
+  };
+  items: DashboardOutreachTrackingItem[];
+  generatedAt?: string | null;
+};
+
 export type DashboardPersonalStatsItem = {
   event: EventSummaryItem;
   statusCounts: Record<string, number>;
@@ -1507,6 +1530,16 @@ export async function getDashboardStats() {
 
 export async function getDashboardLeadInventory() {
   const { data } = await apiClient.get<DashboardLeadInventory>("/api/dashboard/lead-inventory");
+  return {
+    ...data,
+    items: Array.isArray(data.items) ? data.items : [],
+  };
+}
+
+export async function getDashboardOutreachTracking(date: string) {
+  const { data } = await apiClient.get<DashboardOutreachTracking>("/api/dashboard/outreach-tracking", {
+    params: { date },
+  });
   return {
     ...data,
     items: Array.isArray(data.items) ? data.items : [],

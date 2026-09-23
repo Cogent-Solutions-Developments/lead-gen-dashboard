@@ -10,6 +10,7 @@ import {
   Database,
   Info,
   Layers3,
+  Send,
   ShieldCheck,
   UsersRound,
 } from "lucide-react";
@@ -29,8 +30,9 @@ import {
   YAxis,
 } from "recharts";
 import type { DashboardLeadInventory, DashboardLeadInventoryItem } from "@/lib/api";
+import { OutreachTrackingPanel } from "@/components/dashboard/OutreachTrackingPanel";
 
-type InventoryTab = "quality" | "volume" | "departments";
+type InventoryTab = "quality" | "volume" | "departments" | "outreach";
 
 const EMPTY_ITEMS: DashboardLeadInventoryItem[] = [];
 const PIE_COLORS = ["#2563eb", "#f59e0b"];
@@ -43,6 +45,7 @@ const TABS: Array<{ id: InventoryTab; label: string; icon: typeof ShieldCheck }>
   { id: "quality", label: "Data quality", icon: ShieldCheck },
   { id: "volume", label: "Event volume", icon: BarChart3 },
   { id: "departments", label: "Department coverage", icon: Building2 },
+  { id: "outreach", label: "Outreach tracking", icon: Send },
 ];
 
 function number(value: number) {
@@ -199,7 +202,7 @@ export function LeadInventoryOverview({
     <section className="mt-8 w-full space-y-4">
       <div className="border border-zinc-200 bg-white p-1 shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
         <div className="flex flex-col gap-1 lg:flex-row lg:items-center">
-          <nav className="grid min-w-0 flex-1 grid-cols-1 sm:grid-cols-3" role="tablist" aria-label="Lead inventory views">
+          <nav className="grid min-w-0 flex-1 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4" role="tablist" aria-label="Lead inventory views">
             {TABS.map((tab, index) => {
               const Icon = tab.icon;
               const selected = activeTab === tab.id;
@@ -225,30 +228,36 @@ export function LeadInventoryOverview({
             })}
           </nav>
           <div className="flex items-center justify-between gap-2 px-3 py-2 lg:justify-end lg:py-0">
-            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-              {number(data.totals.eventCount)} events
-            </span>
-            <button
-              type="button"
-              onClick={() => setShowCounting((value) => !value)}
-              className="grid h-9 w-9 place-items-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-              aria-label="Explain lead counting"
-              aria-expanded={showCounting}
-              title="How counts work"
-            >
-              <Info className="h-4 w-4" aria-hidden="true" />
-            </button>
+            {activeTab === "outreach" ? (
+              <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Sent emails</span>
+            ) : (
+              <>
+                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                  {number(data.totals.eventCount)} events
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowCounting((value) => !value)}
+                  className="grid h-9 w-9 place-items-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  aria-label="Explain lead counting"
+                  aria-expanded={showCounting}
+                  title="How counts work"
+                >
+                  <Info className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
 
-      {showCounting ? (
+      {showCounting && activeTab !== "outreach" ? (
         <p className="border-l-2 border-blue-500 bg-blue-50/60 px-4 py-3 text-xs leading-5 text-zinc-600">
           Unique: {data.counting.uniqueIdentity}. Department totals: {data.counting.departmentScope}.
         </p>
       ) : null}
 
-      {items.length === 0 ? (
+      {items.length === 0 && activeTab !== "outreach" ? (
         <div className="border border-zinc-200 bg-white py-20 text-center text-sm text-zinc-400">No leads yet.</div>
       ) : null}
 
@@ -406,6 +415,8 @@ export function LeadInventoryOverview({
           </ChartCard>
         </div>
       ) : null}
+
+      {activeTab === "outreach" ? <OutreachTrackingPanel /> : null}
     </section>
   );
 }

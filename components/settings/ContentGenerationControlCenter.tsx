@@ -636,7 +636,7 @@ export function ContentGenerationControlCenter() {
         <Card className="border-slate-200 p-5 shadow-sm">
           <div className="mb-4 flex flex-col gap-4">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-              <div><h3 className="font-semibold text-slate-900">Spend & usage</h3><p className="text-xs text-slate-500">Estimated cost and model requests for the selected lead-generation window.</p></div>
+              <div><h3 className="font-semibold text-slate-900">Spend & usage</h3><p className="text-xs text-slate-500">Daily estimated cost, model requests, and agentic lead volume.</p></div>
               <span className="text-[11px] text-slate-400">30s refresh</span>
             </div>
             <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50/70 p-3 lg:flex-row lg:items-end lg:justify-between" data-testid="generation-date-range">
@@ -648,14 +648,10 @@ export function ContentGenerationControlCenter() {
               </div>
               <p className="text-[11px] text-slate-500">{overview?.startDate} – {overview?.endDate}</p>
             </div>
-            <div className="grid gap-2 sm:grid-cols-3">
-              <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2"><p className="text-[10px] font-semibold uppercase tracking-wider text-blue-700">Estimated cost</p><p className="mt-1 text-lg font-semibold tabular-nums text-slate-950">{formatUsd(summary?.estimatedCostUsd ?? 0)}</p></div>
-              <div className="rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-2"><p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700">Model requests</p><p className="mt-1 text-lg font-semibold tabular-nums text-slate-950">{compactNumber(summary?.requests ?? 0)}</p></div>
-              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2"><p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">Lead attempts</p><p className="mt-1 text-lg font-semibold tabular-nums text-slate-950">{compactNumber(summary?.totalLeads ?? 0)}</p></div>
-            </div>
             <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-600" aria-label="Chart series">
               <span className="inline-flex items-center gap-2"><span className="h-0.5 w-6 bg-blue-600" />Estimated cost</span>
               <span className="inline-flex items-center gap-2"><span className="h-0.5 w-6 bg-violet-600" />Requests</span>
+              <span className="inline-flex items-center gap-2"><span className="h-0.5 w-6 bg-emerald-600" />Leads</span>
             </div>
           </div>
           <div className="h-64 w-full" data-testid="generation-usage-chart">
@@ -668,6 +664,7 @@ export function ContentGenerationControlCenter() {
                 <Tooltip contentStyle={{ borderRadius: 10, borderColor: "#cbd5e1", fontSize: 12 }} formatter={(value, name) => name === "Estimated cost" ? [formatUsd(Number(value)), name] : [compactNumber(Number(value)), name]} />
                 <Line yAxisId="cost" type="monotone" dataKey="estimatedCostUsd" name="Estimated cost" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 2.5 }} activeDot={{ r: 4 }} isAnimationActive={false} />
                 <Line yAxisId="requests" type="monotone" dataKey="requests" name="Requests" stroke="#7c3aed" strokeWidth={2.5} strokeDasharray="6 4" dot={{ r: 2.5 }} activeDot={{ r: 4 }} isAnimationActive={false} />
+                <Line yAxisId="requests" type="monotone" dataKey="leads" name="Leads" stroke="#059669" strokeWidth={2.5} dot={{ r: 2.5 }} activeDot={{ r: 4 }} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
