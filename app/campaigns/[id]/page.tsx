@@ -67,6 +67,8 @@ import {
 } from "@/lib/apiRouter";
 import { consumeCampaignUploadSummary } from "@/lib/campaignUploadSummary";
 import { hasCampaignMessageContent, resolveCampaignMessageApproval } from "@/lib/campaignMessageApproval";
+import { getExternalWebsiteUrl } from "@/lib/externalWebsiteUrl";
+import { getLinkedinProfileUrl } from "@/lib/linkedinProfileUrl";
 import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -978,7 +980,7 @@ function isLeadWhatsappActionCompleted(lead: Lead) {
 }
 
 function leadHasLinkedinProfile(lead: Lead) {
-  return hasText(lead.linkedinUrl);
+  return getLinkedinProfileUrl(lead.linkedinUrl) !== null;
 }
 
 function leadSupportsLinkedinAction(lead: Lead) {
@@ -1568,7 +1570,7 @@ function SuperAdminCampaignDetailPage() {
     return null;
   }
   function getLinkedinCapabilityDisabledReason(lead: Lead) {
-    if (!hasText(lead.linkedinUrl)) return "Lead has no LinkedIn profile URL.";
+    if (!leadHasLinkedinProfile(lead)) return "Lead has no valid LinkedIn profile URL.";
     if (!hasText(lead.contentLinkedin)) return "Generate LinkedIn content before sending.";
 
     const capability = lead.channelCapabilities?.linkedin;
@@ -4375,6 +4377,8 @@ function SuperAdminCampaignDetailPage() {
                 const isOptedOut = Boolean(optOutEntry);
                 const isLeadReadOnly = isLeadMarketingOptedOut(item);
                 const canSendEmail = leadSupportsEmailAction(item);
+                const companyWebsiteUrl = getExternalWebsiteUrl(item.companyUrl);
+                const linkedinProfileUrl = getLinkedinProfileUrl(item.linkedinUrl);
                 const canSendLinkedin = leadHasLinkedinProfile(item);
                 const canSendWhatsapp = leadSupportsWhatsappAction(item);
                 const showEmailAction = canSendEmail;
@@ -4452,8 +4456,8 @@ function SuperAdminCampaignDetailPage() {
                             {titleBucket}
                           </span>
                         ) : null}
-                        {item.companyUrl ? (
-                          <a href={item.companyUrl} target="_blank" rel="noreferrer" className="mt-0.5 w-fit text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
+                        {companyWebsiteUrl ? (
+                          <a href={companyWebsiteUrl} target="_blank" rel="noopener noreferrer" className="mt-0.5 w-fit text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
                             {item.companyUrl}
                           </a>
                         ) : item.company ? (
@@ -4481,12 +4485,14 @@ function SuperAdminCampaignDetailPage() {
                           </div>
                         ) : null}
                         <div className="mt-1 flex gap-3">
-                          <a href={item.linkedinUrl} target="_blank" rel="noreferrer" className="text-zinc-400 transition-colors hover:text-zinc-900">
-                            <LinkedInIcon className="h-3.5 w-3.5" />
-                          </a>
-                          {item.companyUrl ? (
-                            <a href={item.companyUrl} target="_blank" rel="noreferrer" className="text-zinc-400 transition-colors hover:text-zinc-900">
-                              <ExternalLink className="h-3.5 w-3.5" />
+                          {linkedinProfileUrl ? (
+                            <a href={linkedinProfileUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open ${item.employeeName}'s LinkedIn profile`} title="Open LinkedIn profile" className="text-zinc-400 transition-colors hover:text-zinc-900">
+                              <LinkedInIcon className="h-3.5 w-3.5" />
+                            </a>
+                          ) : null}
+                          {companyWebsiteUrl ? (
+                            <a href={companyWebsiteUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open ${item.company || "company"} website`} title="Open company website" className="text-zinc-400 transition-colors hover:text-zinc-900">
+                              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                             </a>
                           ) : null}
                         </div>
