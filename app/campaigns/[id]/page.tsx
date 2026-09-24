@@ -917,6 +917,7 @@ const mailDeliveryStyles = {
   queued: { bg: "border-violet-200 bg-violet-50 text-violet-700", icon: Clock },
   sending: { bg: "border-blue-200 bg-blue-50 text-blue-700", icon: Loader2 },
   sent: { bg: "border-emerald-200 bg-emerald-50 text-emerald-700", icon: CheckCircle },
+  followUpSent: { bg: "border-violet-200 bg-violet-50 text-violet-700", icon: CheckCircle },
   failed: { bg: "border-red-200 bg-red-50 text-red-700", icon: XCircle },
 } as const;
 
@@ -929,7 +930,9 @@ function getLeadMailStatus(lead: Lead) {
     .sort((left, right) => right.stage - left.stage)
     .find((item) => item.status !== "draft");
   if (latestFollowUp && latestFollowUp.status !== "draft") {
-    const style = mailDeliveryStyles[latestFollowUp.status];
+    const style = latestFollowUp.status === "sent"
+      ? mailDeliveryStyles.followUpSent
+      : mailDeliveryStyles[latestFollowUp.status];
     return {
       ...style,
       label: `${followUpStageLabel(latestFollowUp.stage)} ${latestFollowUp.status}`,
@@ -4542,13 +4545,13 @@ function SuperAdminCampaignDetailPage() {
                         <td className="px-4 py-3.5 align-top">
                           <div className="flex flex-col gap-1">
                             {mailStatus && MailStatusIcon ? (
-                              <Badge className={`w-fit rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide shadow-none ${mailStatus.bg}`}>
-                                <MailStatusIcon className={`mr-1.5 h-3 w-3 ${mailStatus.label === "Email sending" ? "animate-spin" : ""}`} />
+                              <Badge className={`w-fit gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold normal-case tracking-normal shadow-sm ${mailStatus.bg}`}>
+                                <MailStatusIcon className={`h-3.5 w-3.5 shrink-0 ${mailStatus.label === "Email sending" ? "animate-spin" : ""}`} />
                                 {mailStatus.label}
                               </Badge>
                             ) : (
-                              <Badge className={`w-fit rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide shadow-none ${status.bg}`}>
-                                <StatusIcon className="mr-1.5 h-3 w-3" />
+                              <Badge className={`w-fit gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold normal-case tracking-normal shadow-sm ${status.bg}`}>
+                                <StatusIcon className="h-3.5 w-3.5 shrink-0" />
                                 {item.approvalStatus}
                               </Badge>
                             )}
@@ -4563,9 +4566,9 @@ function SuperAdminCampaignDetailPage() {
                               </span>
                             ) : null}
                             {mailStatus ? (
-                              <span className="text-[10px] text-zinc-500 dark:text-zinc-300">{mailStatus.subtitle}</span>
+                              <span className="pl-1 text-[10px] leading-4 tabular-nums text-zinc-500 dark:text-zinc-300">{mailStatus.subtitle}</span>
                             ) : item.reviewStatus ? (
-                              <span className="text-[10px] text-zinc-500 dark:text-zinc-300">Review: {item.reviewStatus}</span>
+                              <span className="pl-1 text-[10px] leading-4 text-zinc-500 dark:text-zinc-300">Review: {item.reviewStatus}</span>
                             ) : null}
                           </div>
                         </td>

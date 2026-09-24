@@ -23,3 +23,10 @@ test("follow-up status timeline shows confirmed send dates", () => {
   assert.match(campaignPage, /emailDelivery: mergeFollowUpHistory\(lead, history\)/);
   assert.match(campaignPage, /emailDelivery: normalizeEmailDelivery\(latest\.emailDelivery\)/);
 });
+
+test("sent initial email stays green while sent follow-ups use purple", () => {
+  assert.match(campaignPage, /sent: \{ bg: "border-emerald-200 bg-emerald-50 text-emerald-700"/);
+  assert.match(campaignPage, /followUpSent: \{ bg: "border-violet-200 bg-violet-50 text-violet-700"/);
+  assert.match(campaignPage, /latestFollowUp\.status === "sent"\s*\? mailDeliveryStyles\.followUpSent/);
+  assert.match(campaignPage, /\.\.\.mailDeliveryStyles\.sent,\s*label: "Initial sent"/);
+});
