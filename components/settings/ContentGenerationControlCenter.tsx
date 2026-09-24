@@ -21,7 +21,7 @@ import {
   getContentGenerationConfiguration,
   getContentGenerationOverview,
   getContentGenerationRunDetails,
-  getPausedContentGenerationRuns,
+  getContentGenerationRuns,
   updateContentGenerationConfiguration,
   type ContentGenerationConfigChange,
   type ContentGenerationConfiguration,
@@ -29,6 +29,7 @@ import {
   type ContentGenerationOverview,
   type ContentGenerationRun,
   type ContentGenerationRunDetails,
+  type ContentGenerationRunsPage,
 } from "@/lib/contentGenerationAdmin";
 
 type Draft = Omit<ContentGenerationConfigurationUpdate, "expectedVersion">;
@@ -96,6 +97,7 @@ const STATE_COLORS: Record<string, string> = {
 };
 const DEFAULT_CHART_COLOR = "#8b5cf6";
 const MODEL_ID_PATTERN = /^[A-Za-z0-9._:-]{1,100}$/;
+const RUNS_PAGE_SIZE = 25;
 
 function compactNumber(value: number) {
   return new Intl.NumberFormat("en", {
@@ -334,30 +336,35 @@ export function ContentGenerationControlCenter() {
   const [runDetailsError, setRunDetailsError] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [showPaused, setShowPaused] = useState(false);
-  const [pausedOffset, setPausedOffset] = useState(0);
-  const [pausedRuns, setPausedRuns] = useState<Awaited<ReturnType<typeof getPausedContentGenerationRuns>> | null>(null);
-  const [pausedError, setPausedError] = useState<string | null>(null);
-  const [pausedLoading, setPausedLoading] = useState(false);
+  const [runsView, setRunsView] = useState<"recent" | "all">("recent");
+  const [pausedOnly, setPausedOnly] = useState(false);
+  const [runsOffset, setRunsOffset] = useState(0);
+  const [runsPage, setRunsPage] = useState<ContentGenerationRunsPage | null>(null);
+  const [runsError, setRunsError] = useState<string | null>(null);
+  const [runsLoading, setRunsLoading] = useState(false);
   const [rangeDraft, setRangeDraft] = useState(defaultDateRange);
   const [appliedRange, setAppliedRange] = useState<{ startDate: string; endDate: string } | null>(null);
 
   useEffect(() => {
-    if (!showPaused) return;
+    if (runsView !== "all") return;
     let active = true;
-    const refreshPaused = async () => {
-      setPausedLoading(true);
+    const refreshRuns = async () => {
+      setRunsLoading(true);
       try {
-        const response = await getPausedContentGenerationRuns(pausedOffset);
-        if (active) { setPausedRuns(response); setPausedError(null); }
+        const response = await getContentGenerationRuns({
+          offset: runsOffset,
+          limit: RUNS_PAGE_SIZE,
+          pausedOnly,
+        });
+        if (active) { setRunsPage(response); setRunsError(null); }
       } catch (error) {
-        if (active) setPausedError(errorMessage(error));
-      } finally { if (active) setPausedLoading(false); }
+        if (active) setRunsError(errorMessage(error));
+      } finally { if (active) setRunsLoading(false); }
     };
-    void refreshPaused();
-    const interval = window.setInterval(() => void refreshPaused(), 30000);
+    void refreshRuns();
+    const interval = window.setInterval(() => void refreshRuns(), 30000);
     return () => { active = false; window.clearInterval(interval); };
-  }, [showPaused, pausedOffset, lastSynced]);
+  }, [runsView, runsOffset, pausedOnly, lastSynced]);
 
   const load = useCallback(async (quiet = false, replaceDraft = false) => {
     const sequence = ++loadSequence.current;
@@ -497,7 +504,15 @@ export function ContentGenerationControlCenter() {
   const totalActiveBatches = activeBatches.reduce((total, item) => total + item.count, 0);
   const completedRuns = (summary?.successfulRuns ?? 0) + (summary?.completedWithRejections ?? 0);
   const visibleStateDistribution = simplifyOverviewStates(overview?.stateDistribution ?? []);
-  const visibleRuns = showPaused ? (pausedRuns?.offset === pausedOffset ? pausedRuns.items : []) : overview?.recentRuns ?? [];
+  const visibleRuns = runsView === "all"
+    ? (runsPage?.offset === runsOffset ? runsPage.items : [])
+    : overview?.recentRuns ?? [];
+  const runTotal = runsPage?.total ?? 0;
+  const runPageSize = runsPage?.limit ?? RUNS_PAGE_SIZE;
+  const runPageNumber = Math.floor(runsOffset / runPageSize) + 1;
+  const runPageCount = Math.max(1, Math.ceil(runTotal / runPageSize));
+  const runRangeStart = runTotal ? runsOffset + 1 : 0;
+  const runRangeEnd = Math.min(runsOffset + visibleRuns.length, runTotal);
 
   return (
     <section className="space-y-4" data-testid="content-generation-control-center">
@@ -769,11 +784,47 @@ export function ContentGenerationControlCenter() {
 
       <Card className="@container border-slate-200 shadow-sm">
         <div className="flex flex-col justify-between gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center">
-          <div><h3 className="font-semibold text-slate-900">Recent runs</h3><p className="text-xs text-slate-500">Latest activity.</p></div>
-          <span className="text-xs text-slate-500">Updated {formatDate(configuration?.updatedAt)}</span>
-          <label className="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={showPaused} onChange={(event) => { setShowPaused(event.target.checked); setSelectedRunId(null); }} />Show all paused runs</label>
+          <div>
+            <h3 className="font-semibold text-slate-900">{runsView === "recent" ? "Recent runs" : "All campaign runs"}</h3>
+            <p className="text-xs text-slate-500">{runsView === "recent" ? "Latest activity." : "Complete content-generation history."}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs text-slate-500">Updated {formatDate(configuration?.updatedAt)}</span>
+            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5" role="group" aria-label="Campaign run history">
+              {(["recent", "all"] as const).map((view) => (
+                <button
+                  key={view}
+                  type="button"
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${runsView === view ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+                  aria-pressed={runsView === view}
+                  onClick={() => {
+                    setRunsView(view);
+                    setRunsOffset(0);
+                    setSelectedRunId(null);
+                  }}
+                >
+                  {view === "recent" ? "Recent" : "All runs"}
+                </button>
+              ))}
+            </div>
+            {runsView === "all" ? (
+              <label className="flex items-center gap-2 text-xs text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={pausedOnly}
+                  onChange={(event) => {
+                    setPausedOnly(event.target.checked);
+                    setRunsOffset(0);
+                    setRunsPage(null);
+                    setSelectedRunId(null);
+                  }}
+                />
+                Paused only
+              </label>
+            ) : null}
+          </div>
         </div>
-        {showPaused && pausedError ? <p role="alert" className="px-5 py-3 text-sm text-amber-800">{pausedError}</p> : null}
+        {runsView === "all" && runsError ? <p role="alert" className="px-5 py-3 text-sm text-amber-800">{runsError}</p> : null}
         <div className="overflow-x-auto">
           <table className="w-full min-w-[940px] text-left text-sm">
             <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500"><tr><th className="px-5 py-3">Campaign / run</th><th className="px-4 py-3">State</th><th className="px-4 py-3">Current checkpoint</th><th className="px-4 py-3">Progress</th><th className="px-4 py-3">Usage & cost</th><th className="px-4 py-3">Updated</th><th className="px-5 py-3 text-right">Tracking</th></tr></thead>
@@ -805,14 +856,17 @@ export function ContentGenerationControlCenter() {
                     </tr>
                   ) : null}
                 </Fragment>
-              )) : <tr><td colSpan={7} className="px-5 py-10 text-center text-sm text-slate-500">{showPaused && pausedLoading ? "Loading paused runs…" : "No runs."}</td></tr>}
+              )) : <tr><td colSpan={7} className="px-5 py-10 text-center text-sm text-slate-500">{runsView === "all" && runsLoading ? "Loading campaign runs…" : "No runs."}</td></tr>}
             </tbody>
           </table>
         </div>
-        {showPaused ? <div className="flex items-center justify-end gap-3 border-t border-slate-100 px-5 py-3 text-xs text-slate-500">
-          <Button type="button" variant="outline" size="sm" disabled={pausedLoading || pausedOffset === 0} onClick={() => { setSelectedRunId(null); setPausedOffset((value) => Math.max(0, value - 25)); }}>Previous</Button>
-          <span>Page {Math.floor(pausedOffset / 25) + 1}</span>
-          <Button type="button" variant="outline" size="sm" disabled={pausedLoading || !pausedRuns?.hasMore} onClick={() => { setSelectedRunId(null); setPausedOffset((value) => value + 25); }}>Next</Button>
+        {runsView === "all" ? <div className="flex flex-col gap-2 border-t border-slate-100 px-5 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+          <span className="tabular-nums">Showing {runRangeStart}–{runRangeEnd} of {runTotal} runs</span>
+          <div className="flex items-center justify-end gap-3">
+            <Button type="button" variant="outline" size="sm" disabled={runsLoading || runsOffset === 0} onClick={() => { setSelectedRunId(null); setRunsOffset((value) => Math.max(0, value - runPageSize)); }}>Previous</Button>
+            <span className="min-w-24 text-center tabular-nums">Page {runPageNumber} of {runPageCount}</span>
+            <Button type="button" variant="outline" size="sm" disabled={runsLoading || !runsPage?.hasMore} onClick={() => { setSelectedRunId(null); setRunsOffset((value) => value + runPageSize); }}>Next</Button>
+          </div>
         </div> : null}
       </Card>
     </section>
