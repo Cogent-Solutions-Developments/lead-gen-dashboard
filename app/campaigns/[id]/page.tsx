@@ -11,9 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft,
+  Ban,
   ChevronLeft,
   ChevronRight,
   Mail,
+  CircleAlert,
   CheckCircle,
   Clock,
   XCircle,
@@ -25,6 +27,7 @@ import {
   Filter,
   ExternalLink,
   Search,
+  ShieldOff,
   Save,
   Loader2,
   Trash2,
@@ -3708,9 +3711,16 @@ function SuperAdminCampaignDetailPage() {
               <span>Created {formatDateOnly(campaign?.createdAt)}</span>
             </div>
             {canManageLeadActions ? (
-              <div className="mt-2 flex items-center gap-2 text-xs text-zinc-600">
-                <FileText className="h-3.5 w-3.5 shrink-0 text-blue-700" aria-hidden="true" />
-                <span><span className="font-semibold text-zinc-800">Template fallback:</span> this lead uses the campaign template when generated content is unavailable. Review it before sending.</span>
+              <div className="mt-2 space-y-1.5 text-xs text-zinc-600">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-3.5 w-3.5 shrink-0 text-blue-700" aria-hidden="true" />
+                  <span><span className="font-semibold text-zinc-800">Template fallback:</span> this lead uses the campaign template when generated content is unavailable. Review it before sending.</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-zinc-500" aria-label="Lead indicator legend">
+                  <span className="inline-flex items-center gap-1"><ShieldOff className="h-3.5 w-3.5 text-rose-700" aria-hidden="true" />Suppressed</span>
+                  <span className="inline-flex items-center gap-1"><Ban className="h-3.5 w-3.5 text-rose-700" aria-hidden="true" />Actions blocked</span>
+                  <span className="inline-flex items-center gap-1"><CircleAlert className="h-3.5 w-3.5 text-amber-700" aria-hidden="true" />Not sendable</span>
+                </div>
               </div>
             ) : null}
           </div>
@@ -4474,8 +4484,8 @@ function SuperAdminCampaignDetailPage() {
                         <span className="font-mono text-xs text-zinc-600">{item.email}</span>
                         <span className="text-xs text-zinc-400">{item.phone}</span>
                         {canManageLeadActions && isLeadReadOnly ? (
-                          <span className="w-fit rounded border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-700">
-                            Suppressed
+                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-rose-200 bg-rose-50 text-rose-700" role="img" aria-label="Suppressed lead" title="Suppressed lead">
+                            <ShieldOff className="h-3.5 w-3.5" aria-hidden="true" />
                           </span>
                         ) : null}
                         {canManageLeadActions && isLeadReadOnly ? (
@@ -4544,27 +4554,29 @@ function SuperAdminCampaignDetailPage() {
 
                         <td className="px-4 py-3.5 align-top">
                           <div className="flex flex-col gap-1">
-                            {mailStatus && MailStatusIcon ? (
-                              <Badge className={`w-fit gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold normal-case tracking-normal shadow-sm ${mailStatus.bg}`}>
-                                <MailStatusIcon className={`h-3.5 w-3.5 shrink-0 ${mailStatus.label === "Email sending" ? "animate-spin" : ""}`} />
-                                {mailStatus.label}
-                              </Badge>
-                            ) : (
-                              <Badge className={`w-fit gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold normal-case tracking-normal shadow-sm ${status.bg}`}>
-                                <StatusIcon className="h-3.5 w-3.5 shrink-0" />
-                                {item.approvalStatus}
-                              </Badge>
-                            )}
-                            {isLeadReadOnly ? (
-                              <span className="w-fit rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-700">
-                                Blocked
-                              </span>
-                            ) : null}
-                            {!isLeadReadOnly && item.sendable === false ? (
-                              <span className="w-fit rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                                Not Sendable
-                              </span>
-                            ) : null}
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {mailStatus && MailStatusIcon ? (
+                                <Badge className={`w-fit gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold normal-case tracking-normal shadow-sm ${mailStatus.bg}`}>
+                                  <MailStatusIcon className={`h-3.5 w-3.5 shrink-0 ${mailStatus.label === "Email sending" ? "animate-spin" : ""}`} />
+                                  {mailStatus.label}
+                                </Badge>
+                              ) : (
+                                <Badge className={`w-fit gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold normal-case tracking-normal shadow-sm ${status.bg}`}>
+                                  <StatusIcon className="h-3.5 w-3.5 shrink-0" />
+                                  {item.approvalStatus}
+                                </Badge>
+                              )}
+                              {isLeadReadOnly ? (
+                                <span className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-rose-200 bg-rose-50 text-rose-700" role="img" aria-label="Lead actions blocked" title="Lead actions blocked">
+                                  <Ban className="h-3.5 w-3.5" aria-hidden="true" />
+                                </span>
+                              ) : null}
+                              {!isLeadReadOnly && item.sendable === false ? (
+                                <span className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-amber-200 bg-amber-50 text-amber-700" role="img" aria-label="Lead not sendable" title="Lead not sendable">
+                                  <CircleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+                                </span>
+                              ) : null}
+                            </div>
                             {mailStatus ? (
                               <span className="pl-1 text-[10px] leading-4 tabular-nums text-zinc-500 dark:text-zinc-300">{mailStatus.subtitle}</span>
                             ) : item.reviewStatus ? (
