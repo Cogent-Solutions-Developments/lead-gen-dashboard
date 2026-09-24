@@ -127,6 +127,16 @@ type FollowUpHistoryItem = {
   sentAt?: string | null;
   errorMessage?: string | null;
 };
+type EmailDelivery = {
+  initialSentAt?: string | null;
+  followUps: Array<{
+    stage: number;
+    status: FollowUpHistoryItem["status"];
+    sentAt: string | null;
+  }>;
+  latestSentStage?: number | null;
+  latestSentAt?: string | null;
+};
 
 const createEmptyFollowUpTemplates = (): Record<number, FollowUpTemplate> =>
   Object.fromEntries(
@@ -228,6 +238,7 @@ interface Lead {
     linkedin: OutreachState;
     whatsapp: OutreachState;
   };
+  emailDelivery?: EmailDelivery;
 
   // ✅ Separate attachments
   emailAttachments?: Attachment[];
@@ -745,6 +756,48 @@ const extractOutreachStatus = (source: unknown): Required<NonNullable<Lead["outr
   };
 };
 
+const normalizeEmailDelivery = (value: unknown): EmailDelivery | undefined => {
+  const source = asRecord(value);
+  if (!source) return undefined;
+  const followUps: EmailDelivery["followUps"] = [];
+  if (Array.isArray(source.followUps)) {
+    source.followUps.forEach((value) => {
+      const item = asRecord(value);
+      const stage = Number(item?.stage);
+      const status = String(item?.status || "draft") as FollowUpHistoryItem["status"];
+      if (!Number.isInteger(stage) || stage < 1 || stage > FOLLOW_UP_STEPS.length) return;
+      if (!(["draft", "queued", "sent", "failed"] as const).includes(status)) return;
+      followUps.push({ stage, status, sentAt: item?.sentAt ? String(item.sentAt) : null });
+    });
+  }
+  const latestSentStage = Number(source.latestSentStage);
+  return {
+    initialSentAt: source.initialSentAt ? String(source.initialSentAt) : null,
+    followUps,
+    latestSentStage: Number.isInteger(latestSentStage) && latestSentStage >= 0 && latestSentStage <= 4
+      ? latestSentStage
+      : null,
+    latestSentAt: source.latestSentAt ? String(source.latestSentAt) : null,
+  };
+};
+
+function mergeFollowUpHistory(lead: Lead, history: FollowUpHistoryItem[]): EmailDelivery {
+  const initialSentAt = lead.emailDelivery?.initialSentAt ?? null;
+  const followUps = history.map(({ stage, status, sentAt }) => ({ stage, status, sentAt: sentAt ?? null }));
+  const sentEvents = [
+    ...(initialSentAt ? [{ stage: 0, sentAt: initialSentAt }] : []),
+    ...followUps
+      .filter((item) => item.status === "sent" && item.sentAt)
+      .map((item) => ({ stage: item.stage, sentAt: item.sentAt as string })),
+  ].sort((left, right) => new Date(right.sentAt).getTime() - new Date(left.sentAt).getTime());
+  return {
+    initialSentAt,
+    followUps,
+    latestSentStage: sentEvents[0]?.stage ?? null,
+    latestSentAt: sentEvents[0]?.sentAt ?? null,
+  };
+}
+
 function normalizeChannelCapability(value: unknown) {
   const source = asRecord(value);
   if (!source) return null;
@@ -855,6 +908,57 @@ const buildOutreachStatus = (lead: Lead): Required<NonNullable<Lead["outreachSta
 
   return { email: "pending", linkedin: "pending", whatsapp: "pending" };
 };
+
+const mailDeliveryStyles = {
+  ready: { bg: "border-blue-200 bg-blue-50 text-blue-700", icon: Mail },
+  queued: { bg: "border-violet-200 bg-violet-50 text-violet-700", icon: Clock },
+  sending: { bg: "border-blue-200 bg-blue-50 text-blue-700", icon: Loader2 },
+  sent: { bg: "border-emerald-200 bg-emerald-50 text-emerald-700", icon: CheckCircle },
+  failed: { bg: "border-red-200 bg-red-50 text-red-700", icon: XCircle },
+} as const;
+
+function followUpStageLabel(stage: number) {
+  return FOLLOW_UP_STEPS[stage - 1] ?? `Follow-up ${stage}`;
+}
+
+function getLeadMailStatus(lead: Lead) {
+  const latestFollowUp = [...(lead.emailDelivery?.followUps ?? [])]
+    .sort((left, right) => right.stage - left.stage)
+    .find((item) => item.status !== "draft");
+  if (latestFollowUp && latestFollowUp.status !== "draft") {
+    const style = mailDeliveryStyles[latestFollowUp.status];
+    return {
+      ...style,
+      label: `${followUpStageLabel(latestFollowUp.stage)} ${latestFollowUp.status}`,
+      subtitle: latestFollowUp.status === "sent"
+        ? latestFollowUp.sentAt ? `Sent ${formatDateTime(latestFollowUp.sentAt)}` : "Send date unavailable"
+        : latestFollowUp.status === "queued" ? "Awaiting delivery" : "Delivery failed",
+      sentAt: latestFollowUp.sentAt ?? null,
+    };
+  }
+
+  const emailState = buildOutreachStatus(lead).email;
+  if (lead.emailDelivery?.initialSentAt || emailState === "sent") {
+    return {
+      ...mailDeliveryStyles.sent,
+      label: "Initial sent",
+      subtitle: lead.emailDelivery?.initialSentAt
+        ? `Sent ${formatDateTime(lead.emailDelivery.initialSentAt)}`
+        : "Send date unavailable",
+      sentAt: lead.emailDelivery?.initialSentAt ?? null,
+    };
+  }
+  if (emailState === "queued") {
+    return { ...mailDeliveryStyles.queued, label: "Email queued", subtitle: "Awaiting delivery", sentAt: null };
+  }
+  if (emailState === "sending") {
+    return { ...mailDeliveryStyles.sending, label: "Email sending", subtitle: "Delivery in progress", sentAt: null };
+  }
+  if (emailState === "failed") {
+    return { ...mailDeliveryStyles.failed, label: "Email failed", subtitle: "Delivery failed", sentAt: null };
+  }
+  return { ...mailDeliveryStyles.ready, label: "Ready to send", subtitle: "Content approved", sentAt: null };
+}
 
 function leadSupportsEmailAction(lead: Lead) {
   return hasText(lead.email);
@@ -976,6 +1080,18 @@ function formatDateTime(value?: string | null) {
     month: "short",
     day: "numeric",
     hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatTimelineDateTime(value?: string | null) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  return parsed.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
     minute: "2-digit",
   });
 }
@@ -1792,6 +1908,7 @@ function SuperAdminCampaignDetailPage() {
         draftMeta: asRecord(x.draftMeta),
         generationFailure: deriveGenerationFailure(x.draftStatus ?? null, asRecord(x.draftMeta)),
         outreachStatus: extractOutreachStatus(x),
+        emailDelivery: normalizeEmailDelivery(x.emailDelivery),
 
         // ✅ expect backend arrays; fallback to empty
         emailAttachments: normalizeAttachments(x.emailAttachments),
@@ -1922,6 +2039,7 @@ function SuperAdminCampaignDetailPage() {
                     ? l.generationFailure ?? null
                     : deriveGenerationFailure(latest.draftStatus ?? l.draftStatus, asRecord(latest.draftMeta) ?? l.draftMeta ?? null),
                 outreachStatus: latestOutreachStatus ?? l.outreachStatus,
+                emailDelivery: normalizeEmailDelivery(latest.emailDelivery) ?? l.emailDelivery,
                 emailAttachments: Array.isArray(latest.emailAttachments)
                   ? normalizeAttachments(latest.emailAttachments)
                   : l.emailAttachments,
@@ -3084,7 +3202,13 @@ function SuperAdminCampaignDetailPage() {
         body,
         sendNow: true,
       });
-      setFollowUpHistory(followUpHistoryFromResponse(response?.data));
+      const history = followUpHistoryFromResponse(response?.data);
+      setFollowUpHistory(history);
+      setLeads((previous) => previous.map((lead) =>
+        lead.id === followUpTargetLead.id
+          ? { ...lead, emailDelivery: mergeFollowUpHistory(lead, history) }
+          : lead
+      ));
       toast.success(`${FOLLOW_UP_STEPS[followUpStep]} queued`, {
         description: `Your follow-up to ${followUpTargetLead.employeeName || "the lead"} is being sent.`,
       });
@@ -3111,13 +3235,19 @@ function SuperAdminCampaignDetailPage() {
         return;
       }
       const content = followUpContentForStage(stage, lead);
-      await api.post(`/api/leads/${lead.id}/follow-ups`, {
+      const response = await api.post(`/api/leads/${lead.id}/follow-ups`, {
         stage,
         templateId: content.templateId,
         subject: content.subject,
         body: content.body,
         sendNow: true,
       });
+      const history = followUpHistoryFromResponse(response?.data);
+      setLeads((previous) => previous.map((item) =>
+        item.id === lead.id
+          ? { ...item, emailDelivery: mergeFollowUpHistory(item, history) }
+          : item
+      ));
       toast.success(`${FOLLOW_UP_STEPS[stage - 1]} queued`);
     } catch (error: any) {
       toast.error("Could not send follow-up", { description: error?.response?.data?.detail || error?.message });
@@ -4243,6 +4373,10 @@ function SuperAdminCampaignDetailPage() {
                 const showEmailAction = canSendEmail;
                 const showLinkedinAction = canSendLinkedin;
                 const showWhatsappAction = canSendWhatsapp;
+                const mailStatus = item.approvalStatus === "approved" && canSendEmail
+                  ? getLeadMailStatus(item)
+                  : null;
+                const MailStatusIcon = mailStatus?.icon;
                 const isLinkedinOutreachCompleted = isLeadLinkedinActionCompleted(item);
                 const showSendActions =
                   item.approvalStatus !== "rejected" &&
@@ -4394,10 +4528,17 @@ function SuperAdminCampaignDetailPage() {
 
                         <td className="px-4 py-3.5">
                           <div className="flex flex-col gap-1">
-                            <Badge className={`w-fit rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide shadow-none ${status.bg}`}>
-                              <StatusIcon className="mr-1.5 h-3 w-3" />
-                              {item.approvalStatus}
-                            </Badge>
+                            {mailStatus && MailStatusIcon ? (
+                              <Badge className={`w-fit rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide shadow-none ${mailStatus.bg}`}>
+                                <MailStatusIcon className={`mr-1.5 h-3 w-3 ${mailStatus.label === "Email sending" ? "animate-spin" : ""}`} />
+                                {mailStatus.label}
+                              </Badge>
+                            ) : (
+                              <Badge className={`w-fit rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide shadow-none ${status.bg}`}>
+                                <StatusIcon className="mr-1.5 h-3 w-3" />
+                                {item.approvalStatus}
+                              </Badge>
+                            )}
                             {isLeadReadOnly ? (
                               <span className="w-fit rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-700">
                                 Blocked
@@ -4408,7 +4549,9 @@ function SuperAdminCampaignDetailPage() {
                                 Not Sendable
                               </span>
                             ) : null}
-                            {item.reviewStatus ? (
+                            {mailStatus ? (
+                              <span className="text-[10px] text-zinc-500 dark:text-zinc-300">{mailStatus.subtitle}</span>
+                            ) : item.reviewStatus ? (
                               <span className="text-[10px] text-zinc-500 dark:text-zinc-300">Review: {item.reviewStatus}</span>
                             ) : null}
                           </div>
@@ -4837,7 +4980,9 @@ function SuperAdminCampaignDetailPage() {
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-semibold text-zinc-900">Follow-up status</p>
-                      <p className="mt-0.5 text-[11px] text-zinc-500">Initial email sent · choose the next manual touchpoint.</p>
+                      <p className="mt-0.5 text-[11px] text-zinc-500">
+                        Initial email sent{followUpTargetLead.emailDelivery?.initialSentAt ? ` ${formatDateTime(followUpTargetLead.emailDelivery.initialSentAt)}` : ""} · choose the next manual touchpoint.
+                      </p>
                     </div>
                     <Badge className="border border-violet-200 bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700 shadow-none">
                       {FOLLOW_UP_STEPS[followUpStep]}
@@ -4845,21 +4990,27 @@ function SuperAdminCampaignDetailPage() {
                   </div>
                   <div className="overflow-x-auto pb-1">
                     <div className="flex min-w-[450px] items-start">
-                      <div className="flex min-w-0 flex-1 items-center">
-                        <div className="flex flex-col items-center gap-1.5">
+                      <div className="flex min-w-0 flex-1 items-start">
+                        <div className="flex max-w-[82px] flex-col items-center gap-1.5">
                           <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-emerald-300 bg-emerald-100 text-emerald-700 sm:h-9 sm:w-9">
                             <Mail className="h-4 w-4" />
                           </span>
                           <span className="text-center text-[9px] font-semibold leading-tight text-emerald-700">Initial email</span>
+                          {followUpTargetLead.emailDelivery?.initialSentAt ? (
+                            <span className="text-center text-[8px] leading-tight text-zinc-400">
+                              {formatTimelineDateTime(followUpTargetLead.emailDelivery.initialSentAt)}
+                            </span>
+                          ) : null}
                         </div>
-                        <span className="mx-1 mb-5 h-0.5 min-w-3 flex-1 rounded-full bg-emerald-300" />
+                        <span className="mx-1 mt-4 h-0.5 min-w-3 flex-1 rounded-full bg-emerald-300" />
                       </div>
                       {FOLLOW_UP_STEPS.map((step, index) => {
                         const isActive = index === followUpStep;
-                        const historyStatus = followUpHistory.find((item) => item.stage === index + 1)?.status;
+                        const historyItem = followUpHistory.find((item) => item.stage === index + 1);
+                        const historyStatus = historyItem?.status;
                         const isComplete = historyStatus === "queued" || historyStatus === "sent";
                         return (
-                          <div key={step} className="flex min-w-0 flex-1 items-center last:flex-none">
+                          <div key={step} className="flex min-w-0 flex-1 items-start last:flex-none">
                             <button
                               type="button"
                               onClick={() => selectFollowUpStep(index)}
@@ -4879,9 +5030,16 @@ function SuperAdminCampaignDetailPage() {
                               <span className={`max-w-[68px] text-center text-[9px] font-semibold leading-tight ${isActive ? "text-violet-700" : "text-zinc-500"}`}>
                                 {step}
                               </span>
+                              {historyItem?.sentAt ? (
+                                <span className="max-w-[82px] text-center text-[8px] leading-tight text-zinc-400">
+                                  {formatTimelineDateTime(historyItem.sentAt)}
+                                </span>
+                              ) : historyStatus === "queued" ? (
+                                <span className="text-center text-[8px] leading-tight text-violet-500">Queued</span>
+                              ) : null}
                             </button>
                             {index < FOLLOW_UP_STEPS.length - 1 ? (
-                              <span className={`mx-1 mb-5 h-0.5 min-w-2 flex-1 rounded-full ${isComplete ? "bg-violet-300" : "bg-zinc-200"}`} />
+                              <span className={`mx-1 mt-4 h-0.5 min-w-2 flex-1 rounded-full ${isComplete ? "bg-violet-300" : "bg-zinc-200"}`} />
                             ) : null}
                           </div>
                         );
