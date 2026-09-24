@@ -127,6 +127,10 @@ function humanize(value: string) {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function formatStateLabel(value: string) {
+  return humanize(value.toLowerCase());
+}
+
 function recentRunDisplayState(run: Pick<ContentGenerationRun, "displayState" | "state">) {
   const state = run.displayState || run.state;
   return state.toLowerCase() === "completed_with_rejections" ? "completed" : state;
@@ -190,7 +194,7 @@ function StateCounts({ values, emptyLabel, labels = {} }: { values: Record<strin
       {entries.map(([state, count]) => (
         <span key={state} className="inline-flex items-center gap-1.5 text-xs text-slate-600">
           <span className="h-2 w-2 rounded-full" style={{ backgroundColor: STATE_COLORS[state.toLowerCase()] ?? DEFAULT_CHART_COLOR }} />
-          {labels[state.toLowerCase()] ?? humanize(state)} <strong className="tabular-nums text-slate-900">{count}</strong>
+          {labels[state.toLowerCase()] ?? formatStateLabel(state)} <strong className="tabular-nums text-slate-900">{count}</strong>
         </span>
       ))}
     </div>
@@ -247,7 +251,7 @@ function RunDetailsPanel({ details, onContinued }: { details: ContentGenerationR
                 return (
                   <div key={batch.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-3 py-2.5 text-xs">
                     <span className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 font-semibold tabular-nums text-slate-700">{batch.number}</span>
-                    <div className="min-w-0"><span className="font-medium text-slate-800">{batch.leadCount} leads · {humanize(batch.state)}</span><span className="block truncate text-[11px] text-slate-500">{batch.error || `${batch.attempts} attempt${batch.attempts === 1 ? "" : "s"} · updated ${formatDate(batch.updatedAt)}`}</span></div>
+                    <div className="min-w-0"><span className="font-medium text-slate-800">{batch.leadCount} leads · {formatStateLabel(batch.state)}</span><span className="block truncate text-[11px] text-slate-500">{batch.error || `${batch.attempts} attempt${batch.attempts === 1 ? "" : "s"} · updated ${formatDate(batch.updatedAt)}`}</span></div>
                     <span className="tabular-nums text-slate-600">{formatUsd(batchCost)}</span>
                   </div>
                 );
@@ -712,7 +716,7 @@ export function ContentGenerationControlCenter() {
             <div className="space-y-2">
               {visibleStateDistribution.length ? visibleStateDistribution.map((item) => (
                 <div key={item.state} className="flex items-center justify-between gap-3 text-xs">
-                  <span className="flex min-w-0 items-center gap-2 text-slate-600"><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: STATE_COLORS[item.state] ?? DEFAULT_CHART_COLOR }} /><span className="truncate">{humanize(item.state)}</span></span>
+                  <span className="flex min-w-0 items-center gap-2 text-slate-600"><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: STATE_COLORS[item.state] ?? DEFAULT_CHART_COLOR }} /><span className="truncate">{formatStateLabel(item.state)}</span></span>
                   <strong className="tabular-nums text-slate-900">{item.count}</strong>
                 </div>
               )) : <p className="text-xs text-slate-500">No runs in this window.</p>}
@@ -727,7 +731,7 @@ export function ContentGenerationControlCenter() {
           <div className="space-y-3" data-testid="generation-batch-queue">
             {activeBatches.length ? activeBatches.map((item) => (
               <div key={item.state} className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2.5 text-xs">
-                <span className="inline-flex items-center gap-2 font-medium text-slate-700"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: STATE_COLORS[item.state.toLowerCase()] ?? DEFAULT_CHART_COLOR }} />{humanize(item.state)}</span>
+                <span className="inline-flex items-center gap-2 font-medium text-slate-700"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: STATE_COLORS[item.state.toLowerCase()] ?? DEFAULT_CHART_COLOR }} />{formatStateLabel(item.state)}</span>
                 <strong className="tabular-nums text-slate-900">{item.count}</strong>
               </div>
             )) : (
@@ -745,7 +749,7 @@ export function ContentGenerationControlCenter() {
               <div key={`${item.stage}-${item.state}`} className="grid grid-cols-[minmax(100px,0.8fr)_minmax(120px,1fr)_auto] items-center gap-3 text-xs">
                 <span className="truncate font-medium text-slate-700">{humanize(item.stage)}</span>
                 <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-600 transition-all duration-500" style={{ width: `${Math.max(5, item.count / maxStageCount * 100)}%` }} /></div>
-                <span className="min-w-16 text-right tabular-nums text-slate-500">{item.count} · {humanize(item.state)}</span>
+                <span className="min-w-16 text-right tabular-nums text-slate-500">{item.count} · {formatStateLabel(item.state)}</span>
               </div>
             )) : (
               <div className="flex min-h-32 flex-col items-center justify-center rounded-lg border border-dashed border-slate-200 text-center">
@@ -759,7 +763,7 @@ export function ContentGenerationControlCenter() {
               <div className="flex flex-wrap gap-2">
                 {activeCheckpoints.slice(0, 6).map((item) => (
                   <span key={`${item.node}-${item.state}`} className="text-[11px] text-slate-600">
-                    {humanize(item.node)} · {humanize(item.state)} · {item.count}
+                    {humanize(item.node)} · {formatStateLabel(item.state)} · {item.count}
                   </span>
                 ))}
               </div>
@@ -834,7 +838,7 @@ export function ContentGenerationControlCenter() {
                   <tr className="bg-white hover:bg-slate-50/70">
                     <td className="px-5 py-3"><strong className="block max-w-44 truncate text-xs text-slate-900">{run.campaignId}</strong><span className="font-mono text-[10px] text-slate-400">{run.id.slice(0, 12)}{run.configurationVersion ? ` · limits v${run.configurationVersion}` : ""}</span></td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: STATE_COLORS[recentRunDisplayState(run).toLowerCase()] ?? DEFAULT_CHART_COLOR }} />{humanize(recentRunDisplayState(run))}</span>
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: STATE_COLORS[recentRunDisplayState(run).toLowerCase()] ?? DEFAULT_CHART_COLOR }} />{formatStateLabel(recentRunDisplayState(run))}</span>
                       {run.pauseRequested ? <span className="ml-1 text-amber-600" title="Pause requested"><PauseCircle className="inline h-4 w-4" /></span> : null}
                       {run.budgetExhausted ? <span className="ml-1 text-red-600" title="Budget exhausted"><XCircle className="inline h-4 w-4" /></span> : null}
                     </td>

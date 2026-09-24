@@ -101,3 +101,12 @@ test("campaign generation feedback reports the durable backend batch plan", () =
   assert.match(campaign, /durable batch/);
   assert.doesNotMatch(campaigns, /one sequential content worker/);
 });
+
+test("content generation state labels share one display case", () => {
+  const center = read("components/settings/ContentGenerationControlCenter.tsx");
+
+  assert.match(center, /function formatStateLabel\(value: string\) \{\s*return humanize\(value\.toLowerCase\(\)\);/);
+  assert.match(center, /formatStateLabel\(recentRunDisplayState\(run\)\)/);
+  assert.match(center, /labels\[state\.toLowerCase\(\)\] \?\? formatStateLabel\(state\)/);
+  assert.match(center, /formatStateLabel\(item\.state\)/);
+});
