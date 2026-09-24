@@ -1,63 +1,62 @@
 # Design QA
 
-- Source visual truth:
-  - `C:\Users\SASAN-~1\AppData\Local\Temp\codex-clipboard-7965f944-d52a-4294-8f7e-206f47a295ce.png`
-  - `C:\Users\SASAN-~1\AppData\Local\Temp\codex-clipboard-15d9b0d2-a348-4ccd-986c-4e9f5d7e675b.png`
-- Source pixels: 1920 x 1080 for each screenshot
-- Implementation URL: `http://localhost:3001/campaigns/6e7265c0-9ee5-4d28-bf45-9c8e391ebaa7`
+- Source visual truth: `C:\Users\SASAN-~1\AppData\Local\Temp\codex-clipboard-9db8255b-53a0-44fa-aaae-81f5e9ab0582.png`
+- Source pixels: 1920 x 1080
+- Implementation URL: `http://localhost:3001/settings/content-generation`
 - Implementation screenshot: unavailable; the local in-app browser redirected to `http://localhost:3001/sign-in`
-- Intended viewport: desktop, matching the supplied 1920 x 1080 screenshots
-- Implementation CSS size / density: unavailable because the authenticated campaign state could not be opened
-- State: approved campaign leads with initial-email and manual follow-up delivery history
+- Intended viewport: desktop, matching the supplied 1920 x 1080 screenshot
+- Implementation CSS size / density: unavailable because the authenticated control-center state could not be opened
+- State: Recent runs table, default recent mode, optional all-runs mode, and paginated history
 
 ## Full-view comparison evidence
 
-Both supplied source screenshots were opened at their original resolution. The campaign lead sheet uses a compact badge plus subtitle in the Status column, while the Manual Follow-ups modal uses a five-step horizontal delivery timeline. The protected post-change campaign screen could not be captured because the available local browser session redirected to sign-in.
+The supplied source screenshot was opened at its original resolution. It shows the existing dense Recent runs table within the content-generation control center, including campaign/run, state, checkpoint, progress, usage, updated time, and Inspect controls. The protected post-change page could not be captured because the available browser session redirected to sign-in.
 
 ## Focused-region comparison evidence
 
-The Status column and follow-up timeline are legible in the source screenshots and were used as the focused visual targets. A matching rendered implementation capture is unavailable behind authentication, so no side-by-side visual comparison can be completed.
+The Recent runs header and table footer are the focused targets for this change. The implementation preserves the table columns and Inspect affordance while adding a compact `Recent` / `All runs` control in the header and pagination below the table in all-runs mode. A rendered authenticated capture is unavailable, so no side-by-side visual comparison can be completed.
 
 ## Required fidelity surfaces
 
-- Fonts and typography: the existing badge, subtitle, and compact timeline text classes are reused; visual comparison is blocked.
-- Spacing and layout rhythm: the existing Status-column structure is retained. Timeline connectors are aligned to the top of the step nodes so optional date captions do not shift the line.
-- Colors and visual tokens: existing blue, violet, emerald, and red semantic tokens are reused for ready, queued, sent, and failed delivery states.
-- Image quality and asset fidelity: no raster assets, logos, illustrations, or custom SVG approximations were added.
-- Copy and content: before approval the approval status remains visible; after approval the same column shows mail delivery state and a local-time subtitle. The modal shows confirmed timestamps beneath the initial and follow-up stages.
+- Fonts and typography: existing control-center heading, table-label, button, and metadata classes are reused; visual comparison is blocked.
+- Spacing and layout rhythm: the toggle is placed in the existing table header action area, and pagination is isolated in a footer so row density remains unchanged.
+- Colors and visual tokens: existing blue active, neutral border, muted text, and disabled-control tokens are reused.
+- Image quality and asset fidelity: no raster assets, logos, illustrations, custom SVGs, or approximate icons were added.
+- Copy and content: `Recent runs` remains the default; `All campaign runs`, `Paused only`, exact result ranges, and page counts appear only when the expanded history is requested.
 
 ## Findings
 
 - [P2] Authenticated post-change capture unavailable
-  - Location: local campaign lead sheet and Manual Follow-ups modal.
-  - Evidence: the in-app browser rendered `/sign-in` instead of the authenticated campaign route.
-  - Impact: badge wrapping, date-caption density, and modal connector alignment cannot be visually compared at the requested state.
-  - Fix: sign in to the local preview, open a campaign with confirmed initial and follow-up sends, and capture both the table and modal at 1920 x 1080.
+  - Location: content-generation Recent/All runs table.
+  - Evidence: the in-app browser rendered `/sign-in` instead of the authenticated settings route.
+  - Impact: toggle alignment, footer pagination spacing, responsive behavior, and loading/empty states cannot be visually compared in the target state.
+  - Fix: sign in to the local preview, switch from Recent to All runs, and exercise previous/next pagination at the 1920 x 1080 viewport.
 
 ## Comparison history
 
-1. Source inspection: confirmed that the lead table currently shows approval state after approval and the follow-up timeline omits send dates.
-2. Implementation update: added confirmed per-lead delivery history, switched approved email leads to delivery-state badges with dated subtitles, and added initial/follow-up timestamps to the modal timeline.
-3. Post-change capture attempt: the local app was reachable, but the protected campaign route redirected to sign-in. No visual pass was claimed from code alone.
+1. Source inspection: confirmed the existing Recent runs table hierarchy, density, and Inspect flow.
+2. Implementation update: added a default-preserving Recent/All runs toggle, server-backed page retrieval, exact total/range metadata, previous/next controls, and an optional paused-only filter in all-runs mode.
+3. Post-change capture attempt: the local app was reachable, but the protected route redirected to sign-in. No visual pass was claimed from code alone.
 
 ## Primary interactions tested
 
 - Browser reachability: passed; the local app rendered its sign-in screen.
-- Authenticated campaign table: not testable without an authenticated session.
-- Manual Follow-ups modal: not testable without an authenticated session.
+- Authenticated Recent mode: not testable without an authenticated session.
+- Recent to All runs toggle: not testable without an authenticated session.
+- Previous/next pagination and paused-only filter: not testable without an authenticated session.
 - Console errors: not checked in the protected target state because it could not be opened.
 
 ## Implementation checklist
 
 - Sign in to the local preview.
-- Open a campaign containing an approved lead with confirmed send history.
-- Confirm pending/rejected leads still show approval status.
-- Confirm approved unsent leads show `Ready to send`.
-- Confirm sent leads show the latest email stage and localized confirmed send date.
-- Open Manual Follow-ups and confirm initial and sent follow-up dates remain readable without horizontal clipping.
+- Confirm Recent is selected by default and retains the existing compact list.
+- Switch to All runs and confirm the exact total and visible range.
+- Exercise Previous and Next across at least two pages.
+- Enable Paused only and confirm the result total and page reset.
+- Open Inspect before and after changing pages to confirm row detail behavior remains intact.
 
 ## Follow-up polish
 
-None identified from the source artifacts. A browser-rendered authenticated comparison is still required.
+None identified from the source artifact. A browser-rendered authenticated comparison is still required.
 
 final result: blocked

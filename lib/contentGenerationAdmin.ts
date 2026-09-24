@@ -141,6 +141,14 @@ export type ContentGenerationOverview = {
   recentRuns: ContentGenerationRun[];
 };
 
+export type ContentGenerationRunsPage = {
+  items: ContentGenerationRun[];
+  hasMore: boolean;
+  total: number;
+  limit: number;
+  offset: number;
+};
+
 export type ContentGenerationUsageSnapshot = {
   requests: number;
   inputTokens: number;
@@ -287,6 +295,21 @@ export function getContentGenerationOverview(options: {
 export function getContentGenerationRunDetails(jobId: string) {
   return adminRequest<ContentGenerationRunDetails>(
     `/api/admin/content-generation/runs/${encodeURIComponent(jobId)}`,
+  );
+}
+
+export function getContentGenerationRuns(options: {
+  offset?: number;
+  limit?: number;
+  pausedOnly?: boolean;
+} = {}) {
+  const query = new URLSearchParams({
+    offset: String(options.offset ?? 0),
+    limit: String(options.limit ?? 25),
+    pausedOnly: String(Boolean(options.pausedOnly)),
+  });
+  return adminRequest<ContentGenerationRunsPage>(
+    `/api/admin/content-generation/runs?${query.toString()}`,
   );
 }
 
