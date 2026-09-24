@@ -130,6 +130,17 @@ function recentRunDisplayState(run: Pick<ContentGenerationRun, "displayState" | 
   return state.toLowerCase() === "completed_with_rejections" ? "completed" : state;
 }
 
+function simplifyOverviewStates(distribution: Array<{ state: string; count: number }>) {
+  const simplified = new Map<string, number>();
+  distribution.forEach((item) => {
+    const state = item.state.toLowerCase() === "completed_with_rejections"
+      ? "completed"
+      : item.state.toLowerCase();
+    simplified.set(state, (simplified.get(state) ?? 0) + item.count);
+  });
+  return Array.from(simplified, ([state, count]) => ({ state, count }));
+}
+
 function runOutcomeSummary(run: ContentGenerationRun) {
   const outcomes = run.outcomes;
   if (!outcomes?.totalLeads) return run.message || "Waiting for checkpoint update";
@@ -260,7 +271,7 @@ function MetricCard({ icon: Icon, label, value, note, tone }: {
   icon: typeof Activity;
   label: string;
   value: string;
-  note: string;
+  note?: string;
   tone: "blue" | "emerald" | "amber" | "violet";
 }) {
   const styles = {
@@ -275,7 +286,7 @@ function MetricCard({ icon: Icon, label, value, note, tone }: {
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</p>
           <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">{value}</p>
-          <p className="mt-1 text-xs text-slate-500">{note}</p>
+          {note ? <p className="mt-1 text-xs text-slate-500">{note}</p> : null}
         </div>
         <Icon className={`h-5 w-5 ${styles}`} aria-hidden="true" />
       </div>
@@ -484,6 +495,8 @@ export function ContentGenerationControlCenter() {
   const activeBatches = overview?.activeBatches ?? [];
   const maxStageCount = Math.max(1, ...activeStages.map((item) => item.count));
   const totalActiveBatches = activeBatches.reduce((total, item) => total + item.count, 0);
+  const completedRuns = (summary?.successfulRuns ?? 0) + (summary?.completedWithRejections ?? 0);
+  const visibleStateDistribution = simplifyOverviewStates(overview?.stateDistribution ?? []);
   const visibleRuns = showPaused ? (pausedRuns?.offset === pausedOffset ? pausedRuns.items : []) : overview?.recentRuns ?? [];
 
   return (
@@ -631,7 +644,7 @@ export function ContentGenerationControlCenter() {
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard icon={Workflow} label={`${overview?.windowDays ?? 14}-day runs`} value={compactNumber(summary?.totalRuns ?? 0)} note={`${summary?.activeRuns ?? 0} active`} tone="blue" />
             <MetricCard icon={CircleDollarSign} label="Estimated spend" value={formatUsd(summary?.estimatedCostUsd ?? 0)} note={`${(summary?.costBudgetUtilization ?? 0).toFixed(1)}% of run budgets`} tone="violet" />
-            <MetricCard icon={ShieldCheck} label="Completed cleanly" value={compactNumber(summary?.successfulRuns ?? 0)} note={`${summary?.completedWithRejections ?? 0} completed with rejections`} tone="emerald" />
+            <MetricCard icon={ShieldCheck} label="Completed" value={compactNumber(completedRuns)} tone="emerald" />
             <MetricCard icon={Boxes} label="Active batches" value={compactNumber(totalActiveBatches)} note={`${summary?.pausedRuns ?? 0} paused · ${summary?.failedRuns ?? 0} system failed`} tone="amber" />
           </div>
         </div>
@@ -676,15 +689,15 @@ export function ContentGenerationControlCenter() {
         </Card>
 
         <Card className="border-slate-200 p-5 shadow-sm">
-          <div><h3 className="font-semibold text-slate-900">Outcomes</h3><p className="text-xs text-slate-500">Run outcomes; quality rejections are separate from system failures.</p></div>
+          <div><h3 className="font-semibold text-slate-900">Outcomes</h3><p className="text-xs text-slate-500">Run status for the selected window.</p></div>
           <div className="mt-2 grid min-h-64 grid-cols-[1fr_0.9fr] items-center gap-2">
             <div className="h-52" data-testid="generation-state-chart">
-              <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={overview?.stateDistribution ?? []} dataKey="count" nameKey="state" innerRadius={52} outerRadius={78} paddingAngle={3} isAnimationActive={false}>{(overview?.stateDistribution ?? []).map((item) => <Cell key={item.state} fill={STATE_COLORS[item.state.toLowerCase()] ?? DEFAULT_CHART_COLOR} />)}</Pie><Tooltip contentStyle={{ borderRadius: 10, borderColor: "#cbd5e1", fontSize: 12 }} /></PieChart></ResponsiveContainer>
+              <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={visibleStateDistribution} dataKey="count" nameKey="state" innerRadius={52} outerRadius={78} paddingAngle={3} isAnimationActive={false}>{visibleStateDistribution.map((item) => <Cell key={item.state} fill={STATE_COLORS[item.state] ?? DEFAULT_CHART_COLOR} />)}</Pie><Tooltip contentStyle={{ borderRadius: 10, borderColor: "#cbd5e1", fontSize: 12 }} /></PieChart></ResponsiveContainer>
             </div>
             <div className="space-y-2">
-              {(overview?.stateDistribution ?? []).length ? overview?.stateDistribution.map((item) => (
+              {visibleStateDistribution.length ? visibleStateDistribution.map((item) => (
                 <div key={item.state} className="flex items-center justify-between gap-3 text-xs">
-                  <span className="flex min-w-0 items-center gap-2 text-slate-600"><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: STATE_COLORS[item.state.toLowerCase()] ?? DEFAULT_CHART_COLOR }} /><span className="truncate">{humanize(item.state)}</span></span>
+                  <span className="flex min-w-0 items-center gap-2 text-slate-600"><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: STATE_COLORS[item.state] ?? DEFAULT_CHART_COLOR }} /><span className="truncate">{humanize(item.state)}</span></span>
                   <strong className="tabular-nums text-slate-900">{item.count}</strong>
                 </div>
               )) : <p className="text-xs text-slate-500">No runs in this window.</p>}

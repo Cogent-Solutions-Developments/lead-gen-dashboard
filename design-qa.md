@@ -1,48 +1,59 @@
 # Design QA
 
-- Source visual truth: `C:\Users\SASAN-~1\AppData\Local\Temp\codex-clipboard-8f5b36fd-54ea-45ab-87c5-6c932b3d203f.png`
-- Source pixels: 1920 x 1032
-- Source state: authenticated admin dashboard, Outreach tracking tab, desktop viewport
-- Intended implementation: `http://localhost:3000/admin`
-- Implementation screenshot: unavailable
-- Implementation viewport: unavailable
-- Density normalization: not applicable because an authenticated implementation capture was unavailable
+- Source visual truth: `C:\Users\SASAN-~1\AppData\Local\Temp\codex-clipboard-c53b9a04-254a-4542-9bcf-ad852963fed3.png`
+- Source pixels: 1920 × 1080
+- Implementation URL: `http://localhost:3001/settings/content-generation`
+- Implementation screenshot: unavailable; the local in-app browser redirected to `http://localhost:3001/sign-in`
+- Intended viewport: desktop, matching the supplied 1920 × 1080 screenshot
+- Implementation CSS size / density: unavailable because the authenticated settings state could not be opened
+- State: Content Generation overview showing a completed run that contains rejected leads
 
 ## Full-view comparison evidence
 
-The source screenshot was opened and inspected. The local implementation was opened in the Codex in-app browser, but the browser has no authenticated admin session and the app correctly redirected from `/admin` to `/sign-in`. The implementation therefore could not be captured in the same state as the source.
+The source screenshot was opened at its original resolution. It shows two overview-level disclosures that the user asked to simplify: the `Completed cleanly` card with a `completed with rejections` note, and the Outcomes donut labelled `COMPLETED WITH REJECTIONS`. The post-change protected screen could not be captured because the available local browser session redirected to sign-in.
 
-## Focused region comparison evidence
+## Focused-region comparison evidence
 
-The source Email mix region was inspected at its original resolution. A matching implementation-region capture was unavailable because the authenticated dashboard could not be reached. Code inspection confirms that the previous concentric `RadialBarChart` was replaced with a polygon-grid `RadarChart`, but code inspection is not treated as visual evidence.
-
-## Findings
-
-- [P1] Authenticated implementation capture unavailable
-  - Location: Admin dashboard, Outreach tracking, Email mix card.
-  - Evidence: the source shows the authenticated dashboard; the verification browser shows `/sign-in`.
-  - Impact: spacing, label placement, tooltip presentation, and the rendered radar polygon cannot be visually compared against the source dashboard.
-  - Fix: open the dashboard with a real authorized admin session, capture the same desktop state, and compare the Email mix region against the source.
+The summary cards and Outcomes chart are clearly readable in the original source, so a separate source crop was unnecessary. A matching post-change focused capture was unavailable behind authentication.
 
 ## Required fidelity surfaces
 
-- Fonts and typography: source inspected; implementation not visually verifiable in the authenticated state.
-- Spacing and layout rhythm: source inspected; implementation not visually verifiable in the authenticated state.
-- Colors and visual tokens: existing dashboard palette is preserved in code; rendered result not visually verifiable.
-- Image quality and asset fidelity: no new raster or custom image assets are involved.
-- Copy and content: existing Email mix labels are preserved; the sent total is retained in the card header.
+- Fonts and typography: existing typography is unchanged; overview copy is reduced to `Completed` and `Run status for the selected window`; visual comparison blocked.
+- Spacing and layout rhythm: no layout, grid, spacing, radius, shadow, or responsive classes changed.
+- Colors and visual tokens: combined completed runs use the existing emerald completed token; system failures and other states retain their existing colors.
+- Image quality and asset fidelity: no images, icons, or assets changed.
+- Copy and content: clean completions and completions containing rejected leads are merged only in the overview. Inspect retains lead-quality, content-quality, and system-failure detail.
+
+## Findings
+
+- [P2] Authenticated post-change capture unavailable
+  - Location: local `/settings/content-generation` route.
+  - Evidence: the in-app browser rendered `/sign-in` instead of the authenticated overview.
+  - Impact: the simplified summary card and donut label cannot be visually compared at the requested state.
+  - Fix: sign in to the local preview and reopen Content Generation.
 
 ## Comparison history
 
-- Initial pass: blocked because the verification browser redirected to sign-in and no authorized session was available.
-- No visual fixes were applied from browser evidence because a same-state implementation capture could not be obtained.
+1. Source inspection: confirmed the redundant rejection disclosure in both the summary card and Outcomes chart.
+2. Implementation update: merged `COMPLETED_WITH_REJECTIONS` into `Completed` for overview display, summed both completion counts in the summary card, and removed the rejection-specific overview note and subtitle.
+3. Post-change capture attempt: the local app was reachable, but the protected target state redirected to sign-in. No further visual changes were made.
+
+## Primary interactions tested
+
+- Browser reachability: passed; the local app rendered its sign-in screen.
+- Authenticated overview and Inspect interaction: not testable without an authenticated session.
+- Console errors: not checked in the protected target state because it could not be opened.
 
 ## Implementation checklist
 
-- [x] Replace the concentric radial chart with a five-axis radar/spider chart.
-- [x] Preserve existing stage values, summary tiles, colors, and tooltip behavior.
-- [x] Add an accessible chart summary.
-- [x] Pass tests, lint, TypeScript, production build, and diff checks.
-- [ ] Capture and compare the authenticated rendered dashboard.
+- Sign in to the local preview.
+- Open `/settings/content-generation` at 1920 × 1080.
+- Confirm the summary card shows `Completed` with the combined count and no rejection note.
+- Confirm the Outcomes donut shows `Completed` and no `Completed with rejections` category.
+- Expand Inspect and confirm detailed rejection counts remain available.
+
+## Follow-up polish
+
+None. The implementation deliberately preserves the existing visual system and changes only overview information hierarchy.
 
 final result: blocked
