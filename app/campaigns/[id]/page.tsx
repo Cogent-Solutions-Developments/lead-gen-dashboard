@@ -18,6 +18,7 @@ import {
   Clock,
   XCircle,
   Eye,
+  FileText,
   X,
   Copy,
   Download,
@@ -3701,6 +3702,12 @@ function SuperAdminCampaignDetailPage() {
             <div className="mt-1 flex items-center gap-2 text-xs text-zinc-500/90">
               <span>Created {formatDateOnly(campaign?.createdAt)}</span>
             </div>
+            {canManageLeadActions ? (
+              <div className="mt-2 flex items-center gap-2 text-xs text-zinc-600">
+                <FileText className="h-3.5 w-3.5 shrink-0 text-blue-700" aria-hidden="true" />
+                <span><span className="font-semibold text-zinc-800">Template fallback:</span> this lead uses the campaign template when generated content is unavailable. Review it before sending.</span>
+              </div>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap items-center gap-2 self-start">
@@ -4489,13 +4496,13 @@ function SuperAdminCampaignDetailPage() {
                     {canManageLeadActions ? (
                       <>
                         <td className="px-4 py-3.5">
-                          <div className="flex flex-col items-start gap-1.5">
-                            {showTemplateFallback ? (
-                              <span className="rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
-                                Template fallback
-                              </span>
-                            ) : null}
+                          <div className="flex flex-col items-start">
                             <div className="inline-flex overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_6px_14px_-12px_rgba(2,10,27,0.45)] dark:border-zinc-600 dark:bg-zinc-800 dark:shadow-none">
+                              {showTemplateFallback ? (
+                                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center border-r border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300" role="img" aria-label="Template fallback" title="Template fallback">
+                                  <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                                </span>
+                              ) : null}
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -5250,15 +5257,17 @@ function SuperAdminCampaignDetailPage() {
             >
               <div className="relative z-[2] flex flex-col gap-3 border-b border-zinc-100 bg-white px-6 py-5 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h3 className="text-xl font-semibold tracking-tight text-zinc-900">Review &amp; Personalize Content</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-semibold tracking-tight text-zinc-900">Review &amp; Personalize Content</h3>
+                    {shouldShowTemplateFallback(selectedLead) ? (
+                      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border border-blue-200 bg-blue-50 text-blue-700" role="img" aria-label="Template fallback" title="Template fallback">
+                        <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="mt-1 text-xs text-zinc-500">
                     {selectedLead.employeeName} - {selectedLead.title}
                   </p>
-                  {shouldShowTemplateFallback(selectedLead) ? (
-                    <span className="mt-2 inline-flex rounded border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
-                      Template fallback
-                    </span>
-                  ) : null}
                 </div>
 
                 <div className="flex items-center">
