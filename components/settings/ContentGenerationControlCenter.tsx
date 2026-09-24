@@ -8,7 +8,7 @@ import {
   ShieldCheck, Workflow, XCircle,
 } from "lucide-react";
 import {
-  Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
+  CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
 } from "recharts";
 import { toast } from "sonner";
@@ -27,6 +27,7 @@ import {
   type ContentGenerationConfiguration,
   type ContentGenerationConfigurationUpdate,
   type ContentGenerationOverview,
+  type ContentGenerationRun,
   type ContentGenerationRunDetails,
 } from "@/lib/contentGenerationAdmin";
 
@@ -91,6 +92,7 @@ const STATE_COLORS: Record<string, string> = {
   success: "#10b981", completed: "#10b981", pending: "#94a3b8",
   paused: "#f59e0b", pausing: "#f59e0b", failure: "#ef4444",
   failed: "#ef4444", cancelled: "#64748b", progress: "#2563eb",
+  completed_with_rejections: "#f59e0b", system_failure: "#ef4444",
 };
 const DEFAULT_CHART_COLOR = "#8b5cf6";
 const MODEL_ID_PATTERN = /^[A-Za-z0-9._:-]{1,100}$/;
@@ -123,6 +125,41 @@ function humanize(value: string) {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function recentRunDisplayState(run: Pick<ContentGenerationRun, "displayState" | "state">) {
+  const state = run.displayState || run.state;
+  return state.toLowerCase() === "completed_with_rejections" ? "completed" : state;
+}
+
+function simplifyOverviewStates(distribution: Array<{ state: string; count: number }>) {
+  const simplified = new Map<string, number>();
+  distribution.forEach((item) => {
+    const state = item.state.toLowerCase() === "completed_with_rejections"
+      ? "completed"
+      : item.state.toLowerCase();
+    simplified.set(state, (simplified.get(state) ?? 0) + item.count);
+  });
+  return Array.from(simplified, ([state, count]) => ({ state, count }));
+}
+
+function runOutcomeSummary(run: ContentGenerationRun) {
+  const outcomes = run.outcomes;
+  if (!outcomes?.totalLeads) return run.message || "Waiting for checkpoint update";
+  const rejected = outcomes.leadQualityRejected + outcomes.contentQualityRejected;
+  return `${outcomes.generated} generated · ${rejected} quality rejected · ${outcomes.systemFailed} system failed`;
+}
+
+function dateInputValue(date: Date) {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+}
+
+function defaultDateRange() {
+  const end = new Date();
+  const start = new Date(end);
+  start.setDate(end.getDate() - 13);
+  return { startDate: dateInputValue(start), endDate: dateInputValue(end) };
+}
+
 function draftFromConfig(config: ContentGenerationConfiguration): Draft {
   return {
     maxLeadsPerRun: config.maxLeadsPerRun ?? 250,
@@ -143,7 +180,7 @@ function draftFromConfig(config: ContentGenerationConfiguration): Draft {
   };
 }
 
-function StateCounts({ values, emptyLabel }: { values: Record<string, number>; emptyLabel: string }) {
+function StateCounts({ values, emptyLabel, labels = {} }: { values: Record<string, number>; emptyLabel: string; labels?: Record<string, string> }) {
   const entries = Object.entries(values);
   if (!entries.length) return <p className="text-xs text-slate-500">{emptyLabel}</p>;
   return (
@@ -151,7 +188,7 @@ function StateCounts({ values, emptyLabel }: { values: Record<string, number>; e
       {entries.map(([state, count]) => (
         <span key={state} className="inline-flex items-center gap-1.5 text-xs text-slate-600">
           <span className="h-2 w-2 rounded-full" style={{ backgroundColor: STATE_COLORS[state.toLowerCase()] ?? DEFAULT_CHART_COLOR }} />
-          {humanize(state)} <strong className="tabular-nums text-slate-900">{count}</strong>
+          {labels[state.toLowerCase()] ?? humanize(state)} <strong className="tabular-nums text-slate-900">{count}</strong>
         </span>
       ))}
     </div>
@@ -161,12 +198,27 @@ function StateCounts({ values, emptyLabel }: { values: Record<string, number>; e
 function RunDetailsPanel({ details, onContinued }: { details: ContentGenerationRunDetails; onContinued: () => void }) {
   const { run, tracking } = details;
   const costUtilization = run.usage.costUtilization ?? 0;
+  const outcomes = run.outcomes ?? tracking.leadOutcomes;
   return (
     <div className="grid gap-4 rounded-xl border border-blue-100 bg-blue-50/40 p-4 lg:grid-cols-[0.8fr_1.2fr]" data-testid="generation-run-details">
+      <div className="grid gap-2 sm:grid-cols-2 lg:col-span-2 lg:grid-cols-5" data-testid="generation-run-outcomes">
+        {[
+          ["Total leads", outcomes?.totalLeads ?? run.requestedLeads, "text-slate-950"],
+          ["Generated", outcomes?.generated ?? 0, "text-emerald-700"],
+          ["Lead-quality rejected", outcomes?.leadQualityRejected ?? 0, "text-amber-700"],
+          ["Content-quality rejected", outcomes?.contentQualityRejected ?? 0, "text-orange-700"],
+          ["System failures", outcomes?.systemFailed ?? 0, "text-red-700"],
+        ].map(([label, value, tone]) => (
+          <div key={String(label)} className="rounded-lg border border-slate-200 bg-white px-3 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+            <p className={`mt-1 text-xl font-semibold tabular-nums ${tone}`}>{value}</p>
+          </div>
+        ))}
+      </div>
       <div className="space-y-4">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Lead states</p>
-          <div className="mt-2"><StateCounts values={tracking.leadStates} emptyLabel="Lead tracking is not available yet." /></div>
+          <div className="mt-2"><StateCounts values={tracking.leadStates} emptyLabel="Lead tracking is not available yet." labels={{ failed: "Reject" }} /></div>
         </div>
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Checkpoint states</p>
@@ -219,7 +271,7 @@ function MetricCard({ icon: Icon, label, value, note, tone }: {
   icon: typeof Activity;
   label: string;
   value: string;
-  note: string;
+  note?: string;
   tone: "blue" | "emerald" | "amber" | "violet";
 }) {
   const styles = {
@@ -234,7 +286,7 @@ function MetricCard({ icon: Icon, label, value, note, tone }: {
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</p>
           <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">{value}</p>
-          <p className="mt-1 text-xs text-slate-500">{note}</p>
+          {note ? <p className="mt-1 text-xs text-slate-500">{note}</p> : null}
         </div>
         <Icon className={`h-5 w-5 ${styles}`} aria-hidden="true" />
       </div>
@@ -287,6 +339,8 @@ export function ContentGenerationControlCenter() {
   const [pausedRuns, setPausedRuns] = useState<Awaited<ReturnType<typeof getPausedContentGenerationRuns>> | null>(null);
   const [pausedError, setPausedError] = useState<string | null>(null);
   const [pausedLoading, setPausedLoading] = useState(false);
+  const [rangeDraft, setRangeDraft] = useState(defaultDateRange);
+  const [appliedRange, setAppliedRange] = useState<{ startDate: string; endDate: string } | null>(null);
 
   useEffect(() => {
     if (!showPaused) return;
@@ -311,7 +365,11 @@ export function ContentGenerationControlCenter() {
     else setLoading(true);
     const [configurationResult, overviewResult] = await Promise.allSettled([
       getContentGenerationConfiguration(),
-      getContentGenerationOverview(14, 8),
+      getContentGenerationOverview({
+        days: 14,
+        recentLimit: 8,
+        ...(appliedRange ?? {}),
+      }),
     ]);
     if (sequence !== loadSequence.current) return;
     const failures: string[] = [];
@@ -333,7 +391,7 @@ export function ContentGenerationControlCenter() {
     if (failures.length === 0) setLastSynced(new Date());
     setLoading(false);
     setRefreshing(false);
-  }, []);
+  }, [appliedRange]);
 
   useEffect(() => {
     const sequenceRef = loadSequence;
@@ -437,6 +495,8 @@ export function ContentGenerationControlCenter() {
   const activeBatches = overview?.activeBatches ?? [];
   const maxStageCount = Math.max(1, ...activeStages.map((item) => item.count));
   const totalActiveBatches = activeBatches.reduce((total, item) => total + item.count, 0);
+  const completedRuns = (summary?.successfulRuns ?? 0) + (summary?.completedWithRejections ?? 0);
+  const visibleStateDistribution = simplifyOverviewStates(overview?.stateDistribution ?? []);
   const visibleRuns = showPaused ? (pausedRuns?.offset === pausedOffset ? pausedRuns.items : []) : overview?.recentRuns ?? [];
 
   return (
@@ -582,46 +642,62 @@ export function ContentGenerationControlCenter() {
 
         <div className="p-5 sm:p-6">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricCard icon={Workflow} label="14-day runs" value={compactNumber(summary?.totalRuns ?? 0)} note={`${summary?.activeRuns ?? 0} active`} tone="blue" />
+            <MetricCard icon={Workflow} label={`${overview?.windowDays ?? 14}-day runs`} value={compactNumber(summary?.totalRuns ?? 0)} note={`${summary?.activeRuns ?? 0} active`} tone="blue" />
             <MetricCard icon={CircleDollarSign} label="Estimated spend" value={formatUsd(summary?.estimatedCostUsd ?? 0)} note={`${(summary?.costBudgetUtilization ?? 0).toFixed(1)}% of run budgets`} tone="violet" />
-            <MetricCard icon={ShieldCheck} label="Successful" value={compactNumber(summary?.successfulRuns ?? 0)} note={`${summary?.budgetStops ?? 0} stops`} tone="emerald" />
-            <MetricCard icon={Boxes} label="Active batches" value={compactNumber(totalActiveBatches)} note={`${summary?.pausedRuns ?? 0} paused · ${summary?.failedRuns ?? 0} failed`} tone="amber" />
+            <MetricCard icon={ShieldCheck} label="Completed" value={compactNumber(completedRuns)} tone="emerald" />
+            <MetricCard icon={Boxes} label="Active batches" value={compactNumber(totalActiveBatches)} note={`${summary?.pausedRuns ?? 0} paused · ${summary?.failedRuns ?? 0} system failed`} tone="amber" />
           </div>
         </div>
       </Card>
 
       <div className="grid gap-4 xl:grid-cols-[1.5fr_0.9fr]">
         <Card className="border-slate-200 p-5 shadow-sm">
-          <div className="mb-4 flex items-start justify-between gap-4">
-            <div><h3 className="font-semibold text-slate-900">Spend & usage</h3><p className="text-xs text-slate-500">14-day estimated cost and request volume.</p></div>
-            <span className="text-[11px] text-slate-400">30s refresh</span>
+          <div className="mb-4 flex flex-col gap-4">
+            <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+              <div><h3 className="font-semibold text-slate-900">Spend & usage</h3><p className="text-xs text-slate-500">Daily estimated cost, model requests, and agentic lead volume.</p></div>
+              <span className="text-[11px] text-slate-400">30s refresh</span>
+            </div>
+            <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50/70 p-3 lg:flex-row lg:items-end lg:justify-between" data-testid="generation-date-range">
+              <div className="flex flex-wrap items-end gap-2">
+                <label className="text-[11px] font-medium text-slate-600">From<Input type="date" value={rangeDraft.startDate} max={rangeDraft.endDate} className="mt-1 h-8 w-40 bg-white text-xs" onChange={(event) => setRangeDraft((current) => ({ ...current, startDate: event.target.value }))} /></label>
+                <label className="text-[11px] font-medium text-slate-600">To<Input type="date" value={rangeDraft.endDate} min={rangeDraft.startDate} className="mt-1 h-8 w-40 bg-white text-xs" onChange={(event) => setRangeDraft((current) => ({ ...current, endDate: event.target.value }))} /></label>
+                <Button type="button" size="sm" className="h-8 bg-blue-600 text-xs hover:bg-blue-700" disabled={!rangeDraft.startDate || !rangeDraft.endDate || rangeDraft.startDate > rangeDraft.endDate} onClick={() => setAppliedRange(rangeDraft)}>Apply range</Button>
+                <Button type="button" size="sm" variant="outline" className="h-8 border-slate-300 bg-white text-xs" onClick={() => { const defaults = defaultDateRange(); setRangeDraft(defaults); setAppliedRange(null); }}>Last 14 days</Button>
+              </div>
+              <p className="text-[11px] text-slate-500">{overview?.startDate} – {overview?.endDate}</p>
+            </div>
+            <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-600" aria-label="Chart series">
+              <span className="inline-flex items-center gap-2"><span className="h-0.5 w-6 bg-blue-600" />Estimated cost</span>
+              <span className="inline-flex items-center gap-2"><span className="h-0.5 w-6 bg-violet-600" />Requests</span>
+              <span className="inline-flex items-center gap-2"><span className="h-0.5 w-6 bg-emerald-600" />Leads</span>
+            </div>
           </div>
           <div className="h-64 w-full" data-testid="generation-usage-chart">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={overview?.dailyUsage ?? []} margin={{ top: 10, right: 8, left: -18, bottom: 0 }}>
-                <defs><linearGradient id="costFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563eb" stopOpacity={0.28} /><stop offset="95%" stopColor="#2563eb" stopOpacity={0.02} /></linearGradient></defs>
+              <LineChart data={overview?.dailyUsage ?? []} margin={{ top: 10, right: 8, left: -18, bottom: 0 }}>
                 <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} tickFormatter={(value) => new Date(`${value}T00:00:00`).toLocaleDateString([], { month: "short", day: "numeric" })} />
                 <YAxis yAxisId="cost" tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} tickFormatter={(value) => `$${compactNumber(Number(value))}`} />
                 <YAxis yAxisId="requests" orientation="right" tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} />
                 <Tooltip contentStyle={{ borderRadius: 10, borderColor: "#cbd5e1", fontSize: 12 }} formatter={(value, name) => name === "Estimated cost" ? [formatUsd(Number(value)), name] : [compactNumber(Number(value)), name]} />
-                <Area yAxisId="cost" type="monotone" dataKey="estimatedCostUsd" name="Estimated cost" stroke="#2563eb" strokeWidth={2} fill="url(#costFill)" isAnimationActive={false} />
-                <Area yAxisId="requests" type="monotone" dataKey="requests" name="Requests" stroke="#8b5cf6" strokeWidth={2} fill="transparent" isAnimationActive={false} />
-              </AreaChart>
+                <Line yAxisId="cost" type="monotone" dataKey="estimatedCostUsd" name="Estimated cost" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 2.5 }} activeDot={{ r: 4 }} isAnimationActive={false} />
+                <Line yAxisId="requests" type="monotone" dataKey="requests" name="Requests" stroke="#7c3aed" strokeWidth={2.5} strokeDasharray="6 4" dot={{ r: 2.5 }} activeDot={{ r: 4 }} isAnimationActive={false} />
+                <Line yAxisId="requests" type="monotone" dataKey="leads" name="Leads" stroke="#059669" strokeWidth={2.5} dot={{ r: 2.5 }} activeDot={{ r: 4 }} isAnimationActive={false} />
+              </LineChart>
             </ResponsiveContainer>
           </div>
         </Card>
 
         <Card className="border-slate-200 p-5 shadow-sm">
-          <div><h3 className="font-semibold text-slate-900">Outcomes</h3><p className="text-xs text-slate-500">Run states.</p></div>
+          <div><h3 className="font-semibold text-slate-900">Outcomes</h3><p className="text-xs text-slate-500">Run status for the selected window.</p></div>
           <div className="mt-2 grid min-h-64 grid-cols-[1fr_0.9fr] items-center gap-2">
             <div className="h-52" data-testid="generation-state-chart">
-              <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={overview?.stateDistribution ?? []} dataKey="count" nameKey="state" innerRadius={52} outerRadius={78} paddingAngle={3} isAnimationActive={false}>{(overview?.stateDistribution ?? []).map((item) => <Cell key={item.state} fill={STATE_COLORS[item.state.toLowerCase()] ?? DEFAULT_CHART_COLOR} />)}</Pie><Tooltip contentStyle={{ borderRadius: 10, borderColor: "#cbd5e1", fontSize: 12 }} /></PieChart></ResponsiveContainer>
+              <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={visibleStateDistribution} dataKey="count" nameKey="state" innerRadius={52} outerRadius={78} paddingAngle={3} isAnimationActive={false}>{visibleStateDistribution.map((item) => <Cell key={item.state} fill={STATE_COLORS[item.state] ?? DEFAULT_CHART_COLOR} />)}</Pie><Tooltip contentStyle={{ borderRadius: 10, borderColor: "#cbd5e1", fontSize: 12 }} /></PieChart></ResponsiveContainer>
             </div>
             <div className="space-y-2">
-              {(overview?.stateDistribution ?? []).length ? overview?.stateDistribution.map((item) => (
+              {visibleStateDistribution.length ? visibleStateDistribution.map((item) => (
                 <div key={item.state} className="flex items-center justify-between gap-3 text-xs">
-                  <span className="flex min-w-0 items-center gap-2 text-slate-600"><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: STATE_COLORS[item.state.toLowerCase()] ?? DEFAULT_CHART_COLOR }} /><span className="truncate">{humanize(item.state)}</span></span>
+                  <span className="flex min-w-0 items-center gap-2 text-slate-600"><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: STATE_COLORS[item.state] ?? DEFAULT_CHART_COLOR }} /><span className="truncate">{humanize(item.state)}</span></span>
                   <strong className="tabular-nums text-slate-900">{item.count}</strong>
                 </div>
               )) : <p className="text-xs text-slate-500">No runs in this window.</p>}
@@ -707,11 +783,11 @@ export function ContentGenerationControlCenter() {
                   <tr className="bg-white hover:bg-slate-50/70">
                     <td className="px-5 py-3"><strong className="block max-w-44 truncate text-xs text-slate-900">{run.campaignId}</strong><span className="font-mono text-[10px] text-slate-400">{run.id.slice(0, 12)}{run.configurationVersion ? ` · limits v${run.configurationVersion}` : ""}</span></td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: STATE_COLORS[run.state.toLowerCase()] ?? DEFAULT_CHART_COLOR }} />{humanize(run.state)}</span>
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: STATE_COLORS[recentRunDisplayState(run).toLowerCase()] ?? DEFAULT_CHART_COLOR }} />{humanize(recentRunDisplayState(run))}</span>
                       {run.pauseRequested ? <span className="ml-1 text-amber-600" title="Pause requested"><PauseCircle className="inline h-4 w-4" /></span> : null}
                       {run.budgetExhausted ? <span className="ml-1 text-red-600" title="Budget exhausted"><XCircle className="inline h-4 w-4" /></span> : null}
                     </td>
-                    <td className="px-4 py-3"><span className="block text-xs font-medium text-slate-700">{humanize(run.step || "pending")}</span><span className="block max-w-52 truncate text-[11px] text-slate-500">{run.message || "Waiting for checkpoint update"}</span></td>
+                    <td className="px-4 py-3"><span className="block text-xs font-medium text-slate-700">{humanize(run.step || "pending")}</span><span className="block max-w-52 truncate text-[11px] text-slate-500">{runOutcomeSummary(run)}</span></td>
                     <td className="px-4 py-3"><div className="flex items-center gap-2"><div className="h-1.5 w-20 rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-600" style={{ width: `${Math.max(0, Math.min(100, run.progress))}%` }} /></div><span className="text-xs tabular-nums text-slate-500">{run.progress}%</span></div></td>
                     <td className="px-4 py-3"><span className="block text-xs tabular-nums text-slate-700">{formatUsd(run.usage.estimatedCostUsd ?? 0)} · {compactNumber(run.usage.requests)} req</span><span className="text-[11px] text-slate-500">{compactNumber(run.usage.totalTokens)} tokens · {run.usage.toolCalls} tools</span></td>
                     <td className="px-4 py-3 text-xs text-slate-500"><Clock3 className="mr-1 inline h-3 w-3" />{formatDate(run.updatedAt)}</td>

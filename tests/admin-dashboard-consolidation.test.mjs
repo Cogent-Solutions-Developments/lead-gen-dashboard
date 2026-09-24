@@ -7,10 +7,22 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 test("the admin landing page uses the lead inventory dashboard", () => {
   const page = read("app/admin/page.tsx");
   const dashboard = read("components/dashboard/AdminLeadInventoryDashboard.tsx");
+  const outreach = read("components/dashboard/OutreachTrackingPanel.tsx");
 
   assert.match(page, /<AdminLeadInventoryDashboard\s*\/>/);
   assert.match(dashboard, /getDashboardLeadInventory/);
   assert.match(dashboard, /<LeadInventoryOverview/);
+  assert.match(read("components/dashboard/LeadInventoryOverview.tsx"), /label: "Department coverage"[\s\S]*?label: "Outreach tracking"/);
+  assert.match(outreach, /getDashboardOutreachTracking/);
+  assert.match(outreach, /navigator\.clipboard\.writeText/);
+  assert.match(outreach, /resolvedOptions\(\)\.timeZone/);
+  assert.match(outreach, />Last 7 days</);
+  assert.match(outreach, /<ComposedChart[\s\S]*?dataKey="date"/);
+  assert.match(outreach, /<RadarChart[\s\S]*?<PolarGrid[\s\S]*?<PolarAngleAxis[\s\S]*?<Radar name="Emails"/);
+  assert.doesNotMatch(outreach, /<RadialBarChart/);
+  assert.match(outreach, /1st follow-up[\s\S]*?2nd follow-up[\s\S]*?3rd follow-up[\s\S]*?Final follow-up/);
+  assert.equal([...outreach.matchAll(/<CopyValue value=/g)].length, 2);
+  assert.doesNotMatch(outreach, /firstSentAt|lastSentAt|first_sent_at|last_sent_at/);
   assert.doesNotMatch(page, /adminTasks|Admin Task Flow/);
 });
 

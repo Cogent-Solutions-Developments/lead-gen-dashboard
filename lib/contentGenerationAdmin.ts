@@ -47,12 +47,25 @@ export type ContentGenerationConfigurationResponse = {
   message?: string;
 };
 
+export type ContentGenerationLeadOutcomes = {
+  totalLeads: number;
+  generated: number;
+  leadQualityRejected: number;
+  contentQualityRejected: number;
+  systemFailed: number;
+  suppressed: number;
+  cancelled: number;
+  pending: number;
+};
+
 export type ContentGenerationRun = {
   id: string;
   campaignId: string;
   type: string;
   pipeline: string;
   state: string;
+  displayState: string;
+  outcomes: ContentGenerationLeadOutcomes;
   progress: number;
   step: string;
   message: string;
@@ -85,10 +98,14 @@ export type ContentGenerationRun = {
 export type ContentGenerationOverview = {
   generatedAt?: string | null;
   windowDays: number;
+  startDate: string;
+  endDate: string;
   summary: {
     totalRuns: number;
+    totalLeads: number;
     activeRuns: number;
     successfulRuns: number;
+    completedWithRejections: number;
     failedRuns: number;
     cancelledRuns: number;
     pausedRuns: number;
@@ -110,6 +127,7 @@ export type ContentGenerationOverview = {
     date: string;
     runs: number;
     requests: number;
+    leads: number;
     tokens: number;
     estimatedCostMicrousd: number;
     estimatedCostUsd: number;
@@ -154,6 +172,7 @@ export type ContentGenerationRunDetails = {
   run: ContentGenerationRun;
   tracking: {
     leadStates: Record<string, number>;
+    leadOutcomes: ContentGenerationLeadOutcomes;
     batches: {
       total: number;
       states: Record<string, number>;
@@ -246,8 +265,20 @@ export function updateContentGenerationConfiguration(payload: ContentGenerationC
   );
 }
 
-export function getContentGenerationOverview(days = 14, recentLimit = 8) {
-  const query = new URLSearchParams({ days: String(days), recentLimit: String(recentLimit) });
+export function getContentGenerationOverview(options: {
+  days?: number;
+  recentLimit?: number;
+  startDate?: string;
+  endDate?: string;
+} = {}) {
+  const query = new URLSearchParams({
+    days: String(options.days ?? 14),
+    recentLimit: String(options.recentLimit ?? 8),
+  });
+  if (options.startDate && options.endDate) {
+    query.set("startDate", options.startDate);
+    query.set("endDate", options.endDate);
+  }
   return adminRequest<ContentGenerationOverview>(
     `/api/admin/content-generation/overview?${query.toString()}`,
   );
