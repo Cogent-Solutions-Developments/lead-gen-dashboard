@@ -55,6 +55,11 @@ test("control center exposes durable limits, visual tracking, and recovery state
   assert.doesNotMatch(center, />Model requests</);
   assert.doesNotMatch(center, /<Area[\s>]/);
   assert.match(center, />Outcomes</);
+  assert.match(center, /Run status for the selected window/);
+  assert.match(center, /simplifyOverviewStates/);
+  assert.match(center, /successfulRuns \?\? 0\) \+ \(summary\?\.completedWithRejections \?\? 0/);
+  assert.doesNotMatch(center, />Completed cleanly</);
+  assert.doesNotMatch(center, /completed with rejections/);
   assert.match(center, />Stage flow</);
   assert.match(center, /Atomic checkpoint ledger/);
   assert.match(center, /Atomic recovery/);
