@@ -4495,7 +4495,7 @@ function SuperAdminCampaignDetailPage() {
 
                     {canManageLeadActions ? (
                       <>
-                        <td className="px-4 py-3.5">
+                        <td className="px-4 py-3.5 align-top">
                           <div className="flex flex-col items-start">
                             <div className="inline-flex overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_6px_14px_-12px_rgba(2,10,27,0.45)] dark:border-zinc-600 dark:bg-zinc-800 dark:shadow-none">
                               {showTemplateFallback ? (
@@ -4533,7 +4533,7 @@ function SuperAdminCampaignDetailPage() {
                           </div>
                         </td>
 
-                        <td className="px-4 py-3.5">
+                        <td className="px-4 py-3.5 align-top">
                           <div className="flex flex-col gap-1">
                             {mailStatus && MailStatusIcon ? (
                               <Badge className={`w-fit rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide shadow-none ${mailStatus.bg}`}>
