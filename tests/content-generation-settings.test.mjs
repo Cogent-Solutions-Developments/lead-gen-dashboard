@@ -31,6 +31,7 @@ test("content generation settings use authenticated admin configuration and over
   assert.match(api, /query\.set\("startDate"/);
   assert.match(api, /query\.set\("endDate"/);
   assert.match(api, /\/api\/admin\/content-generation\/runs\/\$\{encodeURIComponent\(jobId\)\}/);
+  assert.match(api, /\/api\/admin\/content-generation\/runs\?\$\{query\.toString\(\)\}/);
   assert.match(api, /expectedVersion: number/);
 });
 
@@ -66,7 +67,10 @@ test("control center exposes durable limits, visual tracking, and recovery state
   assert.match(center, /Campaign batch queue/);
   assert.match(center, /Batch execution plan/);
   assert.match(center, /Cost budget used/);
-  assert.match(center, />Recent runs</);
+  assert.match(center, /"Recent runs"/);
+  assert.match(center, /"All runs"/);
+  assert.match(center, /Showing \{runRangeStart\}–\{runRangeEnd\} of \{runTotal\} runs/);
+  assert.match(center, /Page \{runPageNumber\} of \{runPageCount\}/);
   assert.match(center, /run\.displayState \|\| run\.state/);
   assert.match(center, /completed_with_rejections" \? "completed"/);
   assert.match(center, /labels=\{\{ failed: "Reject" \}\}/);
