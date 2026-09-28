@@ -34,11 +34,13 @@ test("campaign page parameters are constrained to positive whole pages", () => {
 });
 
 test("campaign pagination survives initial and Strict Mode filter effects", () => {
-  const filters = { status: "all", category: "all", search: "" };
+  const filters = { eventName: "", date: "", category: "" };
 
   assert.equal(didCampaignFiltersChange(null, filters), false);
   assert.equal(didCampaignFiltersChange(filters, { ...filters }), false);
-  assert.equal(didCampaignFiltersChange(filters, { ...filters, search: "Angola" }), true);
+  assert.equal(didCampaignFiltersChange(filters, { ...filters, eventName: "Angola" }), true);
+  assert.equal(didCampaignFiltersChange(filters, { ...filters, date: "2027-01-20" }), true);
+  assert.equal(didCampaignFiltersChange(filters, { ...filters, category: "Compliance" }), true);
   assert.doesNotMatch(campaignListSource, /didMountFilterResetRef/);
   assert.match(
     campaignListSource,
@@ -52,4 +54,11 @@ test("selected campaign highlight is immediate and dark-mode safe", () => {
   assert.match(campaignListSource, /dark:bg-blue-950\/45/);
   assert.match(campaignListSource, /dark:shadow-\[inset_4px_0_0_#60a5fa/);
   assert.match(campaignListSource, /dark:bg-blue-950\/90 dark:text-blue-200/);
+});
+
+test("campaign filter panel offers event name, event date, and category without status choices", () => {
+  assert.match(campaignListSource, /Search event name/);
+  assert.match(campaignListSource, /id="campaign-date-filter"/);
+  assert.match(campaignListSource, /aria-label="Category"/);
+  assert.doesNotMatch(campaignListSource, /setStatusFilter|All statuses/);
 });

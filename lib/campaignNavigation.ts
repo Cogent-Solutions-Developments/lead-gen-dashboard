@@ -3,9 +3,9 @@ export const CAMPAIGN_RETURN_PAGE_QUERY_PARAM = "fromPage";
 export const CAMPAIGN_SELECTED_QUERY_PARAM = "selected";
 
 export type CampaignFilterSnapshot = {
-  status: string;
+  eventName: string;
+  date: string;
   category: string;
-  search: string;
 };
 
 export function didCampaignFiltersChange(
@@ -14,9 +14,9 @@ export function didCampaignFiltersChange(
 ) {
   if (!previous) return false;
   return (
-    previous.status !== current.status ||
-    previous.category !== current.category ||
-    previous.search !== current.search
+    previous.eventName !== current.eventName ||
+    previous.date !== current.date ||
+    previous.category !== current.category
   );
 }
 

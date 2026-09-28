@@ -51,6 +51,7 @@ import {
   parseCampaignPageParam,
   type CampaignFilterSnapshot,
 } from "@/lib/campaignNavigation";
+import { filterCampaigns, loadAllCampaigns } from "@/lib/campaignFilters";
 
 const statusConfig: Record<
   string,
@@ -89,16 +90,6 @@ const statusConfig: Record<
     style: "border-rose-200/80 bg-rose-50/85 text-rose-700",
   },
 };
-
-const filterOnlyStatuses = [
-  "processing",
-  "content_generating",
-  "needs_review",
-  "active_outreach",
-  "completed",
-  "failed",
-  "cancelled",
-] as const;
 
 const CAMPAIGN_LIST_POLL_MS = 30000;
 const CONTENT_JOB_ACTIVE_STATES = new Set(["PENDING", "QUEUED", "STARTED", "PROGRESS", "RETRY", "PAUSING"]);
@@ -374,15 +365,15 @@ function SuperAdminCampaignsPage() {
   const initialPage = parseCampaignPageParam(searchParams.get(CAMPAIGN_PAGE_QUERY_PARAM));
   const selectedCampaignId = searchParams.get(CAMPAIGN_SELECTED_QUERY_PARAM);
   const [items, setItems] = useState<CampaignListItem[]>([]);
-  const [totalItems, setTotalItems] = useState(0);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [campaignInfoById, setCampaignInfoById] = useState<Record<string, CampaignInfo | null>>(
     {}
   );
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [eventNameFilter, setEventNameFilter] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(() => initialPage);
   const [itemsPerPage, setItemsPerPage] = useState(4);
@@ -405,6 +396,8 @@ function SuperAdminCampaignsPage() {
   const contentGenerationControllersRef = useRef<Map<string, AbortController>>(new Map());
   const contentGenerationStopRequestedRef = useRef<Set<string>>(new Set());
   const previousCampaignFiltersRef = useRef<CampaignFilterSnapshot | null>(null);
+  const latestFetchRef = useRef(0);
+  const fetchInProgressRef = useRef(false);
 
   const replaceCampaignPage = useCallback(
     (page: number) => {
@@ -439,34 +432,35 @@ function SuperAdminCampaignsPage() {
 
   const fetchData = useCallback(async (options?: { silent?: boolean; showErrors?: boolean }) => {
     const silent = Boolean(options?.silent);
+    if (silent && fetchInProgressRef.current) return;
     const showErrors = options?.showErrors !== false;
+    const fetchId = ++latestFetchRef.current;
+    fetchInProgressRef.current = true;
 
     if (!silent) {
       setLoading(true);
     }
 
     try {
-      const res = await listCampaigns({
-        status: statusFilter,
-        limit: itemsPerPage,
-        offset: (currentPage - 1) * itemsPerPage,
-        search: searchQuery.trim() || undefined,
-        category: categoryFilter === "all" ? undefined : categoryFilter,
-      });
-
-      setItems(res.campaigns || []);
-      setTotalItems(Number(res.total || 0));
-      setCategoryOptions(res.categories || []);
+      const res = await loadAllCampaigns(listCampaigns);
+      if (fetchId !== latestFetchRef.current) return;
+      setItems(res.campaigns);
+      setCategoryOptions(res.categories);
+      setLoadError(null);
     } catch (err: unknown) {
-      if (showErrors) {
-        toast.error("Failed to load campaigns", { description: getErrorMessage(err) });
+      if (fetchId === latestFetchRef.current) {
+        setLoadError(getErrorMessage(err));
+        if (showErrors) {
+          toast.error("Failed to load campaigns", { description: getErrorMessage(err) });
+        }
       }
     } finally {
-      if (!silent) {
-        setLoading(false);
+      if (fetchId === latestFetchRef.current) {
+        fetchInProgressRef.current = false;
+        if (!silent) setLoading(false);
       }
     }
-  }, [categoryFilter, currentPage, itemsPerPage, searchQuery, statusFilter]);
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -489,6 +483,8 @@ function SuperAdminCampaignsPage() {
 
     return () => {
       alive = false;
+      latestFetchRef.current += 1;
+      fetchInProgressRef.current = false;
       clearInterval(t);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
@@ -523,16 +519,6 @@ function SuperAdminCampaignsPage() {
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, [isFilterOpen]);
 
-  const statusFilters = useMemo(() => {
-    return [
-      { value: "all", label: "All statuses" },
-      ...filterOnlyStatuses.map((value) => ({
-        value,
-        label: statusConfig[value]?.label || value.replaceAll("_", " "),
-      })),
-    ];
-  }, []);
-
   const categoryFilters = useMemo(() => {
     const byKey = new Map<string, string>();
 
@@ -544,20 +530,20 @@ function SuperAdminCampaignsPage() {
     }
 
     for (const campaign of items) {
-      const raw = String(campaign.category || campaignInfoById[campaign.id]?.category || "").trim();
+      const raw = String(campaign.category || "").trim();
       if (!raw) continue;
       const key = raw.toLowerCase();
       if (!byKey.has(key)) byKey.set(key, raw);
     }
 
-    if (categoryFilter !== "all") {
+    if (categoryFilter) {
       const selected = categoryFilter.trim();
       if (selected && !byKey.has(selected.toLowerCase())) byKey.set(selected.toLowerCase(), selected);
     }
 
     const values = Array.from(byKey.values()).sort((a, b) => a.localeCompare(b));
-    return [{ value: "all", label: "All categories" }, ...values.map((value) => ({ value, label: value }))];
-  }, [categoryOptions, categoryFilter, items, campaignInfoById]);
+    return [{ value: "", label: "All categories" }, ...values.map((value) => ({ value, label: value }))];
+  }, [categoryOptions, categoryFilter, items]);
 
   useEffect(() => {
     if (loading || items.length === 0) return;
@@ -593,8 +579,16 @@ function SuperAdminCampaignsPage() {
     };
   }, [items.length, loading]);
 
+  const filteredItems = useMemo(
+    () => filterCampaigns(items, { eventName: eventNameFilter, date: dateFilter, category: categoryFilter }),
+    [items, eventNameFilter, dateFilter, categoryFilter]
+  );
+  const totalItems = filteredItems.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-  const visibleItems = items;
+  const visibleItems = useMemo(
+    () => filteredItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage),
+    [filteredItems, currentPage, itemsPerPage]
+  );
 
   useEffect(() => {
     if (items.length === 0) return;
@@ -641,14 +635,13 @@ function SuperAdminCampaignsPage() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i);
   }, [currentPage, totalPages]);
 
-  const activeFilters =
-    statusFilter !== "all" || categoryFilter !== "all" || searchQuery.trim().length > 0;
+  const activeFilters = Boolean(categoryFilter || dateFilter || eventNameFilter.trim());
 
   useEffect(() => {
     const nextFilters: CampaignFilterSnapshot = {
-      status: statusFilter,
+      eventName: eventNameFilter,
+      date: dateFilter,
       category: categoryFilter,
-      search: searchQuery,
     };
     const previousFilters = previousCampaignFiltersRef.current;
     previousCampaignFiltersRef.current = nextFilters;
@@ -656,7 +649,7 @@ function SuperAdminCampaignsPage() {
     if (didCampaignFiltersChange(previousFilters, nextFilters)) {
       replaceCampaignPage(1);
     }
-  }, [categoryFilter, replaceCampaignPage, searchQuery, statusFilter]);
+  }, [categoryFilter, dateFilter, eventNameFilter, replaceCampaignPage]);
 
   useEffect(() => {
     if (loading) return;
@@ -1259,6 +1252,8 @@ function SuperAdminCampaignsPage() {
               type="button"
               className="analytics-frost-btn h-10 px-4"
               onClick={() => setIsFilterOpen((prev) => !prev)}
+              aria-expanded={isFilterOpen}
+              aria-label="Filter campaigns"
             >
               <Filter className="h-4 w-4" />
               Filter
@@ -1270,16 +1265,16 @@ function SuperAdminCampaignsPage() {
             </Button>
 
             {isFilterOpen && (
-              <div className="absolute right-0 top-12 z-30 w-80 rounded-2xl border border-zinc-300 bg-white p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.85),0_16px_24px_-14px_rgba(2,10,27,0.24),0_6px_12px_-8px_rgba(15,23,42,0.14)]">
+              <div className="absolute right-0 top-12 z-30 max-h-[min(70vh,34rem)] w-[min(20rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-zinc-300 bg-white p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.85),0_16px_24px_-14px_rgba(2,10,27,0.24),0_6px_12px_-8px_rgba(15,23,42,0.14)]">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-sm font-semibold text-zinc-800">Filter Campaigns</p>
                   {activeFilters && (
                     <button
                       type="button"
                       onClick={() => {
-                        setStatusFilter("all");
-                        setCategoryFilter("all");
-                        setSearchQuery("");
+                        setCategoryFilter("");
+                        setEventNameFilter("");
+                        setDateFilter("");
                       }}
                       className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-800"
                     >
@@ -1290,52 +1285,45 @@ function SuperAdminCampaignsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                    Search
+                  <label htmlFor="campaign-event-name-filter" className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Event name
                   </label>
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
                     <Input
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Name, ICP, or campaign ID"
+                      id="campaign-event-name-filter"
+                      value={eventNameFilter}
+                      onChange={(e) => setEventNameFilter(e.target.value)}
+                      placeholder="Search event name"
                       className="h-9 border-zinc-300/80 bg-white/80 pl-9 text-sm"
                     />
                   </div>
                 </div>
 
                 <div className="mt-4 space-y-2">
-                  <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                    Status
+                  <label htmlFor="campaign-date-filter" className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Event date
                   </label>
-                  <div className="flex flex-wrap gap-2">
-                    {statusFilters.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setStatusFilter(option.value)}
-                        className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                          statusFilter === option.value
-                            ? "border-zinc-300 bg-zinc-900 text-white"
-                            : "border-zinc-300 bg-white/82 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
+                  <Input
+                    id="campaign-date-filter"
+                    type="date"
+                    value={dateFilter}
+                    onChange={(e) => setDateFilter(e.target.value)}
+                    className="h-9 border-zinc-300/80 bg-white/80 text-sm"
+                  />
                 </div>
 
                 <div className="mt-4 space-y-2">
-                  <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                     Category
-                  </label>
-                  <div className="flex flex-wrap gap-2">
+                  </span>
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="Category">
                     {categoryFilters.map((option) => (
                       <button
                         key={option.value}
                         type="button"
                         onClick={() => setCategoryFilter(option.value)}
+                        aria-pressed={categoryFilter === option.value}
                         className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
                           categoryFilter === option.value
                             ? "border-zinc-300 bg-zinc-900 text-white"
@@ -1385,7 +1373,16 @@ function SuperAdminCampaignsPage() {
           <div ref={listViewportRef} className="min-h-0 flex-1 overflow-hidden">
             {loading && <div className="px-5 py-8 text-sm text-zinc-500">Loading campaigns...</div>}
 
-            {!loading && visibleItems.length === 0 && (
+            {!loading && loadError && (
+              <div role="alert" className="flex items-center justify-between gap-3 border-b border-rose-200 px-5 py-3 text-sm text-rose-700">
+                <span>Could not refresh campaigns: {loadError}</span>
+                <Button type="button" variant="outline" onClick={() => void fetchData()} className="h-8 shrink-0 px-3 text-xs">
+                  Retry
+                </Button>
+              </div>
+            )}
+
+            {!loading && !loadError && visibleItems.length === 0 && (
               <div className="px-5 py-8 text-sm text-zinc-500">
                 {activeFilters ? "No campaigns match the current filters." : "No campaigns found."}
               </div>
