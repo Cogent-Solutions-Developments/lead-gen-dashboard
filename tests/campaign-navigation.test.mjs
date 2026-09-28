@@ -59,6 +59,10 @@ test("selected campaign highlight is immediate and dark-mode safe", () => {
 test("campaign filter panel offers event name, event date, and category without status choices", () => {
   assert.match(campaignListSource, /Search event name/);
   assert.match(campaignListSource, /id="campaign-date-filter"/);
-  assert.match(campaignListSource, /aria-label="Category"/);
+  assert.match(campaignListSource, /id="campaign-category-search"/);
+  assert.match(campaignListSource, /role="combobox"/);
+  assert.match(campaignListSource, /role="listbox"/);
+  assert.match(campaignListSource, /max-h-44 overflow-y-auto/);
+  assert.match(campaignListSource, /aria-pressed=\{!categoryFilter\}/);
   assert.doesNotMatch(campaignListSource, /setStatusFilter|All statuses/);
 });

@@ -252,7 +252,9 @@ Super-admin campaign list:
 
 - Loads every backend campaign page using `listCampaigns({ status: "all", limit, offset })`, then paginates the full result locally.
 - Refetches periodically while the document is visible.
-- Filters the full list by event name, event date, and category, with combined criteria and accurate result counts.
+- Loads missing category and event-date metadata from campaign info with bounded concurrency and a short cache.
+- Filters the full list by event name, either displayed date (event or created), and category, with combined criteria and accurate result counts.
+- The category control is a searchable picker with all matching categories in its own bounded scroll area; the All categories option and selected category remain easy to reach.
 - Supports stop/delete/force-delete actions through `CampaignActionDialog`.
 - Reacts to persona changes by reloading data from the selected workspace namespace.
 
