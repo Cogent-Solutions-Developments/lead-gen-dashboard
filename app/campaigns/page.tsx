@@ -18,6 +18,7 @@ import {
   Clock,
   Search,
   X,
+  Check,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
@@ -317,9 +318,10 @@ function SuperAdminCampaignsPage() {
     {}
   );
   const [loading, setLoading] = useState(true);
+  const [metadataLoading, setMetadataLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [metadataFailedCount, setMetadataFailedCount] = useState(0);
-  const [categoryFilter, setCategoryFilter] = useState("");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [categorySearch, setCategorySearch] = useState("");
   const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
   const [activeCategoryIndex, setActiveCategoryIndex] = useState(0);
@@ -397,12 +399,33 @@ function SuperAdminCampaignsPage() {
 
     try {
       const res = await loadAllCampaigns(listCampaigns);
-      const enriched = await enrichCampaignMetadata(res.campaigns, getCampaignInfo, infoCache);
+      if (fetchId !== latestFetchRef.current) return;
+
+      if (!silent) {
+        setItems(res.campaigns);
+        setCategoryOptions(res.categories);
+        setMetadataFailedCount(0);
+        setLoadError(null);
+        setMetadataLoading(true);
+        setLoading(false);
+      }
+
+      const enriched = await enrichCampaignMetadata(
+        res.campaigns,
+        getCampaignInfo,
+        infoCache,
+        Date.now(),
+        (batchInfoById) => {
+          if (silent || fetchId !== latestFetchRef.current) return;
+          setCampaignInfoById((previous) => ({ ...previous, ...batchInfoById }));
+        }
+      );
       if (fetchId !== latestFetchRef.current) return;
       setItems(enriched.campaigns);
       setCategoryOptions(res.categories);
       setCampaignInfoById((previous) => ({ ...previous, ...enriched.infoById }));
       setMetadataFailedCount(enriched.failedIds.length);
+      setMetadataLoading(false);
       setLoadError(null);
     } catch (err: unknown) {
       if (fetchId === latestFetchRef.current) {
@@ -415,6 +438,7 @@ function SuperAdminCampaignsPage() {
       if (fetchId === latestFetchRef.current) {
         fetchInProgressRef.current = false;
         if (!silent) setLoading(false);
+        setMetadataLoading(false);
       }
     }
   }, []);
@@ -500,14 +524,14 @@ function SuperAdminCampaignsPage() {
       if (!byKey.has(key)) byKey.set(key, raw);
     }
 
-    if (categoryFilter) {
-      const selected = categoryFilter.trim();
+    for (const category of selectedCategories) {
+      const selected = category.trim();
       if (selected && !byKey.has(selected.toLowerCase())) byKey.set(selected.toLowerCase(), selected);
     }
 
     const values = Array.from(byKey.values()).sort((a, b) => a.localeCompare(b));
     return values;
-  }, [categoryOptions, categoryFilter, items]);
+  }, [categoryOptions, selectedCategories, items]);
 
   const visibleCategoryOptions = useMemo(
     () => findCampaignCategories(categories, categorySearch),
@@ -526,11 +550,19 @@ function SuperAdminCampaignsPage() {
     }
   }, [activeCategoryIndex, isCategoryPickerOpen, visibleCategoryOptions]);
 
-  const selectCategory = (value: string) => {
-    setCategoryFilter(value);
+  const clearCategories = () => {
+    setSelectedCategories([]);
     setCategorySearch("");
     setIsCategoryPickerOpen(false);
     setActiveCategoryIndex(0);
+  };
+
+  const toggleCategory = (value: string) => {
+    setSelectedCategories((previous) =>
+      previous.some((category) => category.toLowerCase() === value.toLowerCase())
+        ? previous.filter((category) => category.toLowerCase() !== value.toLowerCase())
+        : [...previous, value]
+    );
   };
 
   useEffect(() => {
@@ -567,9 +599,10 @@ function SuperAdminCampaignsPage() {
     };
   }, [items.length, loading]);
 
+  const filterResultsPending = metadataLoading && Boolean(dateFilter || selectedCategories.length);
   const filteredItems = useMemo(
-    () => filterCampaigns(items, { eventName: eventNameFilter, date: dateFilter, category: categoryFilter }),
-    [items, eventNameFilter, dateFilter, categoryFilter]
+    () => filterResultsPending ? [] : filterCampaigns(items, { eventName: eventNameFilter, date: dateFilter, categories: selectedCategories }),
+    [items, eventNameFilter, dateFilter, selectedCategories, filterResultsPending]
   );
   const totalItems = filteredItems.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
@@ -623,13 +656,13 @@ function SuperAdminCampaignsPage() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i);
   }, [currentPage, totalPages]);
 
-  const activeFilters = Boolean(categoryFilter || dateFilter || eventNameFilter.trim());
+  const activeFilters = Boolean(selectedCategories.length || dateFilter || eventNameFilter.trim());
 
   useEffect(() => {
     const nextFilters: CampaignFilterSnapshot = {
       eventName: eventNameFilter,
       date: dateFilter,
-      category: categoryFilter,
+      categories: selectedCategories,
     };
     const previousFilters = previousCampaignFiltersRef.current;
     previousCampaignFiltersRef.current = nextFilters;
@@ -637,17 +670,17 @@ function SuperAdminCampaignsPage() {
     if (didCampaignFiltersChange(previousFilters, nextFilters)) {
       replaceCampaignPage(1);
     }
-  }, [categoryFilter, dateFilter, eventNameFilter, replaceCampaignPage]);
+  }, [selectedCategories, dateFilter, eventNameFilter, replaceCampaignPage]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || filterResultsPending) return;
     if (currentPage > totalPages) {
       replaceCampaignPage(totalPages);
     }
-  }, [currentPage, loading, replaceCampaignPage, totalPages]);
+  }, [currentPage, filterResultsPending, loading, replaceCampaignPage, totalPages]);
 
   useEffect(() => {
-    if (loading || visibleItems.length === 0) return;
+    if (loading || metadataLoading || visibleItems.length === 0) return;
 
     const missingIds = visibleItems
       .map((campaign) => campaign.id)
@@ -683,7 +716,7 @@ function SuperAdminCampaignsPage() {
     return () => {
       cancelled = true;
     };
-  }, [loading, visibleItems, campaignInfoById]);
+  }, [loading, metadataLoading, visibleItems, campaignInfoById]);
 
   useEffect(() => {
     if (loading || visibleItems.length === 0) return;
@@ -1247,7 +1280,7 @@ function SuperAdminCampaignsPage() {
               Filter
               {activeFilters && (
                 <span className="rounded-full bg-zinc-900/12 px-2 py-0.5 text-[10px] font-semibold text-zinc-700">
-                  {totalItems}
+                  {filterResultsPending ? "…" : totalItems}
                 </span>
               )}
             </Button>
@@ -1260,7 +1293,7 @@ function SuperAdminCampaignsPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        setCategoryFilter("");
+                        setSelectedCategories([]);
                         setCategorySearch("");
                         setIsCategoryPickerOpen(false);
                         setEventNameFilter("");
@@ -1316,27 +1349,38 @@ function SuperAdminCampaignsPage() {
                   <label htmlFor="campaign-category-search" className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                     Category
                   </label>
-                  {categoryFilter ? (
+                  <div className="flex items-center justify-between gap-2">
                     <button
                       type="button"
-                      onClick={() => selectCategory("")}
-                      className="flex max-w-full items-center gap-1 rounded-full border border-zinc-300 bg-zinc-900 px-2.5 py-1 text-left text-[11px] font-medium text-white"
-                      aria-label={`Clear category ${categoryFilter}`}
+                      onClick={clearCategories}
+                      aria-pressed={selectedCategories.length === 0}
+                      className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                        selectedCategories.length === 0 ? "border-zinc-300 bg-zinc-900 text-white" : "border-zinc-300 bg-white text-zinc-600 hover:text-zinc-900"
+                      }`}
                     >
-                      <span className="truncate">{categoryFilter}</span>
-                      <X className="h-3 w-3 shrink-0" />
+                      All categories
                     </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={() => selectCategory("")}
-                    aria-pressed={!categoryFilter}
-                    className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                      !categoryFilter ? "border-zinc-300 bg-zinc-900 text-white" : "border-zinc-300 bg-white text-zinc-600 hover:text-zinc-900"
-                    }`}
-                  >
-                    All categories
-                  </button>
+                    {selectedCategories.length > 0 && (
+                      <span className="text-[11px] text-zinc-500">{selectedCategories.length} selected</span>
+                    )}
+                  </div>
+                  {selectedCategories.length > 0 && (
+                    <div className="flex max-h-20 flex-wrap gap-1.5 overflow-y-auto" aria-label="Selected categories">
+                      {selectedCategories.map((category) => (
+                        <button
+                          key={category}
+                          type="button"
+                          onClick={() => toggleCategory(category)}
+                          className="inline-flex max-w-full items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700"
+                          aria-label={`Remove category ${category}`}
+                          title={category}
+                        >
+                          <span className="truncate">{category}</span>
+                          <X className="h-3 w-3 shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
                     <Input
@@ -1365,7 +1409,7 @@ function SuperAdminCampaignsPage() {
                         } else if (event.key === "Enter" && isCategoryPickerOpen) {
                           event.preventDefault();
                           if (visibleCategoryOptions.length > 0) {
-                            selectCategory(visibleCategoryOptions[Math.min(activeCategoryIndex, visibleCategoryOptions.length - 1)]);
+                            toggleCategory(visibleCategoryOptions[Math.min(activeCategoryIndex, visibleCategoryOptions.length - 1)]);
                           }
                         }
                       }}
@@ -1379,38 +1423,47 @@ function SuperAdminCampaignsPage() {
                     />
                   </div>
                   {isCategoryPickerOpen && (
-                    <div ref={categoryListRef} id="campaign-category-options" role="listbox" aria-label="Categories" className="relative max-h-44 overflow-y-auto overscroll-contain rounded-lg border border-zinc-200 bg-white p-1">
+                    <div ref={categoryListRef} id="campaign-category-options" role="listbox" aria-label="Categories" aria-multiselectable="true" className="relative max-h-44 overflow-y-auto overscroll-contain rounded-lg border border-zinc-200 bg-white p-1">
                       {visibleCategoryOptions.map((value, index) => (
                         <button
                           key={value}
                           id={`campaign-category-option-${index}`}
                           type="button"
                           role="option"
-                          aria-selected={categoryFilter === value}
+                          aria-selected={selectedCategories.some((category) => category.toLowerCase() === value.toLowerCase())}
                           title={value}
                           onMouseDown={(event) => event.preventDefault()}
                           onMouseEnter={() => setActiveCategoryIndex(index)}
-                          onClick={() => selectCategory(value)}
-                          className={`block w-full truncate rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
+                          onClick={() => toggleCategory(value)}
+                          className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
                             index === activeCategoryIndex ? "bg-zinc-100 text-zinc-900" : "text-zinc-600 hover:bg-zinc-50"
                           }`}
                         >
-                          {value}
+                          <span className="truncate">{value}</span>
+                          {selectedCategories.some((category) => category.toLowerCase() === value.toLowerCase()) && (
+                            <Check className="h-3.5 w-3.5 shrink-0 text-blue-600" aria-hidden="true" />
+                          )}
                         </button>
                       ))}
                       {visibleCategoryOptions.length === 0 && (
-                        <p className="px-2 py-1.5 text-xs text-zinc-500">No categories found.</p>
+                        <p className="px-2 py-1.5 text-xs text-zinc-500">
+                          {metadataLoading ? "Loading categories…" : "No categories found."}
+                        </p>
                       )}
                     </div>
                   )}
                   <p className="text-[11px] text-zinc-500">
-                    {categorySearch.trim() ? `${visibleCategoryOptions.length} of ${categories.length} categories` : `${categories.length} categories available`}
+                    {metadataLoading
+                      ? "Loading remaining categories…"
+                      : categorySearch.trim()
+                        ? `${visibleCategoryOptions.length} of ${categories.length} categories`
+                        : `${categories.length} categories available`}
                   </p>
                 </div>
                 </div>
 
                 <div className="flex shrink-0 items-center justify-between border-t border-zinc-300/70 px-4 py-3 text-xs text-zinc-500">
-                  <span>{totalItems} campaigns match</span>
+                  <span>{filterResultsPending ? "Preparing filter results…" : `${totalItems} campaigns match`}</span>
                   <Button
                     type="button"
                     variant="ghost"
@@ -1460,7 +1513,13 @@ function SuperAdminCampaignsPage() {
               </div>
             )}
 
-            {!loading && !loadError && visibleItems.length === 0 && (
+            {!loading && !loadError && filterResultsPending && (
+              <div role="status" className="px-5 py-8 text-sm text-zinc-500">
+                Loading campaign details for the selected filters…
+              </div>
+            )}
+
+            {!loading && !loadError && !filterResultsPending && visibleItems.length === 0 && (
               <div className="px-5 py-8 text-sm text-zinc-500">
                 {activeFilters ? "No campaigns match the current filters." : "No campaigns found."}
               </div>

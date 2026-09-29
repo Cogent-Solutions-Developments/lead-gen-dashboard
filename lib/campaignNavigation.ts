@@ -5,7 +5,7 @@ export const CAMPAIGN_SELECTED_QUERY_PARAM = "selected";
 export type CampaignFilterSnapshot = {
   eventName: string;
   date: string;
-  category: string;
+  categories: string[];
 };
 
 export function didCampaignFiltersChange(
@@ -13,10 +13,13 @@ export function didCampaignFiltersChange(
   current: CampaignFilterSnapshot
 ) {
   if (!previous) return false;
+  const previousCategories = new Set(previous.categories.map((value) => value.trim().toLowerCase()));
+  const currentCategories = new Set(current.categories.map((value) => value.trim().toLowerCase()));
   return (
     previous.eventName !== current.eventName ||
     previous.date !== current.date ||
-    previous.category !== current.category
+    previousCategories.size !== currentCategories.size ||
+    [...previousCategories].some((value) => !currentCategories.has(value))
   );
 }
 

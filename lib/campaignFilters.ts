@@ -3,7 +3,7 @@ import type { CampaignInfo, CampaignListItem, CampaignListResponse } from "./api
 export type CampaignFilters = {
   eventName: string;
   date: string;
-  category: string;
+  categories: string[];
 };
 
 export function findCampaignCategories(categories: string[], query: string) {
@@ -77,20 +77,28 @@ function localDateKey(date: Date | null) {
 
 export function filterCampaigns(campaigns: CampaignListItem[], filters: CampaignFilters) {
   const eventName = filters.eventName.trim().toLocaleLowerCase();
-  const category = filters.category.trim().toLocaleLowerCase();
+  const categories = new Set(filters.categories.map((value) => value.trim().toLocaleLowerCase()).filter(Boolean));
 
   return campaigns.filter((campaign) => {
-    const names = [campaign.canonicalEventName, campaign.name]
-      .map((value) => String(value || "").toLocaleLowerCase());
-    const campaignDate = String(campaign.date || "").trim().slice(0, 10);
-    const createdDate = localDateKey(parseDbTimestamp(campaign.createdAt));
-    const campaignCategory = String(campaign.category || "").trim().toLocaleLowerCase();
+    if (eventName) {
+      const names = [campaign.canonicalEventName, campaign.name]
+        .map((value) => String(value || "").toLocaleLowerCase());
+      if (!names.some((name) => name.includes(eventName))) return false;
+    }
 
-    return (
-      (!eventName || names.some((name) => name.includes(eventName))) &&
-      (!filters.date || campaignDate === filters.date || createdDate === filters.date) &&
-      (!category || campaignCategory === category)
-    );
+    if (categories.size > 0) {
+      const campaignCategory = String(campaign.category || "").trim().toLocaleLowerCase();
+      if (!categories.has(campaignCategory)) return false;
+    }
+
+    if (filters.date) {
+      const campaignDate = String(campaign.date || "").trim().slice(0, 10);
+      if (campaignDate !== filters.date && localDateKey(parseDbTimestamp(campaign.createdAt)) !== filters.date) {
+        return false;
+      }
+    }
+
+    return true;
   });
 }
 
@@ -98,7 +106,8 @@ export async function enrichCampaignMetadata(
   campaigns: CampaignListItem[],
   getInfo: (id: string) => Promise<{ info: CampaignInfo | null }>,
   cache: CampaignInfoCache,
-  now = Date.now()
+  now = Date.now(),
+  onBatch?: (infoById: Record<string, CampaignInfo | null>) => void
 ) {
   const needsInfo = campaigns.filter((campaign) => {
     if (campaign.category && campaign.date) return false;
@@ -108,19 +117,23 @@ export async function enrichCampaignMetadata(
   const failedIds: string[] = [];
 
   for (let index = 0; index < needsInfo.length; index += METADATA_BATCH_SIZE) {
+    const batchInfoById: Record<string, CampaignInfo | null> = {};
     await Promise.all(needsInfo.slice(index, index + METADATA_BATCH_SIZE).map(async (campaign) => {
       try {
         const response = await getInfo(campaign.id);
         cache.set(campaign.id, { info: response.info || null, fetchedAt: now });
+        batchInfoById[campaign.id] = response.info || null;
       } catch (error) {
         const status = (error as { response?: { status?: number } })?.response?.status;
         if (status === 404) {
           cache.set(campaign.id, { info: null, fetchedAt: now });
+          batchInfoById[campaign.id] = null;
         } else {
           failedIds.push(campaign.id);
         }
       }
     }));
+    if (Object.keys(batchInfoById).length > 0) onBatch?.(batchInfoById);
   }
 
   const infoById: Record<string, CampaignInfo | null> = {};

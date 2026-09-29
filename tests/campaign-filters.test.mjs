@@ -10,16 +10,17 @@ const campaigns = [
 ];
 
 test("event name, date, and category filters combine across all campaigns", () => {
-  const defaults = { eventName: "", date: "", category: "" };
+  const defaults = { eventName: "", date: "", categories: [] };
   assert.deepEqual(filterCampaigns(campaigns, defaults).map((item) => item.id), ["1", "2", "3"]);
   assert.deepEqual(filterCampaigns(campaigns, { ...defaults, eventName: " REGTECH " }).map((item) => item.id), ["1", "2"]);
   assert.deepEqual(filterCampaigns(campaigns, { ...defaults, eventName: "legacy" }).map((item) => item.id), ["3"]);
   assert.deepEqual(filterCampaigns(campaigns, { ...defaults, eventName: "campaign alpha" }).map((item) => item.id), ["1"]);
   assert.deepEqual(filterCampaigns(campaigns, { ...defaults, date: "2027-01-20" }).map((item) => item.id), ["2"]);
   assert.deepEqual(filterCampaigns(campaigns, { ...defaults, date: "2026-09-23" }).map((item) => item.id), ["1"]);
-  assert.deepEqual(filterCampaigns(campaigns, { ...defaults, category: "compliance" }).map((item) => item.id), ["1"]);
-  assert.deepEqual(filterCampaigns(campaigns, { eventName: "regtech", date: "2026-11-05", category: "COMPLIANCE" }).map((item) => item.id), ["1"]);
-  assert.deepEqual(filterCampaigns(campaigns, { eventName: "regtech", date: "2027-01-20", category: "Compliance" }), []);
+  assert.deepEqual(filterCampaigns(campaigns, { ...defaults, categories: ["compliance"] }).map((item) => item.id), ["1"]);
+  assert.deepEqual(filterCampaigns(campaigns, { ...defaults, categories: ["compliance", "TECHNOLOGY"] }).map((item) => item.id), ["1", "2"]);
+  assert.deepEqual(filterCampaigns(campaigns, { eventName: "regtech", date: "2026-11-05", categories: ["COMPLIANCE", "Technology"] }).map((item) => item.id), ["1"]);
+  assert.deepEqual(filterCampaigns(campaigns, { eventName: "regtech", date: "2027-01-20", categories: ["Compliance"] }), []);
 });
 
 test("category search keeps every option available", () => {
@@ -44,10 +45,37 @@ test("detail metadata fills missing category and event date before filtering", a
   assert.deepEqual(calls, ["legacy"]);
   assert.equal(first.campaigns[0].category, "Test");
   assert.equal(first.campaigns[0].date, "2026-07-14");
-  assert.deepEqual(filterCampaigns(first.campaigns, { eventName: "angola", date: "2026-09-23", category: "TEST" }).map((item) => item.id), ["legacy"]);
-  assert.deepEqual(filterCampaigns(first.campaigns, { eventName: "angola", date: "2026-07-14", category: "TEST" }).map((item) => item.id), ["legacy"]);
+  assert.deepEqual(filterCampaigns(first.campaigns, { eventName: "angola", date: "2026-09-23", categories: ["TEST"] }).map((item) => item.id), ["legacy"]);
+  assert.deepEqual(filterCampaigns(first.campaigns, { eventName: "angola", date: "2026-07-14", categories: ["TEST"] }).map((item) => item.id), ["legacy"]);
   await enrichCampaignMetadata([listItem], getInfo, cache, 1001);
   assert.deepEqual(calls, ["legacy"]);
+});
+
+test("metadata is published a batch at a time while later requests are pending", async () => {
+  const items = Array.from({ length: 9 }, (_, index) => ({
+    id: String(index), name: `Campaign ${index}`, category: null, date: null,
+  }));
+  let resolveLast;
+  const lastRequest = new Promise((resolve) => { resolveLast = resolve; });
+  const published = [];
+  const enrichment = enrichCampaignMetadata(
+    items,
+    async (id) => id === "8" ? lastRequest : { info: { category: `Category ${id}`, date: "2026-09-23" } },
+    new Map(),
+    1000,
+    (batch) => published.push(batch)
+  );
+
+  for (let attempt = 0; attempt < 10 && published.length === 0; attempt += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  assert.equal(published.length, 1);
+  assert.equal(Object.keys(published[0]).length, 8);
+
+  resolveLast({ info: { category: "Category 8", date: "2026-09-23" } });
+  const result = await enrichment;
+  assert.equal(published.length, 2);
+  assert.equal(result.campaigns[8].category, "Category 8");
 });
 
 test("loads every backend page before filtering and merges category options", async () => {

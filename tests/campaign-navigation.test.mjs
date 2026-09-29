@@ -34,13 +34,15 @@ test("campaign page parameters are constrained to positive whole pages", () => {
 });
 
 test("campaign pagination survives initial and Strict Mode filter effects", () => {
-  const filters = { eventName: "", date: "", category: "" };
+  const filters = { eventName: "", date: "", categories: [] };
 
   assert.equal(didCampaignFiltersChange(null, filters), false);
   assert.equal(didCampaignFiltersChange(filters, { ...filters }), false);
   assert.equal(didCampaignFiltersChange(filters, { ...filters, eventName: "Angola" }), true);
   assert.equal(didCampaignFiltersChange(filters, { ...filters, date: "2027-01-20" }), true);
-  assert.equal(didCampaignFiltersChange(filters, { ...filters, category: "Compliance" }), true);
+  assert.equal(didCampaignFiltersChange(filters, { ...filters, categories: ["Compliance"] }), true);
+  assert.equal(didCampaignFiltersChange({ ...filters, categories: ["Compliance", "Technology"] }, { ...filters, categories: ["Technology", "Compliance"] }), false);
+  assert.equal(didCampaignFiltersChange({ ...filters, categories: ["Compliance", "Technology"] }, { ...filters, categories: ["Technology"] }), true);
   assert.doesNotMatch(campaignListSource, /didMountFilterResetRef/);
   assert.match(
     campaignListSource,
@@ -63,6 +65,7 @@ test("campaign filter panel offers event name, event date, and category without 
   assert.match(campaignListSource, /role="combobox"/);
   assert.match(campaignListSource, /role="listbox"/);
   assert.match(campaignListSource, /max-h-44 overflow-y-auto/);
-  assert.match(campaignListSource, /aria-pressed=\{!categoryFilter\}/);
+  assert.match(campaignListSource, /aria-multiselectable="true"/);
+  assert.match(campaignListSource, /aria-pressed=\{selectedCategories\.length === 0\}/);
   assert.doesNotMatch(campaignListSource, /setStatusFilter|All statuses/);
 });
