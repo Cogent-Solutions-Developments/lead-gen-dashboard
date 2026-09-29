@@ -252,7 +252,8 @@ Super-admin campaign list:
 
 - Loads every backend campaign page using `listCampaigns({ status: "all", limit, offset })`, then paginates the full result locally.
 - Refetches periodically while the document is visible.
-- Loads missing category and event-date metadata from campaign info with bounded concurrency and a short cache.
+- Renders the campaign list as soon as its pages arrive. Missing category and event-date metadata loads in background batches with a short cache; visible details appear as batches finish.
+- Holds date/category result counts until metadata loading finishes, so partial metadata never appears as a false zero-match result.
 - Filters the full list by event name, either displayed date (event or created), and category, with combined criteria and accurate result counts.
 - The category control is a searchable multi-select picker with all matching categories in its own bounded scroll area. Selected categories match with OR logic, can be removed individually, and All categories clears the selection.
 - Supports stop/delete/force-delete actions through `CampaignActionDialog`.

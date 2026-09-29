@@ -318,6 +318,7 @@ function SuperAdminCampaignsPage() {
     {}
   );
   const [loading, setLoading] = useState(true);
+  const [metadataLoading, setMetadataLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [metadataFailedCount, setMetadataFailedCount] = useState(0);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -398,12 +399,33 @@ function SuperAdminCampaignsPage() {
 
     try {
       const res = await loadAllCampaigns(listCampaigns);
-      const enriched = await enrichCampaignMetadata(res.campaigns, getCampaignInfo, infoCache);
+      if (fetchId !== latestFetchRef.current) return;
+
+      if (!silent) {
+        setItems(res.campaigns);
+        setCategoryOptions(res.categories);
+        setMetadataFailedCount(0);
+        setLoadError(null);
+        setMetadataLoading(true);
+        setLoading(false);
+      }
+
+      const enriched = await enrichCampaignMetadata(
+        res.campaigns,
+        getCampaignInfo,
+        infoCache,
+        Date.now(),
+        (batchInfoById) => {
+          if (silent || fetchId !== latestFetchRef.current) return;
+          setCampaignInfoById((previous) => ({ ...previous, ...batchInfoById }));
+        }
+      );
       if (fetchId !== latestFetchRef.current) return;
       setItems(enriched.campaigns);
       setCategoryOptions(res.categories);
       setCampaignInfoById((previous) => ({ ...previous, ...enriched.infoById }));
       setMetadataFailedCount(enriched.failedIds.length);
+      setMetadataLoading(false);
       setLoadError(null);
     } catch (err: unknown) {
       if (fetchId === latestFetchRef.current) {
@@ -416,6 +438,7 @@ function SuperAdminCampaignsPage() {
       if (fetchId === latestFetchRef.current) {
         fetchInProgressRef.current = false;
         if (!silent) setLoading(false);
+        setMetadataLoading(false);
       }
     }
   }, []);
@@ -576,9 +599,10 @@ function SuperAdminCampaignsPage() {
     };
   }, [items.length, loading]);
 
+  const filterResultsPending = metadataLoading && Boolean(dateFilter || selectedCategories.length);
   const filteredItems = useMemo(
-    () => filterCampaigns(items, { eventName: eventNameFilter, date: dateFilter, categories: selectedCategories }),
-    [items, eventNameFilter, dateFilter, selectedCategories]
+    () => filterResultsPending ? [] : filterCampaigns(items, { eventName: eventNameFilter, date: dateFilter, categories: selectedCategories }),
+    [items, eventNameFilter, dateFilter, selectedCategories, filterResultsPending]
   );
   const totalItems = filteredItems.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
@@ -649,14 +673,14 @@ function SuperAdminCampaignsPage() {
   }, [selectedCategories, dateFilter, eventNameFilter, replaceCampaignPage]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || filterResultsPending) return;
     if (currentPage > totalPages) {
       replaceCampaignPage(totalPages);
     }
-  }, [currentPage, loading, replaceCampaignPage, totalPages]);
+  }, [currentPage, filterResultsPending, loading, replaceCampaignPage, totalPages]);
 
   useEffect(() => {
-    if (loading || visibleItems.length === 0) return;
+    if (loading || metadataLoading || visibleItems.length === 0) return;
 
     const missingIds = visibleItems
       .map((campaign) => campaign.id)
@@ -692,7 +716,7 @@ function SuperAdminCampaignsPage() {
     return () => {
       cancelled = true;
     };
-  }, [loading, visibleItems, campaignInfoById]);
+  }, [loading, metadataLoading, visibleItems, campaignInfoById]);
 
   useEffect(() => {
     if (loading || visibleItems.length === 0) return;
@@ -1256,7 +1280,7 @@ function SuperAdminCampaignsPage() {
               Filter
               {activeFilters && (
                 <span className="rounded-full bg-zinc-900/12 px-2 py-0.5 text-[10px] font-semibold text-zinc-700">
-                  {totalItems}
+                  {filterResultsPending ? "…" : totalItems}
                 </span>
               )}
             </Button>
@@ -1422,18 +1446,24 @@ function SuperAdminCampaignsPage() {
                         </button>
                       ))}
                       {visibleCategoryOptions.length === 0 && (
-                        <p className="px-2 py-1.5 text-xs text-zinc-500">No categories found.</p>
+                        <p className="px-2 py-1.5 text-xs text-zinc-500">
+                          {metadataLoading ? "Loading categories…" : "No categories found."}
+                        </p>
                       )}
                     </div>
                   )}
                   <p className="text-[11px] text-zinc-500">
-                    {categorySearch.trim() ? `${visibleCategoryOptions.length} of ${categories.length} categories` : `${categories.length} categories available`}
+                    {metadataLoading
+                      ? "Loading remaining categories…"
+                      : categorySearch.trim()
+                        ? `${visibleCategoryOptions.length} of ${categories.length} categories`
+                        : `${categories.length} categories available`}
                   </p>
                 </div>
                 </div>
 
                 <div className="flex shrink-0 items-center justify-between border-t border-zinc-300/70 px-4 py-3 text-xs text-zinc-500">
-                  <span>{totalItems} campaigns match</span>
+                  <span>{filterResultsPending ? "Preparing filter results…" : `${totalItems} campaigns match`}</span>
                   <Button
                     type="button"
                     variant="ghost"
@@ -1483,7 +1513,13 @@ function SuperAdminCampaignsPage() {
               </div>
             )}
 
-            {!loading && !loadError && visibleItems.length === 0 && (
+            {!loading && !loadError && filterResultsPending && (
+              <div role="status" className="px-5 py-8 text-sm text-zinc-500">
+                Loading campaign details for the selected filters…
+              </div>
+            )}
+
+            {!loading && !loadError && !filterResultsPending && visibleItems.length === 0 && (
               <div className="px-5 py-8 text-sm text-zinc-500">
                 {activeFilters ? "No campaigns match the current filters." : "No campaigns found."}
               </div>

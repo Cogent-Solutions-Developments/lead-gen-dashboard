@@ -51,6 +51,33 @@ test("detail metadata fills missing category and event date before filtering", a
   assert.deepEqual(calls, ["legacy"]);
 });
 
+test("metadata is published a batch at a time while later requests are pending", async () => {
+  const items = Array.from({ length: 9 }, (_, index) => ({
+    id: String(index), name: `Campaign ${index}`, category: null, date: null,
+  }));
+  let resolveLast;
+  const lastRequest = new Promise((resolve) => { resolveLast = resolve; });
+  const published = [];
+  const enrichment = enrichCampaignMetadata(
+    items,
+    async (id) => id === "8" ? lastRequest : { info: { category: `Category ${id}`, date: "2026-09-23" } },
+    new Map(),
+    1000,
+    (batch) => published.push(batch)
+  );
+
+  for (let attempt = 0; attempt < 10 && published.length === 0; attempt += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  assert.equal(published.length, 1);
+  assert.equal(Object.keys(published[0]).length, 8);
+
+  resolveLast({ info: { category: "Category 8", date: "2026-09-23" } });
+  const result = await enrichment;
+  assert.equal(published.length, 2);
+  assert.equal(result.campaigns[8].category, "Category 8");
+});
+
 test("loads every backend page before filtering and merges category options", async () => {
   const offsets = [];
   const result = await loadAllCampaigns(async ({ status, limit, offset }) => {
