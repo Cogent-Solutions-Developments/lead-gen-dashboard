@@ -51,6 +51,14 @@ import {
   parseCampaignPageParam,
   type CampaignFilterSnapshot,
 } from "@/lib/campaignNavigation";
+import {
+  enrichCampaignMetadata,
+  filterCampaigns,
+  findCampaignCategories,
+  loadAllCampaigns,
+  parseDbTimestamp,
+  type CampaignInfoCache,
+} from "@/lib/campaignFilters";
 
 const statusConfig: Record<
   string,
@@ -89,16 +97,6 @@ const statusConfig: Record<
     style: "border-rose-200/80 bg-rose-50/85 text-rose-700",
   },
 };
-
-const filterOnlyStatuses = [
-  "processing",
-  "content_generating",
-  "needs_review",
-  "active_outreach",
-  "completed",
-  "failed",
-  "cancelled",
-] as const;
 
 const CAMPAIGN_LIST_POLL_MS = 30000;
 const CONTENT_JOB_ACTIVE_STATES = new Set(["PENDING", "QUEUED", "STARTED", "PROGRESS", "RETRY", "PAUSING"]);
@@ -243,66 +241,6 @@ function getCampaignDisplayStatus(campaign: CampaignListItem) {
   return "content_generating";
 }
 
-function hasExplicitTimezone(value: string) {
-  return /(?:[zZ]|[+-]\d{2}:?\d{2})$/.test(value);
-}
-
-function timezoneOffsetMs(date: Date, timeZone: string) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hour12: false,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).formatToParts(date);
-
-  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  const utcFromTz = Date.UTC(
-    Number(map.year),
-    Number(map.month) - 1,
-    Number(map.day),
-    Number(map.hour),
-    Number(map.minute),
-    Number(map.second)
-  );
-
-  return utcFromTz - date.getTime();
-}
-
-function parseDbTimestamp(value: string) {
-  if (!value) return null;
-
-  if (hasExplicitTimezone(value)) {
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  }
-
-  const normalized = value.replace(" ", "T");
-  const m = normalized.match(
-    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/
-  );
-
-  if (!m) {
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  }
-
-  const [, y, mo, d, h, mi, s = "0", msRaw = "0"] = m;
-  const ms = Number(msRaw.padEnd(3, "0").slice(0, 3));
-  const guessUtc = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s), ms);
-
-  // DB local time is Germany (Europe/Berlin); convert that wall time to UTC.
-  let offset = timezoneOffsetMs(new Date(guessUtc), "Europe/Berlin");
-  let utc = guessUtc - offset;
-  offset = timezoneOffsetMs(new Date(utc), "Europe/Berlin");
-  utc = guessUtc - offset;
-
-  return new Date(utc);
-}
-
 function formatCreatedAt(value: string) {
   const parsed = parseDbTimestamp(value);
   if (!parsed) return value;
@@ -374,15 +312,19 @@ function SuperAdminCampaignsPage() {
   const initialPage = parseCampaignPageParam(searchParams.get(CAMPAIGN_PAGE_QUERY_PARAM));
   const selectedCampaignId = searchParams.get(CAMPAIGN_SELECTED_QUERY_PARAM);
   const [items, setItems] = useState<CampaignListItem[]>([]);
-  const [totalItems, setTotalItems] = useState(0);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [campaignInfoById, setCampaignInfoById] = useState<Record<string, CampaignInfo | null>>(
     {}
   );
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [metadataFailedCount, setMetadataFailedCount] = useState(0);
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [categorySearch, setCategorySearch] = useState("");
+  const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
+  const [activeCategoryIndex, setActiveCategoryIndex] = useState(0);
+  const [eventNameFilter, setEventNameFilter] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(() => initialPage);
   const [itemsPerPage, setItemsPerPage] = useState(4);
@@ -400,11 +342,15 @@ function SuperAdminCampaignsPage() {
   const { persona } = usePersona();
   const { isSuperAdmin } = useAuth();
   const filterPanelRef = useRef<HTMLDivElement | null>(null);
+  const categoryListRef = useRef<HTMLDivElement | null>(null);
   const listViewportRef = useRef<HTMLDivElement | null>(null);
   const selectedCampaignRowRef = useRef<HTMLDivElement | null>(null);
   const contentGenerationControllersRef = useRef<Map<string, AbortController>>(new Map());
   const contentGenerationStopRequestedRef = useRef<Set<string>>(new Set());
   const previousCampaignFiltersRef = useRef<CampaignFilterSnapshot | null>(null);
+  const latestFetchRef = useRef(0);
+  const fetchInProgressRef = useRef(false);
+  const campaignInfoCacheRef = useRef<CampaignInfoCache>(new Map());
 
   const replaceCampaignPage = useCallback(
     (page: number) => {
@@ -439,34 +385,39 @@ function SuperAdminCampaignsPage() {
 
   const fetchData = useCallback(async (options?: { silent?: boolean; showErrors?: boolean }) => {
     const silent = Boolean(options?.silent);
+    if (silent && fetchInProgressRef.current) return;
     const showErrors = options?.showErrors !== false;
+    const fetchId = ++latestFetchRef.current;
+    fetchInProgressRef.current = true;
+    const infoCache = campaignInfoCacheRef.current;
 
     if (!silent) {
       setLoading(true);
     }
 
     try {
-      const res = await listCampaigns({
-        status: statusFilter,
-        limit: itemsPerPage,
-        offset: (currentPage - 1) * itemsPerPage,
-        search: searchQuery.trim() || undefined,
-        category: categoryFilter === "all" ? undefined : categoryFilter,
-      });
-
-      setItems(res.campaigns || []);
-      setTotalItems(Number(res.total || 0));
-      setCategoryOptions(res.categories || []);
+      const res = await loadAllCampaigns(listCampaigns);
+      const enriched = await enrichCampaignMetadata(res.campaigns, getCampaignInfo, infoCache);
+      if (fetchId !== latestFetchRef.current) return;
+      setItems(enriched.campaigns);
+      setCategoryOptions(res.categories);
+      setCampaignInfoById((previous) => ({ ...previous, ...enriched.infoById }));
+      setMetadataFailedCount(enriched.failedIds.length);
+      setLoadError(null);
     } catch (err: unknown) {
-      if (showErrors) {
-        toast.error("Failed to load campaigns", { description: getErrorMessage(err) });
+      if (fetchId === latestFetchRef.current) {
+        setLoadError(getErrorMessage(err));
+        if (showErrors) {
+          toast.error("Failed to load campaigns", { description: getErrorMessage(err) });
+        }
       }
     } finally {
-      if (!silent) {
-        setLoading(false);
+      if (fetchId === latestFetchRef.current) {
+        fetchInProgressRef.current = false;
+        if (!silent) setLoading(false);
       }
     }
-  }, [categoryFilter, currentPage, itemsPerPage, searchQuery, statusFilter]);
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -489,6 +440,9 @@ function SuperAdminCampaignsPage() {
 
     return () => {
       alive = false;
+      latestFetchRef.current += 1;
+      fetchInProgressRef.current = false;
+      campaignInfoCacheRef.current = new Map();
       clearInterval(t);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
@@ -523,17 +477,13 @@ function SuperAdminCampaignsPage() {
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, [isFilterOpen]);
 
-  const statusFilters = useMemo(() => {
-    return [
-      { value: "all", label: "All statuses" },
-      ...filterOnlyStatuses.map((value) => ({
-        value,
-        label: statusConfig[value]?.label || value.replaceAll("_", " "),
-      })),
-    ];
-  }, []);
+  useEffect(() => {
+    if (isFilterOpen) return;
+    setCategorySearch("");
+    setIsCategoryPickerOpen(false);
+  }, [isFilterOpen]);
 
-  const categoryFilters = useMemo(() => {
+  const categories = useMemo(() => {
     const byKey = new Map<string, string>();
 
     for (const raw of categoryOptions) {
@@ -544,20 +494,44 @@ function SuperAdminCampaignsPage() {
     }
 
     for (const campaign of items) {
-      const raw = String(campaign.category || campaignInfoById[campaign.id]?.category || "").trim();
+      const raw = String(campaign.category || "").trim();
       if (!raw) continue;
       const key = raw.toLowerCase();
       if (!byKey.has(key)) byKey.set(key, raw);
     }
 
-    if (categoryFilter !== "all") {
+    if (categoryFilter) {
       const selected = categoryFilter.trim();
       if (selected && !byKey.has(selected.toLowerCase())) byKey.set(selected.toLowerCase(), selected);
     }
 
     const values = Array.from(byKey.values()).sort((a, b) => a.localeCompare(b));
-    return [{ value: "all", label: "All categories" }, ...values.map((value) => ({ value, label: value }))];
-  }, [categoryOptions, categoryFilter, items, campaignInfoById]);
+    return values;
+  }, [categoryOptions, categoryFilter, items]);
+
+  const visibleCategoryOptions = useMemo(
+    () => findCampaignCategories(categories, categorySearch),
+    [categories, categorySearch]
+  );
+
+  useEffect(() => {
+    if (!isCategoryPickerOpen) return;
+    const list = categoryListRef.current;
+    const option = list?.querySelector<HTMLElement>(`#campaign-category-option-${activeCategoryIndex}`);
+    if (!list || !option) return;
+    if (option.offsetTop < list.scrollTop) {
+      list.scrollTop = option.offsetTop;
+    } else if (option.offsetTop + option.offsetHeight > list.scrollTop + list.clientHeight) {
+      list.scrollTop = option.offsetTop + option.offsetHeight - list.clientHeight;
+    }
+  }, [activeCategoryIndex, isCategoryPickerOpen, visibleCategoryOptions]);
+
+  const selectCategory = (value: string) => {
+    setCategoryFilter(value);
+    setCategorySearch("");
+    setIsCategoryPickerOpen(false);
+    setActiveCategoryIndex(0);
+  };
 
   useEffect(() => {
     if (loading || items.length === 0) return;
@@ -593,8 +567,16 @@ function SuperAdminCampaignsPage() {
     };
   }, [items.length, loading]);
 
+  const filteredItems = useMemo(
+    () => filterCampaigns(items, { eventName: eventNameFilter, date: dateFilter, category: categoryFilter }),
+    [items, eventNameFilter, dateFilter, categoryFilter]
+  );
+  const totalItems = filteredItems.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-  const visibleItems = items;
+  const visibleItems = useMemo(
+    () => filteredItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage),
+    [filteredItems, currentPage, itemsPerPage]
+  );
 
   useEffect(() => {
     if (items.length === 0) return;
@@ -641,14 +623,13 @@ function SuperAdminCampaignsPage() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i);
   }, [currentPage, totalPages]);
 
-  const activeFilters =
-    statusFilter !== "all" || categoryFilter !== "all" || searchQuery.trim().length > 0;
+  const activeFilters = Boolean(categoryFilter || dateFilter || eventNameFilter.trim());
 
   useEffect(() => {
     const nextFilters: CampaignFilterSnapshot = {
-      status: statusFilter,
+      eventName: eventNameFilter,
+      date: dateFilter,
       category: categoryFilter,
-      search: searchQuery,
     };
     const previousFilters = previousCampaignFiltersRef.current;
     previousCampaignFiltersRef.current = nextFilters;
@@ -656,7 +637,7 @@ function SuperAdminCampaignsPage() {
     if (didCampaignFiltersChange(previousFilters, nextFilters)) {
       replaceCampaignPage(1);
     }
-  }, [categoryFilter, replaceCampaignPage, searchQuery, statusFilter]);
+  }, [categoryFilter, dateFilter, eventNameFilter, replaceCampaignPage]);
 
   useEffect(() => {
     if (loading) return;
@@ -1259,6 +1240,8 @@ function SuperAdminCampaignsPage() {
               type="button"
               className="analytics-frost-btn h-10 px-4"
               onClick={() => setIsFilterOpen((prev) => !prev)}
+              aria-expanded={isFilterOpen}
+              aria-label="Filter campaigns"
             >
               <Filter className="h-4 w-4" />
               Filter
@@ -1270,16 +1253,18 @@ function SuperAdminCampaignsPage() {
             </Button>
 
             {isFilterOpen && (
-              <div className="absolute right-0 top-12 z-30 w-80 rounded-2xl border border-zinc-300 bg-white p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.85),0_16px_24px_-14px_rgba(2,10,27,0.24),0_6px_12px_-8px_rgba(15,23,42,0.14)]">
-                <div className="mb-3 flex items-center justify-between">
+              <div className="absolute right-0 top-12 z-30 flex max-h-[min(70vh,34rem)] w-[min(20rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_0_0_1px_rgba(255,255,255,0.85),0_16px_24px_-14px_rgba(2,10,27,0.24),0_6px_12px_-8px_rgba(15,23,42,0.14)]">
+                <div className="flex shrink-0 items-center justify-between px-4 pb-3 pt-4">
                   <p className="text-sm font-semibold text-zinc-800">Filter Campaigns</p>
                   {activeFilters && (
                     <button
                       type="button"
                       onClick={() => {
-                        setStatusFilter("all");
-                        setCategoryFilter("all");
-                        setSearchQuery("");
+                        setCategoryFilter("");
+                        setCategorySearch("");
+                        setIsCategoryPickerOpen(false);
+                        setEventNameFilter("");
+                        setDateFilter("");
                       }}
                       className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-800"
                     >
@@ -1289,66 +1274,142 @@ function SuperAdminCampaignsPage() {
                   )}
                 </div>
 
+                <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
                 <div className="space-y-2">
-                  <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                    Search
+                  <label htmlFor="campaign-event-name-filter" className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Event name
                   </label>
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
                     <Input
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Name, ICP, or campaign ID"
+                      id="campaign-event-name-filter"
+                      value={eventNameFilter}
+                      onChange={(e) => setEventNameFilter(e.target.value)}
+                      placeholder="Search event name"
                       className="h-9 border-zinc-300/80 bg-white/80 pl-9 text-sm"
                     />
                   </div>
                 </div>
 
                 <div className="mt-4 space-y-2">
-                  <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                    Status
+                  <label htmlFor="campaign-date-filter" className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Date
                   </label>
-                  <div className="flex flex-wrap gap-2">
-                    {statusFilters.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setStatusFilter(option.value)}
-                        className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                          statusFilter === option.value
-                            ? "border-zinc-300 bg-zinc-900 text-white"
-                            : "border-zinc-300 bg-white/82 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
+                  <Input
+                    id="campaign-date-filter"
+                    type="date"
+                    value={dateFilter}
+                    onChange={(e) => setDateFilter(e.target.value)}
+                    className="h-9 border-zinc-300/80 bg-white/80 text-sm"
+                  />
+                  <p className="text-[11px] text-zinc-500">Matches the event date or created date.</p>
                 </div>
 
-                <div className="mt-4 space-y-2">
-                  <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                <div
+                  className="mt-4 space-y-2"
+                  onBlur={(event) => {
+                    if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+                      setIsCategoryPickerOpen(false);
+                    }
+                  }}
+                >
+                  <label htmlFor="campaign-category-search" className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                     Category
                   </label>
-                  <div className="flex flex-wrap gap-2">
-                    {categoryFilters.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setCategoryFilter(option.value)}
-                        className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                          categoryFilter === option.value
-                            ? "border-zinc-300 bg-zinc-900 text-white"
-                            : "border-zinc-300 bg-white/82 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
+                  {categoryFilter ? (
+                    <button
+                      type="button"
+                      onClick={() => selectCategory("")}
+                      className="flex max-w-full items-center gap-1 rounded-full border border-zinc-300 bg-zinc-900 px-2.5 py-1 text-left text-[11px] font-medium text-white"
+                      aria-label={`Clear category ${categoryFilter}`}
+                    >
+                      <span className="truncate">{categoryFilter}</span>
+                      <X className="h-3 w-3 shrink-0" />
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => selectCategory("")}
+                    aria-pressed={!categoryFilter}
+                    className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                      !categoryFilter ? "border-zinc-300 bg-zinc-900 text-white" : "border-zinc-300 bg-white text-zinc-600 hover:text-zinc-900"
+                    }`}
+                  >
+                    All categories
+                  </button>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
+                    <Input
+                      id="campaign-category-search"
+                      value={categorySearch}
+                      onFocus={() => setIsCategoryPickerOpen(true)}
+                      onChange={(event) => {
+                        const nextSearch = event.target.value;
+                        setCategorySearch(nextSearch);
+                        setActiveCategoryIndex(0);
+                        setIsCategoryPickerOpen(true);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") {
+                          setIsCategoryPickerOpen(false);
+                          setCategorySearch("");
+                          event.currentTarget.blur();
+                        } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                          event.preventDefault();
+                          setIsCategoryPickerOpen(true);
+                          if (visibleCategoryOptions.length > 0) {
+                            setActiveCategoryIndex((previous) =>
+                              Math.max(0, Math.min(visibleCategoryOptions.length - 1, previous + (event.key === "ArrowDown" ? 1 : -1)))
+                            );
+                          }
+                        } else if (event.key === "Enter" && isCategoryPickerOpen) {
+                          event.preventDefault();
+                          if (visibleCategoryOptions.length > 0) {
+                            selectCategory(visibleCategoryOptions[Math.min(activeCategoryIndex, visibleCategoryOptions.length - 1)]);
+                          }
+                        }
+                      }}
+                      placeholder="Search categories"
+                      role="combobox"
+                      aria-autocomplete="list"
+                      aria-expanded={isCategoryPickerOpen}
+                      aria-controls="campaign-category-options"
+                      aria-activedescendant={isCategoryPickerOpen && visibleCategoryOptions.length > 0 ? `campaign-category-option-${Math.min(activeCategoryIndex, visibleCategoryOptions.length - 1)}` : undefined}
+                      className="h-9 border-zinc-300/80 bg-white/80 pl-9 text-sm"
+                    />
                   </div>
+                  {isCategoryPickerOpen && (
+                    <div ref={categoryListRef} id="campaign-category-options" role="listbox" aria-label="Categories" className="relative max-h-44 overflow-y-auto overscroll-contain rounded-lg border border-zinc-200 bg-white p-1">
+                      {visibleCategoryOptions.map((value, index) => (
+                        <button
+                          key={value}
+                          id={`campaign-category-option-${index}`}
+                          type="button"
+                          role="option"
+                          aria-selected={categoryFilter === value}
+                          title={value}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onMouseEnter={() => setActiveCategoryIndex(index)}
+                          onClick={() => selectCategory(value)}
+                          className={`block w-full truncate rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
+                            index === activeCategoryIndex ? "bg-zinc-100 text-zinc-900" : "text-zinc-600 hover:bg-zinc-50"
+                          }`}
+                        >
+                          {value}
+                        </button>
+                      ))}
+                      {visibleCategoryOptions.length === 0 && (
+                        <p className="px-2 py-1.5 text-xs text-zinc-500">No categories found.</p>
+                      )}
+                    </div>
+                  )}
+                  <p className="text-[11px] text-zinc-500">
+                    {categorySearch.trim() ? `${visibleCategoryOptions.length} of ${categories.length} categories` : `${categories.length} categories available`}
+                  </p>
+                </div>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between border-t border-zinc-300/70 pt-3 text-xs text-zinc-500">
+                <div className="flex shrink-0 items-center justify-between border-t border-zinc-300/70 px-4 py-3 text-xs text-zinc-500">
                   <span>{totalItems} campaigns match</span>
                   <Button
                     type="button"
@@ -1359,6 +1420,11 @@ function SuperAdminCampaignsPage() {
                     Done
                   </Button>
                 </div>
+                {metadataFailedCount > 0 && (
+                  <p role="status" className="shrink-0 px-4 pb-3 text-[11px] text-amber-700">
+                    Some campaign details could not be loaded. Category results may be incomplete.
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -1385,7 +1451,16 @@ function SuperAdminCampaignsPage() {
           <div ref={listViewportRef} className="min-h-0 flex-1 overflow-hidden">
             {loading && <div className="px-5 py-8 text-sm text-zinc-500">Loading campaigns...</div>}
 
-            {!loading && visibleItems.length === 0 && (
+            {!loading && loadError && (
+              <div role="alert" className="flex items-center justify-between gap-3 border-b border-rose-200 px-5 py-3 text-sm text-rose-700">
+                <span>Could not refresh campaigns: {loadError}</span>
+                <Button type="button" variant="outline" onClick={() => void fetchData()} className="h-8 shrink-0 px-3 text-xs">
+                  Retry
+                </Button>
+              </div>
+            )}
+
+            {!loading && !loadError && visibleItems.length === 0 && (
               <div className="px-5 py-8 text-sm text-zinc-500">
                 {activeFilters ? "No campaigns match the current filters." : "No campaigns found."}
               </div>
