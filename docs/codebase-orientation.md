@@ -254,7 +254,7 @@ Super-admin campaign list:
 - Refetches periodically while the document is visible.
 - Loads missing category and event-date metadata from campaign info with bounded concurrency and a short cache.
 - Filters the full list by event name, either displayed date (event or created), and category, with combined criteria and accurate result counts.
-- The category control is a searchable picker with all matching categories in its own bounded scroll area; the All categories option and selected category remain easy to reach.
+- The category control is a searchable multi-select picker with all matching categories in its own bounded scroll area. Selected categories match with OR logic, can be removed individually, and All categories clears the selection.
 - Supports stop/delete/force-delete actions through `CampaignActionDialog`.
 - Reacts to persona changes by reloading data from the selected workspace namespace.
 

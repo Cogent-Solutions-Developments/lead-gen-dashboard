@@ -3,7 +3,7 @@ import type { CampaignInfo, CampaignListItem, CampaignListResponse } from "./api
 export type CampaignFilters = {
   eventName: string;
   date: string;
-  category: string;
+  categories: string[];
 };
 
 export function findCampaignCategories(categories: string[], query: string) {
@@ -77,7 +77,7 @@ function localDateKey(date: Date | null) {
 
 export function filterCampaigns(campaigns: CampaignListItem[], filters: CampaignFilters) {
   const eventName = filters.eventName.trim().toLocaleLowerCase();
-  const category = filters.category.trim().toLocaleLowerCase();
+  const categories = new Set(filters.categories.map((value) => value.trim().toLocaleLowerCase()).filter(Boolean));
 
   return campaigns.filter((campaign) => {
     const names = [campaign.canonicalEventName, campaign.name]
@@ -89,7 +89,7 @@ export function filterCampaigns(campaigns: CampaignListItem[], filters: Campaign
     return (
       (!eventName || names.some((name) => name.includes(eventName))) &&
       (!filters.date || campaignDate === filters.date || createdDate === filters.date) &&
-      (!category || campaignCategory === category)
+      (categories.size === 0 || categories.has(campaignCategory))
     );
   });
 }
