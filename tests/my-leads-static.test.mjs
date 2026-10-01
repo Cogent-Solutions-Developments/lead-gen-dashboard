@@ -22,7 +22,7 @@ test("normal users see a dedicated My Leads navigation item", () => {
 test("every lead view shows verified data origins", () => {
   const sharedLeads = read("components/leads/NormalUserEventLeadSheet.tsx");
   const database = read("app/leads/page.tsx");
-  const myLeads = read("app/my-leads/page.tsx");
+  const myLeads = read("components/leads/MyLeadsWorkspace.tsx");
   const teamLeads = read("app/team-leads/page.tsx");
   const originTag = read("components/leads/LeadOriginTag.tsx");
 
@@ -95,7 +95,7 @@ test("My Leads endpoints resolve to the correct pipeline prefixes", () => {
 });
 
 test("My Leads edit is capability gated and never exposes delete", () => {
-  const page = read("app/my-leads/page.tsx");
+  const page = read("components/leads/MyLeadsWorkspace.tsx");
   const editForm = read("components/leads/MyLeadEditForm.tsx");
 
   assert.match(page, /item\.canEdit \? \(/);
@@ -107,7 +107,7 @@ test("My Leads edit is capability gated and never exposes delete", () => {
 });
 
 test("My Leads add and edit forms support a second mobile number", () => {
-  const page = read("app/my-leads/page.tsx");
+  const page = read("components/leads/MyLeadsWorkspace.tsx");
   const editForm = read("components/leads/MyLeadEditForm.tsx");
   const api = read("lib/api.ts");
 
@@ -168,7 +168,7 @@ test("admin campaign upload is one continuous, space-efficient form without step
 });
 
 test("user upload dialogs default lead type to event leads", () => {
-  const myLeads = read("app/my-leads/page.tsx");
+  const myLeads = read("components/leads/MyLeadsWorkspace.tsx");
   const sharedLeadSheet = read("components/leads/NormalUserEventLeadSheet.tsx");
 
   for (const source of [myLeads, sharedLeadSheet]) {
@@ -177,7 +177,7 @@ test("user upload dialogs default lead type to event leads", () => {
 });
 
 test("My Leads page enforces assigned personas and redirects unauthorized users", () => {
-  const page = read("app/my-leads/page.tsx");
+  const page = read("components/leads/MyLeadsWorkspace.tsx");
   assert.match(page, /router\.replace\("\/leads"\)/);
   assert.match(page, /const hasPersonaMismatch = Boolean\(user && !canUserUsePersona\(user, persona\)\)/);
   assert.match(page, /if \(hasPersonaMismatch\) router\.replace\("\/dashboard"\)/);

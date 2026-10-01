@@ -109,7 +109,7 @@ test("notification trigger follows the Pro inbox pattern without overlapping pag
 });
 
 test("lead sheet pagination reserves space for the notification trigger", () => {
-  for (const relativePath of ["components/leads/NormalUserEventLeadSheet.tsx", "app/my-leads/page.tsx"]) {
+  for (const relativePath of ["components/leads/NormalUserEventLeadSheet.tsx", "components/leads/MyLeadsWorkspace.tsx"]) {
     const source = read(relativePath);
     assert.match(source, /pb-20[\s\S]*sm:pb-4[\s\S]*sm:pr-16/);
   }
@@ -388,7 +388,7 @@ test("KPI activities tolerate legacy records without an activity type", () => {
 });
 
 test("workflow comment submission trims, validates length, supports comment-only updates and blocks duplicates", () => {
-  for (const relativePath of ["app/my-leads/page.tsx", "components/leads/NormalUserEventLeadSheet.tsx"]) {
+  for (const relativePath of ["components/leads/MyLeadsWorkspace.tsx", "components/leads/NormalUserEventLeadSheet.tsx"]) {
     const source = read(relativePath);
     assert.match(source, /statusComment\.trim\(\)/);
     assert.match(source, /maxLength=\{2000\}/);

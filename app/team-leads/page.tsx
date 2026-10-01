@@ -24,7 +24,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import { MyLeadsWorkspace } from "@/app/my-leads/page";
+import { MyLeadsWorkspace } from "@/components/leads/MyLeadsWorkspace";
 import { UserAvatar } from "@/components/profile/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

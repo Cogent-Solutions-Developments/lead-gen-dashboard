@@ -9,6 +9,7 @@ import { WebhooksLogoIcon } from "@phosphor-icons/react/dist/csr/WebhooksLogo";
 
 import { AdminPanelShell } from "@/components/layout/AdminPanelShell";
 import { MarketingOptOutSettings } from "@/components/settings/MarketingOptOutSettings";
+import { OutreachWhatsAppSettings } from "@/components/settings/OutreachWhatsAppSettings";
 import { OutreachMailWebhookSettings } from "@/components/settings/OutreachMailWebhookSettings";
 import { Card } from "@/components/ui/card";
 import { buildSettingsHref, parseSettingsSection, type SettingsSection } from "@/lib/settingsNavigation";
@@ -122,8 +123,13 @@ function SettingsContent() {
           </div>
         </motion.div>
 
-        {activeSection === "outreach" ? (
-          <OutreachMailWebhookSettings onBack={() => navigateToSection(null)} />
+        {activeSection === "outreach" || activeSection === "whatsapp" ? (
+          <div className="space-y-4">
+            <nav aria-label="Outreach configuration" className="flex gap-2">
+              {(["outreach", "whatsapp"] as const).map(section => <Link key={section} href={buildSettingsHref(searchParams.toString(), section)} aria-current={activeSection === section ? "page" : undefined} className={`rounded-lg border px-5 py-3 text-sm font-medium ${activeSection === section ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>{section === "outreach" ? "Mail webhook" : "WhatsApp outreach"}</Link>)}
+            </nav>
+            {activeSection === "outreach" ? <OutreachMailWebhookSettings onBack={() => navigateToSection(null)} /> : <OutreachWhatsAppSettings onBack={() => navigateToSection(null)} />}
+          </div>
         ) : activeSection === "opt-out" ? (
           <MarketingOptOutSettings onBack={() => navigateToSection(null)} />
         ) : (
@@ -166,9 +172,9 @@ function SettingsContent() {
               ariaLabel="Open Outreach Configuration"
               icon={WebhooksLogoIcon}
               title="Outreach Configuration"
-              description="Manage department-wise mail delivery webhooks and active routing."
+              description="Manage mail webhooks and WhatsApp outreach independently."
               detailLabel="Available configuration"
-              detailTitle="Mail webhook"
+              detailTitle="Mail webhook and WhatsApp"
               detailDescription="Sales, Delegate, and Production departments"
               delay={0.14}
             />

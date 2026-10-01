@@ -1,4 +1,6 @@
 "use client";
+
+import { useWhatsAppOutreach } from "@/hooks/useWhatsAppOutreach";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Suspense, useState, useEffect, useEffectEvent, useMemo, useRef } from "react";
@@ -1322,6 +1324,7 @@ async function deleteLeadAttachment(
 }
 
 function SuperAdminCampaignDetailPage() {
+  const whatsappOutreachEnabled = useWhatsAppOutreach();
   const params = useParams<{ id: string }>();
   const campaignId = params.id;
   const { persona } = usePersona();
@@ -1567,6 +1570,7 @@ function SuperAdminCampaignDetailPage() {
   function getWhatsappCapabilityDisabledReason(lead: Lead) {
     if (!hasText(lead.phone)) return "Lead has no phone number.";
 
+    if (!whatsappOutreachEnabled) return "WhatsApp outreach is disabled.";
     const capability = lead.channelCapabilities?.whatsapp;
     if (!capability) return null;
     if (capability.enabled === false) return "WhatsApp sending is disabled.";
@@ -2802,6 +2806,7 @@ function SuperAdminCampaignDetailPage() {
   };
 
   const handleBulkSendRequest = (channel: BulkSendChannel) => {
+    if (channel === "whatsapp" && !whatsappOutreachEnabled) return;
     if (!canManageLeadActions) return;
     const selectedChannelCount = channel === "email" ? selectedBulkEmailCount : selectedBulkWhatsappCount;
     if (selectedChannelCount === 0) {
@@ -2817,6 +2822,7 @@ function SuperAdminCampaignDetailPage() {
   };
 
   const handleConfirmBulkSend = async () => {
+    if (bulkSendChannel === "whatsapp" && !whatsappOutreachEnabled) return;
     if (!canManageLeadActions || selectedBulkChannelCount === 0 || isBulkSending) return;
     setIsBulkSending(true);
 
@@ -4076,6 +4082,7 @@ function SuperAdminCampaignDetailPage() {
                 {isBulkFollowUpSending ? "Sending follow-ups" : "Follow-up Selected"}
               </button>
 
+              {whatsappOutreachEnabled ? (
               <button
                 type="button"
                 onClick={() => handleBulkSendRequest("whatsapp")}
@@ -4092,6 +4099,7 @@ function SuperAdminCampaignDetailPage() {
                 <WhatsAppIcon className="h-3.5 w-3.5" />
                 WhatsApp Selected
               </button>
+              ) : null}
             </div>
           ) : null}
 
@@ -4352,7 +4360,7 @@ function SuperAdminCampaignDetailPage() {
                 const canSendWhatsapp = leadSupportsWhatsappAction(item);
                 const showEmailAction = canSendEmail;
                 const showLinkedinAction = canSendLinkedin;
-                const showWhatsappAction = canSendWhatsapp;
+                const showWhatsappAction = whatsappOutreachEnabled && canSendWhatsapp;
                 const mailStatus = item.approvalStatus === "approved" && canSendEmail
                   ? getLeadMailStatus(item)
                   : null;
@@ -4798,7 +4806,7 @@ function SuperAdminCampaignDetailPage() {
         }}
       />
       <AnimatePresence>
-        {canManageLeadActions && showBulkSendConfirm && (
+        {canManageLeadActions && showBulkSendConfirm && (bulkSendChannel === "email" || whatsappOutreachEnabled) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -5454,7 +5462,7 @@ function SuperAdminCampaignDetailPage() {
                       className="h-full"
                     />
 
-                    <AttachmentSection
+                    {whatsappOutreachEnabled ? (<AttachmentSection
                       title="WhatsApp Attachments"
                       subtitle="Sent with WhatsApp"
                       attachments={((editForm.whatsappAttachments as Attachment[]) || []).filter(Boolean)}
@@ -5463,7 +5471,7 @@ function SuperAdminCampaignDetailPage() {
                       onRemovePending={(tempId) => removePending(tempId, "whatsapp")}
                       onRemoveAttachment={(id) => removeUploadedAttachment(id, "whatsapp")}
                       className="h-full"
-                    />
+                    />) : null}
                   </div>
                 </div>
               </div>
