@@ -1355,10 +1355,7 @@ function SuperAdminTotalLeads() {
 
     try {
       setIsSendingSms(true);
-      const result = await sendAdminLeadSms(smsTargetLead.id, message);
-      toast.success("SMS sent", {
-        description: `${smsTargetLead.employeeName || "Lead"} received the message at ${result.to || smsTargetLead.phone}.`,
-      });
+      await sendAdminLeadSms(smsTargetLead.id, message);
       setSmsTargetLead(null);
       setSmsMessage("");
     } catch (error: unknown) {

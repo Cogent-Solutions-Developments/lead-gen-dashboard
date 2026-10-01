@@ -2071,9 +2071,7 @@ function SuperAdminCampaignDetailPage() {
             const emailSent = !waitForEmail || s.email === "sent";
             const linkedinSent = !waitForLinkedin || isExecutedOutreachState(s.linkedin);
             const whatsappSent = !waitForWhatsapp || s.whatsapp === "sent";
-            if (emailSent && linkedinSent && whatsappSent) {
-              toast.success("Outreach sent successfully");
-            } else {
+            if (!emailSent || !linkedinSent || !whatsappSent) {
               toast.error("Outreach completed with failures");
             }
             return;
@@ -2082,7 +2080,6 @@ function SuperAdminCampaignDetailPage() {
 
         if (tries >= maxTries) {
           clearInterval(t);
-          toast.info("Still sending, check again later");
         }
       } catch {
         if (tries >= maxTries) clearInterval(t);
@@ -2254,16 +2251,6 @@ function SuperAdminCampaignDetailPage() {
         toast.warning("Partially queued", {
           description: channelErrors.join(" "),
         });
-      } else {
-        toast.success(
-          action === "both"
-            ? "Outreach queued"
-            : action === "email"
-              ? "Email queued"
-              : action === "linkedin"
-                ? "LinkedIn queued in HeyReach"
-                : "WhatsApp queued"
-        );
       }
     } catch (error: any) {
       const detail = String(error?.response?.data?.detail || error?.message || "");
@@ -2860,10 +2847,6 @@ function SuperAdminCampaignDetailPage() {
         : leadIds;
       const suppressedFromApprove = Number(approveResult?.suppressedCount ?? 0);
 
-      let sendSummaryMessage = "No sendable leads after suppression checks.";
-      let queuedLeads = 0;
-      let queuedEmail = 0;
-      let queuedWhatsapp = 0;
       let suppressedFromSend = 0;
       let skippedNoChannel = 0;
       if (approvedLeadIds.length > 0) {
@@ -2873,19 +2856,9 @@ function SuperAdminCampaignDetailPage() {
           attachmentId: bulkSendChannel === "email" ? commonAttachmentId ?? undefined : undefined,
           channel: bulkSendChannel,
         });
-        queuedLeads = Number(sendResult?.queuedLeads ?? approvedLeadIds.length);
-        queuedEmail = Number(sendResult?.queuedEmail ?? 0);
-        queuedWhatsapp = Number(sendResult?.queuedWhatsapp ?? 0);
         suppressedFromSend = Number(sendResult?.suppressedOptOut ?? 0);
         skippedNoChannel = Number(sendResult?.skippedNoChannel ?? 0);
-        sendSummaryMessage =
-          sendResult?.message ||
-          `Queued outreach for ${queuedLeads} lead(s).`;
       }
-
-      toast.success(`Selected ${bulkSendChannel === "email" ? "email" : "WhatsApp"} processed`, {
-        description: `Approved ${approvedLeadIds.length}, queued ${queuedLeads} lead(s) (${queuedEmail} email, ${queuedWhatsapp} WhatsApp). ${sendSummaryMessage}`,
-      });
 
       const totalSuppressed = skippedCount + suppressedFromApprove + suppressedFromSend;
       if (totalSuppressed > 0) {
@@ -2933,7 +2906,6 @@ function SuperAdminCampaignDetailPage() {
     if (!canManageLeadActions || selectedFollowUpCount === 0 || isBulkFollowUpSending) return;
     setIsBulkFollowUpSending(true);
 
-    let queued = 0;
     let skipped = 0;
     const failures: string[] = [];
     try {
@@ -2954,7 +2926,6 @@ function SuperAdminCampaignDetailPage() {
             body: content.body,
             sendNow: true,
           });
-          queued += 1;
         } catch (error: any) {
           failures.push(`${lead.employeeName || "Lead"}: ${error?.response?.data?.detail || error?.message || "send failed"}`);
         }
@@ -2963,18 +2934,10 @@ function SuperAdminCampaignDetailPage() {
       setShowBulkFollowUpConfirm(false);
       setBulkSelectMode(false);
       setSelectedBulkLeadIds(new Set());
-      if (queued > 0) {
-        toast.success("Selected follow-ups queued", {
-          description: `${queued} follow-up${queued === 1 ? "" : "s"} queued${skipped ? `, ${skipped} already complete` : ""}.`,
-        });
-      }
       if (skipped > 0 || failures.length > 0) {
         toast.warning("Some follow-ups were skipped", {
           description: `${skipped + failures.length} lead${skipped + failures.length === 1 ? "" : "s"} could not be queued.${failures[0] ? ` ${failures[0]}` : ""}`,
         });
-      }
-      if (queued === 0 && skipped === 0 && failures.length === 0) {
-        toast.info("No follow-ups were queued");
       }
       await fetchAll();
     } catch (error: any) {
@@ -3218,9 +3181,6 @@ function SuperAdminCampaignDetailPage() {
           ? { ...lead, emailDelivery: mergeFollowUpHistory(lead, history) }
           : lead
       ));
-      toast.success(`${FOLLOW_UP_STEPS[followUpStep]} queued`, {
-        description: `Your follow-up to ${followUpTargetLead.employeeName || "the lead"} is being sent.`,
-      });
       setFollowUpTargetLead(null);
       setFollowUpHistory([]);
       setFollowUpStep(0);
@@ -3257,7 +3217,6 @@ function SuperAdminCampaignDetailPage() {
           ? { ...item, emailDelivery: mergeFollowUpHistory(item, history) }
           : item
       ));
-      toast.success(`${FOLLOW_UP_STEPS[stage - 1]} queued`);
     } catch (error: any) {
       toast.error("Could not send follow-up", { description: error?.response?.data?.detail || error?.message });
     } finally {
@@ -3341,10 +3300,7 @@ function SuperAdminCampaignDetailPage() {
 
     try {
       setIsSendingSms(true);
-      const result = await sendAdminLeadSms(smsTargetLead.id, message);
-      toast.success("SMS sent", {
-        description: `${smsTargetLead.employeeName || "Lead"} received the message at ${result.to || smsTargetLead.phone}.`,
-      });
+      await sendAdminLeadSms(smsTargetLead.id, message);
       closeSmsDialog();
     } catch (error: any) {
       const detail = String(error?.response?.data?.detail || error?.message || "Please try again.");
