@@ -48,6 +48,7 @@ function settingsBrowser(initialHref = "/settings") {
     "lucide-react": { ArrowRight: () => null, FilePenLine: () => null, MonitorDot: () => null, UserRoundMinus: () => null, Workflow: () => null },
     "@/components/layout/AdminPanelShell": { AdminPanelShell: element("main") },
     "@/components/settings/MarketingOptOutSettings": { MarketingOptOutSettings: sectionView("opt-out") },
+    "@/components/settings/OutreachCredentialSettings": { OutreachCredentialSettings: sectionView("credentials") },
     "@/components/settings/OutreachWhatsAppSettings": { OutreachWhatsAppSettings: sectionView("whatsapp") },
     "@/components/settings/OutreachMailWebhookSettings": { OutreachMailWebhookSettings: sectionView("outreach") },
     "@/components/ui/button": { Button: element("button") },
@@ -81,7 +82,7 @@ function settingsBrowser(initialHref = "/settings") {
 }
 
 test("each settings section can be restored from its URL after refresh", () => {
-  for (const section of ["outreach", "whatsapp", "opt-out"]) {
+  for (const section of ["outreach", "whatsapp", "credentials", "opt-out"]) {
     const href = buildSettingsHref("", section);
     assert.equal(href, `/settings?section=${section}`);
 
@@ -131,3 +132,12 @@ for (const [section, label] of [["outreach", "Open Outreach Configuration"], ["o
   browser.click("All settings");
   assert.equal(browser.href(), "/settings?source=admin");
  });
+
+test("credentials has an isolated page with the outreach navigation", () => {
+  const browser = settingsBrowser("/settings?section=credentials");
+  assert.ok(browser.render().includes('data-settings-section="credentials"'));
+  assert.match(browser.render(), /Mail webhook/);
+  assert.match(browser.render(), /WhatsApp outreach/);
+  browser.click("All settings");
+  assert.equal(browser.href(), "/settings");
+});

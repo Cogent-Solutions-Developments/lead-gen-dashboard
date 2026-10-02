@@ -9,6 +9,7 @@ import { WebhooksLogoIcon } from "@phosphor-icons/react/dist/csr/WebhooksLogo";
 
 import { AdminPanelShell } from "@/components/layout/AdminPanelShell";
 import { MarketingOptOutSettings } from "@/components/settings/MarketingOptOutSettings";
+import { OutreachCredentialSettings } from "@/components/settings/OutreachCredentialSettings";
 import { OutreachWhatsAppSettings } from "@/components/settings/OutreachWhatsAppSettings";
 import { OutreachMailWebhookSettings } from "@/components/settings/OutreachMailWebhookSettings";
 import { Card } from "@/components/ui/card";
@@ -123,12 +124,16 @@ function SettingsContent() {
           </div>
         </motion.div>
 
-        {activeSection === "outreach" || activeSection === "whatsapp" ? (
+        {activeSection === "outreach" || activeSection === "whatsapp" || activeSection === "credentials" ? (
           <div className="space-y-4">
-            <nav aria-label="Outreach configuration" className="flex gap-2">
-              {(["outreach", "whatsapp"] as const).map(section => <Link key={section} href={buildSettingsHref(searchParams.toString(), section)} aria-current={activeSection === section ? "page" : undefined} className={`rounded-lg border px-5 py-3 text-sm font-medium ${activeSection === section ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>{section === "outreach" ? "Mail webhook" : "WhatsApp outreach"}</Link>)}
+            <nav aria-label="Outreach configuration" className="grid gap-1 rounded-xl border border-slate-200 bg-white p-1 sm:grid-cols-3">
+              {(["outreach", "whatsapp", "credentials"] as const).map(section => (
+                <Link key={section} href={buildSettingsHref(searchParams.toString(), section)} aria-current={activeSection === section ? "page" : undefined} className={`flex h-11 items-center justify-center rounded-lg px-3 text-sm font-semibold transition-colors ${activeSection === section ? "bg-blue-600 text-white shadow-sm shadow-blue-200" : "text-slate-600 hover:bg-blue-50 hover:text-blue-700"}`}>
+                  {section === "outreach" ? "Mail webhook" : section === "whatsapp" ? "WhatsApp outreach" : "Credentials"}
+                </Link>
+              ))}
             </nav>
-            {activeSection === "outreach" ? <OutreachMailWebhookSettings onBack={() => navigateToSection(null)} /> : <OutreachWhatsAppSettings onBack={() => navigateToSection(null)} />}
+            {activeSection === "outreach" ? <OutreachMailWebhookSettings onBack={() => navigateToSection(null)} /> : activeSection === "whatsapp" ? <OutreachWhatsAppSettings onBack={() => navigateToSection(null)} /> : <OutreachCredentialSettings onBack={() => navigateToSection(null)} />}
           </div>
         ) : activeSection === "opt-out" ? (
           <MarketingOptOutSettings onBack={() => navigateToSection(null)} />
