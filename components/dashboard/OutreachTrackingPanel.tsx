@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EventOutreachPanel } from "./EventOutreachPanel";
 import { CalendarDays, Check, Copy, GitBranch, Loader2, MailCheck, Megaphone, RefreshCw, UserRoundCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Bar, Brush, CartesianGrid, ComposedChart, Legend, Line, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -80,6 +81,7 @@ function Metric({ icon: Icon, label, value, tone }: { icon: typeof MailCheck; la
 }
 
 export function OutreachTrackingPanel() {
+  const [view, setView] = useState<"overall" | "event">("overall");
   const initialTimeZone = useMemo(browserTimeZone, []);
   const initialRange = useMemo(() => sevenDayRange(initialTimeZone), [initialTimeZone]);
   const [timeZone, setTimeZone] = useState(initialTimeZone);
@@ -92,35 +94,45 @@ export function OutreachTrackingPanel() {
   const [recordLoading, setRecordLoading] = useState(true);
   const [rangeError, setRangeError] = useState<string | null>(null);
   const [recordError, setRecordError] = useState<string | null>(null);
+  const rangeRequest = useRef(0);
+  const recordRequest = useRef(0);
   const timeZones = useMemo(() => supportedTimeZones(timeZone), [timeZone]);
   const rangeInvalid = !rangeDraft.startDate || !rangeDraft.endDate || rangeDraft.startDate > rangeDraft.endDate;
 
   const loadRange = useCallback(async () => {
+    const request = ++rangeRequest.current;
     setRangeLoading(true);
     try {
-      setRangeData(await getDashboardOutreachTracking({ ...appliedRange, timezone: timeZone }));
+      const data = await getDashboardOutreachTracking({ ...appliedRange, timezone: timeZone });
+      if (request !== rangeRequest.current) return;
+      setRangeData(data);
       setRangeError(null);
     } catch (loadError) {
+      if (request !== rangeRequest.current) return;
       setRangeError(loadError instanceof Error ? loadError.message : "Outreach analytics are unavailable.");
     } finally {
-      setRangeLoading(false);
+      if (request === rangeRequest.current) setRangeLoading(false);
     }
   }, [appliedRange, timeZone]);
 
   const loadRecords = useCallback(async () => {
+    const request = ++recordRequest.current;
     setRecordLoading(true);
     try {
-      setRecordData(await getDashboardOutreachTracking({ date: recordDate, timezone: timeZone }));
+      const data = await getDashboardOutreachTracking({ date: recordDate, timezone: timeZone });
+      if (request !== recordRequest.current) return;
+      setRecordData(data);
       setRecordError(null);
     } catch (loadError) {
+      if (request !== recordRequest.current) return;
       setRecordError(loadError instanceof Error ? loadError.message : "Campaign records are unavailable.");
     } finally {
-      setRecordLoading(false);
+      if (request === recordRequest.current) setRecordLoading(false);
     }
   }, [recordDate, timeZone]);
 
-  useEffect(() => { void loadRange(); }, [loadRange]);
-  useEffect(() => { void loadRecords(); }, [loadRecords]);
+  useEffect(() => { void loadRange(); return () => { rangeRequest.current += 1; }; }, [loadRange]);
+  useEffect(() => { void loadRecords(); return () => { recordRequest.current += 1; }; }, [loadRecords]);
 
   const updateTimeZone = (nextTimeZone: string) => {
     const defaults = sevenDayRange(nextTimeZone);
@@ -158,6 +170,19 @@ export function OutreachTrackingPanel() {
   return (
     <div id="inventory-panel-outreach" role="tabpanel" aria-labelledby="inventory-tab-outreach" className="space-y-4">
       <section className="border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
+        <div role="group" aria-label="Outreach view" className="mb-4 flex w-fit max-w-full border border-zinc-200 bg-zinc-50 p-1">
+          {(["overall", "event"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={view === option}
+              onClick={() => setView(option)}
+              className={`min-h-9 px-4 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${view === option ? "bg-blue-600 text-white" : "text-zinc-600 hover:bg-white hover:text-blue-700"}`}
+            >
+              {option === "overall" ? "Overall outreach" : "Event outreach"}
+            </button>
+          ))}
+        </div>
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div className="flex min-w-0 items-center gap-3">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-blue-50 text-blue-700"><CalendarDays className="h-4 w-4" aria-hidden="true" /></span>
@@ -182,7 +207,7 @@ export function OutreachTrackingPanel() {
       {rangeError ? <div role="alert" className="border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{rangeError}</div> : null}
       {rangeLoading && !rangeData ? <div className="grid h-[26rem] place-items-center border border-zinc-200 bg-white"><Loader2 className="h-6 w-6 animate-spin text-blue-600" aria-label="Loading outreach analytics" /></div> : null}
 
-      {rangeData ? (
+      {rangeData && view === "overall" ? (
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Metric icon={MailCheck} label="Sent" value={rangeData.totals.sentEmailCount} tone="bg-blue-50 text-blue-700" />
@@ -238,7 +263,7 @@ export function OutreachTrackingPanel() {
         </>
       ) : null}
 
-      <section className="overflow-hidden border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
+      {view === "overall" ? <section className="overflow-hidden border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
         <div className="flex flex-col gap-3 border-b border-zinc-200 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
           <div><h3 className="text-base font-semibold tracking-tight text-zinc-950">Campaign records</h3><p className="mt-1 text-xs text-zinc-400">Sent emails for one calendar day</p></div>
           <div className="flex items-end gap-2">
@@ -267,7 +292,8 @@ export function OutreachTrackingPanel() {
           </div>
         ) : null}
         {recordData && !recordData.items.length ? <div className="grid h-40 place-items-center text-center"><div><MailCheck className="mx-auto h-7 w-7 text-zinc-300" aria-hidden="true" /><p className="mt-2 text-sm font-medium text-zinc-600">No sent emails on this date</p></div></div> : null}
-      </section>
+      </section> : null}
+      {rangeData && view === "event" ? <EventOutreachPanel data={rangeData} /> : null}
     </div>
   );
 }
