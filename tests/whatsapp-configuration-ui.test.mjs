@@ -12,8 +12,8 @@ function harness(file, exportName, api) {
   let cursor = 0;
   let effect;
   const events = [];
-  const module = { exports: {} };
-  runInNewContext(code, { module, exports: module.exports, Event: class { constructor(type) { this.type = type; } }, window: { dispatchEvent: event => events.push(event.type) }, require: name => {
+  const testModule = { exports: {} };
+  runInNewContext(code, { module: testModule, exports: testModule.exports, Event: class { constructor(type) { this.type = type; } }, window: { dispatchEvent: event => events.push(event.type) }, require: name => {
     if (name === "react/jsx-runtime") return jsxRuntime;
     if (name === "react") return {
       useState: initial => { const index = cursor++; if (!(index in states)) states[index] = initial; return [states[index], value => { states[index] = typeof value === "function" ? value(states[index]) : value; }]; },
@@ -26,7 +26,7 @@ function harness(file, exportName, api) {
     return new Proxy({}, { get: (_, key) => key });
   }});
   let tree;
-  function render() { cursor = 0; tree = module.exports[exportName]({ onBack: () => {} }); return tree; }
+  function render() { cursor = 0; tree = testModule.exports[exportName]({ onBack: () => {} }); return tree; }
   function all(predicate, node = tree, found = []) {
     if (Array.isArray(node)) { node.forEach(child => all(predicate, child, found)); return found; }
     if (!node || typeof node !== "object") return found;

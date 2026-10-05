@@ -15,9 +15,9 @@ function harness() {
   let cleared = false;
   const listeners = new Map();
   const requests = [];
-  const module = { exports: {} };
+  const testModule = { exports: {} };
   runInNewContext(code, {
-    module, exports: module.exports,
+    module: testModule, exports: testModule.exports,
     window: {
       setInterval: callback => { interval = callback; return 1; },
       clearInterval: () => { cleared = true; },
@@ -33,7 +33,7 @@ function harness() {
       return { apiClient: { get: () => new Promise((resolve, reject) => requests.push({ resolve, reject })) } };
     },
   });
-  const initial = module.exports.useWhatsAppOutreach();
+  const initial = testModule.exports.useWhatsAppOutreach();
   cleanup = effect();
   return {
     initial, requests, enabled: () => state,
