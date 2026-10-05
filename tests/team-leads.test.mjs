@@ -141,7 +141,7 @@ test("member pagination stays at the bottom of the department panel", () => {
 
 test("desktop Team Leads fits the viewport with a compact title-only header", () => {
   const page = read("app/team-leads/page.tsx");
-  const myLeadsPage = read("app/my-leads/page.tsx");
+  const myLeadsPage = read("components/leads/MyLeadsWorkspace.tsx");
 
   assert.doesNotMatch(page, /Manager workspace/);
   assert.doesNotMatch(
@@ -412,14 +412,14 @@ test("normal My Leads behavior remains unscoped when Team Leads is inactive", ()
 
 test("embedded Team Leads hides the standalone My Leads decorative media", () => {
   const teamLeadsPage = read("app/team-leads/page.tsx");
-  const myLeadsPage = read("app/my-leads/page.tsx");
+  const myLeadsPage = read("components/leads/MyLeadsWorkspace.tsx");
 
   assert.match(teamLeadsPage, /<MyLeadsWorkspace[\s\S]*?embedded[\s\S]*?teamMemberId=/);
   assert.match(myLeadsPage, /\{!embedded \? \([\s\S]*?my-leads-side-media[\s\S]*?\) : null\}/);
 });
 
 test("embedded Team Leads exposes the Add comment control", () => {
-  const myLeadsPage = read("app/my-leads/page.tsx");
+  const myLeadsPage = read("components/leads/MyLeadsWorkspace.tsx");
   const addCommentIndex = myLeadsPage.indexOf("Add comment");
 
   assert.notEqual(addCommentIndex, -1);
@@ -432,7 +432,7 @@ test("embedded Team Leads exposes the Add comment control", () => {
 });
 
 test("comment-only dialog hides status while status changes keep the existing transition", () => {
-  const myLeadsPage = read("app/my-leads/page.tsx");
+  const myLeadsPage = read("components/leads/MyLeadsWorkspace.tsx");
 
   assert.match(
     myLeadsPage,
@@ -446,7 +446,7 @@ test("comment-only dialog hides status while status changes keep the existing tr
 });
 
 test("embedded Team Leads supports selectable ranges and scrolls larger lists", () => {
-  const myLeadsPage = read("app/my-leads/page.tsx");
+  const myLeadsPage = read("components/leads/MyLeadsWorkspace.tsx");
 
   assert.match(myLeadsPage, /const PAGE_SIZE_OPTIONS = \[5, 50, 100, 200\] as const/);
   assert.match(myLeadsPage, /const EMBEDDED_PAGE_SIZE = 5/);

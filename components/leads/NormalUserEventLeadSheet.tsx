@@ -1,5 +1,7 @@
 "use client";
 
+import { useWhatsAppOutreach } from "@/hooks/useWhatsAppOutreach";
+
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
@@ -1266,6 +1268,7 @@ function LeadSheetDialog({
 }
 
 export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, dataPersona, leadGroup }: NormalUserEventLeadSheetProps) {
+  const whatsappOutreachEnabled = useWhatsAppOutreach();
   const { persona } = usePersona();
   const effectivePersona: LeadSheetDepartmentPersona =
     dataPersona ?? (persona === "delegates" || persona === "production" ? persona : "sales");
@@ -2439,6 +2442,11 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
     platform: LeadContentPlatform,
     options: { feedback?: string } = {}
   ) => {
+    if (platform === "whatsapp" && !whatsappOutreachEnabled) {
+      toast.error("WhatsApp outreach is disabled");
+      return;
+    }
+
     if (item.contactReadOnly) {
       toast.error("Lead is read-only");
       return;
@@ -3612,14 +3620,14 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                     <Mail className="h-[18px] w-[18px] stroke-[2.4]" />
                     Email
                   </button>
-                  <button
+                  {whatsappOutreachEnabled ? (<button
                     type="button"
                     onClick={() => void generateContentForPlatform(emailDialog.lead, "whatsapp")}
                     className="inline-flex h-12 flex-1 items-center justify-center gap-2.5 rounded-full border border-[#22c55e]/30 bg-[#22c55e] px-5 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_-14px_rgba(34,197,94,0.85)] transition-colors hover:bg-emerald-600"
                   >
                     <WhatsAppIcon className="h-[18px] w-[18px]" />
                     WhatsApp
-                  </button>
+                  </button>) : null}
                 </div>
               </div>
             </div>
@@ -3674,7 +3682,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                 >
                   Close
                 </Button>
-                <Button
+                {emailDialog.platform !== "whatsapp" || whatsappOutreachEnabled ? (<Button
                   type="button"
                   onClick={() =>
                     void generateContentForPlatform(emailDialog.lead, emailDialog.platform || "email", {
@@ -3685,7 +3693,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                 >
                   <RefreshCcw className="h-4 w-4" />
                   Try Again
-                </Button>
+                </Button>) : null}
               </div>
             </div>
           ) : (
@@ -3741,7 +3749,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
               </label>
 
               <div className="flex flex-col gap-3 border-t border-zinc-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
-                <Button
+                {emailDialog.platform !== "whatsapp" || whatsappOutreachEnabled ? (<Button
                   type="button"
                   variant="ghost"
                   onClick={() =>
@@ -3753,7 +3761,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                 >
                   <RefreshCcw className="h-4 w-4" />
                   {emailDialog.feedback.trim() ? "Regenerate with Feedback" : "Regenerate"}
-                </Button>
+                </Button>) : null}
                 <div className="flex flex-wrap justify-end gap-3">
                   {emailDialog.platform === "email" ? (
                     <Button
@@ -3931,7 +3939,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
                 <Headset className="h-3.5 w-3.5" />
                 Linkus
               </Button>
-              <Button
+              {whatsappOutreachEnabled ? (<Button
                 type="button"
                 variant="ghost"
                 disabled={!contactChoiceLead.whatsappHref}
@@ -3943,7 +3951,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
               >
                 <WhatsAppIcon className="h-3.5 w-3.5" />
                 WhatsApp
-              </Button>
+              </Button>) : null}
             </div>
           </div>
         </LeadSheetDialog>

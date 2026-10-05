@@ -1,7 +1,7 @@
-export type SettingsSection = "outreach" | "opt-out" | null;
+export type SettingsSection = "outreach" | "whatsapp" | "credentials" | "opt-out" | null;
 
 export function parseSettingsSection(value: string | null): SettingsSection {
-  return value === "outreach" || value === "opt-out" ? value : null;
+  return value === "outreach" || value === "whatsapp" || value === "credentials" || value === "opt-out" ? value : null;
 }
 
 export function buildSettingsHref(search: string, section: SettingsSection): string {

@@ -43,7 +43,7 @@ test("duplicate event rows merge into one card while retaining provenance", asyn
 });
 
 test("lead creation and uploads require explicit event provenance and lead type", () => {
-  const page = read("app/my-leads/page.tsx");
+  const page = read("components/leads/MyLeadsWorkspace.tsx");
   const api = read("lib/api.ts");
   assert.match(page, /eventRegistryId: selectedAddLeadEvent\.id/);
   assert.match(page, /<SelectValue placeholder=\{loadingRegistryEvents/);
@@ -53,7 +53,7 @@ test("lead creation and uploads require explicit event provenance and lead type"
 });
 
 test("the Add Lead dialog fits the desktop viewport without internal scrolling", () => {
-  const page = read("app/my-leads/page.tsx");
+  const page = read("components/leads/MyLeadsWorkspace.tsx");
   assert.match(page, /fitViewport \? "overflow-hidden px-6 pb-5"/);
   assert.match(page, /fitViewport\s*\n\s*>\s*\n\s*<div className="grid gap-x-8 gap-y-4/);
   assert.match(page, /ADD_LEAD_INPUT_CLASS = "h-10/);
@@ -61,7 +61,7 @@ test("the Add Lead dialog fits the desktop viewport without internal scrolling",
 });
 
 test("lead row status actions stay on one line inside the row boundary", () => {
-  const myLeads = read("app/my-leads/page.tsx");
+  const myLeads = read("components/leads/MyLeadsWorkspace.tsx");
   const sharedLeadSheet = read("components/leads/NormalUserEventLeadSheet.tsx");
   for (const source of [myLeads, sharedLeadSheet]) {
     assert.match(source, /minmax\(14rem,0\.95fr\)_19rem/);
@@ -71,7 +71,7 @@ test("lead row status actions stay on one line inside the row boundary", () => {
 });
 
 test("deal-close revenue and source/status histories are wired through the frontend", () => {
-  const myLeads = read("app/my-leads/page.tsx");
+  const myLeads = read("components/leads/MyLeadsWorkspace.tsx");
   const normalLeads = read("components/leads/NormalUserEventLeadSheet.tsx");
   const history = read("components/leads/LeadHistoryContent.tsx");
   for (const source of [myLeads, normalLeads]) {
