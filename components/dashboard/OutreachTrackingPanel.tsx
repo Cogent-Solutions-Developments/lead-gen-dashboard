@@ -170,16 +170,16 @@ export function OutreachTrackingPanel() {
   return (
     <div id="inventory-panel-outreach" role="tabpanel" aria-labelledby="inventory-tab-outreach" className="space-y-4">
       <section className="border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
-        <div role="group" aria-label="Outreach view" className="mb-4 flex w-fit max-w-full border border-zinc-200 bg-zinc-50 p-1">
+        <div role="group" aria-label="Outreach view" className="mb-4 inline-flex max-w-full rounded-lg border border-slate-200 bg-slate-50 p-0.5">
           {(["overall", "event"] as const).map((option) => (
             <button
               key={option}
               type="button"
               aria-pressed={view === option}
               onClick={() => setView(option)}
-              className={`min-h-9 px-4 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${view === option ? "bg-blue-600 text-white" : "text-zinc-600 hover:bg-white hover:text-blue-700"}`}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${view === option ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
             >
-              {option === "overall" ? "Overall outreach" : "Event outreach"}
+              {option === "overall" ? "Overall" : "By event"}
             </button>
           ))}
         </div>
