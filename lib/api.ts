@@ -82,6 +82,13 @@ export type DashboardOutreachTracking = {
     followUpEmailCount: number;
   }>;
   items: DashboardOutreachTrackingItem[];
+  events?: Array<{
+    canonicalEventKey: string;
+    canonicalEventName: string;
+    totals: DashboardOutreachTracking["totals"];
+    dailyActivity: DashboardOutreachTracking["dailyActivity"];
+    items: DashboardOutreachTrackingItem[];
+  }>;
   generatedAt?: string | null;
 };
 
