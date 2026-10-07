@@ -9,7 +9,7 @@ test("lead-sheet warning labels use accessible icons and a visible legend", () =
   assert.match(page, /aria-label="Lead indicator legend"/);
   assert.match(leadRows, /role="img" aria-label="Suppressed lead" title="Suppressed lead"/);
   assert.match(leadRows, /role="img" aria-label="Lead actions blocked" title="Lead actions blocked"/);
-  assert.match(leadRows, /role="img" aria-label="Lead not sendable" title="Lead not sendable"/);
+  assert.match(leadRows, /role="img" aria-label="Lead not sendable" title=\{leadSendabilityReason\(item\)\}/);
   assert.doesNotMatch(leadRows, />\s*(?:Suppressed|Blocked|Not Sendable)\s*</);
 });
 

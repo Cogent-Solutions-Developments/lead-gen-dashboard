@@ -45,7 +45,8 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 import { controlGenerationJob, getActiveGenerationJob, getGenerationJob } from "@/lib/contentGenerationJobs";
-import { generationStatus } from "@/lib/contentGenerationState";
+import { generationStatus, generationLeadSnapshot } from "@/lib/contentGenerationState";
+import { isCampaignLeadSelectionBlocked, leadSendabilityReason, hasLeadContentEdits } from "@/lib/campaignLeadReadiness";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   approveSelectedCampaignLeads,
@@ -256,6 +257,51 @@ interface Lead {
   whatsappOptOutSource?: string | null;
   whatsappOptOutReason?: string | null;
   whatsappOptOutPhoneE164?: string | null;
+}
+
+function mapCampaignLead(x: any): Lead {
+  return {
+    id: x.id,
+    batchId: x.batchId,
+    employeeName: x.employeeName,
+    title: x.title || "",
+    company: x.company || x.companyName || x.company_name || "",
+    email: x.email || "",
+    phone: x.phone || "",
+    linkedinUrl: x.linkedinUrl || "",
+    companyUrl: x.companyUrl || x.company_url || "",
+
+    contentEmailSubject: x.contentEmailSubject || "",
+    contentEmail: x.contentEmail || "",
+    contentLinkedin: x.contentLinkedin || "",
+    contentWhatsapp: x.contentWhatsapp || "",
+
+    reviewStatus: x.reviewStatus ?? null,
+    approvalStatus: normalizeApprovalStatus(x.approvalStatus),
+    channelApprovals: normalizeChannelApprovals(x.channelApprovals),
+    isSuppressed: parseBoolean(x.isSuppressed),
+    suppression: normalizeSuppressionMeta(x.suppression),
+    contactReadOnly: parseBoolean(x.contactReadOnly),
+    sendable: typeof x.sendable === "boolean" ? x.sendable : undefined,
+    channelCapabilities: normalizeChannelCapabilities(x.channelCapabilities),
+    contentSource: normalizeContentSource(x.contentSource),
+    templateFallback: parseBoolean(x.templateFallback),
+
+    draftId: x.draftId ?? null,
+    draftStatus: x.draftStatus ?? null,
+    draftMeta: asRecord(x.draftMeta),
+    generationFailure: deriveGenerationFailure(x.draftStatus ?? null, asRecord(x.draftMeta)),
+    outreachStatus: extractOutreachStatus(x),
+    emailDelivery: normalizeEmailDelivery(x.emailDelivery),
+
+    // ✅ expect backend arrays; fallback to empty
+    emailAttachments: normalizeAttachments(x.emailAttachments),
+    whatsappAttachments: normalizeAttachments(x.whatsappAttachments),
+    whatsappOptedOut: Boolean(x.whatsappOptedOut ?? x.isWhatsappOptedOut ?? x.whatsapp_opted_out ?? false),
+    whatsappOptOutSource: x.whatsappOptOutSource ?? x.optOutSource ?? null,
+    whatsappOptOutReason: x.whatsappOptOutReason ?? x.optOutReason ?? null,
+    whatsappOptOutPhoneE164: x.whatsappOptOutPhoneE164 ?? x.optOutPhoneE164 ?? null,
+  };
 }
 
 interface CampaignDetail {
@@ -1551,7 +1597,7 @@ function SuperAdminCampaignDetailPage() {
     return Boolean(leadOptOutById.get(lead.id));
   }
   function isLeadSelectionBlocked(lead: Lead) {
-    return isLeadMarketingOptedOut(lead);
+    return isCampaignLeadSelectionBlocked(lead, Boolean(leadOptOutById.get(lead.id)));
   }
   function getEmailCapabilityDisabledReason(lead: Lead) {
     if (!hasText(lead.email)) return "Lead has no email address.";
@@ -1657,16 +1703,7 @@ function SuperAdminCampaignDetailPage() {
   const selectableFilteredLeads = useMemo(
     () =>
       canManageLeadActions
-        ? filteredLeads.filter((lead) => {
-        const blocked =
-          lead.sendable === false ||
-          lead.contactReadOnly ||
-          lead.approvalStatus === "suppressed" ||
-          lead.isSuppressed ||
-          Boolean(lead.suppression?.active) ||
-          Boolean(leadOptOutById.get(lead.id));
-        return !blocked;
-      })
+        ? filteredLeads.filter((lead) => !isCampaignLeadSelectionBlocked(lead, Boolean(leadOptOutById.get(lead.id))))
         : [],
     [canManageLeadActions, filteredLeads, leadOptOutById]
   );
@@ -1889,48 +1926,7 @@ function SuperAdminCampaignDetailPage() {
         setFollowUpTemplates(nextTemplates);
       }
 
-      const mapped: Lead[] = (lRes.data.leads || []).map((x: any) => ({
-        id: x.id,
-        batchId: x.batchId,
-        employeeName: x.employeeName,
-        title: x.title || "",
-        company: x.company || x.companyName || x.company_name || "",
-        email: x.email || "",
-        phone: x.phone || "",
-        linkedinUrl: x.linkedinUrl || "",
-        companyUrl: x.companyUrl || x.company_url || "",
-
-        contentEmailSubject: x.contentEmailSubject || "",
-        contentEmail: x.contentEmail || "",
-        contentLinkedin: x.contentLinkedin || "",
-        contentWhatsapp: x.contentWhatsapp || "",
-
-        reviewStatus: x.reviewStatus ?? null,
-        approvalStatus: normalizeApprovalStatus(x.approvalStatus),
-        channelApprovals: normalizeChannelApprovals(x.channelApprovals),
-        isSuppressed: parseBoolean(x.isSuppressed),
-        suppression: normalizeSuppressionMeta(x.suppression),
-        contactReadOnly: parseBoolean(x.contactReadOnly),
-        sendable: typeof x.sendable === "boolean" ? x.sendable : undefined,
-        channelCapabilities: normalizeChannelCapabilities(x.channelCapabilities),
-        contentSource: normalizeContentSource(x.contentSource),
-        templateFallback: parseBoolean(x.templateFallback),
-
-        draftId: x.draftId ?? null,
-        draftStatus: x.draftStatus ?? null,
-        draftMeta: asRecord(x.draftMeta),
-        generationFailure: deriveGenerationFailure(x.draftStatus ?? null, asRecord(x.draftMeta)),
-        outreachStatus: extractOutreachStatus(x),
-        emailDelivery: normalizeEmailDelivery(x.emailDelivery),
-
-        // ✅ expect backend arrays; fallback to empty
-        emailAttachments: normalizeAttachments(x.emailAttachments),
-        whatsappAttachments: normalizeAttachments(x.whatsappAttachments),
-        whatsappOptedOut: Boolean(x.whatsappOptedOut ?? x.isWhatsappOptedOut ?? x.whatsapp_opted_out ?? false),
-        whatsappOptOutSource: x.whatsappOptOutSource ?? x.optOutSource ?? null,
-        whatsappOptOutReason: x.whatsappOptOutReason ?? x.optOutReason ?? null,
-        whatsappOptOutPhoneE164: x.whatsappOptOutPhoneE164 ?? x.optOutPhoneE164 ?? null,
-      }));
+      const mapped: Lead[] = (lRes.data.leads || []).map(mapCampaignLead);
 
       setLeads(stabilizeLeadOrder(mapped));
       if (options?.syncSelectedLeadId) {
@@ -2113,7 +2109,7 @@ function SuperAdminCampaignDetailPage() {
     if (action === "linkedin" && getChannelApprovalStatus(lead, "linkedin") !== "approved") {
       return "Approve the LinkedIn review before queueing in HeyReach.";
     }
-    if (lead.sendable === false) return "This lead is currently not sendable.";
+    if (lead.sendable === false) return leadSendabilityReason(lead);
     const emailCapabilityReason = getEmailCapabilityDisabledReason(lead);
     const linkedinCapabilityReason = getLinkedinCapabilityDisabledReason(lead);
     const whatsappCapabilityReason = getWhatsappCapabilityDisabledReason(lead);
@@ -2602,12 +2598,26 @@ function SuperAdminCampaignDetailPage() {
   const isContentGenerationAbortError = (error: any) =>
     error?.code === "ERR_CANCELED" || error?.name === "CanceledError" || error?.name === "AbortError";
 
-  const refreshAfterGeneration = useEffectEvent(() => { void fetchAll({ silent: true }); });
+  const refreshAfterGeneration = useEffectEvent(async (signal: AbortSignal) => {
+    const reviewedLead = selectedLead;
+    const { data } = await api.get(`/api/campaigns/${campaignId}/leads`, { params: { status: "all" }, signal });
+    if (signal.aborted) return;
+    const mapped: Lead[] = (data.leads || []).map(mapCampaignLead);
+    setLeads(stabilizeLeadOrder(mapped));
+    const refreshedLead = mapped.find((lead) => lead.id === reviewedLead?.id);
+    if (reviewedLead && refreshedLead) {
+      setSelectedLead((current) => current?.id === refreshedLead.id ? refreshedLead : current);
+      // Refresh an untouched review, preserving any unsaved content edits.
+      setEditForm((current) => current?.id === refreshedLead.id && !hasLeadContentEdits(current, reviewedLead)
+        ? refreshedLead : current);
+    }
+  });
   const trackedJobId = contentGenerationQueue.jobId;
   useEffect(() => {
     if (!campaignId || !canManageLeadActions) return;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
+    let refreshedSnapshot: string | null = null;
     const poll = async () => {
       try {
         const job = trackedJobId
@@ -2616,9 +2626,14 @@ function SuperAdminCampaignDetailPage() {
         if (controller.signal.aborted) return;
         if (job) {
           const status = generationStatus(job);
+          const snapshot = generationLeadSnapshot(job);
+          if (snapshot !== refreshedSnapshot) {
+            await refreshAfterGeneration(controller.signal);
+            if (controller.signal.aborted) return;
+            refreshedSnapshot = snapshot;
+          }
           if (status === "idle") {
             setContentGenerationQueue({ ...EMPTY_CONTENT_GENERATION_QUEUE, remainingLeadIds: [] });
-            refreshAfterGeneration();
             if (job.state === "FAILURE") toast.error("Generation stopped with an error", { description: job.message });
             return;
           }
@@ -4536,7 +4551,7 @@ function SuperAdminCampaignDetailPage() {
                                 </span>
                               ) : null}
                               {!isLeadReadOnly && item.sendable === false ? (
-                                <span className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-amber-200 bg-amber-50 text-amber-700" role="img" aria-label="Lead not sendable" title="Lead not sendable">
+                                <span className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-amber-200 bg-amber-50 text-amber-700" role="img" aria-label="Lead not sendable" title={leadSendabilityReason(item)}>
                                   <CircleAlert className="h-3.5 w-3.5" aria-hidden="true" />
                                 </span>
                               ) : null}

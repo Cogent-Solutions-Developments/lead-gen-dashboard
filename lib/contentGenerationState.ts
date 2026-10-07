@@ -7,3 +7,8 @@ export function generationStatus(job: { state?: string; pause_requested?: boolea
   if (["PENDING", "QUEUED", "STARTED", "PROGRESS", "RETRY"].includes(state)) return "running" as const;
   return "idle" as const;
 }
+
+// Include state/progress as well as outcomes so paused and terminal jobs refresh.
+export function generationLeadSnapshot(job: { id: string; state: string; pct?: number; leadStates?: Record<string, number> }): string {
+  return JSON.stringify([job.id, job.state, job.pct, Object.entries(job.leadStates || {}).sort(([a], [b]) => a.localeCompare(b))]);
+}
