@@ -1,0 +1,336 @@
+.workspace {
+  --mk-bg: #fff;
+  --mk-border: #e4e4e7;
+  --mk-text: #18181b;
+  --mk-muted: #71717a;
+  --mk-subtle: #f4f7fb;
+  --mk-accent: #165dff;
+  color: var(--mk-text);
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 12px;
+}
+.workspace * {
+  box-sizing: border-box;
+}
+.workspace h1 {
+  font-size: 28px;
+  font-weight: 650;
+  margin: 4px 0;
+}
+.workspace h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 14px;
+}
+.workspace h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 12px 0;
+}
+.workspace p {
+  color: var(--mk-muted);
+  margin: 8px 0 14px;
+  line-height: 1.55;
+}
+.workspace small {
+  font-size: 12px;
+  color: var(--mk-muted);
+}
+.workspace button,
+.workspace a {
+  border: 1px solid var(--mk-border);
+  background: var(--mk-bg);
+  color: var(--mk-text);
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.workspace button:hover,
+.workspace a:hover {
+  border-color: var(--mk-accent);
+}
+.workspace button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.workspace button:focus-visible,
+.workspace input:focus-visible,
+.workspace select:focus-visible,
+.workspace textarea:focus-visible,
+.workspace a:focus-visible {
+  outline: 2px solid var(--mk-accent);
+  outline-offset: 3px;
+}
+.workspace button.primary {
+  background: var(--mk-accent);
+  color: white;
+  border-color: var(--mk-accent);
+}
+.header,
+.taskHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.eyebrow {
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  background: var(--mk-bg);
+  border: 1px solid var(--mk-border);
+  border-radius: 14px;
+  margin: 24px 0;
+}
+.tabs button {
+  border-color: transparent;
+}
+.tabs button[aria-current] {
+  background: var(--mk-accent);
+  color: white;
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 16px;
+  margin: 20px 0;
+}
+.toolbar label {
+  min-width: 200px;
+  flex: 1;
+  max-width: 380px;
+  margin: 0;
+}
+.columns {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr);
+  gap: 24px;
+  align-items: start;
+}
+.panel,
+.empty {
+  background: var(--mk-bg);
+  border: 1px solid var(--mk-border);
+  border-radius: 16px;
+  padding: 24px;
+  min-width: 0;
+}
+.empty {
+  border-style: dashed;
+  padding: 48px 24px;
+}
+.workspace label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  margin: 12px 0;
+}
+.workspace input,
+.workspace select,
+.workspace textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--mk-border);
+  border-radius: 9px;
+  background: var(--mk-bg);
+  color: var(--mk-text);
+  font: inherit;
+  min-height: 42px;
+}
+.workspace textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+.workspace .check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+.check input {
+  width: 17px;
+  min-height: 17px;
+  accent-color: var(--mk-accent);
+}
+.check small {
+  display: block;
+}
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+}
+.full {
+  grid-column: 1 / -1;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 14px;
+}
+.workspace .requestCard {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  text-align: left;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 16px;
+}
+.requestCard[aria-pressed="true"] {
+  border-color: var(--mk-accent);
+  background: var(--mk-subtle);
+}
+.requestCard span {
+  font-size: 12px;
+}
+.badge {
+  font-size: 11px;
+  border: 1px solid var(--mk-border);
+  border-radius: 20px;
+  padding: 4px 9px;
+  width: fit-content;
+  white-space: nowrap;
+}
+.badge[data-status="done"],
+.badge[data-status="completed"],
+.badge[data-status="released"] {
+  color: #059669;
+  border-color: #059669;
+}
+.badge[data-status="blocked"] {
+  color: #d97706;
+  border-color: #d97706;
+}
+.badge[data-status="review"] {
+  color: var(--mk-accent);
+  border-color: var(--mk-accent);
+}
+.task {
+  border: 1px solid var(--mk-border);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+}
+.taskHeading h3 {
+  margin: 0;
+}
+.notice,
+.error {
+  padding: 12px;
+  border-radius: 9px;
+  background: var(--mk-subtle);
+  border: 1px solid var(--mk-border);
+  font-size: 13px;
+}
+.workspace .error {
+  border-color: #ef4444;
+  color: #dc2626;
+}
+.fields {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0;
+}
+.fields dt {
+  color: var(--mk-muted);
+  font-size: 12px;
+}
+.fields dd,
+.prewrap {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 4px 0;
+}
+.progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+.progress span {
+  font-size: 11px;
+  padding: 8px;
+  border-bottom: 3px solid var(--mk-border);
+}
+.progress span[data-status="done"],
+.progress span[data-status="completed"] {
+  border-color: #059669;
+}
+.workspace details {
+  margin: 18px 0;
+  padding: 14px;
+  border: 1px solid var(--mk-border);
+  border-radius: 10px;
+}
+.workspace summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.history {
+  list-style: none;
+  padding: 0;
+  margin-top: 20px;
+}
+.history li {
+  border-left: 2px solid var(--mk-border);
+  padding: 0 0 24px 16px;
+  overflow-wrap: anywhere;
+}
+.history span {
+  display: block;
+  font-size: 12px;
+  color: var(--mk-muted);
+  margin: 5px 0;
+}
+.history p {
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+.upload {
+  padding: 20px;
+  background: var(--mk-subtle);
+  border-radius: 12px;
+  margin: 20px 0;
+}
+.members {
+  max-height: 460px;
+  overflow: auto;
+}
+@media (max-width: 900px) {
+  .columns {
+    grid-template-columns: 1fr;
+  }
+  .header {
+    align-items: start;
+    flex-direction: column;
+  }
+}
+@media (max-width: 540px) {
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+  .panel {
+    padding: 16px;
+  }
+  .workspace {
+    padding: 0;
+  }
+  .tabs button {
+    padding: 8px;
+  }
+}

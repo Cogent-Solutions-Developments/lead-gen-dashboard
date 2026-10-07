@@ -135,10 +135,17 @@ const departmentDefinitions: DepartmentDefinition[] = [
     icon: Building2,
   },
   {
+    id: "marketing",
+    label: "Marketing",
+    description: "Marketing managers, designers and developers.",
+    roles: ["marketing_manager_user", "marketing_designer_user", "marketing_developer_user", "marketing_user"],
+    icon: BriefcaseBusiness,
+  },
+  {
     id: "business-operations",
     label: "Business Operations",
     description: "Foundation workspace roles for non-pipeline operations.",
-    roles: ["marketing_user", "operational_user", "finance_user"],
+    roles: ["operational_user", "finance_user"],
     icon: BriefcaseBusiness,
   },
   {
@@ -236,7 +243,7 @@ function secondaryDepartmentsForRoles(roles: AuthRole[], existing: string[] = []
   const primaryPipeline = ROLE_PIPELINES[roles[0]];
   const departments = new Set<string>(
     primaryPipeline
-      ? existing.filter((department) => department === "autocall")
+      ? existing.filter((department) => (department === "autocall" || department === "marketing_social"))
       : []
   );
   for (const role of roles.slice(1)) {
