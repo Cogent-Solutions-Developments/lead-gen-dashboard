@@ -1372,7 +1372,7 @@ export default function AdminUsersPage() {
                   }
                 />
                 <p className="text-xs leading-5 text-zinc-500">The first role is primary. Marketing roles can be combined.</p>
-                {form.role !== "client_user" && <label className="flex items-center gap-2 pt-2 text-sm font-medium text-slate-600"><input type="checkbox" checked={form.socialAccess} disabled={saving} onChange={e => setForm(prev => ({...prev, socialAccess:e.target.checked}))} className="h-4 w-4 rounded border-zinc-300 accent-blue-600"/>Social media responsibility</label>}
+                {form.selectedRoles.some(role => MARKETING_ROLES.includes(role)) && <label className="flex items-center gap-2 pt-2 text-sm font-medium text-slate-600"><input type="checkbox" checked={form.socialAccess} disabled={saving} onChange={e => setForm(prev => ({...prev, socialAccess:e.target.checked}))} className="h-4 w-4 rounded border-zinc-300 accent-blue-600"/>Social media responsibility</label>}
               </div>
 
               <div className="space-y-1.5">
@@ -1712,7 +1712,7 @@ export default function AdminUsersPage() {
                         }
                       />
                       <p className="text-xs leading-5 text-zinc-500">The first role is the primary account role. Marketing roles can be combined; Marketing Manager includes workspace access.</p>
-                      {form.role !== "client_user" && <label className="flex items-center gap-2 pt-2 text-sm font-medium text-slate-600"><input type="checkbox" checked={form.socialAccess} disabled={saving || Boolean(editingId && editingId === currentUser?.id)} onChange={e => setForm(prev => ({...prev, socialAccess:e.target.checked}))} className="h-4 w-4 rounded border-zinc-300 accent-blue-600"/>Social media responsibility</label>}
+                      {form.selectedRoles.some(role => MARKETING_ROLES.includes(role)) && <label className="flex items-center gap-2 pt-2 text-sm font-medium text-slate-600"><input type="checkbox" checked={form.socialAccess} disabled={saving || Boolean(editingId && editingId === currentUser?.id)} onChange={e => setForm(prev => ({...prev, socialAccess:e.target.checked}))} className="h-4 w-4 rounded border-zinc-300 accent-blue-600"/>Social media responsibility</label>}
                       {editingSelf ? <p className="text-xs leading-5 text-zinc-500">Your own access is protected while editing.</p> : null}
                       {isSuperAdmin && form.role !== "super_admin_user" && form.role !== "client_user" ? (
                         <label className="flex items-center gap-2 pt-2 text-sm font-medium text-slate-600">

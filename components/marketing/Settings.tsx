@@ -5,7 +5,6 @@ import {
   marketing,
   eligible,
   taskLabel,
-  label,
   type Context,
   type History,
 } from "./api";
@@ -21,7 +20,6 @@ export function Settings({
   eventId: string;
   onRefresh: () => Promise<Context>;
 }) {
-  const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [audit, setAudit] = useState<History[]>([]);
   const [offset, setOffset] = useState(0);
@@ -94,47 +92,6 @@ export function Settings({
             </select>
           </label>
         ))}
-        <div className={styles.teamIntro}>
-          <h2>Social media responsibility</h2>
-        </div>
-        <p>
-          An additional responsibility that preserves the user’s primary role.
-          Existing tasks retain their history when responsibilities change.
-        </p>
-        <label>
-          Find team member
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name…"
-          />
-        </label>
-        <div className={styles.members}>
-          {context.users
-            .filter((u) => u.name.toLowerCase().includes(search.toLowerCase()))
-            .map((u) => (
-              <label className={styles.check} key={u.id}>
-                <input
-                  type="checkbox"
-                  disabled={busy}
-                  checked={u.social}
-                  onChange={(e) =>
-                    void save(`/social-responsibility/${u.id}`, {
-                      enabled: e.target.checked,
-                    })
-                  }
-                />
-                <span>
-                  {u.name}
-                  <small>
-                    {(u.roles?.length ? u.roles : [u.role])
-                      .map((r) => label(r.replace("_user", "")))
-                      .join(" · ")}
-                  </small>
-                </span>
-              </label>
-            ))}
-        </div>
       </section>
       <section className={styles.panel}>
         <h2>Department audit history</h2>
