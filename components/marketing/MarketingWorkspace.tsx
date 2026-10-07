@@ -1,12 +1,8 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { getAuthLandingPath, type AuthRole } from "@/lib/auth";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  LayoutDashboard,
   KanbanSquare,
-  ListTodo,
   Megaphone,
   FolderOpen,
   FileText,
@@ -21,7 +17,6 @@ import {
   Clock3,
   CheckCheck,
   AlertCircle,
-  Home,
 } from "lucide-react";
 import {
   marketing,
@@ -211,21 +206,6 @@ export default function MarketingWorkspace() {
     setRefresh((v) => v + 1);
     navigate({ request: r.id, create: null });
   }
-  const nav = [
-    { key: "overview", name: "Overview", icon: LayoutDashboard },
-    { key: "requests", name: "Requests", icon: KanbanSquare },
-    ...(context?.staff
-      ? [
-          { key: "my-tasks", name: "My tasks", icon: ListTodo },
-          { key: "social", name: "Social media", icon: Megaphone },
-        ]
-      : []),
-    { key: "agenda", name: "Agenda", icon: FileText },
-    { key: "materials", name: "Materials", icon: FolderOpen },
-    ...(context?.manager
-      ? [{ key: "team", name: "Team & activity", icon: Users }]
-      : []),
-  ];
   const switchTab = (key: string) =>
     navigate({
       tab: key,
@@ -252,18 +232,6 @@ export default function MarketingWorkspace() {
           <p>Plan the work. Keep every delivery moving.</p>
         </div>
         <div className={styles.headerActions}>
-          <Link
-            href={
-              context?.role.startsWith("marketing_") ? "/profile" : getAuthLandingPath(context?.role as AuthRole | undefined)
-            }
-            aria-label={
-              context?.role.startsWith("marketing_")
-                ? "My profile"
-                : "Main workspace"
-            }
-          >
-            <Home size={17} />
-          </Link>
           <button
             aria-label="Refresh workspace"
             onClick={() => setRefresh((v) => v + 1)}
@@ -279,24 +247,6 @@ export default function MarketingWorkspace() {
           </button>
         </div>
       </header>
-      <nav className={styles.tabs} aria-label="Marketing sections">
-        {nav.map(({ key, name, icon: Icon }) => (
-          <button
-            key={key}
-            aria-current={tab === key ? "page" : undefined}
-            onClick={() => switchTab(key)}
-          >
-            <Icon size={16} />
-            {name}
-            {key === "my-tasks" && !!overview?.myTasks && (
-              <span>{overview.myTasks}</span>
-            )}
-            {key === "social" && !!overview?.social && (
-              <span>{overview.social}</span>
-            )}
-          </button>
-        ))}
-      </nav>
       {error && (
         <div className={styles.error} role="alert">
           <AlertCircle size={17} />
