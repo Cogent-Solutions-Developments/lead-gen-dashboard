@@ -269,6 +269,12 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
       }
     }
 
+    if (notification.type === "marketing_update") {
+      const href = String(notification.metadata?.href || "");
+      if (href === "/marketing" || href.startsWith("/marketing?")) { setOpen(false); router.push(href); }
+      return;
+    }
+
     if (notification.type === "autocall_incoming_call") {
       try {
         const actionHref = autocallIncomingCallHref(notification.metadata);

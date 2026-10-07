@@ -58,6 +58,7 @@ type SidebarNavItem = {
 
 const navItems: SidebarNavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Marketing", href: "/marketing", icon: ClipboardList },
   { name: "Autocall", href: "/autocall", icon: Phone },
   { name: "Campaigns", normalLabel: "Conferences", href: "/campaigns", icon: Rocket },
   { name: "New Campaign", href: "/campaigns/new", icon: Plus, superOnly: true },
@@ -118,7 +119,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
         ? "Finance"
         : "Marketing";
   const businessNavItems: SidebarNavItem[] = businessWorkspace
-    ? [{ name: `${businessLabel} Workspace`, href: `/business/${businessWorkspace}`, icon: BriefcaseBusiness }]
+    ? [{ name: `${businessLabel} Workspace`, href: businessWorkspace === "marketing" ? "/marketing" : `/business/${businessWorkspace}`, icon: BriefcaseBusiness }, ...(businessWorkspace !== "marketing" ? [{ name: "Marketing", href: "/marketing", icon: ClipboardList }] : [])]
     : [];
   const [ringingBell, setRingingBell] = useState(false);
   const [ringBellModalOpen, setRingBellModalOpen] = useState(false);
