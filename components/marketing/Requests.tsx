@@ -33,11 +33,30 @@ export function RequestForm({
   onCancel: () => void;
 }) {
   const [id] = useState(() => crypto.randomUUID());
+  const [speakerImage, setSpeakerImage] = useState<File | null>(null);
+  const [imageWarning, setImageWarning] = useState(false);
+  const [taskKinds, setTaskKinds] = useState<string[]>([
+    "website",
+    "flyer",
+    "social",
+  ]);
   const [kind, setKind] = useState(request?.kind || "web_design");
   const [busy, setBusy] = useState(false);
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (
+      speakerImage &&
+      (speakerImage.size > 10 * 1024 * 1024 ||
+        (speakerImage.size > 5 * 1024 * 1024 && !imageWarning))
+    ) {
+      toast.error("Check the speaker image size and upload confirmation");
+      return;
+    }
     const data = new FormData(e.currentTarget);
+    if (!request && kind === "other" && !taskKinds.length) {
+      toast.error("Select at least one delivery stage");
+      return;
+    }
     setBusy(true);
     const details = Object.fromEntries(
       ["speakerName", "designation", "company", "bio", "instructions"].map(
@@ -48,18 +67,45 @@ export function RequestForm({
       title: data.get("title"),
       details,
       priority: data.get("priority"),
-      dueAt: data.get("dueAt")
-        ? new Date(String(data.get("dueAt"))).toISOString()
-        : null,
+      dueAt: request && String(data.get("dueAt") || "") === date
+        ? request.dueAt
+        : data.get("dueAt")
+          ? new Date(String(data.get("dueAt"))).toISOString()
+          : null,
     };
     try {
-      const row = await marketing<MarketingRequest>(
+      let row = await marketing<MarketingRequest>(
         request ? `/requests/${request.id}` : "/requests",
         request ? "PATCH" : "POST",
         request
           ? { ...payload, version: request.version }
-          : { ...payload, id, kind, eventId: data.get("eventId") },
+          : {
+              ...payload,
+              id,
+              kind,
+              eventId: data.get("eventId"),
+              ...(kind === "other" ? { taskKinds } : {}),
+            },
       );
+      if (!request && kind === "speaker_update" && speakerImage) {
+        const imageData = new FormData();
+        imageData.set("file", speakerImage);
+        imageData.set("version", String(row.version));
+        imageData.set("acceptWarning", String(imageWarning));
+        try {
+          row = await marketing<MarketingRequest>(
+            `/requests/${row.id}/speaker-image`,
+            "POST",
+            imageData,
+          );
+        } catch (error) {
+          onSave(row);
+          toast.error(
+            `Request created. Speaker image was not uploaded: ${error instanceof Error ? error.message : "Upload failed"}. Retry in Request brief.`,
+          );
+          return;
+        }
+      }
       onSave(row);
       toast.success(
         request ? "Request updated" : "Request created and tasks assigned",
@@ -110,6 +156,28 @@ export function RequestForm({
               </select>
             </label>
           </>
+        )}
+        {kind === "other" && !request && (
+          <fieldset className={styles.full}>
+            <legend>Delivery stages</legend>
+            <p>Choose the work needed. Owners are assigned automatically.</p>
+            <div className={styles.actions}>
+              {["website", "flyer", "agenda", "social", "leads"].map((k) => (
+                <label key={k} className={styles.check}>
+                  <input
+                    type="checkbox"
+                    checked={taskKinds.includes(k)}
+                    onChange={(e) =>
+                      setTaskKinds((v) =>
+                        e.target.checked ? [...v, k] : v.filter((x) => x !== k),
+                      )
+                    }
+                  />
+                  {taskLabel(k)}
+                </label>
+              ))}
+            </div>
+          </fieldset>
         )}
         <label>
           Title
@@ -171,10 +239,32 @@ export function RequestForm({
         </label>
       </div>
       {kind === "speaker_update" && !request && (
-        <p>
-          After creating the request, add the optional speaker image in its
-          details. Flyer design is tracked by status only.
-        </p>
+        <div className={styles.upload}>
+          <label>
+            Speaker image (optional)
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={(e) => {
+                setSpeakerImage(e.target.files?.[0] || null);
+                setImageWarning(false);
+              }}
+            />
+          </label>
+          <small>
+            PNG, JPEG or WebP. Recommended 5MB or below; maximum 10MB.
+          </small>
+          {speakerImage && speakerImage.size > 5 * 1024 * 1024 && (
+            <label className={styles.check}>
+              <input
+                type="checkbox"
+                checked={imageWarning}
+                onChange={(e) => setImageWarning(e.target.checked)}
+              />
+              Above the recommended size. Upload anyway.
+            </label>
+          )}
+        </div>
       )}
       <div className={styles.actions}>
         <button className={styles.primary} disabled={busy}>
@@ -200,9 +290,20 @@ export function HistoryList({ items }: { items: History[] }) {
           {Object.entries(item.detail).map(([key, value]) => (
             <p key={key}>
               {label(key)}:{" "}
-              {typeof value === "object"
-                ? JSON.stringify(value)
-                : String(value ?? "—")}
+              {value &&
+              typeof value === "object" &&
+              "before" in value &&
+              "after" in value ? (
+                <span className={styles.historyChange}>
+                  <del>{String(value.before ?? "Empty")}</del>
+                  {" → "}
+                  <strong>{String(value.after ?? "Empty")}</strong>
+                </span>
+              ) : Array.isArray(value) ? (
+                value.map(String).join(", ")
+              ) : (
+                String(value ?? "—")
+              )}
             </p>
           ))}
         </li>
@@ -230,7 +331,7 @@ function TaskCard({
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const closed = ["completed", "cancelled"].includes(request.status);
-  async function save(reassign = false) {
+  async function save(reassign = false, nextStatus = status) {
     setBusy(true);
     try {
       onSave(
@@ -239,7 +340,7 @@ function TaskCard({
           reassign ? "PUT" : "PATCH",
           reassign
             ? { version: request.version, userId: assignee, reason }
-            : { version: request.version, status, note },
+            : { version: request.version, status: nextStatus, note },
         ),
       );
       toast.success(reassign ? "Task reassigned" : "Task updated");
@@ -272,8 +373,30 @@ function TaskCard({
       )}
       {task.status === "waiting" && <p>Waiting for flyer design completion.</p>}
       {task.note && <p className={styles.prewrap}>{task.note}</p>}
+      {task.canUpdate &&
+        !closed &&
+        !["waiting", "done"].includes(task.status) && (
+          <div className={styles.actions}>
+            {task.status !== "in_progress" && (
+              <button
+                disabled={busy || !task.assigneeId}
+                onClick={() => void save(false, "in_progress")}
+              >
+                Start task
+              </button>
+            )}
+            <button
+              className={styles.primary}
+              disabled={busy || !task.assigneeId}
+              onClick={() => void save(false, "done")}
+            >
+              Mark complete
+            </button>
+          </div>
+        )}
       {task.canUpdate && !closed && task.status !== "waiting" && (
-        <>
+        <details>
+          <summary>Update task</summary>
           <label>
             Task status
             <select value={status} onChange={(e) => setStatus(e.target.value)}>
@@ -300,7 +423,7 @@ function TaskCard({
           >
             Save task status
           </button>
-        </>
+        </details>
       )}
       {context.manager && !closed && (
         <details>
@@ -354,6 +477,7 @@ export function RequestDetail({
   onSave: (r: MarketingRequest) => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [section, setSection] = useState("delivery");
   const [comment, setComment] = useState("");
   const [reviewNote, setReviewNote] = useState("");
   const [corrections, setCorrections] = useState<string[]>([]);
@@ -432,202 +556,229 @@ export function RequestDetail({
           Refresh progress
         </button>
       </div>
-      <dl className={styles.fields}>
-        {Object.entries(request.details)
-          .filter(([k, v]) => k !== "image" && v)
-          .map(([key, value]) => (
-            <div key={key}>
-              <dt>{label(key.replace(/([A-Z])/g, " $1"))}</dt>
-              <dd>{value}</dd>
-            </div>
+      <nav className={styles.tabs} aria-label="Request sections">
+        {[
+          ["delivery", "Delivery"],
+          ["brief", "Request brief"],
+          ["activity", `Activity (${request.history.length})`],
+        ].map(([key, name]) => (
+          <button
+            key={key}
+            aria-current={section === key ? "page" : undefined}
+            onClick={() => setSection(key)}
+          >
+            {name}
+          </button>
+        ))}
+      </nav>
+      {section === "brief" && (
+        <>
+          <dl className={styles.fields}>
+            {Object.entries(request.details)
+              .filter(([k, v]) => k !== "image" && v)
+              .map(([key, value]) => (
+                <div key={key}>
+                  <dt>{label(key.replace(/([A-Z])/g, " $1"))}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+          </dl>
+          {request.kind === "speaker_update" && (
+            <details>
+              <summary>Speaker image</summary>
+              {request.canEdit && request.details.image && (
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    void action(
+                      "/speaker-image",
+                      { version: request.version },
+                      "DELETE",
+                    )
+                  }
+                >
+                  Remove speaker image
+                </button>
+              )}
+              {request.details.image && (
+                <button
+                  onClick={() =>
+                    download(
+                      `/api/marketing-workflow/requests/${request.id}/speaker-image/${request.details.image}`,
+                      "speaker-image",
+                    ).catch(failure)
+                  }
+                >
+                  Download speaker image
+                </button>
+              )}
+              {request.canEdit && (
+                <>
+                  <label>
+                    Add or replace speaker image
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={(e) => {
+                        setImage(e.target.files?.[0] || null);
+                        setAcceptWarning(false);
+                      }}
+                    />
+                  </label>
+                  {image && image.size > 5 * 1024 * 1024 && (
+                    <label className={styles.check}>
+                      <input
+                        type="checkbox"
+                        checked={acceptWarning}
+                        onChange={(e) => setAcceptWarning(e.target.checked)}
+                      />
+                      Above the recommended 5MB. Upload anyway.
+                    </label>
+                  )}
+                  <button
+                    disabled={
+                      busy ||
+                      !image ||
+                      (image.size > 5 * 1024 * 1024 && !acceptWarning)
+                    }
+                    onClick={() => void uploadImage()}
+                  >
+                    Upload speaker image
+                  </button>
+                </>
+              )}
+            </details>
+          )}
+        </>
+      )}
+      {section === "delivery" && (
+        <>
+          <h3>Delivery stages</h3>
+          <div className={styles.progress} aria-label="Task progress">
+            {request.tasks.map((t) => (
+              <span key={t.id} data-status={t.status}>
+                {taskLabel(t.kind)} · {label(t.status)}
+              </span>
+            ))}
+            <span data-status={request.status}>
+              Manager verification ·{" "}
+              {request.status === "completed" ? "Complete" : "Pending"}
+            </span>
+          </div>
+          {request.tasks.map((task) => (
+            <TaskCard
+              key={`${task.id}:${request.version}`}
+              task={task}
+              request={request}
+              context={context}
+              onSave={onSave}
+            />
           ))}
-      </dl>
-      {request.kind === "speaker_update" && (
-        <details>
-          <summary>Speaker image</summary>
-          {request.canEdit && request.details.image && (
-            <button
-              disabled={busy}
-              onClick={() =>
-                void action(
-                  "/speaker-image",
-                  { version: request.version },
-                  "DELETE",
-                )
-              }
-            >
-              Remove speaker image
-            </button>
-          )}
-          {request.details.image && (
-            <button
-              onClick={() =>
-                download(
-                  `/api/marketing-workflow/requests/${request.id}/speaker-image/${request.details.image}`,
-                  "speaker-image",
-                ).catch(failure)
-              }
-            >
-              Download speaker image
-            </button>
-          )}
-          {request.canEdit && (
-            <>
+          {context.manager && (
+            <details open={request.status === "review"}>
+              <summary>Manager verification</summary>
               <label>
-                Add or replace speaker image
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  onChange={(e) => {
-                    setImage(e.target.files?.[0] || null);
-                    setAcceptWarning(false);
-                  }}
+                Verification notes or correction instructions
+                <textarea
+                  value={reviewNote}
+                  onChange={(e) => setReviewNote(e.target.value)}
+                  maxLength={5000}
                 />
               </label>
-              {image && image.size > 5 * 1024 * 1024 && (
-                <label className={styles.check}>
-                  <input
-                    type="checkbox"
-                    checked={acceptWarning}
-                    onChange={(e) => setAcceptWarning(e.target.checked)}
-                  />
-                  Above the recommended 5MB. Upload anyway.
-                </label>
-              )}
-              <button
-                disabled={
-                  busy ||
-                  !image ||
-                  (image.size > 5 * 1024 * 1024 && !acceptWarning)
-                }
-                onClick={() => void uploadImage()}
-              >
-                Upload speaker image
-              </button>
-            </>
+              <div className={styles.actions}>
+                {request.tasks.map((t) => (
+                  <label className={styles.check} key={t.id}>
+                    <input
+                      type="checkbox"
+                      checked={corrections.includes(t.kind)}
+                      onChange={(e) =>
+                        setCorrections((v) =>
+                          e.target.checked
+                            ? [...v, t.kind]
+                            : v.filter((k) => k !== t.kind),
+                        )
+                      }
+                    />
+                    {taskLabel(t.kind)}
+                  </label>
+                ))}
+              </div>
+              <div className={styles.actions}>
+                <button
+                  className={styles.primary}
+                  disabled={
+                    busy || !reviewNote.trim() || request.status !== "review"
+                  }
+                  onClick={() =>
+                    void action("/review", {
+                      version: request.version,
+                      action: "approve",
+                      note: reviewNote,
+                      tasks: [],
+                    })
+                  }
+                >
+                  Verify & complete
+                </button>
+                <button
+                  disabled={busy || !reviewNote.trim() || !corrections.length}
+                  onClick={() =>
+                    void action("/review", {
+                      version: request.version,
+                      action: "changes_requested",
+                      note: reviewNote,
+                      tasks: corrections,
+                    })
+                  }
+                >
+                  Reopen selected tasks
+                </button>
+                <button
+                  disabled={
+                    busy ||
+                    !reviewNote.trim() ||
+                    ["completed", "cancelled"].includes(request.status)
+                  }
+                  onClick={() =>
+                    void action("/review", {
+                      version: request.version,
+                      action: "cancel",
+                      note: reviewNote,
+                      tasks: [],
+                    })
+                  }
+                >
+                  Cancel request
+                </button>
+              </div>
+            </details>
           )}
-        </details>
+        </>
       )}
-      <h3>Delivery stages</h3>
-      <div className={styles.progress} aria-label="Task progress">
-        {request.tasks.map((t) => (
-          <span key={t.id} data-status={t.status}>
-            {taskLabel(t.kind)} · {label(t.status)}
-          </span>
-        ))}
-        <span data-status={request.status}>
-          Manager verification ·{" "}
-          {request.status === "completed" ? "Complete" : "Pending"}
-        </span>
-      </div>
-      {request.tasks.map((task) => (
-        <TaskCard
-          key={`${task.id}:${request.version}`}
-          task={task}
-          request={request}
-          context={context}
-          onSave={onSave}
-        />
-      ))}
-      {context.manager && (
-        <details open={request.status === "review"}>
-          <summary>Manager verification</summary>
+      {section === "activity" && (
+        <>
           <label>
-            Verification notes or correction instructions
+            Comment
             <textarea
-              value={reviewNote}
-              onChange={(e) => setReviewNote(e.target.value)}
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
               maxLength={5000}
             />
           </label>
-          <div className={styles.actions}>
-            {request.tasks.map((t) => (
-              <label className={styles.check} key={t.id}>
-                <input
-                  type="checkbox"
-                  checked={corrections.includes(t.kind)}
-                  onChange={(e) =>
-                    setCorrections((v) =>
-                      e.target.checked
-                        ? [...v, t.kind]
-                        : v.filter((k) => k !== t.kind),
-                    )
-                  }
-                />
-                {taskLabel(t.kind)}
-              </label>
-            ))}
-          </div>
-          <div className={styles.actions}>
-            <button
-              className={styles.primary}
-              disabled={
-                busy || !reviewNote.trim() || request.status !== "review"
-              }
-              onClick={() =>
-                void action("/review", {
-                  version: request.version,
-                  action: "approve",
-                  note: reviewNote,
-                  tasks: [],
-                })
-              }
-            >
-              Verify & complete
-            </button>
-            <button
-              disabled={busy || !reviewNote.trim() || !corrections.length}
-              onClick={() =>
-                void action("/review", {
-                  version: request.version,
-                  action: "changes_requested",
-                  note: reviewNote,
-                  tasks: corrections,
-                })
-              }
-            >
-              Reopen selected tasks
-            </button>
-            <button
-              disabled={
-                busy ||
-                !reviewNote.trim() ||
-                ["completed", "cancelled"].includes(request.status)
-              }
-              onClick={() =>
-                void action("/review", {
-                  version: request.version,
-                  action: "cancel",
-                  note: reviewNote,
-                  tasks: [],
-                })
-              }
-            >
-              Cancel request
-            </button>
-          </div>
-        </details>
+          <button
+            disabled={busy || !comment.trim()}
+            onClick={() =>
+              void action("/comments", {
+                version: request.version,
+                text: comment,
+              })
+            }
+          >
+            Add comment
+          </button>
+          <HistoryList items={[...request.history].reverse()} />
+        </>
       )}
-      <label>
-        Comment
-        <textarea
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          maxLength={5000}
-        />
-      </label>
-      <button
-        disabled={busy || !comment.trim()}
-        onClick={() =>
-          void action("/comments", { version: request.version, text: comment })
-        }
-      >
-        Add comment
-      </button>
-      <details>
-        <summary>Activity & field history ({request.history.length})</summary>
-        <HistoryList items={[...request.history].reverse()} />
-      </details>
     </section>
   );
 }
