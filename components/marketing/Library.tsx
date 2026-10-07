@@ -28,11 +28,10 @@ export function Library({
   const [acceptWarning, setAcceptWarning] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [showUpload, setShowUpload] = useState(false);
   const [history, setHistory] = useState(false);
   const recommended = category === "agenda" ? 3 : 5;
-  const canUpload =
-    context.manager ||
-    ["marketing_designer_user", "marketing_user"].includes(context.role);
+  const canUpload = context.canUpload;
   const load = useCallback(
     async (signal?: AbortSignal) => {
       if (!eventId) return;
@@ -81,6 +80,7 @@ export function Library({
       await marketing("/library", "POST", data);
       await load();
       setFile(null);
+      setShowUpload(false);
       form.reset();
       toast.success("Draft uploaded for manager release");
     } catch (err) {
@@ -116,8 +116,8 @@ export function Library({
           : "Marketing materials library"}
       </h2>
       <p>
-        This upload library is separate from speaker request tasks. Released
-        files are visible to other departments.
+        Approved resources for your event. Browse current files or review
+        previous versions.
       </p>
       {error && (
         <p role="alert" className={styles.error}>
@@ -125,6 +125,14 @@ export function Library({
         </p>
       )}
       {canUpload && (
+        <button
+          className={styles.primary}
+          onClick={() => setShowUpload((v) => !v)}
+        >
+          {showUpload ? "Close upload" : "Upload new version"}
+        </button>
+      )}
+      {canUpload && showUpload && (
         <form onSubmit={upload} className={styles.upload}>
           <h3>Upload a new version</h3>
           <label>
