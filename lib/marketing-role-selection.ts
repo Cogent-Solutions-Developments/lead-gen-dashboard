@@ -28,7 +28,7 @@ export function secondaryDepartmentsForRoles(
     const pipeline = ROLE_PIPELINES[role];
     if (pipeline && pipeline !== primaryPipeline) departments.add(pipeline);
   }
-  if (social) departments.add("marketing_social");
+  if (social && roles.some(role => MARKETING_ROLES.includes(role))) departments.add("marketing_social");
   return [...departments];
 }
 export function incompatibleRoleSelection(roles: string[]) {

@@ -1,9 +1,10 @@
 "use client";
+import { marketingNavigation } from "@/lib/marketing-navigation";
 import { revokeAutocallSession } from "@/lib/auth";
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Phone,
@@ -102,6 +103,8 @@ type SidebarProps = {
 
 export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const marketingRoute = pathname === "/marketing";
   const router = useRouter();
   const { persona } = usePersona();
   const { isCeo, isSuperAdmin, user } = useAuth();
@@ -217,8 +220,9 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
           isExpanded ? "-mx-4" : "-mx-6"
         }`}
       >
-        {(isBusiness ? [...businessNavItems, { name: "Autocall", href: "/autocall", icon: Phone }] : navItems)
+        {(marketingRoute ? (marketingNavigation(user, searchParams.get("event")) as SidebarNavItem[]) : isBusiness ? [...businessNavItems, { name: "Autocall", href: "/autocall", icon: Phone }] : navItems)
           .filter((item) => {
+            if (marketingRoute) return true;
             if (item.href === "/autocall") return canAccessAutocall(user);
             if (isBusiness) return true;
             if (item.submissionViewerOnly) return !isSuperAdmin && (isCeo || isManager);
@@ -232,7 +236,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
             return true;
           })
           .map((item, index) => {
-          const isActive = pathname === item.href;
+          const isActive = marketingRoute ? item.href.startsWith("/marketing?") && new URLSearchParams(item.href.split("?")[1]).get("tab") === (searchParams.get("tab") || "overview") : pathname === item.href;
           return (
             <motion.div
               key={item.name}
