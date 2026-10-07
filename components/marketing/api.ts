@@ -21,6 +21,11 @@ export type History = {
   requestId?: string;
 };
 export type RequestSummary = {
+  overdue: boolean;
+  createdAt: string;
+  requesterName: string;
+  department: string;
+  tasks: Pick<Task, "id" | "kind" | "status" | "assigneeId" | "assigneeName">[];
   id: string;
   title: string;
   kind: string;
@@ -30,7 +35,7 @@ export type RequestSummary = {
   dueAt: string | null;
   updatedAt: string;
 };
-export type MarketingRequest = RequestSummary & {
+export type MarketingRequest = Omit<RequestSummary, "tasks"> & {
   requesterId: string;
   requesterName: string;
   department: string;
@@ -46,8 +51,28 @@ export type Member = {
   name: string;
   role: string;
   social: boolean;
+  roles: string[];
+};
+export type Overview = {
+  counts: Record<string, number>;
+  active: number;
+  myTasks: number;
+  social: number;
+  overdue: number;
+  activity: {
+    id: string;
+    requestId: string;
+    title: string;
+    actor: string;
+    action: string;
+    createdAt: string;
+  }[];
 };
 export type Context = {
+  name: string;
+  roles: string[];
+  social: boolean;
+  canUpload: boolean;
   manager: boolean;
   staff: boolean;
   userId: string;
@@ -109,9 +134,9 @@ export async function marketing<T>(
       typeof data.detail === "string"
         ? data.detail
         : data.detail?.message ||
-          (response.status === 422
-            ? "Check the required fields and file format."
-            : "Marketing request failed."),
+            (response.status === 422
+              ? "Check the required fields and file format."
+              : "Marketing request failed."),
     );
   return data as T;
 }
@@ -151,5 +176,7 @@ export function eligible(users: Member[], kind: string) {
       : kind === "leads"
         ? "marketing_manager_user"
         : "marketing_designer_user";
-  return users.filter((u) => (kind === "social" ? u.social : u.role === role));
+  return users.filter((u) =>
+    kind === "social" ? u.social : u.role === role || u.roles?.includes(role),
+  );
 }

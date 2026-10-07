@@ -21,6 +21,7 @@ export function Settings({
   eventId: string;
   onRefresh: () => Promise<Context>;
 }) {
+  const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [audit, setAudit] = useState<History[]>([]);
   const [offset, setOffset] = useState(0);
@@ -80,7 +81,11 @@ export function Settings({
                 })
               }
             >
-              <option value="">Automatic / fallback</option>
+              <option value="">
+                {eligible(context.users, kind).length
+                  ? `Automatic · ${eligible(context.users, kind).length} eligible owners`
+                  : "No eligible owners — assign roles first"}
+              </option>
               {eligible(context.users, kind).map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.name}
@@ -89,30 +94,46 @@ export function Settings({
             </select>
           </label>
         ))}
-        <h2>Social media responsibility</h2>
+        <div className={styles.teamIntro}>
+          <h2>Social media responsibility</h2>
+        </div>
         <p>
           An additional responsibility that preserves the user’s primary role.
           Existing tasks retain their history when responsibilities change.
         </p>
+        <label>
+          Find team member
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name…"
+          />
+        </label>
         <div className={styles.members}>
-          {context.users.map((u) => (
-            <label className={styles.check} key={u.id}>
-              <input
-                type="checkbox"
-                disabled={busy}
-                checked={u.social}
-                onChange={(e) =>
-                  void save(`/social-responsibility/${u.id}`, {
-                    enabled: e.target.checked,
-                  })
-                }
-              />
-              <span>
-                {u.name}
-                <small>{label(u.role.replace("_user", ""))}</small>
-              </span>
-            </label>
-          ))}
+          {context.users
+            .filter((u) => u.name.toLowerCase().includes(search.toLowerCase()))
+            .map((u) => (
+              <label className={styles.check} key={u.id}>
+                <input
+                  type="checkbox"
+                  disabled={busy}
+                  checked={u.social}
+                  onChange={(e) =>
+                    void save(`/social-responsibility/${u.id}`, {
+                      enabled: e.target.checked,
+                    })
+                  }
+                />
+                <span>
+                  {u.name}
+                  <small>
+                    {(u.roles?.length ? u.roles : [u.role])
+                      .map((r) => label(r.replace("_user", "")))
+                      .join(" · ")}
+                  </small>
+                </span>
+              </label>
+            ))}
         </div>
       </section>
       <section className={styles.panel}>

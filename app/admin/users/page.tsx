@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { MARKETING_ROLES, ROLE_PIPELINES, secondaryDepartmentsForRoles, incompatibleRoleSelection } from "@/lib/marketing-role-selection";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -75,6 +76,7 @@ type UserFormState = {
   status: UserStatusValue | "";
   deactivationReason: string;
   autocallAccess: boolean;
+  socialAccess: boolean;
 };
 
 type DepartmentDefinition = {
@@ -95,6 +97,7 @@ const blankForm: UserFormState = {
   status: "",
   deactivationReason: "",
   autocallAccess: false,
+  socialAccess: false,
 };
 
 const departmentDefinitions: DepartmentDefinition[] = [
@@ -228,36 +231,12 @@ function upsertCredential(rows: AdminClientCredential[], credential: AdminClient
   return [credential, ...rows];
 }
 
-const ROLE_PIPELINES: Partial<Record<AuthRole, string>> = {
-  sales_user: "sales",
-  sales_manager_user: "sales",
-  delegate_sales_user: "delegate_sales",
-  delegate_sales_manager_user: "delegate_sales",
-  delegate_user: "delegate",
-  delegate_manager_user: "delegate",
-  production_user: "production",
-  production_manager_user: "production",
-};
-
-function secondaryDepartmentsForRoles(roles: AuthRole[], existing: string[] = []) {
-  const primaryPipeline = ROLE_PIPELINES[roles[0]];
-  const departments = new Set<string>(
-    primaryPipeline
-      ? existing.filter((department) => (department === "autocall" || department === "marketing_social"))
-      : []
-  );
-  for (const role of roles.slice(1)) {
-    const pipeline = ROLE_PIPELINES[role];
-    if (pipeline && pipeline !== primaryPipeline) departments.add(pipeline);
-  }
-  return [...departments];
-}
-
 function assignmentForDepartment(departmentId: string) {
   return departmentId === "delegate-sales" ? "delegate_sales" : departmentId;
 }
 
 function assignedRoleForDepartment(user: AuthUser, department: string): AuthRole {
+  if (MARKETING_ROLES.includes(department as AuthRole)) return department as AuthRole;
   const manager = isManagerRole(user.role);
   const managerRoles: Record<string, AuthRole> = {
     sales: "sales_manager_user",
@@ -284,6 +263,7 @@ function selectedRolesForUser(user: AuthUser): AuthRole[] {
 }
 
 function roleForDepartment(user: AuthUser, departmentId: string): AuthRole {
+  if (departmentId === "marketing" && user.departmentAssignments?.includes("marketing_manager_user")) return "marketing_manager_user";
   const department = assignmentForDepartment(departmentId);
   const primaryPipeline = ROLE_PIPELINES[user.role];
   if (primaryPipeline === department || !user.departmentAssignments?.includes(department)) {
@@ -412,7 +392,7 @@ function UserCard({
   const currentDepartment = assignmentForDepartment(departmentId);
   const secondaryDepartmentLabels = (item.departmentAssignments || [])
     .filter((department) => department !== "autocall" && department !== currentDepartment)
-    .map((department) => department.replaceAll("_", " "));
+    .map((department) => department === "marketing_social" ? "Social media" : MARKETING_ROLES.includes(department as AuthRole) ? getRoleLabel(department as AuthRole) : department.replaceAll("_", " "));
   const clientCredential =
     showClientAccess && item.role === "client_user" ? selectPrimaryClientCredential(clientCredentials) : null;
 
@@ -723,10 +703,11 @@ export default function AdminUsersPage() {
         const rows = filteredUsers.filter((item) =>
           department.roles.includes(item.role) ||
           Boolean(department.assignment && item.departmentAssignments?.includes(department.assignment)) ||
-          item.departmentAssignments?.includes(department.id)
+          item.departmentAssignments?.includes(department.id) ||
+          (department.id === "marketing" && item.departmentAssignments?.some(value => MARKETING_ROLES.includes(value as AuthRole) || value === "marketing_social"))
         );
-        const managers = rows.filter((item) => isManagerRole(item.role));
-        const normalUsers = rows.filter((item) => !isManagerRole(item.role));
+        const managers = rows.filter((item) => department.id === "marketing" ? (item.role === "marketing_manager_user" || item.departmentAssignments?.includes("marketing_manager_user")) : isManagerRole(item.role));
+        const normalUsers = rows.filter((item) => !managers.includes(item));
         return { ...department, rows, managers, normalUsers };
       }),
     [filteredUsers, visibleDepartments]
@@ -791,6 +772,7 @@ export default function AdminUsersPage() {
       status: userLifecycleStatus(item),
       deactivationReason: item.deactivationReason || "",
       autocallAccess: item.departmentAssignments?.includes("autocall") ?? false,
+      socialAccess: item.departmentAssignments?.includes("marketing_social") ?? false,
       selectedRoles: selectedRolesForUser(item),
     });
     setEditingCredentialId(primaryCredential?.id || "");
@@ -824,6 +806,7 @@ export default function AdminUsersPage() {
       return;
     }
 
+    if (incompatibleRoleSelection(form.selectedRoles)) { toast.error("This role combination is not supported", {description:"Combine Marketing roles, or use a pipeline role first for additional pipeline access."}); return; }
     setSaving(true);
     try {
       let updatedCredential: AdminClientCredential | null = null;
@@ -835,13 +818,14 @@ export default function AdminUsersPage() {
           role: isSelf ? undefined : form.role,
           departmentAssignments: isSelf
             ? undefined
-            : secondaryDepartmentsForRoles(form.selectedRoles, users.find((item) => item.id === editingId)?.departmentAssignments || []),
+            : secondaryDepartmentsForRoles(form.selectedRoles, users.find((item) => item.id === editingId)?.departmentAssignments || [], form.socialAccess),
           lifecycleStatus: isSelf ? undefined : form.status,
           deactivationReason:
             isSelf || form.status === "active" ? undefined : form.deactivationReason.trim(),
         });
         if (
           isSuperAdmin &&
+          form.autocallAccess !== Boolean(users.find(item => item.id === editingId)?.departmentAssignments?.includes("autocall")) &&
           updated.role !== "super_admin_user" &&
           updated.role !== "client_user"
         ) {
@@ -883,7 +867,7 @@ export default function AdminUsersPage() {
           username,
           password: form.password,
           role: form.role,
-          departmentAssignments: secondaryDepartmentsForRoles(form.selectedRoles),
+          departmentAssignments: secondaryDepartmentsForRoles(form.selectedRoles, [], form.socialAccess),
           fullName: form.fullName.trim(),
           isActive: form.status === "active",
         });
@@ -1387,7 +1371,8 @@ export default function AdminUsersPage() {
                     }))
                   }
                 />
-                <p className="text-xs leading-5 text-zinc-500">Select one or more roles. The first selected role is the primary account role.</p>
+                <p className="text-xs leading-5 text-zinc-500">The first role is primary. Marketing roles can be combined.</p>
+                {form.role !== "client_user" && <label className="flex items-center gap-2 pt-2 text-sm font-medium text-slate-600"><input type="checkbox" checked={form.socialAccess} disabled={saving} onChange={e => setForm(prev => ({...prev, socialAccess:e.target.checked}))} className="h-4 w-4 rounded border-zinc-300 accent-blue-600"/>Social media responsibility</label>}
               </div>
 
               <div className="space-y-1.5">
@@ -1726,7 +1711,8 @@ export default function AdminUsersPage() {
                           }))
                         }
                       />
-                      <p className="text-xs leading-5 text-zinc-500">Select one or more department roles. The first selected role is the primary account role.</p>
+                      <p className="text-xs leading-5 text-zinc-500">The first role is the primary account role. Marketing roles can be combined; Marketing Manager includes workspace access.</p>
+                      {form.role !== "client_user" && <label className="flex items-center gap-2 pt-2 text-sm font-medium text-slate-600"><input type="checkbox" checked={form.socialAccess} disabled={saving || Boolean(editingId && editingId === currentUser?.id)} onChange={e => setForm(prev => ({...prev, socialAccess:e.target.checked}))} className="h-4 w-4 rounded border-zinc-300 accent-blue-600"/>Social media responsibility</label>}
                       {editingSelf ? <p className="text-xs leading-5 text-zinc-500">Your own access is protected while editing.</p> : null}
                       {isSuperAdmin && form.role !== "super_admin_user" && form.role !== "client_user" ? (
                         <label className="flex items-center gap-2 pt-2 text-sm font-medium text-slate-600">
