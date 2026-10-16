@@ -1325,12 +1325,6 @@
 .previewHeader .actions { margin: 0; flex-shrink: 0; }
 .previewRetry { display: flex; justify-content: flex-end; flex-shrink: 0; }
 .workspace .previewRetry button { font-size: 11px; padding: 5px 8px; }
-.pdfToolbar { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
-.pdfToolbar span { font-size: 12px; }
-.pdfCanvas { min-height: 0; flex: 1; overflow: auto; background: var(--mk-subtle); border-radius: 12px; padding: 16px; }
-.pdfCanvas canvas { display: block; margin: 0 auto; background: white; }
-.pdfCanvas[aria-busy="true"] canvas { opacity: .4; }
-.workspace .previewStatus { margin: 0; font-size: 12px; }
 .filePreview { flex: 1; min-height: 0; overflow: auto; }
 .filePreview img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; margin: auto; }
 .filePreview pre { white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -1338,6 +1332,6 @@
   .previewHeader { flex-wrap: wrap; gap: 8px; }
   .previewHeader .actions { width: 100%; justify-content: flex-end; }
   .workspace .libraryDialog.documentPreview { padding: 12px; width: calc(100vw - 16px); height: calc(100dvh - 16px); }
-  .pdfToolbar { gap: 4px; }
-  .pdfToolbar button { padding: 6px; }
 }
+
+.documentPreview .nativePdf { flex: 1; min-height: 0; height: auto; width: 100%; border: 0; background: #fff; }

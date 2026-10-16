@@ -189,10 +189,19 @@ export function eligible(users: Member[], kind: string) {
   );
 }
 
-// PDF.js keeps authorization on every range request; no credentials enter URLs.
-export function previewRequest(path: string) {
-  return {
-    url: `${baseUrl()}${path.replace(/\/download$/, "/preview")}`,
-    httpHeaders: { ...getAuthHeader(), ...getLocalDevNgrokHeaders() },
-  };
+// Request a short-lived, single-document link; native viewers cannot send bearer headers.
+// Only this small JSON response is fetched here. The browser streams the PDF itself.
+export async function previewUrl(path: string, signal?: AbortSignal): Promise<string> {
+  const previewPath = path.replace(/\/download$/, "/preview");
+  const response = await fetch(`${baseUrl()}${previewPath}`, {
+    method: "POST",
+    signal,
+    headers: { ...getAuthHeader(), ...getLocalDevNgrokHeaders() },
+  });
+  if (!response.ok) throw new Error("Unable to open this PDF.");
+  const data: { url: string } = await response.json();
+  // Only the requested Marketing document may become the iframe's navigation target.
+  if (!data.url.startsWith(`${previewPath}?ticket=`))
+    throw new Error("Invalid preview link.");
+  return `${baseUrl()}${data.url}`;
 }
