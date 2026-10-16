@@ -103,21 +103,21 @@ const departmentDefinitions: DepartmentDefinition[] = [
   {
     id: "administration",
     label: "Administration",
-    description: "Protected platform operators and ownership roles.",
+    description: "Platform administration and executive oversight.",
     roles: ["super_admin_user", "ceo_user"],
     icon: Crown,
   },
   {
     id: "sales",
     label: "Sales",
-    description: "Sales managers and outreach operators.",
+    description: "Sales outreach and team management.",
     roles: ["sales_manager_user", "sales_user"],
     icon: BriefcaseBusiness,
   },
   {
     id: "delegate-sales",
     label: "Delegate Sales",
-    description: "Delegate Sales managers and outreach operators.",
+    description: "Delegate sales outreach and team management.",
     roles: ["delegate_sales_manager_user", "delegate_sales_user"],
     assignment: "delegate_sales",
     icon: UsersRound,
@@ -125,35 +125,35 @@ const departmentDefinitions: DepartmentDefinition[] = [
   {
     id: "delegate",
     label: "Delegate",
-    description: "Delegate managers and validation operators.",
+    description: "Delegate validation and team management.",
     roles: ["delegate_manager_user", "delegate_user"],
     icon: UserCog,
   },
   {
     id: "production",
     label: "Production",
-    description: "Production managers and campaign execution users.",
+    description: "Campaign execution and production management.",
     roles: ["production_manager_user", "production_user"],
     icon: Building2,
   },
   {
     id: "marketing",
     label: "Marketing",
-    description: "Marketing managers, designers and developers.",
+    description: "Marketing leadership, design and development.",
     roles: ["marketing_manager_user", "marketing_designer_user", "marketing_developer_user", "marketing_user"],
     icon: BriefcaseBusiness,
   },
   {
     id: "business-operations",
     label: "Business Operations",
-    description: "Foundation workspace roles for non-pipeline operations.",
+    description: "Operations and finance responsibilities.",
     roles: ["operational_user", "finance_user"],
     icon: BriefcaseBusiness,
   },
   {
     id: "client",
     label: "Client",
-    description: "Event dashboard credentials created for client access.",
+    description: "Client access to event dashboards.",
     roles: ["client_user"],
     icon: KeyRound,
   },
@@ -1290,6 +1290,7 @@ export default function AdminUsersPage() {
                 <UserRoleMultiSelect
                   selectedRoles={form.selectedRoles}
                   roleOptions={roleOptions}
+                  departments={departmentDefinitions}
                   disabled={editingSelf}
                   onRolesChange={(selectedRoles) =>
                     setForm((prev) => ({
@@ -1613,6 +1614,7 @@ export default function AdminUsersPage() {
                       <UserRoleMultiSelect
                         selectedRoles={form.selectedRoles}
                         roleOptions={roleOptions}
+                        departments={departmentDefinitions}
                         disabled={editingSelf}
                         onRolesChange={(selectedRoles) =>
                           setForm((prev) => ({
