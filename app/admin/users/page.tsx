@@ -2,15 +2,14 @@
 
 import Link from "next/link";
 import { MARKETING_ROLES, ROLE_PIPELINES, secondaryDepartmentsForRoles, incompatibleRoleSelection } from "@/lib/marketing-role-selection";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { UserRoleMultiSelect } from "@/components/admin/UserRoleMultiSelect";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
   BriefcaseBusiness,
   Building2,
   CalendarClock,
-  Check,
-  ChevronDown,
   Crown,
   Eye,
   EyeOff,
@@ -270,94 +269,6 @@ function roleForDepartment(user: AuthUser, departmentId: string): AuthRole {
     return user.role;
   }
   return assignedRoleForDepartment(user, department);
-}
-
-function UserRoleMultiSelect({
-  selectedRoles,
-  roleOptions,
-  disabled,
-  onRolesChange,
-}: {
-  selectedRoles: AuthRole[];
-  roleOptions: AuthRole[];
-  disabled: boolean;
-  onRolesChange: (roles: AuthRole[]) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const closeOnOutsideClick = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", closeOnOutsideClick);
-    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
-  }, [open]);
-
-  return (
-    <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        aria-disabled={disabled}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        disabled={disabled}
-        onClick={() => setOpen((current) => !current)}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") setOpen(false);
-          if (event.key === "ArrowDown" && !open) {
-            event.preventDefault();
-            setOpen(true);
-          }
-        }}
-        className={`flex h-11 w-full items-center justify-between gap-3 rounded-lg border border-zinc-300 bg-white px-3.5 text-sm text-slate-900 shadow-none outline-none transition ${
-          disabled
-            ? "cursor-not-allowed opacity-60"
-            : "cursor-pointer hover:border-blue-300 focus-visible:border-blue-500 focus-visible:ring-3 focus-visible:ring-blue-100"
-        }`}
-      >
-        <span className="truncate">{selectedRoles.length ? selectedRoles.map(getRoleLabel).join(", ") : "Select department roles"}</span>
-        <ChevronDown className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-
-      {open ? (
-            <div role="menu" aria-label="User department roles" className="absolute left-0 top-full z-[200] mt-2 max-h-72 w-full min-w-72 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-[0_18px_42px_-20px_rgba(15,23,42,0.45)]">
-        <p className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-400">Department roles</p>
-          {roleOptions.map((role) => {
-            const selected = selectedRoles.includes(role);
-            return (
-              <button
-                key={role}
-                type="button"
-                role="menuitemcheckbox"
-                aria-checked={selected}
-                disabled={disabled}
-                onClick={() => {
-                  const nextRoles = selected
-                    ? selectedRoles.filter((value) => value !== role)
-                    : [...selectedRoles, role];
-                  if (nextRoles.length) onRolesChange(nextRoles);
-                }}
-                className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition ${
-                  selected ? "bg-blue-50 font-medium text-blue-800" : "text-zinc-700 hover:bg-zinc-50"
-                } disabled:cursor-not-allowed disabled:opacity-50`}
-              >
-                <span
-                  className={`flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded border ${
-                    selected ? "border-blue-600 bg-blue-600 text-white" : "border-zinc-300 bg-white"
-                  }`}
-                >
-                  {selected ? <Check className="h-3 w-3" /> : null}
-                </span>
-                {getRoleLabel(role)}
-              </button>
-            );
-          })}
-            </div>
-        ) : null}
-    </div>
-  );
 }
 
 function UserCard({
@@ -1319,7 +1230,7 @@ export default function AdminUsersPage() {
           </div>
 
           <div className="grid gap-5 p-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(18rem,0.55fr)]">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid content-start items-start gap-4 md:grid-cols-2">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase text-zinc-500">Username</label>
                 <Input
@@ -1358,24 +1269,6 @@ export default function AdminUsersPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase text-zinc-500">Department roles</label>
-                <UserRoleMultiSelect
-                  selectedRoles={form.selectedRoles}
-                  roleOptions={roleOptions}
-                  disabled={editingSelf}
-                  onRolesChange={(selectedRoles) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      selectedRoles,
-                      role: selectedRoles[0] || prev.role,
-                    }))
-                  }
-                />
-                <p className="text-xs leading-5 text-zinc-500">The first role is primary. Marketing roles can be combined.</p>
-                {form.selectedRoles.some(role => MARKETING_ROLES.includes(role)) && <label className="flex items-center gap-2 pt-2 text-sm font-medium text-slate-600"><input type="checkbox" checked={form.socialAccess} disabled={saving} onChange={e => setForm(prev => ({...prev, socialAccess:e.target.checked}))} className="h-4 w-4 rounded border-zinc-300 accent-blue-600"/>Social media responsibility</label>}
-              </div>
-
-              <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase text-zinc-500">Status</label>
                 <Select
                   value={form.status}
@@ -1392,16 +1285,34 @@ export default function AdminUsersPage() {
                 </Select>
               </div>
 
+              <div className="space-y-1.5 md:col-span-2">
+                <label className="text-xs font-semibold uppercase text-zinc-500">Department roles</label>
+                <UserRoleMultiSelect
+                  selectedRoles={form.selectedRoles}
+                  roleOptions={roleOptions}
+                  disabled={editingSelf}
+                  onRolesChange={(selectedRoles) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      selectedRoles,
+                      role: selectedRoles[0] || "",
+                    }))
+                  }
+                />
+                <p className="text-xs leading-5 text-zinc-500">The first role is primary. Marketing roles can be combined.</p>
+                {form.selectedRoles.some(role => MARKETING_ROLES.includes(role)) && <label className="flex items-center gap-2 pt-2 text-sm font-medium text-slate-600"><input type="checkbox" checked={form.socialAccess} disabled={saving} onChange={e => setForm(prev => ({...prev, socialAccess:e.target.checked}))} className="h-4 w-4 rounded border-zinc-300 accent-blue-600"/>Social media responsibility</label>}
+              </div>
+
             </div>
 
-            <div className="rounded-lg border border-zinc-200 bg-zinc-50/70 p-4">
+            <div className="self-start rounded-lg border border-zinc-200 bg-zinc-50/70 p-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-md border border-blue-100 bg-blue-50 text-blue-700">
                 <UserPlus className="h-5 w-5" />
               </div>
               <h3 className="mt-4 text-sm font-semibold text-slate-900">Form Preview</h3>
               <div className="mt-3 space-y-2 text-sm text-zinc-600">
                 <p>User: {form.fullName.trim() || form.username.trim() || "Not set"}</p>
-                <p>Role: {form.role ? getRoleLabel(form.role) : "Not set"}</p>
+                <p>Roles: {form.selectedRoles.length ? form.selectedRoles.map(getRoleLabel).join(", ") : "Not set"}</p>
                 <p>Status: {form.status ? form.status : "Not set"}</p>
               </div>
               <Button
@@ -1707,7 +1618,7 @@ export default function AdminUsersPage() {
                           setForm((prev) => ({
                             ...prev,
                             selectedRoles,
-                            role: selectedRoles[0] || prev.role,
+                            role: selectedRoles[0] || "",
                           }))
                         }
                       />
