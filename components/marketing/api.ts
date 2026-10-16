@@ -94,6 +94,9 @@ export type Asset = {
   createdByName?: string;
   releasedByName?: string;
   fileName?: string;
+  sizeBytes?: number | null;
+  source?: 'marketing' | 'event_documents';
+  isLatest?: boolean;
 };
 
 function baseUrl() {
