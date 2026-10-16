@@ -1157,3 +1157,87 @@
 .workspace .drawer {
   overscroll-behavior: contain;
 }
+
+/* Event library only: inherit each workspace's existing colors and controls. */
+.libraryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+.libraryFile {
+  padding: 18px;
+  border: 1px solid var(--mk-border);
+  border-radius: 14px;
+  background: var(--mk-subtle);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.libraryFile h3 {
+  margin: 0;
+}
+.libraryFile p {
+  font-size: 12px;
+  margin: 10px 0 0;
+}
+.libraryFile small {
+  display: block;
+  margin-top: 8px;
+}
+.libraryHistory {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+.librarySearch {
+  width: min(100%, 300px);
+  margin: 0;
+}
+.workspace .libraryDialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  margin: auto;
+  padding: 24px;
+  border: 1px solid var(--mk-border);
+  border-radius: 20px;
+  background: var(--mk-bg);
+  color: var(--mk-text);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 30%);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.libraryDialog::backdrop {
+  background: rgb(0 3 8 / 65%);
+  backdrop-filter: blur(6px);
+}
+.libraryDialog .upload {
+  margin: 16px 0;
+}
+.libraryDialog .actions {
+  justify-content: flex-end;
+}
+.libraryDialog input[type="file"] {
+  max-width: 100%;
+}
+.libraryDialog input[type="file"]::file-selector-button {
+  border: 1px solid var(--mk-border);
+  border-radius: 8px;
+  background: var(--mk-subtle);
+  color: var(--mk-text);
+  padding: 8px;
+  margin-right: 8px;
+  cursor: pointer;
+}
+@media (max-width: 700px) {
+  .librarySearch {
+    width: 100%;
+  }
+  .libraryFile {
+    padding: 14px;
+  }
+  .workspace .libraryDialog {
+    padding: 18px;
+  }
+}
