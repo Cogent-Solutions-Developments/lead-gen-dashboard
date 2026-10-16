@@ -8,6 +8,7 @@ import {
 } from "react";
 import {
   Download,
+  Eye,
   FileText,
   History,
   RefreshCw,
@@ -23,6 +24,7 @@ import {
   type Context,
 } from "./api";
 import styles from "./marketing.module.css";
+import { DocumentPreview } from "./DocumentPreview";
 
 type Props = {
   context: Context;
@@ -60,6 +62,7 @@ function EventLibrary({ context, eventId, category }: Props) {
   const [uploadTitle, setUploadTitle] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
+  const [preview, setPreview] = useState<Asset | null>(null);
   const request = useRef<AbortController | null>(null);
   const title = category === "agenda" ? "Agenda" : "Marketing materials";
   const load = useCallback(async () => {
@@ -117,10 +120,12 @@ function EventLibrary({ context, eventId, category }: Props) {
       .toLowerCase()
       .includes(search.toLowerCase()),
   );
-  const lastPage = Math.max(0, Math.ceil(filtered.length / 8) - 1);
+  const pageSize = 10;
+  const lastPage = Math.max(0, Math.ceil(filtered.length / pageSize) - 1);
   const currentPage = Math.min(page, lastPage);
   const actions = {
     busy,
+    onView: setPreview,
     onDownload: downloadFile,
     onRelease: context.manager ? release : undefined,
     onReplace: context.canUpload ? setUploadTitle : undefined,
@@ -165,116 +170,243 @@ function EventLibrary({ context, eventId, category }: Props) {
         </p>
       )}
       {loading && <p role="status">Loading library…</p>}
-      <section className={styles.panel} aria-label="Latest published versions">
-        <div className={styles.taskHeading}>
-          <h2>
-            <FileText size={18} />{" "}
-            {category === "agenda" ? "Latest agenda" : "Latest materials"}
-          </h2>
-          <span className={styles.badge}>
-            {latest.length} current {latest.length === 1 ? "file" : "files"}
-          </span>
-        </div>
-        {!loading && !latest.length && (
-          <div className={styles.empty}>
-            <FileText size={24} />
-            <p>
-              {drafts.length
-                ? "No published version yet. Drafts are awaiting manager release."
-                : "No files have been published for this event yet."}
-            </p>
-          </div>
-        )}
-        <div className={styles.libraryGrid}>
-          {latest.map((asset) => (
-            <AssetCard
-              key={`${asset.source}:${asset.id}`}
-              asset={asset}
-              {...actions}
-            />
-          ))}
-        </div>
-      </section>
-      {drafts.length > 0 && (
-        <section className={styles.panel} aria-label="Drafts awaiting release">
-          <h2>Awaiting manager release · {drafts.length}</h2>
-          <p>
-            Published files stay available until a manager releases a
-            replacement.
-          </p>
-          <div className={styles.libraryGrid}>
-            {drafts.map((asset) => (
-              <AssetCard
-                key={asset.id}
-                asset={asset}
-                {...actions}
-                onReplace={undefined}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-      <section className={styles.panel} aria-label="Upload history">
-        <div className={styles.sectionHeading}>
-          <div>
-            <h2>
-              <History size={18} /> Upload history
-            </h2>
-            <p>
-              {data.items.length} uploaded{" "}
-              {data.items.length === 1 ? "version" : "versions"} · newest
-              uploads first
-            </p>
-          </div>
-          <label className={styles.librarySearch}>
-            Search history
-            <input
-              type="search"
-              value={search}
-              placeholder="Filename, title or uploader"
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(0);
-              }}
-            />
-          </label>
-        </div>
-        {!loading && !filtered.length && (
-          <p>
-            {search
-              ? "No versions match your search."
-              : "Upload history will appear here."}
-          </p>
-        )}
-        <ol className={styles.libraryHistory}>
-          {filtered.slice(currentPage * 8, currentPage * 8 + 8).map((asset) => (
-            <li key={`${asset.source}:${asset.id}`}>
-              <AssetCard asset={asset} {...actions} onReplace={undefined} />
-            </li>
-          ))}
-        </ol>
-        {filtered.length > 8 && (
-          <div className={styles.pagination}>
-            <span>
-              Page {currentPage + 1} of {lastPage + 1}
-            </span>
-            <div>
-              <button
-                disabled={currentPage === 0}
-                onClick={() => setPage(currentPage - 1)}
-              >
-                Newer
-              </button>
-              <button
-                disabled={currentPage === lastPage}
-                onClick={() => setPage(currentPage + 1)}
-              >
-                Older
-              </button>
+      <div className={styles.agendaLayout}>
+        <div className={styles.libraryCurrent}>
+          <section
+            className={styles.panel}
+            aria-label="Latest published versions"
+          >
+            <div className={styles.taskHeading}>
+              <h2>
+                <FileText size={18} />{" "}
+                {category === "agenda" ? "Latest agenda" : "Latest materials"}
+              </h2>
+              <span className={styles.badge}>
+                {latest.length} current {latest.length === 1 ? "file" : "files"}
+              </span>
             </div>
+            {!loading && !latest.length && (
+              <div className={styles.empty}>
+                <FileText size={24} />
+                <p>
+                  {drafts.length
+                    ? "No published version yet. Drafts are awaiting manager release."
+                    : "No files have been published for this event yet."}
+                </p>
+              </div>
+            )}
+            <div className={styles.agendaLatestList}>
+              {latest.map((asset) => (
+                <div
+                  className={styles.agendaLatestRow}
+                  key={`${asset.source}:${asset.id}`}
+                >
+                  <div>
+                    <strong>{asset.fileName || asset.title}</strong>
+                    <small>
+                      v{asset.version} · {sizeLabel(asset.sizeBytes)} · Uploaded{" "}
+                      {formatDate(asset.createdAt)}
+                    </small>
+                  </div>
+                  <div className={styles.actions}>
+                    <button
+                      disabled={busy}
+                      onClick={() => void downloadFile(asset)}
+                    >
+                      <Download size={15} /> Download
+                    </button>
+                    <button onClick={() => setPreview(asset)}>
+                      <Eye size={15} /> View
+                    </button>
+                    {category === "materials" && context.canUpload && (
+                      <button onClick={() => setUploadTitle(asset.title)}>
+                        <Upload size={15} /> Upload new version
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+          {drafts.length > 0 && (
+            <section
+              className={styles.panel}
+              aria-label="Drafts awaiting release"
+            >
+              <h2>Awaiting manager release · {drafts.length}</h2>
+              <p>
+                Published files stay available until a manager releases a
+                replacement.
+              </p>
+              <div className={styles.libraryGrid}>
+                {drafts.map((asset) => (
+                  <AssetCard
+                    key={asset.id}
+                    asset={asset}
+                    {...actions}
+                    onReplace={undefined}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+        <section
+          className={`${styles.panel} ${styles.libraryHistoryPanel}`}
+          aria-label="Upload history"
+        >
+          <div className={styles.sectionHeading}>
+            <div>
+              <h2>
+                <History size={18} /> Upload history
+              </h2>
+              <p>
+                {data.items.length} uploaded{" "}
+                {data.items.length === 1 ? "version" : "versions"} · newest
+                uploads first
+              </p>
+            </div>
+            <label className={styles.librarySearch}>
+              Search history
+              <input
+                type="search"
+                value={search}
+                placeholder="Filename, title or uploader"
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(0);
+                }}
+              />
+            </label>
           </div>
-        )}
-      </section>
+          {!loading && !filtered.length && (
+            <p>
+              {search
+                ? "No versions match your search."
+                : "Upload history will appear here."}
+            </p>
+          )}
+          {filtered.length > 0 && (
+            <div
+              className={styles.agendaTableScroll}
+              role="region"
+              aria-label={`${title} versions`}
+              tabIndex={0}
+            >
+              <table
+                className={styles.agendaTable}
+                aria-label={`${title} upload history`}
+              >
+                <thead>
+                  <tr>
+                    {[
+                      "Version",
+                      "Document name",
+                      "Upload user",
+                      "Date",
+                      "Size",
+                      "Metadata",
+                      "View",
+                    ].map((heading) => (
+                      <th scope="col" key={heading}>
+                        {heading}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered
+                    .slice(currentPage * pageSize, (currentPage + 1) * pageSize)
+                    .map((asset) => (
+                      <tr key={`${asset.source}:${asset.id}`}>
+                        <td>v{asset.version}</td>
+                        <td className={styles.agendaDocumentName}>
+                          {asset.fileName || asset.title}
+                        </td>
+                        <td>{asset.createdByName || "Former user"}</td>
+                        <td>
+                          <time dateTime={asset.createdAt}>
+                            {formatDate(asset.createdAt)}
+                          </time>
+                        </td>
+                        <td>{sizeLabel(asset.sizeBytes)}</td>
+                        <td>
+                          <span
+                            className={styles.badge}
+                            data-status={
+                              asset.isLatest
+                                ? "released"
+                                : asset.status === "draft"
+                                  ? "review"
+                                  : asset.status
+                            }
+                          >
+                            {asset.isLatest
+                              ? "Latest"
+                              : asset.status === "draft"
+                                ? "Draft"
+                                : "Previous version"}
+                          </span>
+                          <small>
+                            {asset.title} · {sourceLabel(asset)}
+                          </small>
+                          {asset.releasedAt &&
+                            asset.source !== "event_documents" && (
+                              <small>
+                                Released {formatDate(asset.releasedAt)}
+                                {asset.releasedByName
+                                  ? ` by ${asset.releasedByName}`
+                                  : ""}
+                              </small>
+                            )}
+                        </td>
+                        <td>
+                          <button
+                            aria-label={`View ${asset.fileName || asset.title}, version ${asset.version}`}
+                            onClick={() => setPreview(asset)}
+                          >
+                            <Eye size={15} /> View
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {filtered.length > 0 && (
+            <div className={styles.pagination}>
+              <span role="status">
+                {filtered.length ? currentPage * pageSize + 1 : 0}–
+                {Math.min((currentPage + 1) * pageSize, filtered.length)} of{" "}
+                {filtered.length} versions · Page {currentPage + 1} of{" "}
+                {lastPage + 1}
+              </span>
+              <div>
+                <button
+                  disabled={currentPage === 0}
+                  onClick={() => setPage(currentPage - 1)}
+                >
+                  Previous
+                </button>
+                <button
+                  disabled={currentPage === lastPage}
+                  onClick={() => setPage(currentPage + 1)}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+      {preview && (
+        <DocumentPreview
+          key={preview.id}
+          asset={preview}
+          onClose={() => setPreview(null)}
+        />
+      )}
       {data.legacyNotes?.map((note) => (
         <details className={styles.panel} key={note.id}>
           <summary>{note.title} · Guideline</summary>
@@ -308,12 +440,14 @@ function AssetCard({
   onDownload,
   onRelease,
   onReplace,
+  onView,
 }: {
   asset: Asset;
   busy: boolean;
   onDownload: (asset: Asset) => Promise<void>;
   onRelease?: (asset: Asset) => Promise<void>;
   onReplace?: (title: string) => void;
+  onView: (asset: Asset) => void;
 }) {
   const status = asset.isLatest
     ? "Latest"
@@ -354,6 +488,9 @@ function AssetCard({
       <div className={styles.actions}>
         <button disabled={busy} onClick={() => void onDownload(asset)}>
           <Download size={15} /> Download
+        </button>
+        <button onClick={() => onView(asset)}>
+          <Eye size={15} /> View
         </button>
         {onReplace && (
           <button onClick={() => onReplace(asset.title)}>

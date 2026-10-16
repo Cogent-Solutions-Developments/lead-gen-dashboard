@@ -18,3 +18,8 @@ Marketing sections now use the existing application navigation: the Light sideba
 
 ### Event library visibility
 Marketing Agenda includes existing Event Document Library agendas live, with their original files and history. New Marketing uploads remain drafts until manager release; the latest published file is selected by publication time across both sources. Source labels keep each library's version numbers clear. Admin records and upload limits are unchanged. Agenda and Materials offer current files, searchable/paged upload history and upload dialogs; Marketing retains its 10MB maximum and 3MB/5MB recommendations.
+
+
+### Library layout and previews
+Marketing work pages use a centered 80% content width on desktop and responsive sizing below 1024px; the Heavy entry landing is unchanged. Agenda and Materials share the latest-file rows and paginated history table. View opens a native dialog with a self-hosted PDF.js renderer, authenticated byte-range loading, page navigation, zoom, cancellation and retry. Raster images and plain-text files also preview locally; unsupported document types offer Download. No documents are sent to third-party viewers.
+The viewer requires Node 22.13+ (both deployment workflows already use Node 24). `npm run dev` and `npm run build` generate version-matched worker/font assets in ignored `public/marketing-pdf/`. Run `node scripts/sync-marketing-pdf.mjs` first if invoking Next directly. Deploy the backend preview endpoints with these frontend changes.
