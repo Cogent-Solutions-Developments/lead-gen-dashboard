@@ -144,15 +144,20 @@ export async function marketing<T>(
   return data as T;
 }
 
-export async function download(path: string, filename: string) {
+export async function documentBlob(path: string, signal?: AbortSignal) {
   const response = await fetch(`${baseUrl()}${path}`, {
+    signal,
     headers: { ...getAuthHeader(), ...getLocalDevNgrokHeaders() },
   });
   if (!response.ok)
     throw new Error(
       "The file is unavailable or you do not have permission to download it.",
     );
-  const url = URL.createObjectURL(await response.blob());
+  return response.blob();
+}
+
+export async function download(path: string, filename: string) {
+  const url = URL.createObjectURL(await documentBlob(path));
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;
@@ -182,4 +187,12 @@ export function eligible(users: Member[], kind: string) {
   return users.filter((u) =>
     kind === "social" ? u.social : u.role === role || u.roles?.includes(role),
   );
+}
+
+// PDF.js keeps authorization on every range request; no credentials enter URLs.
+export function previewRequest(path: string) {
+  return {
+    url: `${baseUrl()}${path.replace(/\/download$/, "/preview")}`,
+    httpHeaders: { ...getAuthHeader(), ...getLocalDevNgrokHeaders() },
+  };
 }

@@ -1159,6 +1159,72 @@
 }
 
 /* Event library only: inherit each workspace's existing colors and controls. */
+.agendaLayout {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.agendaLayout h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.agendaLatestList { display: grid; gap: 12px; }
+.agendaLatestRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 16px;
+}
+.agendaLatestRow > div:first-child { min-width: 0; overflow-wrap: anywhere; }
+.agendaLatestRow small { display: block; margin-top: 6px; }
+.agendaLatestRow .actions { margin: 0; }
+.agendaTableScroll { overflow-x: auto; border: 1px solid var(--mk-border); border-radius: 14px; }
+.agendaTable { width: 100%; min-width: 960px; border-collapse: collapse; font-size: 12px; text-align: left; }
+.agendaTable th { color: var(--mk-muted); background: var(--mk-subtle); font-weight: 500; }
+.agendaTable th, .agendaTable td { padding: 14px 16px; border-bottom: 1px solid var(--mk-border); vertical-align: top; }
+.agendaTable tbody tr:last-child td { border-bottom: 0; }
+.agendaTable tbody tr:hover { background: var(--mk-subtle); }
+.agendaTable small { display: block; margin-top: 6px; }
+.agendaDocumentName { min-width: 180px; max-width: 320px; overflow-wrap: anywhere; font-weight: 600; }
+.agendaTable td:nth-child(4) { min-width: 155px; }
+.agendaTable td:nth-child(5) { white-space: nowrap; }
+.agendaTable td:nth-child(6) { min-width: 200px; }
+.workspace .documentPreview { width: min(1200px, calc(100vw - 32px)); height: calc(100dvh - 48px); }
+.documentPreview iframe { width: 100%; height: calc(100% - 110px); min-height: 240px; border: 1px solid var(--mk-border); border-radius: 12px; background: #fff; }
+.documentPreview h2 { overflow-wrap: anywhere; }
+.documentPreview .sectionHeading > button { flex-shrink: 0; }
+.previewFallback { font-size: 12px; }
+.workspace .previewFallback a { display: inline; padding: 0; border: 0; background: none; box-shadow: none; text-decoration: underline; }
+.libraryLayout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+.libraryCurrent {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.libraryLayout h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.libraryLayout h2 > svg {
+  flex-shrink: 0;
+}
+.libraryHistoryPanel > .sectionHeading {
+  flex-wrap: wrap;
+}
+.libraryHistoryPanel .librarySearch {
+  flex: 1 1 200px;
+  min-width: 0;
+  max-width: 360px;
+}
 .libraryGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
@@ -1230,6 +1296,11 @@
   margin-right: 8px;
   cursor: pointer;
 }
+@media (max-width: 900px) {
+  .libraryLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 @media (max-width: 700px) {
   .librarySearch {
     width: 100%;
@@ -1240,4 +1311,33 @@
   .workspace .libraryDialog {
     padding: 18px;
   }
+}
+
+
+@media (min-width: 1024px) { .workspace { width: 80%; max-width: none; } }
+
+/* The preview must override the smaller upload dialog at every breakpoint. */
+.workspace .libraryDialog.documentPreview { width: min(1200px, calc(100vw - 32px)); height: calc(100dvh - 48px); max-height: none; background: var(--mk-canvas); overflow: hidden; }
+.workspace .libraryDialog.documentPreview[open] { display: flex; flex-direction: column; gap: 10px; }
+.previewHeader { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-shrink: 0; }
+.previewHeader > div:first-child { min-width: 0; }
+.previewHeader h2 { font-size: 16px; overflow-wrap: anywhere; }
+.previewHeader .actions { margin: 0; flex-shrink: 0; }
+.previewRetry { display: flex; justify-content: flex-end; flex-shrink: 0; }
+.workspace .previewRetry button { font-size: 11px; padding: 5px 8px; }
+.pdfToolbar { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
+.pdfToolbar span { font-size: 12px; }
+.pdfCanvas { min-height: 0; flex: 1; overflow: auto; background: var(--mk-subtle); border-radius: 12px; padding: 16px; }
+.pdfCanvas canvas { display: block; margin: 0 auto; background: white; }
+.pdfCanvas[aria-busy="true"] canvas { opacity: .4; }
+.workspace .previewStatus { margin: 0; font-size: 12px; }
+.filePreview { flex: 1; min-height: 0; overflow: auto; }
+.filePreview img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; margin: auto; }
+.filePreview pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  .previewHeader { flex-wrap: wrap; gap: 8px; }
+  .previewHeader .actions { width: 100%; justify-content: flex-end; }
+  .workspace .libraryDialog.documentPreview { padding: 12px; width: calc(100vw - 16px); height: calc(100dvh - 16px); }
+  .pdfToolbar { gap: 4px; }
+  .pdfToolbar button { padding: 6px; }
 }
