@@ -3,10 +3,12 @@ import fs from "node:fs";
 import test from "node:test";
 
 const source = fs.readFileSync(new URL("../app/admin/users/page.tsx", import.meta.url), "utf8");
+const rolePicker = fs.readFileSync(new URL("../components/admin/UserRoleMultiSelect.tsx", import.meta.url), "utf8");
 
 test("Delegate Sales is managed inside the update-user role selection", () => {
-  assert.match(source, /function UserRoleMultiSelect/);
-  assert.match(source, /role="menuitemcheckbox"/);
+  assert.match(source, /<UserRoleMultiSelect/);
+  assert.match(rolePicker, /type="checkbox"/);
+  assert.match(rolePicker, /checked=\{selected\}/);
   assert.match(source, /Department roles/);
   assert.doesNotMatch(source, /Assign Delegate Sales/);
   assert.doesNotMatch(source, /onToggleDelegateSales/);
