@@ -7,8 +7,8 @@ export function marketingNavigation(user: AuthUser | null | undefined, event: st
   const manager = roles.some(role => ["super_admin_user", "ceo_user", "marketing_manager_user"].includes(role));
   const staff = manager || roles.some(role => MARKETING_ROLES.includes(role));
   const sections = [
-    { key: "overview", name: "Marketing overview", icon: LayoutDashboard },
-    { key: "requests", name: "Requests", icon: KanbanSquare },
+    ...(!staff || manager ? [{ key: "overview", name: "Marketing overview", icon: LayoutDashboard }] : []),
+    ...(!staff || manager ? [{ key: "requests", name: "Requests", icon: KanbanSquare }] : []),
     ...(staff ? [{ key: "my-tasks", name: "My tasks", icon: ListTodo }, { key: "social", name: "Social media", icon: Megaphone }] : []),
     { key: "agenda", name: "Agenda", icon: FileText },
     { key: "materials", name: "Materials", icon: FolderOpen },

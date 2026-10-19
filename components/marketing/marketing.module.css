@@ -1335,3 +1335,15 @@
 }
 
 .documentPreview .nativePdf { flex: 1; min-height: 0; height: auto; width: 100%; border: 0; background: #fff; }
+
+.ownTaskTable details { margin-top: 8px; white-space: normal; min-width: 200px; }
+.ownTaskTable summary { cursor: pointer; color: var(--mk-muted); }
+.ownTaskTable dd { margin: 4px 0 12px; max-width: 420px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.taskStatusForm { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.taskStatusForm label { display: grid; gap: 6px; }
+.taskStatusForm textarea { min-width: 220px; min-height: 72px; }
+
+.workspace .ownTaskFilters > select { width: auto; min-width: 180px; }
+@media (max-width: 600px) {
+  .workspace .ownTaskFilters > select { flex: 1; min-width: 0; }
+}
