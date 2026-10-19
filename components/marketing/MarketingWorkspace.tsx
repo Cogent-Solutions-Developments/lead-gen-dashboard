@@ -26,6 +26,7 @@ import {
   type Overview,
 } from "./api";
 import { RequestDetail, RequestForm } from "./Requests";
+import { OwnTasks } from "./OwnTasks";
 import { Library } from "./Library";
 import { Settings } from "./Settings";
 import {
@@ -44,17 +45,28 @@ export default function MarketingWorkspace() {
   const router = useRouter();
   const params = useSearchParams();
   const query = params.toString();
-  const tab = params.get("tab") || "overview";
+  const requestedTab = params.get("tab") || "overview";
   const eventId = params.get("event") || "";
   const view = params.get("view") || "board";
-  const requestId = params.get("request");
-  const creating = params.get("create") === "1";
+  const rawRequestId = params.get("request");
+  const rawCreating = params.get("create") === "1";
   const month = params.get("month") || monthNow();
   const search = params.get("search") || "";
   const status = params.get("status") || "";
   const priority = params.get("priority") || "";
   const offset = Number(params.get("offset") || 0) || 0;
   const [context, setContext] = useState<Context | null>(null);
+  const taskOnly = Boolean(context?.staff && !context.manager);
+  const tab = taskOnly && (rawRequestId || rawCreating || !["agenda", "materials", "social", "my-tasks"].includes(requestedTab)) ? "my-tasks" : requestedTab;
+  const requestId = taskOnly ? null : rawRequestId;
+  const creating = !taskOnly && rawCreating;
+  useEffect(() => {
+    if (!taskOnly || (tab === requestedTab && !rawRequestId && !rawCreating)) return;
+    const next = new URLSearchParams(query);
+    next.set("tab", tab);
+    ["request", "create", "status", "view", "offset"].forEach(key => next.delete(key));
+    router.replace(`/marketing?${next}`, { scroll: false });
+  }, [taskOnly, tab, requestedTab, rawRequestId, rawCreating, query, router]);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [rows, setRows] = useState<RequestSummary[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -89,6 +101,7 @@ export default function MarketingWorkspace() {
     return () => c.abort();
   }, []);
   useEffect(() => {
+    if (!context || taskOnly || tab !== "overview") return;
     const c = new AbortController();
     marketing<Overview>(
       `/overview${eventId ? `?eventId=${eventId}` : ""}`,
@@ -101,9 +114,9 @@ export default function MarketingWorkspace() {
         if (!c.signal.aborted) setError(e.message);
       });
     return () => c.abort();
-  }, [eventId, refresh]);
+  }, [context, taskOnly, tab, eventId, refresh]);
   useEffect(() => {
-    if (!context) return;
+    if (!context || taskOnly || !["overview", "requests", "social"].includes(tab)) return;
     const c = new AbortController();
     const p = new URLSearchParams({ limit: "40", offset: String(offset) });
     if (eventId) p.set("eventId", eventId);
@@ -142,6 +155,7 @@ export default function MarketingWorkspace() {
     return () => c.abort();
   }, [
     context,
+    taskOnly,
     eventId,
     status,
     priority,
@@ -154,7 +168,7 @@ export default function MarketingWorkspace() {
     params,
   ]);
   useEffect(() => {
-    if (!context?.staff) return;
+    if (taskOnly || !context?.staff) return;
     const c = new AbortController();
     marketing<{ items: RequestSummary[] }>(
       `/requests?assigned=true&active=true&limit=8${eventId ? `&eventId=${eventId}` : ""}`,
@@ -167,13 +181,13 @@ export default function MarketingWorkspace() {
         if (!c.signal.aborted) setError(e.message);
       });
     return () => c.abort();
-  }, [context, eventId, refresh]);
+  }, [context, taskOnly, eventId, refresh]);
   useEffect(() => {
     const timer = setInterval(() => setRefresh((v) => v + 1), 30000);
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
-    if (!requestId) return;
+    if (!context || taskOnly || !requestId) return;
     const c = new AbortController();
     marketing<MarketingRequest>(
       `/requests/${encodeURIComponent(requestId)}`,
@@ -189,7 +203,7 @@ export default function MarketingWorkspace() {
         if (!c.signal.aborted) setDetailError(e.message);
       });
     return () => c.abort();
-  }, [requestId]);
+  }, [context, taskOnly, requestId]);
   useEffect(() => {
     const node = dialog.current;
     if ((creating || requestId) && context) {
@@ -238,13 +252,13 @@ export default function MarketingWorkspace() {
           >
             <RefreshCw size={16} />
           </button>
-          <button
+          {context && !taskOnly && <button
             className={styles.primary}
             onClick={() => navigate({ create: "1", request: null })}
           >
             <Plus size={16} />
             {context?.manager ? "Create task" : "New request"}
-          </button>
+          </button>}
         </div>
       </header>
       {error && (
@@ -295,7 +309,7 @@ export default function MarketingWorkspace() {
                     : "Department requests"}
             </span>
           </div>
-          {tab === "overview" && (
+          {!taskOnly && tab === "overview" && (
             <>
               <div className={styles.welcome}>
                 <div>
@@ -457,7 +471,10 @@ export default function MarketingWorkspace() {
               </div>
             </>
           )}
-          {["requests", "my-tasks", "social"].includes(tab) && (
+          {(tab === "my-tasks" || (taskOnly && tab === "social")) && (
+                <OwnTasks key={`${eventId}:${tab}`} context={context} eventId={eventId} social={tab === "social"} refresh={refresh} />
+              )}
+              {!taskOnly && ["requests", "social"].includes(tab) && (
             <>
               <div className={styles.sectionHeading}>
                 <div>
