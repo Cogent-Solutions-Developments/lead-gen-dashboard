@@ -1,3 +1,4 @@
+import { outreachContentStates } from "../lib/outreachContentStatus.ts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -194,7 +195,8 @@ test("Status Outreach View opens the content dialog", () => {
   const view=componentHarness("components/automated-outreach/OutreachLeadRow.tsx","OutreachLeadRow",{
     "@/lib/automatedOutreach":{outreachActions:()=>[],outreachDate:()=>"",statusLabel:value=>value},
     "@/lib/outreachActivity":{deliveryStateLabels:{active:"Active"}},
-  },{lead:{id:"lead",lead:{name:"Person"},state:"active",workflowStatus:"proposal-sent",sentCount:0},number:1,reload(){}});
+    "@/lib/outreachContentStatus":{outreachContentStates},
+  },{lead:{id:"lead",lead:{name:"Person"},state:"active",workflowStatus:"proposal-sent",sentCount:0,messages:[]},number:1,reload(){}});
   const button=view.find(node=>node.props?.["aria-label"]==="View messages for Person");
   assert.ok(button.props.children.includes("View"));
   button.props.onClick();view.render();
@@ -217,4 +219,23 @@ test("content dialog prepares previews and displays each selected email subject 
     assert.ok(view.all(node=>node.type==="p").some(node=>node.props.children===`Subject ${step}`));
     assert.ok(view.all(node=>node.type==="div").some(node=>node.props.children===`Body ${step}`));
   }
+});
+
+test("Status Outreach content indicators show each email and prioritize ready content", () => {
+  const lead={id:"lead",lead:{name:"Person"},state:"active",workflowStatus:"proposal-sent",sentCount:0,messages:[{step:1,status:"preview_generating"},{step:2,status:"preview_failed"}]};
+  const view=componentHarness("components/automated-outreach/OutreachLeadRow.tsx","OutreachLeadRow",{
+    "@/lib/automatedOutreach":{outreachActions:()=>[],outreachDate:()=>"",statusLabel:value=>value},
+    "@/lib/outreachActivity":{deliveryStateLabels:{active:"Active"}},
+    "@/lib/outreachContentStatus":{outreachContentStates},
+  },{lead,number:1,reload(){}});
+  const button=()=>view.find(node=>node.props?.["aria-label"]==="View messages for Person");
+  assert.match(button().props.className,/bg-yellow-50/);
+  assert.equal(view.all(node=>node.props?.role==="img").length,3);
+  for(const label of ["Email 1 content: Processing","Email 2 content: Failed","Email 3 content: Not started"]) {
+    assert.ok(view.find(node=>node.props?.["aria-label"]===label));
+  }
+  lead.messages.push({step:3,status:"preview",subject:"Subject",body:"Body"});
+  view.render();
+  assert.match(button().props.className,/bg-emerald-50/);
+  assert.match(view.find(node=>node.props?.["aria-label"]==="Email 3 content: Complete").props.className,/bg-emerald-500/);
 });
