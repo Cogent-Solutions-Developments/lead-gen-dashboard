@@ -33,7 +33,10 @@ function settingsBrowser(initialHref = "/settings") {
   const dependencies = {
     react: React,
     "react/jsx-runtime": jsxRuntime,
-    "next/link": element("a"),
+    "next/link": ({ href, children }) => {
+      actions.set(href, () => { history.splice(position + 1); history.push(href); position += 1; });
+      return React.createElement("a", { href }, children);
+    },
     "next/navigation": {
       useSearchParams: () => new URL(history[position], "https://example.test").searchParams,
       useRouter: () => ({
@@ -51,6 +54,8 @@ function settingsBrowser(initialHref = "/settings") {
     "@/components/settings/OutreachCredentialSettings": { OutreachCredentialSettings: sectionView("credentials") },
     "@/components/settings/OutreachWhatsAppSettings": { OutreachWhatsAppSettings: sectionView("whatsapp") },
     "@/components/settings/OutreachMailWebhookSettings": { OutreachMailWebhookSettings: sectionView("outreach") },
+    "@/components/automated-outreach/OutreachOperations": { OutreachOperations: () => React.createElement("section", { "data-settings-section": "automated-outreach" }) },
+    "@/components/settings/SettingsBackButton": { SettingsBackButton: ({ onClick }) => { actions.set("All settings", onClick); return React.createElement("button", null, "All settings"); } },
     "@/components/ui/button": { Button: element("button") },
     "@/components/ui/card": { Card: element("div") },
     "@/lib/settingsNavigation": { buildSettingsHref, parseSettingsSection },
@@ -82,7 +87,7 @@ function settingsBrowser(initialHref = "/settings") {
 }
 
 test("each settings section can be restored from its URL after refresh", () => {
-  for (const section of ["outreach", "whatsapp", "credentials", "opt-out"]) {
+  for (const section of ["outreach", "whatsapp", "credentials", "opt-out", "automated-outreach"]) {
     const href = buildSettingsHref("", section);
     assert.equal(href, `/settings?section=${section}`);
 
@@ -104,11 +109,17 @@ test("missing or unsupported settings sections safely show the overview", () => 
   }
 });
 
-for (const [section, label] of [["outreach", "Open Outreach Configuration"], ["opt-out", "Open Marketing Opt-out"]]) {
+for (const [section, label] of [["outreach", "Open Outreach Configuration"], ["opt-out", "Open Marketing Opt-out"], ["automated-outreach", "Open Automated Follow-up settings"]]) {
   test(`${section} navigation survives refresh and browser history`, () => {
     const browser = settingsBrowser();
     assert.match(browser.render(), /Content Generation/);
-    browser.click(label);
+    if (section === "automated-outreach") {
+      browser.click("Open Outreach Configuration");
+      assert.match(browser.render(), /Automated follow-up mail/);
+      browser.click("/settings?section=automated-outreach");
+    } else {
+      browser.click(label);
+    }
     assert.equal(browser.href(), `/settings?section=${section}`);
     assert.ok(browser.render().includes(`data-settings-section="${section}"`));
 
@@ -119,7 +130,7 @@ for (const [section, label] of [["outreach", "Open Outreach Configuration"], ["o
     assert.match(refreshed.render(), /Content Generation/);
 
     browser.back();
-    assert.match(browser.render(), /Content Generation/);
+    assert.match(browser.render(), section === "automated-outreach" ? /data-settings-section="outreach"/ : /Content Generation/);
     browser.forward();
     assert.ok(browser.render().includes(`data-settings-section="${section}"`));
   });

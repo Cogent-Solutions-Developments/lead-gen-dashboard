@@ -1,5 +1,7 @@
 "use client";
 
+import { LeadSheetPanel, LeadSheetFilterButtons, leadSheetToolbarClassName } from "@/components/leads/LeadSheetPresentation";
+
 import { useWhatsAppOutreach } from "@/hooks/useWhatsAppOutreach";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -3915,30 +3917,11 @@ function SuperAdminCampaignDetailPage() {
         </Card>
       ) : null}
 
-      <Card className="campaign-leads-panel relative isolate mt-3 flex flex-col overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.84)_0%,rgba(250,252,255,0.66)_56%,rgba(240,246,253,0.56)_100%)] backdrop-blur-[16px] [backdrop-filter:saturate(175%)_blur(16px)] shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74),inset_0_0_22px_rgba(255,255,255,0.2)]">
-        <div className="pointer-events-none absolute -right-20 -top-24 h-60 w-60 rounded-full bg-gradient-to-br from-sky-300/34 via-blue-500/12 to-blue-700/0 blur-3xl dark:hidden" />
-        <div className="pointer-events-none absolute -left-24 -bottom-20 h-56 w-56 rounded-full bg-gradient-to-tr from-blue-300/20 via-sky-200/10 to-transparent blur-3xl dark:hidden" />
-
+      <LeadSheetPanel>
         <div className="relative z-[6] flex flex-col gap-2 px-6 pt-0.5 sm:flex-row sm:items-center sm:justify-between">
           {canManageLeadActions ? (
-            <div className="inline-flex flex-wrap items-center rounded-xl border border-zinc-300/90 bg-white/60 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_8px_-10px_rgba(2,10,27,0.34)] backdrop-blur-[6px] dark:border-zinc-700 dark:bg-zinc-800/90 dark:shadow-none">
-              {leadFilterTabs.map((tab) => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setLeadFilter(tab.key)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    leadFilter === tab.key
-                      ? "bg-zinc-900 text-white shadow-[0_6px_10px_-12px_rgba(2,10,27,0.42)]"
-                      : "text-zinc-600 hover:bg-white hover:text-zinc-900"
-                  }`}
-                >
-                  {tab.label}
-                  <span className={`ml-1.5 text-[10px] ${leadFilter === tab.key ? "text-white/80" : "text-zinc-400"}`}>
-                    {tab.count}
-                  </span>
-                </button>
-              ))}
+            <div className={leadSheetToolbarClassName}>
+              <LeadSheetFilterButtons items={leadFilterTabs} value={leadFilter} onChange={setLeadFilter} />
 
               <span className="mx-1.5 h-4 w-px bg-zinc-300/80" aria-hidden="true" />
 
@@ -4785,7 +4768,7 @@ function SuperAdminCampaignDetailPage() {
             </div>
           </div>
         )}
-      </Card>
+      </LeadSheetPanel>
 
       {/* Hidden file inputs (separate) */}
       <input

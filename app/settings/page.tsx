@@ -12,6 +12,8 @@ import { MarketingOptOutSettings } from "@/components/settings/MarketingOptOutSe
 import { OutreachCredentialSettings } from "@/components/settings/OutreachCredentialSettings";
 import { OutreachWhatsAppSettings } from "@/components/settings/OutreachWhatsAppSettings";
 import { OutreachMailWebhookSettings } from "@/components/settings/OutreachMailWebhookSettings";
+import { OutreachOperations } from "@/components/automated-outreach/OutreachOperations";
+import { SettingsBackButton } from "@/components/settings/SettingsBackButton";
 import { Card } from "@/components/ui/card";
 import { buildSettingsHref, parseSettingsSection, type SettingsSection } from "@/lib/settingsNavigation";
 
@@ -124,16 +126,16 @@ function SettingsContent() {
           </div>
         </motion.div>
 
-        {activeSection === "outreach" || activeSection === "whatsapp" || activeSection === "credentials" ? (
+        {activeSection === "outreach" || activeSection === "whatsapp" || activeSection === "credentials" || activeSection === "automated-outreach" ? (
           <div className="space-y-4">
-            <nav aria-label="Outreach configuration" className="grid gap-1 rounded-xl border border-slate-200 bg-white p-1 sm:grid-cols-3">
-              {(["outreach", "whatsapp", "credentials"] as const).map(section => (
+            <nav aria-label="Outreach configuration" className="grid gap-1 rounded-xl border border-slate-200 bg-white p-1 sm:grid-cols-4">
+              {(["outreach", "whatsapp", "credentials", "automated-outreach"] as const).map(section => (
                 <Link key={section} href={buildSettingsHref(searchParams.toString(), section)} aria-current={activeSection === section ? "page" : undefined} className={`flex h-11 items-center justify-center rounded-lg px-3 text-sm font-semibold transition-colors ${activeSection === section ? "bg-blue-600 text-white shadow-sm shadow-blue-200" : "text-slate-600 hover:bg-blue-50 hover:text-blue-700"}`}>
-                  {section === "outreach" ? "Mail webhook" : section === "whatsapp" ? "WhatsApp outreach" : "Credentials"}
+                  {section === "outreach" ? "Mail webhook" : section === "whatsapp" ? "WhatsApp outreach" : section === "credentials" ? "Credentials" : "Automated follow-up mail"}
                 </Link>
               ))}
             </nav>
-            {activeSection === "outreach" ? <OutreachMailWebhookSettings onBack={() => navigateToSection(null)} /> : activeSection === "whatsapp" ? <OutreachWhatsAppSettings onBack={() => navigateToSection(null)} /> : <OutreachCredentialSettings onBack={() => navigateToSection(null)} />}
+            {activeSection === "automated-outreach" ? <div className="space-y-4"><SettingsBackButton onClick={() => navigateToSection(null)} /><h2 className="text-xl font-semibold text-slate-900">Automated follow-up mail</h2><OutreachOperations /></div> : activeSection === "outreach" ? <OutreachMailWebhookSettings onBack={() => navigateToSection(null)} /> : activeSection === "whatsapp" ? <OutreachWhatsAppSettings onBack={() => navigateToSection(null)} /> : <OutreachCredentialSettings onBack={() => navigateToSection(null)} />}
           </div>
         ) : activeSection === "opt-out" ? (
           <MarketingOptOutSettings onBack={() => navigateToSection(null)} />
@@ -177,9 +179,9 @@ function SettingsContent() {
               ariaLabel="Open Outreach Configuration"
               icon={WebhooksLogoIcon}
               title="Outreach Configuration"
-              description="Manage mail webhooks and WhatsApp outreach independently."
+              description="Manage mail webhooks, WhatsApp, and automated follow-ups."
               detailLabel="Available configuration"
-              detailTitle="Mail webhook and WhatsApp"
+              detailTitle="Mail, WhatsApp, and automated follow-ups"
               detailDescription="Sales, Delegate, and Production departments"
               delay={0.14}
             />

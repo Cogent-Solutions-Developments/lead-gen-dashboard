@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 
 import { AdminPanelShell } from "@/components/layout/AdminPanelShell";
 import { ContentGenerationControlCenter } from "@/components/settings/ContentGenerationControlCenter";
+import { OutreachContentSettings } from "@/components/automated-outreach/OutreachContentSettings";
 import { SettingsBackButton } from "@/components/settings/SettingsBackButton";
 
 export default function ContentGenerationSettingsPage() {
@@ -26,6 +27,7 @@ export default function ContentGenerationSettingsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
+          <OutreachContentSettings />
           <ContentGenerationControlCenter />
         </motion.div>
       </div>
