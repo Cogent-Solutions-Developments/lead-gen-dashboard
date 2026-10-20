@@ -60,3 +60,18 @@ The Recent runs header and table footer are the focused targets for this change.
 None identified from the source artifact. A browser-rendered authenticated comparison is still required.
 
 final result: blocked
+
+## Status Outreach timeline — 2026-10-20
+
+- Source visual truth: `C:/Users/SASAN-~1/AppData/Local/Temp/codex-clipboard-8c21c8ae-0fed-4b9e-b2e1-7419997ed6e4.png` (1920 × 1080 attachment).
+- Reference implementation: existing Manual Follow-ups timeline in `app/campaigns/[id]/page.tsx`.
+- Target: `http://localhost:3000/settings/content-generation?tab=status-outreach`, lead review dialog, Content & delivery.
+- Scope: apply the existing connected mail-icon timeline, violet selected/completed treatments, timestamps, subject/body layout, and dialog sizing to the three automatic Status Outreach emails. No initial-campaign-email milestone is invented.
+- Implementation screenshot / pixel dimensions / CSS viewport / density normalization: unavailable. The available in-app browser is signed out; no authenticated Chrome session is exposed.
+- Full-view and focused-region comparison: blocked by authentication. No visual pass or responsive comparison claimed from source code.
+- Functional checks: 16 focused frontend tests passed; TypeScript and targeted ESLint passed. Confirmed-send timestamps, pending Make.com acceptance, paused/stopped states, and selecting sent/future steps are covered.
+- Browser interactions and protected-page console checks: not verified.
+- Comparison history: inspected the supplied reference and existing campaign implementation; implemented the same presentation with Status Outreach data; authenticated rendered comparison remains pending.
+- Remaining verification: open a lead with sent and pending emails, select all three steps, and compare desktop/mobile layout against the reference.
+
+final result: blocked

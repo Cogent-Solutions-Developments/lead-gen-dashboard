@@ -241,7 +241,7 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
           <div className="flex min-w-0 items-center gap-3">
             <div className="min-w-0">
               <SupernizoWordmark size="sm" />
-              <p className="text-xs text-sidebar-foreground/70">{isManager ? "Manager Panel" : isCeo ? "CEO Panel" : pathname.startsWith("/admin/lead-intelligence") ? "Lead Intelligence" : "Admin Panel"}</p>
+              <p className="text-xs text-sidebar-foreground/70">{isManager ? "Manager Panel" : isCeo ? "CEO Panel" : pathname.startsWith("/admin/lead-intelligence") ? "Status Outreach" : "Admin Panel"}</p>
             </div>
           </div>
 

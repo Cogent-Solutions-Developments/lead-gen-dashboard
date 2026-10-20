@@ -23,12 +23,13 @@ export type OutreachLead = {
 };
 
 export type OutreachConfiguration = {
-  enabled: boolean; revision: number; senderName: string; senderEmail: string;
+  enabled: boolean; revision: number;
   model: string; prompt: string; intervalDays: number; maxSends: number;
   modelOptions: string[]; reasoningEffort: "none" | "low" | "medium" | "high";
-  maxOutputTokens: number; callbackBaseUrl: string; callbackSecretConfigured: boolean;
+  plannerModel: string; writerModel: string; reviewerModel: string; maxRequests: number; maxTokens: number; maxContextChars: number;
+  maxOutputTokens: number;
   apiKeySource: "AGENTIC_CONTENT_OPENAI_API_KEY";
-  webhooks: Record<OutreachDepartment, { configured: boolean; maskedUrl: string | null }>;
+  mailWebhookGroup: "status-outreach"; activeWebhookCount: number;
   missingConfiguration: string[]; lastScanAt: string | null; statusPolicy: string;
 };
 
@@ -39,8 +40,8 @@ export type OutreachSummary = {
   configuration: OutreachConfiguration;
 };
 
-export type OutreachEvent = { key: string; name: string; leads: number; active: number; statuses: Record<string, number> };
-export type OutreachLeadsResponse = { items: OutreachLead[]; total: number; offset: number; limit: number; tabs: { key: string; label: string; count: number }[] };
+export type OutreachEvent = { key: string; name: string; leads: number; active: number; statuses: Record<string, number>; outreachEnabled: boolean };
+export type OutreachLeadsResponse = { events?: { key: string; name: string }[]; items: OutreachLead[]; total: number; offset: number; limit: number; tabs: { key: string; label: string; count: number }[] };
 export type OutreachAudit = { id: string; enrollmentId: string | null; action: string; actor: string; details: Record<string, unknown>; createdAt: string };
 
 export function outreachActions(lead: Pick<OutreachLead, "state" | "email" | "messages">): OutreachAction[] {

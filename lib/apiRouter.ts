@@ -106,6 +106,7 @@ export type {
   SendSelectedLeadsRequest,
   SendSelectedLeadsResponse,
   SendAdminLeadSmsResponse,
+  MailWebhookDepartment,
   CreateDepartmentMailWebhookRequest,
   UpdateDepartmentMailWebhookRequest,
   DepartmentMailWebhook,

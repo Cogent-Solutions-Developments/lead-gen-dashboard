@@ -631,10 +631,11 @@ export type SuppressionMeta = {
 };
 
 export type OutreachDepartment = "sales" | "delegate" | "production";
+export type MailWebhookDepartment = OutreachDepartment | "status-outreach";
 
 export type DepartmentMailWebhook = {
   id: string;
-  department: OutreachDepartment;
+  department: MailWebhookDepartment;
   departmentLabel: string;
   name: string;
   webhookUrlMasked: string;
@@ -648,7 +649,7 @@ export type DepartmentMailWebhook = {
 };
 
 export type DepartmentMailWebhookDepartmentSummary = {
-  value: OutreachDepartment;
+  value: MailWebhookDepartment;
   label: string;
   webhookCount: number;
   activeWebhookCount: number;
@@ -662,14 +663,14 @@ export type ListDepartmentMailWebhooksResponse = {
 };
 
 export type CreateDepartmentMailWebhookRequest = {
-  department: OutreachDepartment;
+  department: MailWebhookDepartment;
   name: string;
   webhookUrl: string;
   isActive: boolean;
 };
 
 export type UpdateDepartmentMailWebhookRequest = {
-  department?: OutreachDepartment;
+  department?: MailWebhookDepartment;
   name?: string;
   webhookUrl?: string;
   isActive?: boolean;
@@ -2493,7 +2494,7 @@ export async function listWhatsAppOptOuts(params?: {
 }
 
 export async function listDepartmentMailWebhooks(params?: {
-  department?: OutreachDepartment;
+  department?: MailWebhookDepartment;
   includeDeleted?: boolean;
 }) {
   const { data } = await apiClient.get<ListDepartmentMailWebhooksResponse>(

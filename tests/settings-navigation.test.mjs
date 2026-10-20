@@ -25,9 +25,9 @@ function settingsBrowser(initialHref = "/settings") {
     if (onClick) actions.set(props["aria-label"], onClick);
     return React.createElement(tag, null, children);
   };
-  const sectionView = (section) => function MockSettingsSection({ onBack }) {
+  const sectionView = (section) => function MockSettingsSection({ onBack, initialDepartment }) {
     actions.set("All settings", onBack);
-    return React.createElement("section", { "data-settings-section": section });
+    return React.createElement("section", { "data-settings-section": section, "data-mail-group": initialDepartment });
   };
   const pageModule = { exports: {} };
   const dependencies = {
@@ -109,17 +109,11 @@ test("missing or unsupported settings sections safely show the overview", () => 
   }
 });
 
-for (const [section, label] of [["outreach", "Open Outreach Configuration"], ["opt-out", "Open Marketing Opt-out"], ["automated-outreach", "Open Automated Follow-up settings"]]) {
+for (const [section, label] of [["outreach", "Open Outreach Configuration"], ["opt-out", "Open Marketing Opt-out"]]) {
   test(`${section} navigation survives refresh and browser history`, () => {
     const browser = settingsBrowser();
     assert.match(browser.render(), /Content Generation/);
-    if (section === "automated-outreach") {
-      browser.click("Open Outreach Configuration");
-      assert.match(browser.render(), /Automated follow-up mail/);
-      browser.click("/settings?section=automated-outreach");
-    } else {
-      browser.click(label);
-    }
+    browser.click(label);
     assert.equal(browser.href(), `/settings?section=${section}`);
     assert.ok(browser.render().includes(`data-settings-section="${section}"`));
 
@@ -151,4 +145,14 @@ test("credentials has an isolated page with the outreach navigation", () => {
   assert.match(browser.render(), /WhatsApp outreach/);
   browser.click("All settings");
   assert.equal(browser.href(), "/settings");
+});
+
+test("legacy status settings bookmarks open the Status Outreach mail group without an extra top tab", () => {
+  for (const url of ["/settings?section=automated-outreach", "/settings?section=outreach&department=status-outreach"]) {
+    const browser = settingsBrowser(url);
+    const markup = browser.render();
+    assert.match(markup, /data-settings-section="outreach"/);
+    assert.match(markup, /data-mail-group="status-outreach"/);
+    assert.doesNotMatch(markup, /href="[^"]*section=automated-outreach"/);
+  }
 });

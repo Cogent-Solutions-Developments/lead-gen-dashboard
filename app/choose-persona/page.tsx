@@ -200,7 +200,7 @@ export default function ChoosePersonaPage() {
           </div>
           {isSuperAdmin && (
             <Link href="/admin/lead-intelligence" className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-white p-3.5 text-blue-950 transition hover:bg-blue-50">
-              <span className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50"><BarChart3 className="h-5 w-5 text-blue-600" /></span><span><span className="block text-base font-semibold">Lead Intelligence</span><span className="mt-0.5 block text-xs text-slate-500">Lead status & automatic follow-ups</span></span></span><ArrowRight className="h-4 w-4 shrink-0" />
+              <span className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50"><BarChart3 className="h-5 w-5 text-blue-600" /></span><span><span className="block text-base font-semibold">Status Outreach</span><span className="mt-0.5 block text-xs text-slate-500">Lead status & status-based messages</span></span></span><ArrowRight className="h-4 w-4 shrink-0" />
             </Link>
           )}
           <AdminRoleIllustration />

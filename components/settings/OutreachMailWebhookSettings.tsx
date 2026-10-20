@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { OutreachDeliverySettings } from "@/components/automated-outreach/OutreachDeliverySettings";
 import { SettingsBackButton } from "@/components/settings/SettingsBackButton";
 import {
   createDepartmentMailWebhook,
@@ -15,13 +16,14 @@ import {
   updateDepartmentMailWebhook,
   type DepartmentMailWebhook,
   type DepartmentMailWebhookDepartmentSummary,
-  type OutreachDepartment,
+  type MailWebhookDepartment,
 } from "@/lib/apiRouter";
 
 const DEFAULT_DEPARTMENTS: DepartmentMailWebhookDepartmentSummary[] = [
   { value: "sales", label: "Sales", webhookCount: 0, activeWebhookCount: 0, suggestedWebhookName: "Sales Mail Webhook 1" },
   { value: "delegate", label: "Delegate", webhookCount: 0, activeWebhookCount: 0, suggestedWebhookName: "Delegate Mail Webhook 1" },
   { value: "production", label: "Production", webhookCount: 0, activeWebhookCount: 0, suggestedWebhookName: "Production Mail Webhook 1" },
+  { value: "status-outreach", label: "Status Outreach", webhookCount: 0, activeWebhookCount: 0, suggestedWebhookName: "Status Outreach Mail Webhook 1" },
 ];
 
 function formatDateTime(value?: string | null) {
@@ -130,11 +132,11 @@ function RenameWebhookDialog({
   );
 }
 
-export function OutreachMailWebhookSettings({ onBack }: { onBack: () => void }) {
+export function OutreachMailWebhookSettings({ onBack, initialDepartment = "sales" }: { onBack: () => void; initialDepartment?: MailWebhookDepartment }) {
   const [departments, setDepartments] = useState(DEFAULT_DEPARTMENTS);
   const [webhooks, setWebhooks] = useState<DepartmentMailWebhook[]>([]);
-  const [selectedDepartment, setSelectedDepartment] = useState<OutreachDepartment>("sales");
-  const [webhookName, setWebhookName] = useState(DEFAULT_DEPARTMENTS[0].suggestedWebhookName);
+  const [selectedDepartment, setSelectedDepartment] = useState<MailWebhookDepartment>(initialDepartment);
+  const [webhookName, setWebhookName] = useState(() => DEFAULT_DEPARTMENTS.find(group => group.value === initialDepartment)!.suggestedWebhookName);
   const [nameCustomized, setNameCustomized] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState("");
   const [newWebhookActive, setNewWebhookActive] = useState(true);
@@ -151,7 +153,10 @@ export function OutreachMailWebhookSettings({ onBack }: { onBack: () => void }) 
     setLoading(true);
     try {
       const response = await listDepartmentMailWebhooks();
-      setDepartments(Array.isArray(response.departments) && response.departments.length > 0 ? response.departments : DEFAULT_DEPARTMENTS);
+      // Keep every mail group visible even when a cached/older API response
+      // contains only the original three departments.
+      const summaries = Array.isArray(response.departments) ? response.departments : [];
+      setDepartments(DEFAULT_DEPARTMENTS.map(group => summaries.find(summary => summary.value === group.value) ?? group));
       setWebhooks(Array.isArray(response.items) ? response.items : []);
     } catch (error: unknown) {
       toast.error("Failed to load mail webhooks", { description: getErrorMessage(error) });
@@ -179,7 +184,7 @@ export function OutreachMailWebhookSettings({ onBack }: { onBack: () => void }) 
     if (!nameCustomized) setWebhookName(selectedSummary.suggestedWebhookName);
   }, [nameCustomized, selectedSummary.suggestedWebhookName]);
 
-  const selectDepartment = (department: OutreachDepartment) => {
+  const selectDepartment = (department: MailWebhookDepartment) => {
     setSelectedDepartment(department);
     setNameCustomized(false);
   };
@@ -266,7 +271,7 @@ export function OutreachMailWebhookSettings({ onBack }: { onBack: () => void }) 
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+    <motion.div className="flex flex-col gap-6" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
       <Card className="p-6">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -289,7 +294,7 @@ export function OutreachMailWebhookSettings({ onBack }: { onBack: () => void }) 
           <div className="flex items-start gap-3"><RotateCw className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" /><p className="leading-6">If a department has multiple active webhooks, email requests rotate through them sequentially. The same webhook may be used in different departments, but cannot be registered twice in one department.</p></div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3" role="tablist" aria-label="Mail webhook departments">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" role="tablist" aria-label="Mail webhook departments">
           {departments.map((department) => {
             const selected = department.value === selectedDepartment;
             return (
@@ -359,6 +364,7 @@ export function OutreachMailWebhookSettings({ onBack }: { onBack: () => void }) 
           </table>
         </div>
       </Card>
+      {selectedDepartment === "status-outreach" && <OutreachDeliverySettings />}
       <DeleteWebhookDialog target={deleteTarget} busy={deleting} onClose={() => { if (!deleting) setDeleteTarget(null); }} onConfirm={() => void confirmDelete()} />
       <RenameWebhookDialog target={renameTarget} value={renameValue} busy={renaming} onValueChange={setRenameValue} onClose={() => { if (!renaming) { setRenameTarget(null); setRenameValue(""); } }} onConfirm={() => void confirmRename()} />
     </motion.div>

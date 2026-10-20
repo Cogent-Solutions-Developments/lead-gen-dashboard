@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { apiClient } from "@/lib/apiClient";
 import { OUTREACH_API } from "@/lib/automatedOutreachApi";
 
-export function useOutreachResource<T>(path: string) {
+export function useOutreachResource<T>(path: string, refreshInterval = 30000) {
   const [result, setResult] = useState<{ path: string; data: T | null; error: string | null }>({ path, data: null, error: null });
   const [refreshing, setRefreshing] = useState(false);
   const [version, setVersion] = useState(0);
@@ -27,9 +27,9 @@ export function useOutreachResource<T>(path: string) {
       }
     };
     void fetch();
-    const interval = setInterval(() => { if (!document.hidden) void fetch(); }, 30000);
+    const interval = setInterval(() => { if (!document.hidden) void fetch(); }, refreshInterval);
     return () => { active = false; controller.abort(); clearInterval(interval); };
-  }, [path, version]);
+  }, [path, version, refreshInterval]);
 
   return { data: result.path === path ? result.data : null, error: result.path === path ? result.error : null, refreshing, reload };
 }
