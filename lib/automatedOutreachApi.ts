@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/apiClient";
-import type { OutreachAction, OutreachConfiguration, OutreachDepartment } from "@/lib/automatedOutreach";
+import type { OutreachAction, OutreachConfiguration, OutreachDepartment, OutreachEmailTemplate } from "@/lib/automatedOutreach";
 
 export const OUTREACH_API = "/api/admin/automated-outreach";
 
@@ -8,12 +8,22 @@ export async function controlOutreach(id: string, action: OutreachAction) {
 }
 
 export type OutreachContentUpdate = Pick<OutreachConfiguration,
-  "revision" | "model" | "prompt" | "reasoningEffort" | "maxOutputTokens" | "plannerModel" | "writerModel" | "reviewerModel" | "maxRequests" | "maxTokens" | "maxContextChars">;
+  "revision" | "contentMode" | "model" | "prompt" | "reasoningEffort" | "maxOutputTokens" | "plannerModel" | "writerModel" | "reviewerModel" | "maxRequests" | "maxTokens" | "maxContextChars">;
 
 export type OutreachDeliveryUpdate = Pick<OutreachConfiguration, "revision" | "enabled">;
 
 export async function saveOutreachContentConfiguration(payload: OutreachContentUpdate) {
   return (await apiClient.put<OutreachConfiguration>(`${OUTREACH_API}/configuration/content`, payload)).data;
+}
+
+export async function saveOutreachTemplates(payload: {revision: number; department: OutreachDepartment; eventKey: string; templates: OutreachEmailTemplate[]}) {
+  try {
+    return (await apiClient.put<OutreachConfiguration>(`${OUTREACH_API}/configuration/templates`, payload)).data;
+  } catch (error) {
+    const detail = (error as { data?: { detail?: unknown } })?.data?.detail;
+    if (typeof detail === "string") throw new Error(detail);
+    throw error;
+  }
 }
 
 export async function saveOutreachDeliveryConfiguration(payload: OutreachDeliveryUpdate) {

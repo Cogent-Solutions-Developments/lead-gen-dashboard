@@ -41,9 +41,50 @@ test("content saves only content fields and never includes delivery controls", a
   const view = harness("Content", async value => { payload = value; return { ...config, ...value, revision: 5 }; });
   view.field("Outreach editorial guidance").props.onChange({ target: { value: "New guidance" } }); view.render();
   await view.submit(); view.render();
-  assert.deepEqual(Object.keys(payload).sort(), ["maxContextChars", "maxOutputTokens", "maxRequests", "maxTokens", "model", "plannerModel", "prompt", "reasoningEffort", "reviewerModel", "revision", "writerModel"]);
+  assert.deepEqual(Object.keys(payload).sort(), ["contentMode", "maxContextChars", "maxOutputTokens", "maxRequests", "maxTokens", "model", "plannerModel", "prompt", "reasoningEffort", "reviewerModel", "revision", "writerModel"]);
+  assert.equal(payload.contentMode, "template");
   assert.equal(payload.prompt, "New guidance");
   assert.equal(view.all(node => node.props?.type === "password" || node.props?.type === "url").length, 0);
+});
+
+test("generated content requires explicit opt-in", async () => {
+  let payload;
+  const view = harness("Content", async value => {payload=value;return {...config,...value,revision:5};});
+  assert.equal(view.find(node=>node.props?.type==='radio'&&node.props.value==='template').props.checked,true);
+  view.find(node=>node.props?.type==='radio'&&node.props.value==='generated').props.onChange();view.render();
+  await view.submit();
+  assert.equal(payload.contentMode,"generated");
+});
+
+test("saving templates does not invalidate an unsaved content mode choice", async () => {
+  let payload;
+  const view=harness("Content",async value=>{payload=value;return {...config,...value,revision:6};});
+  view.find(node=>node.props?.type==='radio'&&node.props.value==='generated').props.onChange();
+  view.render({...config,revision:5,eventTemplates:{sales:{summit:[]}}});
+  assert.equal(view.find(node=>node.props?.type==='submit').props.disabled,false);
+  await view.submit();
+  assert.equal(payload.contentMode,'generated');
+  assert.equal(payload.revision,5);
+});
+
+test("event template editor saves all three emails in its own scope and retains edits on conflicts", async () => {
+  const calls=[];
+  const templates=[1,2,3].map(step=>({subject:`Subject ${step}`,body:`Body ${step}`}));
+  const props={config:{...config,templateStarters:templates},department:'sales',eventKey:'summit',eventName:'Summit',reload(){}};
+  const view=componentHarness('components/automated-outreach/OutreachTemplateSettings.tsx','TemplateEditor',{
+    '@/lib/automatedOutreachApi':{saveOutreachTemplates:async value=>{calls.push(JSON.parse(JSON.stringify(value)));return {...props.config,revision:5};}},
+    sonner:{toast:{success(){}}},
+  },props);
+  view.find(node=>node.props?.role==='tab'&&node.props.id==='email-template-tab-1').props.onClick();view.render();
+  view.find(node=>node.type==='Textarea').props.onChange({target:{value:'Edited second body'}});view.render();
+  await view.find(node=>node.type==='form').props.onSubmit({preventDefault(){}});view.render();
+  assert.deepEqual(calls[0],{revision:4,department:'sales',eventKey:'summit',templates:[templates[0],{...templates[1],body:'Edited second body'},templates[2]]});
+  props.config={...props.config,revision:6};view.render();
+  assert.equal(view.find(node=>node.type==='Textarea').props.value,'Edited second body');
+  assert.equal(view.find(node=>node.props?.type==='submit').props.disabled,true);
+  view.find(node=>node.props?.children==='Reload saved templates').props.onClick();view.render();
+  assert.equal(view.find(node=>node.type==='Textarea').props.value,'Body 2');
+  assert.equal(view.find(node=>node.props?.type==='submit').props.disabled,false);
 });
 
 test("delivery saves only the global switch and has no sender or callback fields", async () => {

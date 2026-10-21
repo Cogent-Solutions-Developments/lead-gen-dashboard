@@ -24,6 +24,10 @@ export type OutreachLead = {
 
 export type OutreachConfiguration = {
   enabled: boolean; revision: number;
+  contentMode?: "template" | "generated";
+  eventTemplates?: Partial<Record<OutreachDepartment, Record<string, OutreachEmailTemplate[]>>>;
+  templateStarters?: OutreachEmailTemplate[];
+  templateVariables?: string[];
   model: string; prompt: string; intervalDays: number; maxSends: number;
   modelOptions: string[]; reasoningEffort: "none" | "low" | "medium" | "high";
   plannerModel: string; writerModel: string; reviewerModel: string; maxRequests: number; maxTokens: number; maxContextChars: number;
@@ -32,6 +36,8 @@ export type OutreachConfiguration = {
   mailWebhookGroup: "status-outreach"; activeWebhookCount: number;
   missingConfiguration: string[]; lastScanAt: string | null; statusPolicy: string;
 };
+
+export type OutreachEmailTemplate = { subject: string; body: string };
 
 export type OutreachSummary = {
   states: Partial<Record<OutreachState, number>>;
