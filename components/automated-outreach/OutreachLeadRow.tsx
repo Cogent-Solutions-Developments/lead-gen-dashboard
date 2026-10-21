@@ -4,11 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { outreachContentStates } from "@/lib/outreachContentStatus";
 import { deliveryStateLabels } from "@/lib/outreachActivity";
-import { Eye, History, Pause, Play, RefreshCw, ShieldOff, Square } from "lucide-react";
+import { Eye, History, Pause, Play, RefreshCw, RotateCcw, ShieldOff, Square } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { outreachActions, outreachDate, statusLabel, type OutreachAction, type OutreachLead } from "@/lib/automatedOutreach";
 import { controlOutreach } from "@/lib/automatedOutreachApi";
+import { OutreachResetDialog } from "./OutreachResetDialog";
 import { OutreachBadge } from "./OutreachStatus";
 import { OutreachLeadReview } from "./OutreachLeadReview";
 
@@ -20,12 +21,15 @@ const contentIndicators = {
 };
 
 const actions = {
+  reset: {label: "Reset", icon: RotateCcw},
   pause: { label: "Pause", icon: Pause }, resume: { label: "Resume", icon: Play },
   stop: { label: "Stop", icon: Square }, opt_out: { label: "Opt out", icon: ShieldOff },
   retry: { label: "Retry content", icon: RefreshCw },
 };
 
 export function OutreachLeadRow({ lead, number, showEvent, reload }: { lead: OutreachLead; number: number; showEvent?: boolean; reload: () => void }) {
+  const [reset, setReset] = useState(false);
+  const resetBlocked = ["opted_out", "replied", "bounced"].includes(lead.state) || ["deal-closed", "confirmed"].includes(lead.workflowStatus);
   const [busy, setBusy] = useState(false);
   const [review, setReview] = useState<"content" | "history" | null>(null);
   const contentStates = outreachContentStates(lead.messages);
@@ -60,7 +64,8 @@ export function OutreachLeadRow({ lead, number, showEvent, reload }: { lead: Out
     <td className="px-4 py-3.5"><div className="flex justify-end gap-1.5">{outreachActions(lead).map((action) => {
       const { label, icon: Icon } = actions[action];
       return <Button key={action} type="button" variant="outline" disabled={busy} onClick={() => void act(action)} title={label} aria-label={`${label} outreach for ${lead.lead.name}`} className={`h-8 w-8 p-0 ${action === "opt_out" || action === "stop" ? "text-red-600 hover:border-red-200 hover:bg-red-50" : "text-zinc-500"}`}><Icon className="h-3.5 w-3.5" /></Button>;
-    })}<Button type="button" variant="outline" onClick={() => setReview("history")} title="Activity history" aria-label={`Activity history for ${lead.lead.name}`} className="h-8 gap-1.5 px-2 text-xs text-zinc-600"><History className="h-3.5 w-3.5" />History</Button></div>
+    })}<Button type="button" variant="outline" disabled={busy || resetBlocked} onClick={() => setReset(true)} title={resetBlocked ? "Completed workflow or suppressed recipient cannot restart" : "Reset outreach to its initial state"} aria-label={`Reset outreach for ${lead.lead.name}`} className="h-8 gap-1.5 px-2 text-xs text-zinc-600"><RotateCcw className="h-3.5 w-3.5" />Reset</Button><Button type="button" variant="outline" onClick={() => setReview("history")} title="Activity history" aria-label={`Activity history for ${lead.lead.name}`} className="h-8 gap-1.5 px-2 text-xs text-zinc-600"><History className="h-3.5 w-3.5" />History</Button></div>
+      {reset && <OutreachResetDialog lead={lead} onClose={() => setReset(false)} onReset={() => {setReset(false); toast.success("Outreach reset to email 1"); reload();}} />}
       {review && <OutreachLeadReview lead={lead} initialView={review} onClose={() => { setReview(null); reload(); }} />}
     </td>
   </tr>;

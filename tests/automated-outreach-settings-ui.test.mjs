@@ -41,29 +41,21 @@ test("content saves only content fields and never includes delivery controls", a
   const view = harness("Content", async value => { payload = value; return { ...config, ...value, revision: 5 }; });
   view.field("Outreach editorial guidance").props.onChange({ target: { value: "New guidance" } }); view.render();
   await view.submit(); view.render();
-  assert.deepEqual(Object.keys(payload).sort(), ["contentMode", "maxContextChars", "maxOutputTokens", "maxRequests", "maxTokens", "model", "plannerModel", "prompt", "reasoningEffort", "reviewerModel", "revision", "writerModel"]);
-  assert.equal(payload.contentMode, "template");
+  assert.deepEqual(Object.keys(payload).sort(), ["maxContextChars", "maxOutputTokens", "maxRequests", "maxTokens", "model", "plannerModel", "prompt", "reasoningEffort", "reviewerModel", "revision", "writerModel"]);
+  assert.equal(payload.contentMode, undefined);
   assert.equal(payload.prompt, "New guidance");
   assert.equal(view.all(node => node.props?.type === "password" || node.props?.type === "url").length, 0);
 });
 
-test("generated content requires explicit opt-in", async () => {
-  let payload;
-  const view = harness("Content", async value => {payload=value;return {...config,...value,revision:5};});
-  assert.equal(view.find(node=>node.props?.type==='radio'&&node.props.value==='template').props.checked,true);
-  view.find(node=>node.props?.type==='radio'&&node.props.value==='generated').props.onChange();view.render();
-  await view.submit();
-  assert.equal(payload.contentMode,"generated");
-});
-
-test("saving templates does not invalidate an unsaved content mode choice", async () => {
+test("event mode changes do not invalidate unsaved agent guidance", async () => {
   let payload;
   const view=harness("Content",async value=>{payload=value;return {...config,...value,revision:6};});
-  view.find(node=>node.props?.type==='radio'&&node.props.value==='generated').props.onChange();
-  view.render({...config,revision:5,eventTemplates:{sales:{summit:[]}}});
+  view.field("Outreach editorial guidance").props.onChange({target:{value:"Unsaved guidance"}});
+  view.render({...config,revision:5,eventContentModes:{sales:{summit:"generated"}}});
   assert.equal(view.find(node=>node.props?.type==='submit').props.disabled,false);
   await view.submit();
-  assert.equal(payload.contentMode,'generated');
+  assert.equal(payload.prompt,'Unsaved guidance');
+  assert.equal(payload.contentMode,undefined);
   assert.equal(payload.revision,5);
 });
 
@@ -75,16 +67,16 @@ test("event template editor saves all three emails in its own scope and retains 
     '@/lib/automatedOutreachApi':{saveOutreachTemplates:async value=>{calls.push(JSON.parse(JSON.stringify(value)));return {...props.config,revision:5};}},
     sonner:{toast:{success(){}}},
   },props);
-  view.find(node=>node.props?.role==='tab'&&node.props.id==='email-template-tab-1').props.onClick();view.render();
-  view.find(node=>node.type==='Textarea').props.onChange({target:{value:'Edited second body'}});view.render();
+  view.find(node=>node.type==='EmailSequenceTemplateEditor').props.onSelect(1);view.render();
+  view.find(node=>node.type==='EmailSequenceTemplateEditor').props.onBodyChange('Edited second body');view.render();
   await view.find(node=>node.type==='form').props.onSubmit({preventDefault(){}});view.render();
   assert.deepEqual(calls[0],{revision:4,department:'sales',eventKey:'summit',templates:[templates[0],{...templates[1],body:'Edited second body'},templates[2]]});
   props.config={...props.config,revision:6};view.render();
-  assert.equal(view.find(node=>node.type==='Textarea').props.value,'Edited second body');
-  assert.equal(view.find(node=>node.props?.type==='submit').props.disabled,true);
+  assert.equal(view.find(node=>node.type==='EmailSequenceTemplateEditor').props.body,'Edited second body');
+  assert.equal(view.find(node=>node.type==='EmailSequenceTemplateEditor').props.actions.props.children[0].props.disabled,true);
   view.find(node=>node.props?.children==='Reload saved templates').props.onClick();view.render();
-  assert.equal(view.find(node=>node.type==='Textarea').props.value,'Body 2');
-  assert.equal(view.find(node=>node.props?.type==='submit').props.disabled,false);
+  assert.equal(view.find(node=>node.type==='EmailSequenceTemplateEditor').props.body,'Body 2');
+  assert.equal(view.find(node=>node.type==='EmailSequenceTemplateEditor').props.actions.props.children[0].props.disabled,false);
 });
 
 test("delivery saves only the global switch and has no sender or callback fields", async () => {
@@ -149,17 +141,17 @@ test("content settings tabs mount only their own control center and retain direc
   assert.equal(view.all(node => node.type === "StatusOutreachControlCenter").length, 1);
 });
 
-test("event switch sends its department, event and revision without altering lead status", async () => {
+test("event mode toggle sends its department, event and revision without altering lead status", async () => {
   const calls=[];
   const view=componentHarness("components/automated-outreach/OutreachEvents.tsx", "OutreachEvents", {
     "@/hooks/useOutreachResource":{useOutreachResource:()=>({data:{revision:7,items:[{key:'summit',name:'Summit',leads:5,active:3,statuses:{'proposal-sent':5},outreachEnabled:true}]},reload(){},error:null})},
     "@/lib/automatedOutreach":{statusLabel:value=>value},
-    "@/lib/automatedOutreachApi":{setEventOutreach:async(...args)=>calls.push(args)},
+    "@/lib/automatedOutreachApi":{setEventContentMode:async(...args)=>calls.push(args)},
   },{department:'sales'});
-  const control=view.find(node=>node.props?.role==='switch');
-  assert.equal(control.props.checked,true);
-  control.props.onChange(); await new Promise(resolve=>setImmediate(resolve));
-  assert.deepEqual(calls,[['sales','summit',false,7]]);
+  const control=view.find(node=>node.type==='OutreachModeToggle');
+  assert.equal(control.props.value,'template');
+  control.props.onChange('generated'); await new Promise(resolve=>setImmediate(resolve));
+  assert.deepEqual(calls,[['sales','summit','generated',7]]);
 });
 
 test("run monitoring offers recovery only for recoverable generation failures", async () => {

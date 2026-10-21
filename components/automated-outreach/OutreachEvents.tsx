@@ -3,25 +3,27 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ArrowLeft, ChevronRight, Search } from "lucide-react";
-import { setEventOutreach } from "@/lib/automatedOutreachApi";
+import { setEventContentMode } from "@/lib/automatedOutreachApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CampaignListHeader, CampaignPageHeader, campaignListShellClassName, campaignListRowClassName } from "@/components/campaigns/CampaignListPresentation";
 import { useOutreachResource } from "@/hooks/useOutreachResource";
-import { statusLabel, type OutreachDepartment, type OutreachEvent } from "@/lib/automatedOutreach";
+import { statusLabel, type OutreachContentMode, type OutreachDepartment, type OutreachEvent } from "@/lib/automatedOutreach";
 import { OutreachFeedback } from "./OutreachStatus";
 import { OutreachPagination } from "./OutreachPagination";
 
-const eventColumns = "md:grid-cols-[minmax(0,1fr)_minmax(220px,0.7fr)_7.5rem]";
+import { OutreachModeToggle } from "./OutreachModeToggle";
+
+const eventColumns = "md:grid-cols-[minmax(0,1fr)_minmax(180px,0.5fr)_14rem]";
 
 export function OutreachEvents({ department }: { department: OutreachDepartment }) {
   const { data, error, reload } = useOutreachResource<{ items: OutreachEvent[]; revision: number }>(`/events?department=${department}`);
   const [saving, setSaving] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  async function toggleEvent(event: OutreachEvent) {
+  async function toggleEvent(event: OutreachEvent, mode: OutreachContentMode) {
     if (!data) return;
     setSaving(event.key); setSaveError(null);
-    try { await setEventOutreach(department, event.key, !event.outreachEnabled, data.revision); }
+    try { await setEventContentMode(department, event.key, mode, data.revision); }
     catch (error) { setSaveError(error instanceof Error ? error.message : "Could not update event outreach"); }
     finally { reload(); setSaving(null); }
   }
@@ -46,7 +48,7 @@ export function OutreachEvents({ department }: { department: OutreachDepartment 
           <div className={`grid gap-5 px-6 py-5 md:min-h-32 md:items-center ${eventColumns}`}>
             <div className="min-w-0"><Link href={href} className="text-base font-semibold text-zinc-900 hover:text-blue-700"><h2>{event.name}</h2></Link><p className="mt-2 text-xs text-zinc-500">{Object.entries(event.statuses).map(([status, count]) => `${statusLabel(status)} ${count}`).join(" · ")}</p></div>
             <div className="grid grid-cols-2 gap-4">{[{ label: "Total leads", value: event.leads }, { label: "Active leads", value: event.active }].map((metric) => <div key={metric.label}><p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{metric.label}</p><p className="mt-0.5 text-2xl font-bold leading-none text-zinc-900">{metric.value.toLocaleString()}</p></div>)}</div>
-            <div className="flex flex-col items-start gap-3 md:items-end"><label className="flex items-center gap-2 text-xs text-zinc-600"><input type="checkbox" role="switch" aria-label={`Status Outreach for ${event.name}`} checked={event.outreachEnabled} disabled={saving !== null} onChange={() => void toggleEvent(event)} />{event.outreachEnabled ? "Enabled" : "Disabled"}</label><Button asChild variant="outline" className="h-9 w-fit rounded-md border-zinc-300/80 bg-white/82 px-3.5 text-xs font-semibold text-zinc-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] md:justify-self-end"><Link href={href}>View Leads<ChevronRight className="h-4 w-4" /></Link></Button></div>
+            <div className="flex flex-col items-start gap-3 md:items-end"><OutreachModeToggle label={`Content mode for ${event.name}`} value={event.contentMode ?? "template"} disabled={saving !== null} onChange={mode => void toggleEvent(event, mode)} /><p className="text-xs text-zinc-500">{event.contentMode === "generated" ? "Research, generate and send automatically" : event.templatesReady ? "3 templates saved · automatic delivery" : "Add 3 templates on the lead sheet"}</p><Button asChild variant="outline" className="h-9 w-fit rounded-md border-zinc-300/80 bg-white/82 px-3.5 text-xs font-semibold text-zinc-700 shadow-[0_8px_14px_-12px_rgba(2,10,27,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] md:justify-self-end"><Link href={href}>View Leads<ChevronRight className="h-4 w-4" /></Link></Button></div>
           </div>
         </article>;
       })}

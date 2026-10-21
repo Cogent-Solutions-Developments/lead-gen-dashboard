@@ -1,10 +1,11 @@
 import { apiClient } from "@/lib/apiClient";
-import type { OutreachAction, OutreachConfiguration, OutreachDepartment, OutreachEmailTemplate } from "@/lib/automatedOutreach";
+import type { OutreachAction, OutreachConfiguration, OutreachDepartment, OutreachContentMode, OutreachEmailTemplate } from "@/lib/automatedOutreach";
 
 export const OUTREACH_API = "/api/admin/automated-outreach";
 
 export async function controlOutreach(id: string, action: OutreachAction) {
-  return (await apiClient.post(`${OUTREACH_API}/leads/${encodeURIComponent(id)}/control`, { action })).data;
+  try {return (await apiClient.post(`${OUTREACH_API}/leads/${encodeURIComponent(id)}/control`, { action })).data;}
+  catch (error) {const detail = (error as {data?: {detail?: unknown}})?.data?.detail; if (typeof detail === "string") throw new Error(detail); throw error;}
 }
 
 export type OutreachContentUpdate = Pick<OutreachConfiguration,
@@ -45,4 +46,8 @@ export async function prepareOutreachContent(id: string, retry = false) {
     if (typeof detail === "string") throw new Error(detail);
     throw error;
   }
+}
+
+export async function setEventContentMode(department: OutreachDepartment, eventKey: string, contentMode: OutreachContentMode, revision: number) {
+  return (await apiClient.put<OutreachConfiguration>(`${OUTREACH_API}/event-content`, {department, eventKey, contentMode, revision})).data;
 }

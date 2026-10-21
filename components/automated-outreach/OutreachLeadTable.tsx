@@ -11,6 +11,7 @@ import { useOutreachResource } from "@/hooks/useOutreachResource";
 import { OUTREACH_DEPARTMENTS, statusLabel, type OutreachDepartment, type OutreachLeadsResponse } from "@/lib/automatedOutreach";
 import { deliveryStateLabels } from "@/lib/outreachActivity";
 import { OutreachFeedback } from "./OutreachStatus";
+import { OutreachEventSettings } from "./OutreachEventSettings";
 import { OutreachLeadRow } from "./OutreachLeadRow";
 import { OutreachPagination } from "./OutreachPagination";
 
@@ -38,8 +39,9 @@ export function OutreachLeadTable({ department, eventKey }: { department?: Outre
   return <div className="space-y-5 font-sans text-zinc-900 dark:text-zinc-100">
     {department && <>
       <Link href={`/admin/lead-intelligence/${department}`} className="inline-flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-900"><ArrowLeft className="h-3.5 w-3.5" />{statusLabel(department)} events</Link>
-      <CampaignPageHeader title={data?.events?.find(event => event.key === eventKey)?.name || data?.items[0]?.eventName || statusLabel(eventKey || "Event leads")} description="3 status-based messages · 4 days apart" />
+      <CampaignPageHeader title={data?.events?.find(event => event.key === eventKey)?.name || data?.items[0]?.eventName || statusLabel(eventKey || "Event leads")} description="One 3-email sequence per lead · 4 days apart" />
     </>}
+    {department && eventKey && <OutreachEventSettings department={department} eventKey={eventKey} eventName={data?.events?.find(event => event.key === eventKey)?.name || data?.items[0]?.eventName || "Event"} onSaved={reload} />}
     <LeadSheetPanel>
       <div className="space-y-4 px-6 pt-0.5">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

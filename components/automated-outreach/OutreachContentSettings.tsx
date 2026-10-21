@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { ChevronDown, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -10,10 +11,10 @@ import { useOutreachResource } from "@/hooks/useOutreachResource";
 import type { OutreachConfiguration } from "@/lib/automatedOutreach";
 import { saveOutreachContentConfiguration, type OutreachContentUpdate } from "@/lib/automatedOutreachApi";
 import { OutreachFeedback } from "./OutreachStatus";
-import { OutreachTemplateSettings } from "./OutreachTemplateSettings";
+
 
 function contentDraft(config: OutreachConfiguration): OutreachContentUpdate {
-  return { revision: config.revision, contentMode: config.contentMode ?? "template", model: config.model, prompt: config.prompt,
+  return { revision: config.revision, model: config.model, prompt: config.prompt,
     reasoningEffort: config.reasoningEffort, maxOutputTokens: config.maxOutputTokens,
     plannerModel: config.plannerModel || config.model, writerModel: config.writerModel || config.model, reviewerModel: config.reviewerModel || config.model,
     maxRequests: config.maxRequests ?? 6, maxTokens: config.maxTokens ?? 30000, maxContextChars: config.maxContextChars ?? 24000 };
@@ -38,12 +39,8 @@ export function OutreachContentForm({ config, reload }: { config: OutreachConfig
       reload();
     } finally { setBusy(false); }
   }}>
-    <fieldset disabled={busy} className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-      <legend className="px-1 text-sm font-semibold">Email content</legend>
-      <div className="grid gap-3 sm:grid-cols-2">{([{value: "template", title: "Use saved templates", detail: "Default · Your three event emails, with lead details filled in. No AI generation."}, {value: "generated", title: "Enable generated emails", detail: "Research the event website, personalise each topic, then review before sending."}] as const).map(option => <label key={option.value} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 ${draft.contentMode === option.value ? "border-blue-500 bg-blue-50 dark:bg-blue-950/40" : "border-slate-200 dark:border-slate-700"}`}><input type="radio" name="outreach-content-mode" value={option.value} checked={draft.contentMode === option.value} onChange={() => setDraft({...draft, contentMode: option.value})} className="mt-1" /><span><span className="block text-sm font-semibold">{option.title}</span><span className="mt-1 block text-xs leading-5 text-slate-500 dark:text-slate-400">{option.detail}</span></span></label>)}</div>
-      <p className="text-xs leading-5 text-slate-500">One sequence per lead and event: relevant speakers → represented companies → programme highlights. Email 1 starts when eligible and configured; emails 2 and 3 follow four days after the previous send. Status changes never restart the sequence. Deal Closed or Confirmed stops it.</p>
-    </fieldset>
-    <fieldset hidden={draft.contentMode !== "generated"} disabled={busy || draft.contentMode !== "generated"} className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+    <p className="text-sm leading-6 text-slate-500">Choose Template or Agentic on each event’s lead sheet. <Link href="/admin/lead-intelligence" className="text-violet-700 underline">Open events and templates</Link>. These model settings apply to events using Agentic mode.</p>
+    <fieldset disabled={busy} className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
       <legend className="px-1 text-sm font-semibold text-slate-900">Agent models and gates</legend>
       <p className="text-xs text-slate-500">Uses the official event website, lead details, fixed email topic and previous sends. The sample format is enforced; missing evidence blocks sending.</p>
       <div className="grid gap-4 md:grid-cols-3">
@@ -78,7 +75,6 @@ export function OutreachContentSettings() {
     <div id="automated-followup-content-form" hidden={!open} className="border-t border-slate-200 bg-slate-50/70 p-5 sm:p-6">
       <OutreachFeedback error={error} loading={!data && !error} reload={reload} />
       {data && <OutreachContentForm config={data} reload={reload} />}
-      {data && <OutreachTemplateSettings config={data} reload={reload} />}
     </div>
   </section>;
 }

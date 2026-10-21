@@ -5,6 +5,8 @@ const activityCopy: Record<string, [string, string]> = {
   content_preview_ready: ["Email preview ready", "The subject and body are available under Content & delivery. Final content is refreshed before sending."],
   content_preview_failed: ["Email preview could not be prepared", "Open Content & delivery to retry, or use Runs & recovery to resume saved progress."],
   enrolled: ["Added to Status Outreach", "This lead was added to the three-email outreach sequence. Sending depends on eligibility and delivery settings."],
+  admin_reset: ["Outreach reset to email 1", "An administrator started a new three-email sequence. The workflow status was kept and previous delivery receipts were archived."],
+  reset_message_archived: ["Previous email archived", "This email belongs to the sequence before an administrator reset. Its receipts are retained without advancing the new sequence."],
   admin_pause: ["Outreach paused", "An administrator paused future emails for this lead."],
   admin_resume: ["Outreach resumed", "An administrator resumed this lead’s sequence. Eligibility is checked before the next email."],
   admin_stop: ["Outreach stopped", "An administrator stopped this lead’s remaining emails."],

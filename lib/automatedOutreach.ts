@@ -7,7 +7,8 @@ export const OUTREACH_DEPARTMENTS: { key: OutreachDepartment; label: string }[] 
 ];
 
 export type OutreachState = "active" | "paused" | "stopped" | "opted_out" | "replied" | "bounced" | "completed" | "blocked" | "excluded" | "failed" | "attention";
-export type OutreachAction = "pause" | "resume" | "stop" | "opt_out" | "retry";
+export type OutreachContentMode = "template" | "generated";
+export type OutreachAction = "pause" | "resume" | "stop" | "opt_out" | "retry" | "reset";
 
 export type OutreachMessage = {
   id: string; step: number; status: string; subject: string | null; body: string | null;
@@ -24,7 +25,8 @@ export type OutreachLead = {
 
 export type OutreachConfiguration = {
   enabled: boolean; revision: number;
-  contentMode?: "template" | "generated";
+  contentMode?: OutreachContentMode;
+  eventContentModes?: Partial<Record<OutreachDepartment, Record<string, OutreachContentMode>>>;
   eventTemplates?: Partial<Record<OutreachDepartment, Record<string, OutreachEmailTemplate[]>>>;
   templateStarters?: OutreachEmailTemplate[];
   templateVariables?: string[];
@@ -46,7 +48,7 @@ export type OutreachSummary = {
   configuration: OutreachConfiguration;
 };
 
-export type OutreachEvent = { key: string; name: string; leads: number; active: number; statuses: Record<string, number>; outreachEnabled: boolean };
+export type OutreachEvent = { key: string; name: string; leads: number; active: number; statuses: Record<string, number>; outreachEnabled: boolean; contentMode: OutreachContentMode; templatesReady: boolean };
 export type OutreachLeadsResponse = { events?: { key: string; name: string }[]; items: OutreachLead[]; total: number; offset: number; limit: number; tabs: { key: string; label: string; count: number }[] };
 export type OutreachAudit = { id: string; enrollmentId: string | null; action: string; actor: string; details: Record<string, unknown>; createdAt: string };
 
@@ -65,4 +67,8 @@ export function statusLabel(value: string) {
 
 export function outreachDate(value: string | null | undefined) {
   return value ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "—";
+}
+
+export function eventContentMode(config: OutreachConfiguration, department: OutreachDepartment, eventKey: string): OutreachContentMode {
+  return config.eventContentModes?.[department]?.[eventKey] ?? config.contentMode ?? "template";
 }
