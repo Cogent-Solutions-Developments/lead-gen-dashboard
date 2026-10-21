@@ -17,7 +17,7 @@ function contentDraft(config: OutreachConfiguration): OutreachContentUpdate {
   return { revision: config.revision, model: config.model, prompt: config.prompt,
     reasoningEffort: config.reasoningEffort, maxOutputTokens: config.maxOutputTokens,
     plannerModel: config.plannerModel || config.model, writerModel: config.writerModel || config.model, reviewerModel: config.reviewerModel || config.model,
-    maxRequests: config.maxRequests ?? 6, maxTokens: config.maxTokens ?? 30000, maxContextChars: config.maxContextChars ?? 24000 };
+    maxRequests: config.maxRequests ?? 6, maxTokens: config.maxTokens ?? 60000, maxContextChars: config.maxContextChars ?? 24000 };
 }
 
 export function OutreachContentForm({ config, reload }: { config: OutreachConfiguration; reload: () => void }) {
@@ -53,7 +53,7 @@ export function OutreachContentForm({ config, reload }: { config: OutreachConfig
         </label>
       </div>
       <div className="grid gap-4 md:grid-cols-3">{([{key: 'maxRequests', label: 'Requests per run', min: 3, max: 30}, {key: 'maxTokens', label: 'Tokens per run', min: 6000, max: 500000}, {key: 'maxContextChars', label: 'Context characters per stage', min: 1000, max: 100000}] as const).map(({key, label, min, max}) => <label key={key} className="block text-xs font-medium text-slate-700">{label}<Input aria-label={label} type="number" required min={min} max={max} step={1} value={draft[key]} onChange={event => setDraft({...draft, [key]: Number(event.target.value)})} className="mt-1.5 border-slate-300" /></label>)}</div>
-      <p className="text-xs text-slate-500">Research & plan → Writer → Reviewer. Research uses up to three web searches per request. Each stage saves a checkpoint. Gates include retries; unknown usage keeps its reserved budget.</p>
+      <p className="text-xs text-slate-500">Research & plan → Writer → Reviewer. Research reads the official event page first and uses up to two focused web searches for missing details. Each stage saves a checkpoint. Gates include retries; unknown usage keeps its reserved budget.</p>
       <label className="block text-xs font-medium text-slate-700">Editorial guidance
         <Textarea aria-label="Outreach editorial guidance" rows={5} maxLength={12000} value={draft.prompt} onChange={(event) => setDraft({ ...draft, prompt: event.target.value })} placeholder="Brand voice, event context and approved messaging guidance…" className="mt-1.5 border-slate-300" />
       </label>
