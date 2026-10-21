@@ -63,8 +63,8 @@ test("drawer scopes paginated search to the clicked department, event and status
     "react-dom": { createPortal: node => node },
     "@/hooks/useStatusActivity": { useStatusActivity: value => { path = value; return { data: { items: [], total: 41 }, reload() {} }; } },
   }, { status: { key: "first-call", label: "First Call" }, department: "sales", eventKey: "summit", eventName: "Summit", onClose() {} });
-  view.find(node => node.type === "OutreachPagination").props.onChange(2); view.render();
-  assert.match(path, /offset=20/);
+  view.find(node => node.type === "StatusActivityPagination").props.onChange(2); view.render();
+  assert.match(path, /offset=25/);
   view.find(node => node.type === "input").props.onChange({ target: { value: " Alex " } }); view.render();
   view.find(node => node.type === "form").props.onSubmit({ preventDefault() {} }); view.render();
   const query = new URLSearchParams(path.split("?")[1]);
@@ -97,4 +97,61 @@ test("chart scale includes the previous count and stays usable at zero", () => {
   const query = new URLSearchParams(activity.statusActivityPath("sales", "A&B / Event"));
   assert.equal(query.get("eventKey"), "A&B / Event");
   assert.equal(activity.statusActivityTime(null), "Not recorded");
+});
+
+
+test("large status lists remain server-paged and page-size changes reset the offset", () => {
+  let path;
+  const view = harness("components/automated-outreach/StatusActivityDrawer.tsx", "StatusActivityDrawer", {
+    "@/lib/automatedOutreach": normal, "@/lib/statusOutreachActivity": activity,
+    "react-dom": { createPortal: node => node },
+    "@/hooks/useStatusActivity": { useStatusActivity: value => { path = value; return { data: { items: [], total: 1257 }, reload() {} }; } },
+  }, { status: { key: "proposal-sent", label: "Proposal Sent" }, department: "sales", eventKey: "summit", eventName: "Summit", onClose() {} });
+  const pager = () => view.find(node => node.type === "StatusActivityPagination");
+  assert.match(path, /limit=25/);
+  pager().props.onChange(40); view.render(); assert.match(path, /offset=975/);
+  pager().props.onPageSizeChange(100); view.render();
+  assert.match(path, /offset=0/); assert.match(path, /limit=100/);
+  pager().props.onChange(13); view.render(); assert.match(path, /offset=1200/);
+});
+
+test("opening one lead loads one detail view and changing page clears it", () => {
+  const lead = { id: "lead-1", name: "Alex", department: "sales", status: "proposal-sent", updatedAt: "2026-10-21T10:00:00Z" };
+  const view = harness("components/automated-outreach/StatusActivityDrawer.tsx", "StatusActivityDrawer", {
+    "@/lib/automatedOutreach": normal, "@/lib/statusOutreachActivity": activity,
+    "react-dom": { createPortal: node => node },
+    "@/hooks/useStatusActivity": { useStatusActivity: () => ({ data: { items: [lead], total: 1257 }, reload() {} }) },
+  }, { status: { key: "proposal-sent", label: "Proposal Sent" }, department: "sales", eventKey: "summit", eventName: "Summit", onClose() {} });
+  assert.equal(view.all(node => node.type === "StatusLeadDetails").length, 0);
+  view.find(node => node.props?.["aria-label"] === "View details for Alex").props.onClick({ currentTarget: {} }); view.render();
+  assert.equal(view.all(node => node.type === "StatusLeadDetails").length, 1);
+  assert.equal(view.find(node => node.type === "StatusLeadDetails").props.lead.id, "lead-1");
+  view.find(node => node.type === "StatusActivityPagination").props.onChange(2); view.render();
+  assert.equal(view.all(node => node.type === "StatusLeadDetails").length, 0);
+});
+
+test("direct page navigation validates limits and reaches the last page", () => {
+  let requested = null;
+  const view = harness("components/automated-outreach/StatusActivityPagination.tsx", "StatusActivityPagination", {},
+    { page: 1, pageSize: 25, total: 1257, disabled: false, onChange: page => { requested = page; }, onPageSizeChange() {} });
+  view.find(node => node.props?.["aria-label"] === "Last page").props.onClick(); assert.equal(requested, 51);
+  requested = null;
+  const jump = value => { view.find(node => node.type === "input").props.onChange({ target: { value } }); view.render(); view.find(node => node.type === "form").props.onSubmit({ preventDefault() {} }); };
+  jump("52"); assert.equal(requested, null);
+  jump("0"); assert.equal(requested, null);
+  jump("40"); assert.equal(requested, 40);
+});
+
+
+test("live status changes return an out-of-range page to the last available page", () => {
+  let total = 1257, path;
+  const view = harness("components/automated-outreach/StatusActivityDrawer.tsx", "StatusActivityDrawer", {
+    "@/lib/automatedOutreach": normal, "@/lib/statusOutreachActivity": activity,
+    "react-dom": { createPortal: node => node },
+    "@/hooks/useStatusActivity": { useStatusActivity: value => { path = value; return { data: { items: [], total }, reload() {} }; } },
+  }, { status: { key: "proposal-sent", label: "Proposal Sent" }, department: "sales", eventKey: "", eventName: "All events", onClose() {} });
+  view.find(node => node.type === "StatusActivityPagination").props.onChange(51); view.render();
+  assert.match(path, /offset=1250/);
+  total = 1220; view.render(); view.render();
+  assert.match(path, /offset=1200/);
 });

@@ -2,69 +2,30 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowRight, ChevronDown, ChevronUp, History, Search, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowDownWideNarrow, ArrowUpRight, RefreshCw, Search, X } from "lucide-react";
 import { statusLabel } from "@/lib/automatedOutreach";
-import { statusActivityPath, statusActivityTime, type StatusActivityLead, type StatusActivityPage, type StatusHistoryEntry } from "@/lib/statusOutreachActivity";
+import { statusActivityPath, statusActivityTime, type StatusActivityLead, type StatusActivityPage } from "@/lib/statusOutreachActivity";
 import { useStatusActivity } from "@/hooks/useStatusActivity";
-import { OutreachPagination } from "./OutreachPagination";
-
-const muted = "text-zinc-500 dark:text-zinc-400";
-
-function WorkflowHistory({ id }: { id: string }) {
-  const [page, setPage] = useState(1);
-  const { data, error, reload } = useStatusActivity<StatusActivityPage<StatusHistoryEntry>>(
-    `/status-activity/leads/${encodeURIComponent(id)}/history?offset=${(page - 1) * 10}&limit=10`, 15000);
-  return <section aria-label="Lead workflow history" className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-700">
-    <p className={`mb-4 text-xs ${muted}`}>Newest first · Includes updates across the lead’s owners. Each entry identifies its owner.</p>
-    {error && <p role="alert" className="mb-3 text-sm text-red-700 dark:text-red-400">{error} <button type="button" onClick={reload} className="underline">Retry</button></p>}
-    {!data && !error && <p role="status" className={`text-sm ${muted}`}>Loading history…</p>}
-    {data && !data.total && <p className={`text-sm ${muted}`}>No workflow history has been recorded for this lead.</p>}
-    <ol className="space-y-4">{data?.items.map(entry => <li key={entry.id} className="relative border-l-2 border-blue-200 pl-4 dark:border-blue-900">
-      <span aria-hidden="true" className="absolute -left-[5px] top-1 h-2 w-2 rounded-full bg-blue-500" />
-      <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
-        {entry.previousStatus === entry.status ? <>Comment / workflow update · {statusLabel(entry.status)}</> : <>{entry.previousStatus ? statusLabel(entry.previousStatus) : "First recorded status"}<ArrowRight aria-hidden="true" className="h-3.5 w-3.5 text-zinc-400" />{statusLabel(entry.status)}</>}
-      </p>
-      <p className="mt-1 text-xs"><span className="font-medium">{entry.actor || "Updater not recorded"}</span><span className={muted}> · <time dateTime={entry.at}>{statusActivityTime(entry.at)}</time></span></p>
-      <p className={`mt-1 text-xs ${muted}`}>Lead owner: {entry.owner || "Not recorded"}</p>
-      {entry.previousStatus && <p className={`mt-1 text-xs ${muted}`}>Previous update: {entry.previousActor || "Updater not recorded"} · {statusActivityTime(entry.previousAt)}</p>}
-      {entry.comment && <blockquote className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-zinc-50 p-3 text-sm leading-6 dark:bg-zinc-800">{entry.comment}</blockquote>}
-    </li>)}</ol>
-    {data && data.total > 10 && <div className="mt-4"><OutreachPagination page={page} pageSize={10} total={data.total} onChange={setPage} /></div>}
-  </section>;
-}
-
-function StatusLeadCard({ lead }: { lead: StatusActivityLead }) {
-  const [expanded, setExpanded] = useState(false);
-  return <article className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-    <div className="flex flex-wrap items-start justify-between gap-2">
-      <div className="min-w-0"><h3 className="break-words font-semibold">{lead.name}</h3><p className={`mt-0.5 break-words text-xs ${muted}`}>{[lead.company, lead.email].filter(Boolean).join(" · ") || "Contact details not recorded"}</p></div>
-      <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">{statusLabel(lead.status)}</span>
-    </div>
-    <p className="mt-3 text-sm font-medium">{lead.eventName}</p>
-    <p className={`mt-0.5 text-xs ${muted}`}>{statusLabel(lead.department)} · Lead owner: {lead.owner || "Not recorded"}</p>
-    <dl className="mt-4 grid gap-4 rounded-lg bg-zinc-50 p-3 text-xs dark:bg-zinc-800/60 sm:grid-cols-2">
-      <div><dt className={muted}>Latest workflow update</dt><dd className="mt-1 font-medium">{lead.actor || "Updater not recorded"}</dd><dd className={`mt-1 ${muted}`}><time dateTime={lead.updatedAt}>{statusActivityTime(lead.updatedAt)}</time></dd></div>
-      <div><dt className={muted}>Previous recorded status</dt><dd className="mt-1 font-medium">{lead.previousStatus ? statusLabel(lead.previousStatus) : "Not recorded"}</dd>{lead.previousStatus && <dd className={`mt-1 ${muted}`}>{lead.previousActor || "Updater not recorded"}<br />{statusActivityTime(lead.previousAt)}</dd>}</div>
-    </dl>
-    {lead.comment && <div className="mt-3"><p className={`text-xs ${muted}`}>Latest comment</p><p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">{lead.comment}</p></div>}
-    <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-      <p className={`text-xs ${muted}`}>Outreach delivery: {statusLabel(lead.deliveryState)}</p>
-      <Button type="button" variant="outline" className="h-8 gap-1.5 text-xs" aria-expanded={expanded} aria-controls={`workflow-history-${lead.id}`} onClick={() => setExpanded(value => !value)}><History aria-hidden="true" className="h-3.5 w-3.5" />{expanded ? "Hide history" : "View status history"}{expanded ? <ChevronUp aria-hidden="true" className="h-3.5 w-3.5" /> : <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />}</Button>
-    </div>
-    <div id={`workflow-history-${lead.id}`}>{expanded && <WorkflowHistory id={lead.id} />}</div>
-  </article>;
-}
+import { StatusActivityPagination } from "./StatusActivityPagination";
+import { StatusLeadDetails } from "./StatusLeadDetails";
+import styles from "./StatusActivityDrawer.module.css";
 
 export function StatusActivityDrawer({ status, department, eventKey, eventName, onClose }: {
   status: { key: string; label: string }; department: string; eventKey: string; eventName: string; onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const opener = useRef<HTMLButtonElement | null>(null);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [draft, setDraft] = useState("");
   const [search, setSearch] = useState("");
-  const query = statusActivityPath(department, eventKey, { status: status.key, search, offset: String((page - 1) * 20), limit: "20" });
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const query = statusActivityPath(department, eventKey, { status: status.key, search, offset: String((page - 1) * pageSize), limit: String(pageSize) });
   const { data, error, reload, refreshing } = useStatusActivity<StatusActivityPage<StatusActivityLead>>(`/status-activity/leads?${query}`, 15000);
+  const selected = data?.items.find(lead => lead.id === selectedId);
+  // Status changes can remove the final page while this view is open.
+  if (data && page > Math.max(1, Math.ceil(data.total / pageSize))) setPage(Math.max(1, Math.ceil(data.total / pageSize)));
   useEffect(() => {
     const element = dialog.current;
     const previousFocus = document.activeElement as HTMLElement | null;
@@ -73,27 +34,67 @@ export function StatusActivityDrawer({ status, department, eventKey, eventName, 
     element?.showModal();
     return () => { element?.close(); document.body.style.overflow = previousOverflow; previousFocus?.focus(); };
   }, []);
-  return createPortal(<dialog ref={dialog} aria-labelledby="status-cluster-title" onCancel={onClose} onClick={event => { if (event.target === event.currentTarget) onClose(); }}
-    className="fixed inset-y-0 left-auto right-0 m-0 h-dvh max-h-dvh w-full max-w-3xl overflow-y-auto border-l border-zinc-200 bg-zinc-50 p-0 text-zinc-900 shadow-2xl backdrop:bg-zinc-950/35 backdrop:backdrop-blur-[2px] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 sm:rounded-l-2xl">
-    <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
-      <div className="flex items-start justify-between gap-4">
-        <div><p className={`text-xs font-medium ${muted}`}>Lead status activity</p><h2 id="status-cluster-title" className="mt-1 text-xl font-semibold">{status.label}<span className={`ml-2 text-sm font-normal ${muted}`}>{data ? `${data.total.toLocaleString()} leads` : ""}</span></h2></div>
-        <Button type="button" autoFocus variant="outline" size="icon" aria-label="Close status details" onClick={onClose}><X aria-hidden="true" className="h-4 w-4" /></Button>
+  useEffect(() => { list.current?.scrollTo({ top: 0 }); }, [page, pageSize, search]);
+  function closeDetails() {
+    setSelectedId(null);
+    requestAnimationFrame(() => opener.current?.focus());
+  }
+  function selectLead(lead: StatusActivityLead, button: HTMLButtonElement) {
+    opener.current = button;
+    setSelectedId(lead.id);
+  }
+  function changePage(next: number) { setSelectedId(null); setPage(next); }
+  function clearSearch() { setDraft(""); setSearch(""); changePage(1); }
+  return createPortal(<dialog ref={dialog} aria-labelledby="status-cluster-title" className={styles.dialog}
+    onCancel={event => { event.preventDefault(); if (selected) closeDetails(); else onClose(); }}>
+    <div className={`${styles.workspace} ${selected ? styles.hasDetails : ""}`}>
+      <header className={styles.header}>
+        <div className={styles.titleRow}>
+          <div className={styles.titleGroup}>
+            <p className={styles.eyebrow}>Status Outreach / Lead activity</p>
+            <div className={styles.title}><h2 id="status-cluster-title">{status.label}</h2><span className={styles.count}>{data ? `${data.total.toLocaleString()} ${search ? "matching " : ""}lead${data.total === 1 ? "" : "s"}` : "Loading…"}</span></div>
+            <p className={styles.scope}>{department ? statusLabel(department) : "All departments"}<span aria-hidden="true"> / </span>{eventName}</p>
+          </div>
+          <button type="button" autoFocus className={styles.closeButton} aria-label="Close status details" onClick={onClose}><X size={18} aria-hidden="true" /><span>Close</span></button>
+        </div>
+        <div className={styles.toolbar}>
+          <form className={styles.search} aria-label="Search status leads" onSubmit={event => { event.preventDefault(); setSearch(draft.trim()); changePage(1); }}>
+            <Search size={16} aria-hidden="true" />
+            <input aria-label="Search leads by name, company or email" type="search" maxLength={200} value={draft} onChange={event => setDraft(event.target.value)} placeholder="Search name, company or email" />
+            <button type="submit" className={styles.button}>Search</button>
+          </form>
+          <div className={styles.listInfo}><span><ArrowDownWideNarrow size={14} aria-hidden="true" />Newest updates first</span><button type="button" className={styles.button} onClick={reload} disabled={refreshing}><RefreshCw size={14} aria-hidden="true" />{refreshing ? "Refreshing…" : "Refresh"}</button></div>
+        </div>
+        <div className={styles.contextRow}><p>Updates every 15s · Times in {Intl.DateTimeFormat().resolvedOptions().timeZone}</p>{search && <button type="button" className={styles.searchChip} onClick={clearSearch}>Search: {search}<X size={12} aria-hidden="true" /><span className={styles.srOnly}>Clear search</span></button>}<p className={styles.detailHint}>Select a lead for full details and history</p></div>
+      </header>
+      <div className={styles.content}>
+        <div className={styles.listPanel}>
+          {error && <p role="alert" className={styles.error}>{data ? "Showing the last successful update. " : ""}{error} <button type="button" onClick={reload}>Retry</button></p>}
+          <div ref={list} className={styles.listScroll} aria-label="Status leads" aria-busy={!data && !error}>
+            {!data && !error && <p role="status" className={styles.empty}>Loading leads and their latest updates…</p>}
+            {data && !data.items.length && <div className={styles.empty}><h3>{search ? "No matching leads" : "No leads in this status"}</h3><p>{search ? "Try a different name, company or email." : "The list updates as lead statuses change."}</p>{search && <button type="button" className={styles.button} onClick={clearSearch}>Clear search</button>}</div>}
+            {data && data.items.length > 0 && <>
+              <table className={styles.table}>
+                <caption className={styles.srOnly}>Leads in {status.label}, newest workflow updates first</caption>
+                <thead><tr><th scope="col">Lead / company</th><th scope="col">Event / owner</th><th scope="col">Latest update</th><th scope="col" className={styles.secondaryColumn}>Previous status</th><th scope="col" className={styles.secondaryColumn}>Latest comment</th><th scope="col"><span className={styles.srOnly}>Details</span></th></tr></thead>
+                <tbody>{data.items.map(lead => <tr key={lead.id} className={lead.id === selectedId ? styles.selectedRow : undefined}>
+                  <td><button type="button" className={styles.leadName} aria-pressed={lead.id === selectedId} onClick={event => selectLead(lead, event.currentTarget)}>{lead.name}</button><span className={styles.cellSub}>{lead.company || "Company not recorded"}</span><span className={styles.cellSub}>{lead.email || "Email not recorded"}</span></td>
+                  <td><span className={styles.twoLines}>{lead.eventName}</span><span className={styles.cellSub}>{statusLabel(lead.department)} · {lead.owner || "Owner not recorded"}</span></td>
+                  <td><span className={styles.twoLines}>{lead.actor || "Updater not recorded"}</span><time className={styles.cellSub} dateTime={lead.updatedAt}>{statusActivityTime(lead.updatedAt)}</time></td>
+                  <td className={styles.secondaryColumn}><span>{lead.previousStatus ? statusLabel(lead.previousStatus) : "Not recorded"}</span>{lead.previousStatus && <span className={styles.cellSub}>{lead.previousActor || "Updater not recorded"}</span>}</td>
+                  <td className={styles.secondaryColumn}><span className={`${styles.twoLines} ${styles.commentPreview}`}>{lead.comment || "—"}</span></td>
+                  <td><button type="button" className={styles.iconButton} aria-label={`View details for ${lead.name}`} aria-pressed={lead.id === selectedId} onClick={event => selectLead(lead, event.currentTarget)}><ArrowUpRight size={16} aria-hidden="true" /></button></td>
+                </tr>)}</tbody>
+              </table>
+              <div className={styles.mobileList}>{data.items.map(lead => <button key={lead.id} type="button" className={styles.mobileLead} aria-label={`View details for ${lead.name}`} onClick={event => selectLead(lead, event.currentTarget)}>
+                <span className={styles.mobileName}>{lead.name}<ArrowUpRight size={16} aria-hidden="true" /></span><span className={styles.cellSub}>{lead.company || lead.email || "Contact details not recorded"}</span><span className={styles.mobileEvent}>{lead.eventName}</span><span className={styles.cellSub}>{statusLabel(lead.department)} · {lead.actor || "Updater not recorded"}</span><time className={styles.cellSub} dateTime={lead.updatedAt}>{statusActivityTime(lead.updatedAt)}</time>
+              </button>)}</div>
+            </>}
+          </div>
+          <StatusActivityPagination page={page} pageSize={pageSize} total={data?.total ?? 0} disabled={!data} onChange={changePage} onPageSizeChange={size => { setPageSize(size); changePage(1); }} />
+        </div>
+        {selected && <StatusLeadDetails key={selected.id} lead={selected} onClose={closeDetails} />}
       </div>
-      <p className={`mt-2 text-sm ${muted}`}>{department ? statusLabel(department) : "All departments"} · {eventName}</p>
-      <form className="mt-4 flex gap-2" onSubmit={event => { event.preventDefault(); setSearch(draft.trim()); setPage(1); }}>
-        <label className="sr-only" htmlFor="status-lead-search">Search leads by name, company or email</label>
-        <input id="status-lead-search" type="search" maxLength={200} value={draft} onChange={event => setDraft(event.target.value)} placeholder="Name, company or email" className="h-9 min-w-0 flex-1 rounded-lg border border-zinc-300 bg-transparent px-3 text-sm dark:border-zinc-700" />
-        <Button type="submit" variant="outline" className="h-9"><Search aria-hidden="true" className="h-4 w-4" />Search</Button>
-      </form>
-      <div className={`mt-3 flex flex-wrap items-center justify-between gap-2 text-xs ${muted}`}><span>Refreshes every 15 seconds · Times in {Intl.DateTimeFormat().resolvedOptions().timeZone}</span><button type="button" disabled={refreshing} onClick={reload} className="text-blue-600 underline disabled:opacity-50 dark:text-blue-400">{refreshing ? "Refreshing…" : "Refresh"}</button></div>
-    </header>
-    <div className="space-y-4 p-5">
-      {error && <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{data ? "Showing the last successful update. " : ""}{error} <button type="button" className="underline" onClick={reload}>Retry</button></p>}
-      {!data && !error && <p role="status" className={`py-10 text-center text-sm ${muted}`}>Loading leads and their latest updates…</p>}
-      {data && !data.items.length && <div className={`py-10 text-center text-sm ${muted}`}><p>{data.total ? "Leads moved to another page as statuses changed." : search ? "No leads match your search." : "No tracked leads currently have this status."}</p>{(page > 1 || search) && <button type="button" className="mt-3 text-blue-600 underline" onClick={() => { setPage(1); setSearch(""); setDraft(""); }}>Show all leads in this status</button>}</div>}
-      {data?.items.map(lead => <StatusLeadCard key={lead.id} lead={lead} />)}
     </div>
-    {data && <footer className="sticky bottom-0 border-t border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900"><OutreachPagination page={page} pageSize={20} total={data.total} onChange={setPage} /></footer>}
   </dialog>, document.body);
 }
