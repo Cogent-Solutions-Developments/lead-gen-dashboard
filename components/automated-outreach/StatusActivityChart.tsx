@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, type CSSProperties } from "react";
-import { ArrowDownRight, ArrowUpRight, CalendarDays, ChevronDown, Layers3, RefreshCw } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, CalendarDays, ChevronDown, Layers3, Mail, RefreshCw } from "lucide-react";
 import { OUTREACH_DEPARTMENTS } from "@/lib/automatedOutreach";
 import { useStatusActivity } from "@/hooks/useStatusActivity";
 import { statusActivityPath, statusActivityTime, statusChartScale, type StatusActivityBoard } from "@/lib/statusOutreachActivity";
 import { StatusActivityDrawer } from "./StatusActivityDrawer";
+import { StatusMailSummary } from "./StatusMailSummary";
 import styles from "./StatusActivityChart.module.css";
 
 export function StatusActivityChart({ refreshKey = 0 }: { refreshKey?: number }) {
@@ -24,7 +25,7 @@ export function StatusActivityChart({ refreshKey = 0 }: { refreshKey?: number })
     <header className={styles.header}>
       <div className={styles.heading}>
         <h2 id="status-activity-heading">Lead status activity</h2>
-        <p>Live workflow distribution. Select a status to explore its leads.</p>
+        <p>Live lead statuses and outreach mail. Select a status to explore leads, emails, and history.</p>
       </div>
       <div className={styles.filters}>
         <label className={styles.filter}>
@@ -59,6 +60,7 @@ export function StatusActivityChart({ refreshKey = 0 }: { refreshKey?: number })
 
     {error && <p role="alert" className={styles.error}>{data ? "Showing the last successful update. " : ""}{error} <button type="button" onClick={reload}>Retry</button></p>}
     {!data ? <p role="status" className={styles.empty}>{error ? "Status activity is unavailable." : "Loading lead statuses…"}</p> : <>
+      {data.mail && <StatusMailSummary mail={data.mail} />}
       <div className={styles.scrollArea} tabIndex={0} role="region" aria-label="Lead status chart; scroll horizontally on smaller screens">
         <div className={styles.plot} style={{ "--columns": data.items.length, minWidth: Math.max(500, data.items.length * 112 + 52) } as CSSProperties}>
           <div className={styles.axisTitle}>LEADS</div>
@@ -79,7 +81,7 @@ export function StatusActivityChart({ refreshKey = 0 }: { refreshKey?: number })
               } as CSSProperties}>
                 <button type="button" className={styles.statusButton} onClick={() => setSelected({ key: item.key, label: item.label })}
                   aria-describedby={`status-readout-${item.key}`}
-                  aria-label={`${item.label}: ${item.count} leads${old ? `, ${delta > 0 ? "+" : ""}${delta} since previous refresh` : ""}. View leads and status history.`}>
+                  aria-label={`${item.label}: ${item.count} leads${old ? `, ${delta > 0 ? "+" : ""}${delta} since previous refresh` : ""}.${item.mail ? ` ${item.mail.sent} confirmed emails, ${item.mail.awaitingConfirmation} awaiting confirmation, ${item.mail.needsAttention} leads needing attention.` : ""} View leads, outreach emails, and status history.`}>
                   <span className={styles.statusName}>{item.label}</span>
                   <span aria-hidden="true" className={styles.track}>
                     <span className={styles.crosshair} />
@@ -95,12 +97,14 @@ export function StatusActivityChart({ refreshKey = 0 }: { refreshKey?: number })
                   <span className={styles.movement}>
                     {old ? delta === 0 ? <span className={styles.unchanged}>—</span> : <span className={delta > 0 ? styles.increase : styles.decrease}>{delta > 0 ? <ArrowUpRight size={13} aria-hidden="true" /> : <ArrowDownRight size={13} aria-hidden="true" />}{Math.abs(delta)}<span className={styles.movementLabel}> since refresh</span></span> : <span className={styles.unchanged}>Awaiting next refresh</span>}
                   </span>
+                  {item.mail && <span className={styles.columnMail}><span><Mail size={11} aria-hidden="true" />{item.mail.sent.toLocaleString()} sent</span>{item.mail.needsAttention > 0 && <span className={styles.mailIssue}>{item.mail.needsAttention.toLocaleString()} need attention</span>}</span>}
                 </button>
                 <div role="tooltip" id={`status-readout-${item.key}`} className={styles.readout} data-align={index === 0 ? "start" : index === data.items.length - 1 ? "end" : "center"}>
                   <div className={styles.readoutTitle}>{item.label}<ArrowUpRight size={14} aria-hidden="true" /></div>
-                  <dl><div><dt>Current leads</dt><dd>{item.count.toLocaleString()}</dd></div><div><dt>Updated in 24h</dt><dd>{updated.toLocaleString()}</dd></div><div><dt>No update in 24h</dt><dd>{older.toLocaleString()}</dd></div><div><dt>Previous refresh</dt><dd>{old ? old.count.toLocaleString() : "—"}</dd></div></dl>
+                  <dl><div><dt>Current leads</dt><dd>{item.count.toLocaleString()}</dd></div><div><dt>Updated in 24h</dt><dd>{updated.toLocaleString()}</dd></div><div><dt>Previous refresh</dt><dd>{old ? old.count.toLocaleString() : "—"}</dd></div></dl>
+                  {item.mail && <div className={styles.readoutMail}><h3>Status Outreach mail</h3><dl><div><dt>Confirmed sends</dt><dd>{item.mail.sent.toLocaleString()}</dd></div><div><dt>Awaiting confirmation</dt><dd>{item.mail.awaitingConfirmation.toLocaleString()}</dd></div><div><dt>Planned next sends</dt><dd>{item.mail.scheduledLeads.toLocaleString()}</dd></div><div><dt>Leads needing attention</dt><dd>{item.mail.needsAttention.toLocaleString()}</dd></div><div><dt>Paused leads</dt><dd>{item.mail.pausedLeads.toLocaleString()}</dd></div></dl></div>}
                   <p>Latest update<br /><span>{statusActivityTime(item.lastUpdatedAt)}</span></p>
-                  <span className={styles.readoutAction}>Select to view leads & history</span>
+                  <span className={styles.readoutAction}>Select to view leads, emails & history</span>
                 </div>
               </div>;
             })}
@@ -115,7 +119,7 @@ export function StatusActivityChart({ refreshKey = 0 }: { refreshKey?: number })
           <span><i className={styles.legendBand} aria-hidden="true" />Updated in 24h</span>
           <span><i className={styles.legendOlder} aria-hidden="true" />No update in 24h</span>
         </div>
-        <p>Hatched segment = recently updated leads</p>
+        <p>Hatching = updated in 24h · Mail totals grouped by current lead status</p>
       </footer>
     </>}
     {selected && <StatusActivityDrawer status={selected} department={department} eventKey={eventKey} eventName={eventName} onClose={() => setSelected(null)} />}

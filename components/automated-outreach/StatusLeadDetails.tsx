@@ -6,6 +6,7 @@ import { statusLabel } from "@/lib/automatedOutreach";
 import { statusActivityTime, type StatusActivityLead, type StatusActivityPage, type StatusHistoryEntry } from "@/lib/statusOutreachActivity";
 import { useStatusActivity } from "@/hooks/useStatusActivity";
 import styles from "./StatusActivityDrawer.module.css";
+import { StatusLeadMail } from "./StatusLeadMail";
 
 function WorkflowHistory({ id }: { id: string }) {
   const [page, setPage] = useState(1);
@@ -91,6 +92,7 @@ export function StatusLeadDetails({ lead, onClose }: { lead: StatusActivityLead;
           <p className={lead.comment ? undefined : styles.emptyComment}>{lead.comment || "No comment recorded for this status."}</p>
         </section>
       </div>
+      {lead.mail && <StatusLeadMail mail={lead.mail} deliveryState={lead.deliveryState} />}
       <WorkflowHistory key={lead.id} id={lead.id} />
     </div>
   </aside>;

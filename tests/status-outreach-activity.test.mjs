@@ -27,7 +27,8 @@ function harness(path, name, imports, props = {}, globals = {}) {
   return { render, all, effects, find(predicate) { const node = all(predicate)[0]; assert.ok(node, "Expected UI control"); return node; } };
 }
 
-const data = { items: [{ key: "proposal-sent", label: "Proposal Sent", count: 7, updated24h: 2, lastUpdatedAt: null }], events: [{ key: "summit", name: "Summit" }], total: 7, updated24h: 2, asOf: "2026-10-21T10:00:00Z" };
+const mail = { sent: 9, sent24h: 2, awaitingConfirmation: 3, scheduledLeads: 2, needsAttention: 1, pausedLeads: 1 };
+const data = { items: [{ key: "proposal-sent", label: "Proposal Sent", count: 7, updated24h: 2, lastUpdatedAt: null, mail }], events: [{ key: "summit", name: "Summit" }], total: 7, updated24h: 2, asOf: "2026-10-21T10:00:00Z", mail };
 const normal = { OUTREACH_DEPARTMENTS: [{ key: "sales", label: "Sales" }], statusLabel: x => x };
 test("chart filter scope resets the event and opens the selected status without navigation", () => {
   let path;
@@ -37,6 +38,8 @@ test("chart filter scope resets the event and opens the selected status without 
   });
   const bar = view.find(node => node.props?.["aria-label"]?.startsWith("Proposal Sent:"));
   assert.match(bar.props["aria-label"], /7 leads, \+2 since previous refresh/);
+  assert.match(bar.props["aria-label"], /9 confirmed emails, 3 awaiting confirmation, 1 leads needing attention/);
+  assert.equal(view.find(node => node.type === "StatusMailSummary").props.mail, mail);
   bar.props.onClick(); view.render();
   assert.equal(view.find(node => node.type === "StatusActivityDrawer").props.status.key, "proposal-sent");
   view.all(node => node.type === "select")[1].props.onChange({ target: { value: "summit" } }); view.render();
@@ -154,4 +157,17 @@ test("live status changes return an out-of-range page to the last available page
   assert.match(path, /offset=1250/);
   total = 1220; view.render(); view.render();
   assert.match(path, /offset=1200/);
+});
+
+test("mail progress distinguishes content, handoff, confirmation and stopped delivery", () => {
+  const pending = { sent: 0, nextDueAt: "2026-10-25T10:00:00Z", reason: null, messages: [{step: 1, status: "accepted", confirmedAt: null, sentAt: null, updatedAt: "2026-10-21T10:00:00Z"}] };
+  assert.equal(activity.statusMailStep(pending, 1, "active").label, "Awaiting confirmation");
+  assert.equal(activity.statusMailStep(pending, 1, "active").tone, "pending");
+  assert.equal(activity.statusMailStep({...pending, messages: [{...pending.messages[0], status: "preview"}]}, 1, "active").label, "Content ready");
+  assert.equal(activity.statusMailStep({...pending, messages: [{...pending.messages[0], status: "uncertain"}]}, 1, "attention").tone, "error");
+  const sent = {...pending, sent: 1, messages: [{...pending.messages[0], status: "opened", confirmedAt: "2026-10-21T10:00:00Z"}]};
+  assert.equal(activity.statusMailStep(sent, 1, "active").label, "Opened");
+  assert.equal(activity.statusMailStep(sent, 2, "stopped").label, "Stopped");
+  assert.equal(activity.statusMailStep(sent, 2, "paused").label, "Paused");
+  assert.equal(activity.statusMailStep(sent, 2, "active").label, "Planned");
 });

@@ -9,14 +9,16 @@
   --selected: #f0f5ff;
   position: fixed;
   inset: 0;
-  margin: 0;
+  margin: auto;
   padding: 0;
-  width: 100%;
+  width: 95vw;
   max-width: none;
-  height: 100dvh;
+  height: 95dvh;
   max-height: none;
   overflow: hidden;
-  border: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 24px 80px #151a2b40;
   background: var(--surface);
   color: var(--ink);
   font-family: var(--font-sans, Arial, sans-serif);
@@ -103,7 +105,8 @@
 .detailPanel { display: flex; flex-direction: column; flex-shrink: 0; width: clamp(480px, 40vw, 660px); border-left: 1px solid var(--line); background: var(--canvas); min-height: 0; }
 .detailHeader { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; flex-shrink: 0; gap: 10px; padding: 14px 24px; border-bottom: 1px solid var(--line); }
 .badge { font-size: 11px; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); background: var(--selected); border-radius: 20px; padding: 4px 9px; }
-.detailBody { padding: 24px; overflow-y: auto; flex: 1; min-height: 0; overscroll-behavior: contain; scrollbar-width: thin; overflow-wrap: anywhere; }
+.detailBody { padding: 24px; overflow-y: auto; flex: 1; min-height: 0; overscroll-behavior: contain; scrollbar-width: none; -ms-overflow-style: none; overflow-wrap: anywhere; }
+.detailBody::-webkit-scrollbar { display: none; }
 .detailBody h3 { margin: 0; font-size: 22px; letter-spacing: -.025em; line-height: 1.3; font-weight: 600; }
 .hint { color: var(--muted); font-size: 11px; line-height: 1.6; margin: 6px 0 0; }
 .profileSummary { margin-bottom: 22px; }
@@ -163,6 +166,27 @@
 .historyOwner { display: flex; align-items: flex-start; gap: 6px; margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
 .historyOwner svg { margin-top: 2px; }
 .historyPages { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; font-size: 11px; }
+.leadMail { margin-top: 12px; }
+.mailTitle { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.mailTitle > span { color: var(--accent); background: var(--selected); padding: 3px 7px; border-radius: 5px; font-size: 11px; }
+.mailSteps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); list-style: none; margin: 18px 0 0; padding: 0; gap: 10px; }
+.mailSteps li { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 5px; min-width: 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.mailSteps li:not(:last-child)::after { content: ""; position: absolute; top: 14px; left: calc(50% + 22px); width: calc(100% - 34px); height: 1px; background: var(--line); }
+.mailStepIcon { display: grid; place-items: center; width: 30px; height: 30px; margin-bottom: 3px; border: 1px solid var(--line); border-radius: 50%; background: var(--canvas); }
+.mailSteps strong { font-size: 11px; font-weight: 500; color: var(--ink); }
+.mailSteps time { color: var(--muted); font-size: 9px; font-variant-numeric: tabular-nums; }
+.mailSteps li[data-tone="sent"] > .mailStepIcon { color: #168269; border-color: #8ed1bb; background: #e8f7f1; }
+.mailSteps li[data-tone="pending"] > .mailStepIcon { color: #986513; border-color: #e5c68b; background: #fff5df; }
+.mailSteps li[data-tone="error"] > .mailStepIcon { color: #b6374c; border-color: #e9a6b0; background: #fff0f2; }
+.mailSteps li[data-tone="ready"] > .mailStepIcon { color: var(--accent); border-color: var(--accent); background: var(--selected); }
+:global(.dark) .mailSteps li[data-tone="sent"] > .mailStepIcon { color: #7fe0b9; background: #183b31; border-color: #326654; }
+:global(.dark) .mailSteps li[data-tone="pending"] > .mailStepIcon { color: #f1cf7c; background: #3c321f; border-color: #756039; }
+:global(.dark) .mailSteps li[data-tone="error"] > .mailStepIcon { color: #f6a8b0; background: #432930; border-color: #824451; }
+.mailTiming { margin: 16px 0 0; padding-top: 12px; border-top: 1px solid var(--line); font-size: 11px; line-height: 1.6; }
+.mailTiming time { display: block; font-weight: 500; }
+.mailTiming > span { display: block; color: var(--muted); font-size: 10px; margin-top: 2px; }
+.mailReason { margin: 12px 0 0; padding: 8px 10px; border-left: 2px solid var(--line); background: var(--canvas); font-size: 11px; line-height: 1.6; }
+.mailFootnote { margin: 12px 0 0; font-size: 10px; color: var(--muted); line-height: 1.5; }
 .srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 @media (max-width: 1700px) {
   .hasDetails .secondaryColumn { display: none; }
