@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { ArrowUpRight, Mail, RefreshCw, Users, Clock3, CircleAlert } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
@@ -9,21 +10,24 @@ import { CampaignPageHeader } from "@/components/campaigns/CampaignListPresentat
 import { useOutreachResource } from "@/hooks/useOutreachResource";
 import { OUTREACH_DEPARTMENTS, outreachDate, statusLabel, type OutreachSummary } from "@/lib/automatedOutreach";
 import { OutreachFeedback } from "./OutreachStatus";
+import { StatusActivityChart } from "./StatusActivityChart";
 
 export function OutreachDashboard() {
+  const [refreshKey, setRefreshKey] = useState(0);
   const { data, error, reload, refreshing } = useOutreachResource<OutreachSummary>("/summary");
   const total = data?.departments.reduce((sum, row) => sum + row.leads, 0) ?? 0;
   const sent = data?.departments.reduce((sum, row) => sum + row.sent, 0) ?? 0;
   const attention = (data?.states.attention ?? 0) + (data?.states.failed ?? 0) + (data?.states.blocked ?? 0);
   return <div className="space-y-6 p-1 font-sans text-zinc-950">
+    {data && (!data.configuration.enabled || data.configuration.missingConfiguration.length > 0) && <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200/80 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200"><span className="inline-flex items-center gap-2"><CircleAlert className="h-4 w-4 shrink-0" aria-hidden="true" />{!data.configuration.enabled ? "Automatic delivery is globally paused." : "Automatic delivery is waiting for central configuration."}</span><Link href="/settings?section=outreach&department=status-outreach" className="inline-flex items-center gap-1 text-xs font-medium underline underline-offset-4">Open automation controls<ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" /></Link></div>}
     <CampaignPageHeader title="Status Outreach" description="Event lead status and automatic outreach across your departments.">
-      <Button type="button" variant="outline" onClick={reload} disabled={refreshing} className="analytics-frost-btn h-10 px-4">
+      <Button type="button" variant="outline" onClick={() => { reload(); setRefreshKey(value => value + 1); }} disabled={refreshing} className="analytics-frost-btn h-10 px-4">
         <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />Refresh
       </Button>
     </CampaignPageHeader>
+    <StatusActivityChart refreshKey={refreshKey} />
     <OutreachFeedback error={error} loading={!data && !error} reload={reload} />
     {data && <>
-      {(!data.configuration.enabled || data.configuration.missingConfiguration.length > 0) && <div className="flex flex-wrap items-center justify-between gap-3 border-l-2 border-amber-500 bg-amber-50/60 px-4 py-3 text-sm text-amber-900"><span>{!data.configuration.enabled ? "Automatic delivery is globally paused." : "Automatic delivery is waiting for central configuration."}</span><Link href="/settings?section=outreach&department=status-outreach" className="font-medium underline">Open automation controls</Link></div>}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[
         { label: "Eligible lead inventory", value: total, icon: Users, detail: "Across all departments", tone: "bg-blue-50 text-blue-700" },
         { label: "Active sequences", value: data.states.active ?? 0, icon: Clock3, detail: "Eligible for status outreach", tone: "bg-violet-50 text-violet-700" },
