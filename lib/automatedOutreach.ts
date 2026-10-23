@@ -54,6 +54,7 @@ export type OutreachLeadsResponse = { events?: { key: string; name: string }[]; 
 export type OutreachAudit = { id: string; enrollmentId: string | null; action: string; actor: string; details: Record<string, unknown>; createdAt: string };
 
 export function outreachActions(lead: Pick<OutreachLead, "state" | "email" | "messages">): OutreachAction[] {
+  if (!lead.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email)) return [];
   if (lead.state === "opted_out") return [];
   if (["stopped", "replied", "bounced", "completed"].includes(lead.state)) return lead.email ? ["opt_out"] : [];
   const actions: OutreachAction[] = lead.state === "paused" ? ["resume", "stop"] : ["pause", "stop"];

@@ -12,13 +12,15 @@ test("terminal lead states never offer restart or resend actions", () => {
   }
 });
 
-test("paused leads can resume and missing email does not offer an ineffective opt out", () => {
-  assert.deepEqual(outreachActions({ state: "paused", email: null, messages: [] }), ["resume", "stop"]);
+test("email-less leads are read-only while addressable paused leads can resume", () => {
+  assert.deepEqual(outreachActions({ state: "paused", email: null, messages: [] }), []);
+  assert.deepEqual(outreachActions({ state: "paused", email: "lead@example.com", messages: [] }), ["resume", "stop", "opt_out"]);
+  assert.deepEqual(outreachActions({ state: "active", email: "invalid", messages: [] }), []);
   assert.deepEqual(outreachActions({ state: "active", email: "lead@example.com", messages: [] }), ["pause", "stop", "opt_out"]);
 });
 
 test("retry is offered only for content failures before provider handoff", () => {
-  assert.ok(outreachActions({ state: "failed", email: null, messages: [{ status: "failed", subject: null }] }).includes("retry"));
+  assert.ok(outreachActions({ state: "failed", email: "lead@example.com", messages: [{ status: "failed", subject: null }] }).includes("retry"));
   assert.ok(!outreachActions({ state: "attention", email: null, messages: [{ status: "uncertain", subject: "Follow up" }] }).includes("retry"));
   assert.ok(!outreachActions({ state: "failed", email: null, messages: [{ status: "failed", subject: "Follow up" }] }).includes("retry"));
 });

@@ -229,11 +229,22 @@ test("Status Outreach View opens the content dialog", () => {
     "@/lib/automatedOutreach":{outreachActions:()=>[],outreachDate:()=>"",statusLabel:value=>value},
     "@/lib/outreachActivity":{deliveryStateLabels:{active:"Active"}},
     "@/lib/outreachContentStatus":{outreachContentStates},
-  },{lead:{id:"lead",lead:{name:"Person"},state:"active",workflowStatus:"proposal-sent",sentCount:0,messages:[]},number:1,reload(){}});
+  },{lead:{id:"lead",lead:{name:"Person"},email:"person@example.com",state:"active",workflowStatus:"proposal-sent",sentCount:0,messages:[]},number:1,reload(){}});
   const button=view.find(node=>node.props?.["aria-label"]==="View messages for Person");
   assert.ok(button.props.children.includes("View"));
   button.props.onClick();view.render();
   assert.equal(view.find(node=>node.type==="OutreachLeadReview").props.initialView,"content");
+});
+
+test("a lead without an email is shown read-only with no outreach controls", () => {
+  const view=componentHarness("components/automated-outreach/OutreachLeadRow.tsx","OutreachLeadRow",{
+    "@/lib/automatedOutreach":{outreachActions:()=>[],outreachDate:()=>"",statusLabel:value=>value},
+    "@/lib/outreachActivity":{deliveryStateLabels:{blocked:"Blocked"}},
+    "@/lib/outreachContentStatus":{outreachContentStates},
+  },{lead:{id:"lead",lead:{name:"Person"},email:null,state:"blocked",workflowStatus:"first-call",sentCount:0,messages:[]},number:1,reload(){}});
+  assert.equal(view.all(node=>node.props?.["aria-label"]?.includes?.("outreach for Person")).length,0);
+  assert.equal(view.all(node=>node.props?.["aria-label"]==="View messages for Person").length,0);
+  assert.ok(view.all(node=>node.type==="span").some(node=>node.props?.children==="Actions unavailable"));
 });
 
 test("content dialog is read-only and displays each automatically prepared email", async () => {
@@ -255,7 +266,7 @@ test("content dialog is read-only and displays each automatically prepared email
 });
 
 test("Status Outreach content indicators show each email and prioritize ready content", () => {
-  const lead={id:"lead",lead:{name:"Person"},state:"active",workflowStatus:"proposal-sent",sentCount:0,messages:[{step:1,status:"preview_generating"},{step:2,status:"preview_failed"}]};
+  const lead={id:"lead",lead:{name:"Person"},email:"person@example.com",state:"active",workflowStatus:"proposal-sent",sentCount:0,messages:[{step:1,status:"preview_generating"},{step:2,status:"preview_failed"}]};
   const view=componentHarness("components/automated-outreach/OutreachLeadRow.tsx","OutreachLeadRow",{
     "@/lib/automatedOutreach":{outreachActions:()=>[],outreachDate:()=>"",statusLabel:value=>value},
     "@/lib/outreachActivity":{deliveryStateLabels:{active:"Active"}},
