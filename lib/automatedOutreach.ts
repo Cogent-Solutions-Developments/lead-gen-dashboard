@@ -42,6 +42,7 @@ export type OutreachConfiguration = {
 export type OutreachEmailTemplate = { subject: string; body: string };
 
 export type OutreachSummary = {
+  needsAttention?: number;
   states: Partial<Record<OutreachState, number>>;
   departments: { department: OutreachDepartment; leads: number; sent: number; active: number }[];
   daily: { date: string; sent: number }[];

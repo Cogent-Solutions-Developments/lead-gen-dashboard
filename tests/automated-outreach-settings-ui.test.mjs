@@ -236,7 +236,7 @@ test("Status Outreach View opens the content dialog", () => {
   assert.equal(view.find(node=>node.type==="OutreachLeadReview").props.initialView,"content");
 });
 
-test("content dialog prepares previews and displays each selected email subject and body", async () => {
+test("content dialog is read-only and displays each automatically prepared email", async () => {
   const prepared=[];
   const messages=[1,2,3].map(step=>({id:`message-${step}`,step,status:"preview",subject:`Subject ${step}`,body:`Body ${step}`,tracking:{},updatedAt:"2026-10-20T10:00:00Z"}));
   const view=componentHarness("components/automated-outreach/OutreachLeadReview.tsx","OutreachLeadReview",{
@@ -246,7 +246,7 @@ test("content dialog prepares previews and displays each selected email subject 
     "@/lib/automatedOutreach":{outreachDate:()=>"today",statusLabel:value=>value},
   },{lead:{id:"lead",lead:{name:"Person"},messages:[],sentCount:0,eventName:"Summit",department:"sales",workflowStatus:"proposal-sent"},initialView:"content",onClose(){}});
   view.flushEffects(); await new Promise(resolve=>setImmediate(resolve));view.render();
-  assert.deepEqual(prepared,["lead"]);
+  assert.deepEqual(prepared,[]);
   for(const step of ["1","2","3"]) {
     view.find(node=>node.type==="OutreachDeliveryTimeline").props.onSelect(step);view.render();
     assert.ok(view.all(node=>node.type==="p").some(node=>node.props.children===`Subject ${step}`));

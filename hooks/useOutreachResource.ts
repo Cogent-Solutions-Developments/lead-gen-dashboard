@@ -14,7 +14,10 @@ export function useOutreachResource<T>(path: string, refreshInterval = 30000) {
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
+    let inFlight = false;
     const fetch = async () => {
+      if (inFlight || !active) return;
+      inFlight = true;
       const request = ++sequence.current;
       setRefreshing(true);
       try {
@@ -23,12 +26,20 @@ export function useOutreachResource<T>(path: string, refreshInterval = 30000) {
       } catch (error) {
         if (active && request === sequence.current) setResult((old) => ({ path, data: old.path === path ? old.data : null, error: error instanceof Error ? error.message : "Could not load outreach data" }));
       } finally {
+        inFlight = false;
         if (active && request === sequence.current) setRefreshing(false);
       }
     };
     void fetch();
     const interval = setInterval(() => { if (!document.hidden) void fetch(); }, refreshInterval);
-    return () => { active = false; controller.abort(); clearInterval(interval); };
+    const refreshWhenVisible = () => { if (!document.hidden) void fetch(); };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      active = false; controller.abort(); clearInterval(interval);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, [path, version, refreshInterval]);
 
   return { data: result.path === path ? result.data : null, error: result.path === path ? result.error : null, refreshing, reload };

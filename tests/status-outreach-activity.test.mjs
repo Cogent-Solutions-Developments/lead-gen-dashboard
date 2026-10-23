@@ -171,3 +171,51 @@ test("mail progress distinguishes content, handoff, confirmation and stopped del
   assert.equal(activity.statusMailStep(sent, 2, "paused").label, "Paused");
   assert.equal(activity.statusMailStep(sent, 2, "active").label, "Planned");
 });
+
+test("outreach lists refresh on focus, suppress overlap and discard late responses", async () => {
+  let interval, resolveRequest, requestSignal, calls = 0, cleared = false;
+  const listeners = new Map();
+  const document = { hidden: false, addEventListener: (key, fn) => listeners.set(key, fn), removeEventListener: key => listeners.delete(key) };
+  const view = harness("hooks/useOutreachResource.ts", "useOutreachResource", {
+    "@/lib/automatedOutreachApi": { OUTREACH_API: "/api" },
+    "@/lib/apiClient": { apiClient: { get(path, options) {
+      assert.equal(path, "/api/events?department=sales");
+      requestSignal = options.signal; calls++;
+      return new Promise(resolve => { resolveRequest = resolve; });
+    } } },
+  }, "/events?department=sales", { document,
+    setInterval(fn) { interval = fn; return 1; }, clearInterval() { cleared = true; },
+    window: { addEventListener: (key, fn) => listeners.set(key, fn), removeEventListener: key => listeners.delete(key) },
+  });
+  const cleanup = view.effects.shift()();
+  interval(); listeners.get("focus")(); assert.equal(calls, 1);
+  resolveRequest({ data: { total: 5 } }); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(view.render().data.total, 5);
+  document.hidden = true; interval(); listeners.get("visibilitychange")(); assert.equal(calls, 1);
+  document.hidden = false; listeners.get("focus")(); assert.equal(calls, 2);
+  resolveRequest({ data: { total: 6 } }); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(view.render().data.total, 6);
+  listeners.get("visibilitychange")(); assert.equal(calls, 3);
+  cleanup(); assert.equal(requestSignal.aborted, true); assert.equal(cleared, true); assert.equal(listeners.size, 0);
+  resolveRequest({ data: { total: 99 } }); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(view.render().data.total, 6);
+});
+
+test("Sales events show refreshed registry names and counts while preserving canonical links", () => {
+  let rows = [{ key: "stable-event-key", name: "Old title", leads: 1, active: 1, statuses: { "proposal-sent": 1 } }];
+  let reloads = 0;
+  const view = harness("components/automated-outreach/OutreachEvents.tsx", "OutreachEvents", {
+    "next/link": { default: "a" }, "@/lib/automatedOutreach": normal,
+    "@/hooks/useOutreachResource": { useOutreachResource(path, interval) {
+      assert.equal(path, "/events?department=sales"); assert.equal(interval, 5000);
+      return { data: { items: rows, revision: 1 }, refreshing: false, reload() { reloads++; } };
+    } },
+  }, { department: "sales" });
+  view.find(node => node.props?.["aria-label"] === "Refresh events").props.onClick();
+  assert.equal(reloads, 1);
+  rows = [{ ...rows[0], name: "12th AIMCT Qatar", leads: 5, active: 4, statuses: { "first-call": 4, "proposal-sent": 1 } }];
+  view.render();
+  assert.equal(view.find(node => node.type === "h2").props.children, "12th AIMCT Qatar");
+  assert.ok(view.find(node => node.type === "p" && node.props.children === "first-call 4 · proposal-sent 1"));
+  assert.equal(view.all(node => node.type === "a" && node.props.href === "/admin/lead-intelligence/sales/stable-event-key").length, 2);
+});

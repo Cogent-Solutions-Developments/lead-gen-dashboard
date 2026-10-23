@@ -33,7 +33,7 @@ export function OutreachLeadTable({ department, eventKey }: { department?: Outre
   if (cluster) params.set("workflowStatus", cluster);
   if (state) params.set("state", state);
   if (query) params.set("search", query);
-  const { data, error, reload, refreshing } = useOutreachResource<OutreachLeadsResponse>(`/leads?${params}`);
+  const { data, error, reload, refreshing } = useOutreachResource<OutreachLeadsResponse>(`/leads?${params}`, 5000);
   const totalTabs = data?.tabs.reduce((sum, tab) => sum + tab.count, 0) ?? 0;
   const columns = ["No.", "Profile", ...(!eventKey ? ["Event / campaign"] : []), "Contact Info", "Content", "Lead status", "Delivery state", "Emails sent", "Quick Actions"];
   return <div className="space-y-5 font-sans text-zinc-900 dark:text-zinc-100">

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowLeft, ChevronRight, Search } from "lucide-react";
+import { ArrowLeft, ChevronRight, Search, RefreshCw } from "lucide-react";
 import { setEventContentMode } from "@/lib/automatedOutreachApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import { OutreachModeToggle } from "./OutreachModeToggle";
 const eventColumns = "md:grid-cols-[minmax(0,1fr)_minmax(180px,0.5fr)_14rem]";
 
 export function OutreachEvents({ department }: { department: OutreachDepartment }) {
-  const { data, error, reload } = useOutreachResource<{ items: OutreachEvent[]; revision: number }>(`/events?department=${department}`);
+  const { data, error, reload, refreshing } = useOutreachResource<{ items: OutreachEvent[]; revision: number }>(`/events?department=${department}`, 5000);
   const [saving, setSaving] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   async function toggleEvent(event: OutreachEvent, mode: OutreachContentMode) {
@@ -35,7 +35,7 @@ export function OutreachEvents({ department }: { department: OutreachDepartment 
   return <div className="flex min-h-0 flex-col gap-5 p-1 font-sans lg:h-[calc(100dvh-3rem)]">
     <Link href="/admin/lead-intelligence" className="inline-flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-900"><ArrowLeft className="h-3.5 w-3.5" />Dashboard</Link>
     <CampaignPageHeader title={`${statusLabel(department)} events`} description="View leads and outreach activity by event.">
-      <div className="relative w-full sm:w-64 sm:shrink-0"><Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-zinc-400" /><Input aria-label="Search events" placeholder="Search events" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} className="h-9 w-full border-zinc-300/80 bg-white/80 pl-9 text-sm" /></div>
+      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto"><div className="relative w-full sm:w-64 sm:shrink-0"><Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-zinc-400" /><Input aria-label="Search events" placeholder="Search events" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} className="h-9 w-full border-zinc-300/80 bg-white/80 pl-9 text-sm" /></div><Button type="button" variant="outline" onClick={reload} disabled={refreshing} aria-label="Refresh events" className="h-9"><RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />Refresh</Button></div>
     </CampaignPageHeader>
     <OutreachFeedback error={error} loading={!data && !error} reload={reload} />
     {saveError && <p role="alert" className="text-sm text-red-700">{saveError}</p>}

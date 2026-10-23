@@ -24,12 +24,6 @@ export function OutreachLeadReview({ lead, initialView, onClose }: { lead: Outre
   const [preparationError, setPreparationError] = useState<string | null>(null);
   const [preparing, setPreparing] = useState(false);
   const { data: content, error: contentError, reload: reloadContent } = useOutreachResource<{ messages: OutreachMessage[] }>(`/leads/${encodeURIComponent(lead.id)}/content`, 3000);
-  useEffect(() => {
-    if (view !== "content" || lead.sentCount >= 3) return;
-    let active = true;
-    prepareOutreachContent(lead.id).then(() => { if (active) { setPreparationError(null); reloadContent(); } }).catch(error => { if (active) setPreparationError(error instanceof Error ? error.message : "Could not prepare content"); });
-    return () => { active = false; };
-  }, [lead.id, lead.sentCount, view, reloadContent]);
   async function retryContent() {
     setPreparing(true); setPreparationError(null);
     try { await prepareOutreachContent(lead.id, true); reloadContent(); }
@@ -48,7 +42,7 @@ export function OutreachLeadReview({ lead, initialView, onClose }: { lead: Outre
         <OutreachDeliveryTimeline lead={currentLead} selectedStep={step} onSelect={setStep} />
         {(preparationError || contentError) && <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><p>{preparationError || contentError}</p><Button type="button" variant="outline" disabled={preparing} onClick={() => void retryContent()} className="mt-2">Retry content preparation</Button></div>}
         {isPreview && message?.subject && <p className="text-xs text-violet-700 dark:text-violet-300">Content preview · prepared {outreachDate(message.updatedAt)}. Content is checked against the saved template or generation settings before sending. The topic and email number stay the same across status changes.</p>}
-        {pending && !preparationError && <p role="status" className="text-sm text-zinc-500">{message?.status === "preview_generating" || message?.status === "generating" ? "Preparing this email…" : "Content preparation is queued. The subject and email body will appear here automatically."}</p>}
+        {pending && !preparationError && <p role="status" className="text-sm text-zinc-500">{message?.status === "preview_generating" || message?.status === "generating" ? "Preparing this email…" : message ? "Content preparation is queued. The subject and email body will appear here automatically." : "Content is prepared automatically for Agentic events, or after all three event templates are saved."}</p>}
         {message?.status === "preview_failed" && <Button type="button" variant="outline" disabled={preparing} onClick={() => void retryContent()}>Retry content preparation</Button>}
         {message ? <div className="space-y-4"><section aria-label="Email subject" className="space-y-1.5"><h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Subject</h3><p className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700">{message.subject || "Content not prepared"}</p></section><section aria-label="Email body" className="space-y-1.5"><h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Email body</h3><div className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded-md border border-zinc-300 px-3 py-2 text-sm leading-6 text-zinc-700 dark:border-zinc-700 dark:text-zinc-300">{message.body || "Content has not been prepared yet."}</div></section>{message.error && <p className="text-sm text-red-600">{message.error}</p>}
           {!isPreview && <section className="border-t border-zinc-200 pt-4 dark:border-zinc-700"><h3 className="mb-3 text-sm font-semibold">Delivery tracking</h3><dl className="grid gap-2 text-xs">{Object.entries(message.tracking).filter(([key]) => key.endsWith("At") && key !== "countedAt").map(([key, value]) => <div key={key} className="flex flex-wrap justify-between gap-2"><dt className="text-zinc-500">{statusLabel(key.replace(/At$/, ""))}</dt><dd>{outreachDate(value)}</dd></div>)}</dl>{!Object.keys(message.tracking).length && <p className="text-xs text-zinc-500">No delivery updates yet.</p>}{message.status === "accepted" && <p className="mt-2 text-xs text-amber-700">Awaiting send confirmation</p>}</section>}

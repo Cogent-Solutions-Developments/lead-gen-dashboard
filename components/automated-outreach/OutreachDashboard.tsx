@@ -14,10 +14,10 @@ import { StatusActivityChart } from "./StatusActivityChart";
 
 export function OutreachDashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
-  const { data, error, reload, refreshing } = useOutreachResource<OutreachSummary>("/summary");
+  const { data, error, reload, refreshing } = useOutreachResource<OutreachSummary>("/summary", 5000);
   const total = data?.departments.reduce((sum, row) => sum + row.leads, 0) ?? 0;
   const sent = data?.departments.reduce((sum, row) => sum + row.sent, 0) ?? 0;
-  const attention = (data?.states.attention ?? 0) + (data?.states.failed ?? 0) + (data?.states.blocked ?? 0);
+  const attention = data?.needsAttention ?? ((data?.states.attention ?? 0) + (data?.states.failed ?? 0) + (data?.states.blocked ?? 0));
   return <div className="space-y-6 p-1 font-sans text-zinc-950">
     {data && (!data.configuration.enabled || data.configuration.missingConfiguration.length > 0) && <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200/80 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200"><span className="inline-flex items-center gap-2"><CircleAlert className="h-4 w-4 shrink-0" aria-hidden="true" />{!data.configuration.enabled ? "Automatic delivery is globally paused." : "Automatic delivery is waiting for central configuration."}</span><Link href="/settings?section=outreach&department=status-outreach" className="inline-flex items-center gap-1 text-xs font-medium underline underline-offset-4">Open automation controls<ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" /></Link></div>}
     <CampaignPageHeader title="Status Outreach" description="Event lead status and automatic outreach across your departments.">
@@ -32,7 +32,7 @@ export function OutreachDashboard() {
         { label: "Eligible lead inventory", value: total, icon: Users, detail: "Across all departments", tone: "bg-blue-50 text-blue-700" },
         { label: "Active sequences", value: data.states.active ?? 0, icon: Clock3, detail: "Eligible for status outreach", tone: "bg-violet-50 text-violet-700" },
         { label: "Confirmed emails sent", value: sent, icon: Mail, detail: "Confirmed delivery activity", tone: "bg-emerald-50 text-emerald-700" },
-        { label: "Needs attention", value: attention, icon: CircleAlert, detail: "Blocked or failed sequences", tone: "bg-amber-50 text-amber-700" },
+        { label: "Needs attention", value: attention, icon: CircleAlert, detail: "Leads blocked or with a content or delivery issue", tone: "bg-amber-50 text-amber-700" },
       ].map((card) => <SummaryMetric key={card.label} label={card.label} value={card.value.toLocaleString()} icon={card.icon} detail={card.detail} tone={card.tone} />)}</div>
       <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
         <ChartCard title="Email activity" subtitle="Confirmed sends · last 30 days · UTC">{data.daily.length ? <div className="mt-5 h-64" role="img" aria-label={`Daily confirmed email sends: ${data.daily.map((day) => `${day.date}: ${day.sent}`).join(", ")}`}><ResponsiveContainer width="100%" height="100%"><AreaChart data={data.daily}><defs><linearGradient id="outreach-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2563eb" stopOpacity={0.25} /><stop offset="100%" stopColor="#2563eb" stopOpacity={0} /></linearGradient></defs><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="date" tick={{ fontSize: 10 }} /><YAxis allowDecimals={false} width={35} /><Tooltip /><Area type="monotone" dataKey="sent" stroke="#2563eb" fill="url(#outreach-area)" strokeWidth={2} /></AreaChart></ResponsiveContainer></div> : <div className="flex h-64 items-center justify-center text-sm text-zinc-400">Confirmed sends will appear here.</div>}</ChartCard>
