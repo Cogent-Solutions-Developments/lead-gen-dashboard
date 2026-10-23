@@ -23,7 +23,7 @@ function WorkflowHistory({ id }: { id: string }) {
     {data && !data.total && <p className={styles.historyEmpty}>No workflow history has been recorded.</p>}
     <ol className={styles.timeline}>{data?.items.map(entry => <li key={entry.id}>
       <div className={styles.historyCard}>
-        <p className={styles.transition}>{entry.previousStatus === entry.status ? <>Comment / workflow update<span className={styles.historyStatus}>{statusLabel(entry.status)}</span></> : <><span className={styles.fromStatus}>{entry.previousStatus ? statusLabel(entry.previousStatus) : "First recorded status"}</span><ArrowRight size={13} aria-hidden="true" /><span className={styles.historyStatus}>{statusLabel(entry.status)}</span></>}</p>
+        <p className={styles.transition}>{entry.previousStatus === entry.status ? <>Comment / workflow update<span className={styles.historyStatus}>{statusLabel(entry.status)}</span></> : <><span className={styles.fromStatus}>{entry.previousStatus ? statusLabel(entry.previousStatus) : "New"}</span><ArrowRight size={13} aria-hidden="true" /><span className={styles.historyStatus}>{statusLabel(entry.status)}</span></>}</p>
         <dl className={styles.historyMeta}>
           <div><dt>Updated by</dt><dd>{entry.actor || "Not recorded"}<time dateTime={entry.at}>{statusActivityTime(entry.at)}</time></dd></div>
           {entry.previousStatus && <div><dt>Previous update</dt><dd>{entry.previousActor || "Not recorded"}<time dateTime={entry.previousAt || undefined}>{statusActivityTime(entry.previousAt)}</time></dd></div>}
@@ -85,7 +85,7 @@ export function StatusLeadDetails({ lead, onClose }: { lead: StatusActivityLead;
             <div><dt className={styles.srOnly}>Previous status</dt><dd className={styles.statusValue}>{statusLabel(lead.previousStatus)}</dd></div>
             <div><dt>Updated by</dt><dd>{lead.previousActor || "Not recorded"}</dd></div>
             <div><dt className={styles.srOnly}>Updated at</dt><dd><time dateTime={lead.previousAt || undefined}>{statusActivityTime(lead.previousAt)}</time></dd></div>
-          </dl> : <div className={styles.unrecorded}><span>Not recorded</span><p>No earlier status update is available.</p></div>}
+          </dl> : <div className={styles.unrecorded}><span>New</span><p>No earlier status update is available.</p></div>}
         </section>
         <section className={`${styles.detailCard} ${styles.latestComment}`}>
           <h4><MessageSquareText size={15} aria-hidden="true" />Latest comment</h4>
