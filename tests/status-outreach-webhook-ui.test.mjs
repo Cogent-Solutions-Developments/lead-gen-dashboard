@@ -10,9 +10,9 @@ test("Status Outreach stays after Production with the existing webhook form when
   const code = ts.transpileModule(source, {compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText;
   const states = [], effects = [], created = [];
   let cursor = 0, tree;
-  const module = {exports:{}};
+  const testModule = {exports:{}};
   const summaries = ["sales", "delegate", "production"].map(value => ({value,label:value[0].toUpperCase()+value.slice(1),webhookCount:2,activeWebhookCount:1,suggestedWebhookName:`${value} webhook 3`}));
-  runInNewContext(code, {module,exports:module.exports,URL,require: name => {
+  runInNewContext(code, {module:testModule,exports:testModule.exports,URL,require: name => {
     if (name === "react/jsx-runtime") return jsxRuntime;
     if (name === "react") return {
       useState: initial => {const i=cursor++; if(!(i in states)) states[i]=typeof initial==="function"?initial():initial;return [states[i],value=>{states[i]=typeof value==="function"?value(states[i]):value;}];},
@@ -26,7 +26,7 @@ test("Status Outreach stays after Production with the existing webhook form when
     if (name === "sonner") return {toast:{success(){},error(){}}};
     return new Proxy({}, {get:(_,key)=>key});
   }});
-  function render(){cursor=0;tree=module.exports.OutreachMailWebhookSettings({onBack(){}});}
+  function render(){cursor=0;tree=testModule.exports.OutreachMailWebhookSettings({onBack(){}});}
   function all(predicate,node=tree,result=[]){if(Array.isArray(node)){node.forEach(child=>all(predicate,child,result));return result;}if(!node||typeof node!=="object")return result;if(predicate(node))result.push(node);all(predicate,node.props?.children ?? null,result);return result;}
   function text(node){if(Array.isArray(node))return node.map(text).join("");if(node&&typeof node==="object")return text(node.props?.children);return typeof node==="string"||typeof node==="number"?String(node):"";}
   render();

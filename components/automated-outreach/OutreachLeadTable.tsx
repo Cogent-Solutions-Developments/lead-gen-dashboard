@@ -58,8 +58,8 @@ export function OutreachLeadTable({ department, eventKey }: { department?: Outre
         </div>
       </div>
       <div className="relative z-[2] px-4"><OutreachFeedback error={error} loading={!data && !error} reload={reload} />
-        {data && <div className="overflow-x-auto"><table className="w-full min-w-[1200px] text-left"><caption className="sr-only">Lead outreach by event, workflow status and delivery state</caption>
-          <thead className="border-b border-zinc-100/85 bg-white/70 dark:border-zinc-700 dark:bg-zinc-800"><tr>{columns.map((title) => <th scope="col" key={title} className={`px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400 ${title === "Quick Actions" ? "text-right" : title === "Emails sent" ? "text-center" : ""}`}>{title}</th>)}</tr></thead>
+        {data && <div className="overflow-x-auto"><table className={`w-full text-left ${eventKey ? "min-w-[1380px]" : "min-w-[1500px]"}`}><caption className="sr-only">Lead outreach by event, workflow status and delivery state</caption>
+          <thead className="border-b border-zinc-100/85 bg-white/70 dark:border-zinc-700 dark:bg-zinc-800"><tr>{columns.map((title) => <th scope="col" key={title} className={`px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400 ${title === "Lead status" ? "min-w-36 whitespace-nowrap" : title === "Quick Actions" ? "text-right" : title === "Emails sent" ? "text-center" : ""}`}>{title}</th>)}</tr></thead>
           <tbody className="divide-y divide-zinc-100/70 dark:divide-zinc-700">{data.items.map((lead, index) => <OutreachLeadRow key={lead.id} lead={lead} number={offset + index + 1} showEvent={!eventKey} reload={reload} />)}{!data.items.length && <tr><td colSpan={columns.length} className="px-6 py-10 text-center text-sm text-zinc-500">No leads match these filters. Try another event, lead status or delivery state.</td></tr>}</tbody>
         </table></div>}
       </div>

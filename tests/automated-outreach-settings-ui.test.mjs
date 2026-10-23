@@ -186,15 +186,19 @@ test("delivery tracking has its own Status Outreach view", () => {
   assert.equal(tracking.all(node => node.type === "OutreachAuditLog").length, 0);
 });
 
-test("Status Outreach analytics separates total enrolled leads from agent runs and switches chart metrics", () => {
+test("Status Outreach analytics uses the same three-line spend and usage pattern as Control Center", () => {
   const usage={requests:3,inputTokens:1000,outputTokens:200,unmeasuredRequests:0,reservedTokens:0};
   const view=componentHarness("components/automated-outreach/StatusOutreachAnalytics.tsx","StatusOutreachAnalytics",{
     "@/lib/automatedOutreach":{statusLabel:value=>value},
-  },{data:{states:{completed:1},usage,total:1,leads:1,totalEnrolledLeads:8,rangeEnrolledLeads:2,estimatedSpendUsd:.01,unpricedRequests:0,pricingSnapshot:'test',daily:[{date:'2026-10-23',requests:3,inputTokens:1000,outputTokens:200,leads:1,enrolledLeads:2,completed:1,failed:0,estimatedSpendUsd:.01}],stages:[]},start:'2026-10-23',end:'2026-10-23'});
+  },{data:{states:{completed:1},usage,total:1,leads:1,totalEnrolledLeads:8,rangeEnrolledLeads:2,estimatedSpendUsd:.01,unpricedRequests:0,pricingSnapshot:'test',daily:[{date:'2026-10-22',requests:2,inputTokens:500,outputTokens:100,leads:1,enrolledLeads:1,completed:0,failed:1,estimatedSpendUsd:.005},{date:'2026-10-23',requests:3,inputTokens:1000,outputTokens:200,leads:1,enrolledLeads:2,completed:1,failed:0,estimatedSpendUsd:.01}],stages:[]},start:'2026-10-22',end:'2026-10-23'});
   assert.ok(view.all(node=>node.props?.children==='Total enrolled leads').length);
-  assert.ok(view.all(node=>node.type==='Bar'&&node.props?.dataKey==='enrolledLeads').length);
-  view.find(node=>node.type==='button'&&node.props?.children==='spend').props.onClick();view.render();
-  assert.ok(view.all(node=>node.type==='Area'&&node.props?.dataKey==='estimatedSpendUsd').length);
+  const plotted = view.all(node=>node.type==='Line').map(node=>node.props.dataKey);
+  assert.deepEqual(Array.from(plotted).sort(),['estimatedSpendUsd','leads','requests']);
+  const days=view.find(node=>node.type==='LineChart').props.data;
+  assert.equal(days[0].estimatedSpendUsd,.005);
+  assert.equal(days[1].requests,3);
+  assert.equal(view.all(node=>node.type==='YAxis').length,2);
+  assert.equal(view.all(node=>node.props?.['aria-label']==='Chart metric').length,0);
 });
 
 test("tracking filters scope API requests and clear dependent filters when department changes", () => {
