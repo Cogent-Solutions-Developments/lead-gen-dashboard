@@ -1,5 +1,7 @@
 "use client";
 
+import { CampaignListHeader, campaignListShellClassName, CampaignPageHeader } from "@/components/campaigns/CampaignListPresentation";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
@@ -1254,19 +1256,11 @@ function SuperAdminCampaignsPage() {
     return !["cancelled", "completed", "failed"].includes(String(campaign.status || "").toLowerCase());
   };
 
-  const listShell =
-    "flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-zinc-300/80 bg-white/32 backdrop-blur-[8px]";
+  const listShell = campaignListShellClassName;
 
   return (
     <div className="font-sans flex h-[calc(100dvh-3rem)] min-h-0 flex-col overflow-hidden bg-transparent p-1">
-      <div className="relative z-10 flex shrink-0 flex-col gap-4 border-b border-zinc-100/90 bg-transparent pb-6 backdrop-blur-[8px] sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-light leading-[1.12] tracking-[-0.025em] text-zinc-950 sm:text-4xl 2xl:text-5xl">Campaigns</h1>
-          <p className="mt-4 max-w-xl text-lg font-light leading-relaxed text-zinc-500">
-            Manage and track your lead generation workflows
-          </p>
-        </div>
-
+      <CampaignPageHeader title="Campaigns" description="Manage and track your lead generation workflows">
         <div className="flex items-center gap-3">
           <div ref={filterPanelRef} className="relative">
             <Button
@@ -1491,15 +1485,11 @@ function SuperAdminCampaignsPage() {
             </Link>
           ) : null}
         </div>
-      </div>
+      </CampaignPageHeader>
 
       <div className="mt-5 min-h-0 flex-1 pr-1">
         <div className={listShell}>
-          <div className="hidden grid-cols-[minmax(0,2.25fr)_minmax(250px,0.95fr)_minmax(300px,1fr)] items-center gap-6 border-b border-zinc-300/80 px-6 py-3.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 md:grid">
-            <span>Campaign</span>
-            <span>Metrics</span>
-            <span className="text-right">Actions</span>
-          </div>
+          <CampaignListHeader />
 
           <div ref={listViewportRef} className="min-h-0 flex-1 overflow-hidden">
             {loading && <div className="px-5 py-8 text-sm text-zinc-500">Loading campaigns...</div>}

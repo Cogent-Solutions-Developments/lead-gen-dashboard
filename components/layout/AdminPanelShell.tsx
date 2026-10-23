@@ -19,7 +19,11 @@ import {
   Tags,
   UserRound,
   UsersRound,
+  Factory,
+  Handshake,
+  BarChart3,
 } from "lucide-react";
+import { SidebarNavItem } from "@/components/layout/SidebarNavItem";
 import { SupernizoMark } from "@/components/brand/SupernizoMark";
 import { SupernizoWordmark } from "@/components/brand/SupernizoWordmark";
 import { Button } from "@/components/ui/button";
@@ -98,6 +102,14 @@ const adminTabs = [
   },
 ];
 
+const intelligenceTabs = [
+  { name: "Dashboard", href: "/admin/lead-intelligence", icon: LayoutDashboard, match: (path: string) => path === "/admin/lead-intelligence" },
+  { name: "Sales", href: "/admin/lead-intelligence/sales", icon: BarChart3, match: (path: string) => path.startsWith("/admin/lead-intelligence/sales") },
+  { name: "Delegate", href: "/admin/lead-intelligence/delegate", icon: Handshake, match: (path: string) => path.startsWith("/admin/lead-intelligence/delegate") },
+  { name: "Production", href: "/admin/lead-intelligence/production", icon: Factory, match: (path: string) => path.startsWith("/admin/lead-intelligence/production") },
+  { name: "Admin Panel", href: "/admin", icon: ShieldCheck, match: () => false },
+];
+
 export function AdminPanelShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -113,7 +125,7 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
 
   const visibleTabs = isManager
     ? adminTabs.filter((item) => item.href === "/admin/user-performance")
-    : adminTabs;
+    : pathname.startsWith("/admin/lead-intelligence") ? intelligenceTabs : adminTabs;
 
   const handleSignOut = async () => {
     try {
@@ -168,46 +180,7 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.05 * index }}
               >
-                <Link
-                  href={item.href}
-                  className="group block min-w-0"
-                  aria-label={sidebarExpanded ? undefined : item.name}
-                  title={sidebarExpanded ? undefined : item.name}
-                >
-                  <div
-                    className={`relative flex min-w-0 items-center py-2 transition-all duration-300 ${
-                      isActive
-                        ? "bg-white/10 text-white"
-                        : "text-white/40 hover:bg-white/5 hover:text-white/80"
-                    } ${sidebarExpanded ? "gap-4 px-5" : "justify-center px-0"}`}
-                  >
-                    {isActive ? (
-                      <motion.span
-                        layoutId="admin-sidebar-active-bar"
-                        className="absolute left-0 top-1/2 h-8 w-1.5 -translate-y-1/2 rounded-r-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.5)]"
-                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                      />
-                    ) : null}
-
-                    <span
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${
-                        isActive
-                          ? "bg-white/12 text-white"
-                          : "text-white/35 group-hover:bg-white/6 group-hover:text-white/70"
-                      }`}
-                    >
-                      <item.icon className="h-5 w-5" />
-                    </span>
-
-                    <span
-                      className={`min-w-0 truncate whitespace-nowrap text-base tracking-tight transition-all duration-200 ${
-                        isActive ? "font-medium" : "font-light"
-                      } ${sidebarExpanded ? "flex-1 opacity-100" : "w-0 overflow-hidden opacity-0"}`}
-                    >
-                      {item.name}
-                    </span>
-                  </div>
-                </Link>
+                <SidebarNavItem href={item.href} label={item.name} icon={item.icon} isActive={isActive} expanded={sidebarExpanded} compact={!pathname.startsWith("/admin/lead-intelligence")} activeIndicatorId="admin-sidebar-active-bar" />
               </motion.div>
             );
           })}
@@ -268,7 +241,7 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
           <div className="flex min-w-0 items-center gap-3">
             <div className="min-w-0">
               <SupernizoWordmark size="sm" />
-              <p className="text-xs text-sidebar-foreground/70">{isManager ? "Manager Panel" : isCeo ? "CEO Panel" : "Admin Panel"}</p>
+              <p className="text-xs text-sidebar-foreground/70">{isManager ? "Manager Panel" : isCeo ? "CEO Panel" : pathname.startsWith("/admin/lead-intelligence") ? "Status Outreach" : "Admin Panel"}</p>
             </div>
           </div>
 

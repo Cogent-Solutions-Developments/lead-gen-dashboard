@@ -25,15 +25,18 @@ function settingsBrowser(initialHref = "/settings") {
     if (onClick) actions.set(props["aria-label"], onClick);
     return React.createElement(tag, null, children);
   };
-  const sectionView = (section) => function MockSettingsSection({ onBack }) {
+  const sectionView = (section) => function MockSettingsSection({ onBack, initialDepartment }) {
     actions.set("All settings", onBack);
-    return React.createElement("section", { "data-settings-section": section });
+    return React.createElement("section", { "data-settings-section": section, "data-mail-group": initialDepartment });
   };
   const pageModule = { exports: {} };
   const dependencies = {
     react: React,
     "react/jsx-runtime": jsxRuntime,
-    "next/link": element("a"),
+    "next/link": ({ href, children }) => {
+      actions.set(href, () => { history.splice(position + 1); history.push(href); position += 1; });
+      return React.createElement("a", { href }, children);
+    },
     "next/navigation": {
       useSearchParams: () => new URL(history[position], "https://example.test").searchParams,
       useRouter: () => ({
@@ -51,6 +54,8 @@ function settingsBrowser(initialHref = "/settings") {
     "@/components/settings/OutreachCredentialSettings": { OutreachCredentialSettings: sectionView("credentials") },
     "@/components/settings/OutreachWhatsAppSettings": { OutreachWhatsAppSettings: sectionView("whatsapp") },
     "@/components/settings/OutreachMailWebhookSettings": { OutreachMailWebhookSettings: sectionView("outreach") },
+    "@/components/automated-outreach/OutreachOperations": { OutreachOperations: () => React.createElement("section", { "data-settings-section": "automated-outreach" }) },
+    "@/components/settings/SettingsBackButton": { SettingsBackButton: ({ onClick }) => { actions.set("All settings", onClick); return React.createElement("button", null, "All settings"); } },
     "@/components/ui/button": { Button: element("button") },
     "@/components/ui/card": { Card: element("div") },
     "@/lib/settingsNavigation": { buildSettingsHref, parseSettingsSection },
@@ -82,7 +87,7 @@ function settingsBrowser(initialHref = "/settings") {
 }
 
 test("each settings section can be restored from its URL after refresh", () => {
-  for (const section of ["outreach", "whatsapp", "credentials", "opt-out"]) {
+  for (const section of ["outreach", "whatsapp", "credentials", "opt-out", "automated-outreach"]) {
     const href = buildSettingsHref("", section);
     assert.equal(href, `/settings?section=${section}`);
 
@@ -119,7 +124,7 @@ for (const [section, label] of [["outreach", "Open Outreach Configuration"], ["o
     assert.match(refreshed.render(), /Content Generation/);
 
     browser.back();
-    assert.match(browser.render(), /Content Generation/);
+    assert.match(browser.render(), section === "automated-outreach" ? /data-settings-section="outreach"/ : /Content Generation/);
     browser.forward();
     assert.ok(browser.render().includes(`data-settings-section="${section}"`));
   });
@@ -140,4 +145,14 @@ test("credentials has an isolated page with the outreach navigation", () => {
   assert.match(browser.render(), /WhatsApp outreach/);
   browser.click("All settings");
   assert.equal(browser.href(), "/settings");
+});
+
+test("legacy status settings bookmarks open the Status Outreach mail group without an extra top tab", () => {
+  for (const url of ["/settings?section=automated-outreach", "/settings?section=outreach&department=status-outreach"]) {
+    const browser = settingsBrowser(url);
+    const markup = browser.render();
+    assert.match(markup, /data-settings-section="outreach"/);
+    assert.match(markup, /data-mail-group="status-outreach"/);
+    assert.doesNotMatch(markup, /href="[^"]*section=automated-outreach"/);
+  }
 });

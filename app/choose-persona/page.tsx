@@ -59,13 +59,11 @@ const workspaceCards = [
 
 function AdminRoleIllustration() {
   return (
-    <div className="relative mt-7 flex min-h-[14rem] flex-1 items-center justify-center overflow-hidden rounded-2xl border border-blue-100/80 bg-gradient-to-br from-blue-50/90 via-white to-indigo-50/80 px-5 py-4">
-      <div className="absolute -left-12 -top-16 h-40 w-40 rounded-full bg-blue-200/25 blur-3xl" />
-      <div className="absolute -bottom-20 -right-10 h-44 w-44 rounded-full bg-indigo-200/30 blur-3xl" />
+    <div className="pointer-events-none relative mt-5 flex min-h-0 flex-1 items-center justify-center">
       <svg
         aria-hidden="true"
         viewBox="0 0 360 220"
-        className="relative h-auto w-full max-w-[21rem]"
+        className="relative h-auto max-h-44 w-full max-w-[21rem]"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
@@ -166,17 +164,18 @@ export default function ChoosePersonaPage() {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto grid min-h-[calc(100dvh-5.25rem)] w-full max-w-7xl items-center gap-8 px-5 pb-8 sm:px-8 lg:grid-cols-[0.68fr_1.55fr] lg:gap-10">
+      <main className="relative z-10 mx-auto flex min-h-[calc(100dvh-5.25rem)] w-full max-w-7xl items-center px-5 py-8 sm:px-8">
+        <div className="grid w-full items-stretch gap-8 lg:grid-cols-[minmax(20rem,0.68fr)_minmax(0,1.55fr)] lg:gap-10">
         <motion.section
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col rounded-[2rem] border border-white/80 bg-white/75 p-7 shadow-[0_30px_80px_-58px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-9 lg:h-[31.5rem]"
+          className="flex min-w-0 flex-col rounded-[2rem] border border-white/80 bg-white/75 p-7 shadow-[0_30px_80px_-58px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-9"
         >
-          <h1 className="max-w-sm text-4xl font-semibold leading-[1.04] tracking-tight text-blue-950 sm:text-5xl">
+          <h1 className="max-w-sm text-4xl font-semibold leading-[1.04] tracking-tight text-blue-950 xl:text-5xl">
             Workspaces
           </h1>
 
-          <div className="mt-9">
+          <div className="mt-7">
             {isSuperAdmin ? (
               <Link
                 href="/admin"
@@ -199,10 +198,15 @@ export default function ChoosePersonaPage() {
               </Link>
             ) : null}
           </div>
+          {isSuperAdmin && (
+            <Link href="/admin/lead-intelligence" className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-white p-3.5 text-blue-950 transition hover:bg-blue-50">
+              <span className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50"><BarChart3 className="h-5 w-5 text-blue-600" /></span><span><span className="block text-base font-semibold">Status Outreach</span><span className="mt-0.5 block text-xs text-slate-500">Lead status & status-based messages</span></span></span><ArrowRight className="h-4 w-4 shrink-0" />
+            </Link>
+          )}
           <AdminRoleIllustration />
         </motion.section>
 
-        <section className="rounded-[2rem] border border-white/80 bg-white/45 p-4 shadow-[0_30px_80px_-62px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-5 lg:h-[31.5rem]">
+        <section className="flex min-w-0 flex-col rounded-[2rem] border border-white/80 bg-white/45 p-4 shadow-[0_30px_80px_-62px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-5">
           <div className="mb-4 px-1">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Departments</p>
@@ -210,7 +214,7 @@ export default function ChoosePersonaPage() {
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid flex-1 gap-3 sm:grid-cols-2">
             {availableWorkspaceCards.map((workspace, index) => {
               const Icon = workspace.icon;
               const isActive = activePersona === workspace.id;
@@ -247,6 +251,7 @@ export default function ChoosePersonaPage() {
             })}
           </div>
         </section>
+        </div>
       </main>
     </div>
   );

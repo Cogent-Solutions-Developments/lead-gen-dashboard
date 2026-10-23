@@ -1,5 +1,9 @@
 "use client";
 
+import { EmailSequenceTemplateEditor } from "@/components/campaigns/EmailSequenceTemplateEditor";
+
+import { LeadSheetPanel, LeadSheetFilterButtons, leadSheetToolbarClassName } from "@/components/leads/LeadSheetPresentation";
+
 import { useWhatsAppOutreach } from "@/hooks/useWhatsAppOutreach";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -3903,42 +3907,27 @@ function SuperAdminCampaignDetailPage() {
             {activeChannelSetup === "followups" ? (
               <div>
                 <div className="mb-5 flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-lg border border-violet-200 bg-violet-50"><MessageSquare className="h-5 w-5 text-violet-700" /></div><div><h3 className="text-sm font-semibold text-slate-950">Manual follow-up sequence</h3><p className="mt-0.5 text-xs text-slate-500">Variables: {"{{first_name}}"}, {"{{company}}"}, {"{{campaignName}}"}</p></div></div>{selectedFollowUpTemplate.updatedAt ? <p className="text-xs text-slate-400">Updated {formatDateTime(selectedFollowUpTemplate.updatedAt)}</p> : null}</div>
-                <div className="mb-4 flex flex-wrap gap-1.5">{FOLLOW_UP_STEPS.map((label, index) => { const stage = index + 1; const isSelected = selectedFollowUpTemplateStage === stage; const isConfigured = Boolean(followUpTemplates[stage]?.subject.trim() && followUpTemplates[stage]?.body.trim()); return <button key={label} type="button" onClick={() => setSelectedFollowUpTemplateStage(stage)} className={`rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-colors ${isSelected ? "border-violet-600 bg-violet-600 text-white" : "border-violet-200 bg-white text-violet-700 hover:border-violet-300 hover:bg-violet-50"}`}>{label}{isConfigured ? <span className={`ml-1.5 text-[9px] ${isSelected ? "text-white/75" : "text-emerald-600"}`}>●</span> : null}</button>; })}</div>
-                <div className="grid gap-4 xl:grid-cols-[minmax(15rem,0.7fr)_minmax(22rem,1.3fr)_auto] xl:items-end">
-                  <div><label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Subject</label><Input value={selectedFollowUpTemplate.subject} onChange={(event) => setFollowUpTemplates((previous) => ({ ...previous, [selectedFollowUpTemplateStage]: { ...previous[selectedFollowUpTemplateStage], subject: event.target.value } }))} disabled={isSavingFollowUpTemplate} placeholder={`e.g. ${FOLLOW_UP_STEPS[selectedFollowUpTemplateStage - 1]} — {{first_name}}`} className="h-10 border-violet-200 bg-white text-sm" /><label className="mt-3 flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={selectedFollowUpTemplate.isActive} onChange={(event) => setFollowUpTemplates((previous) => ({ ...previous, [selectedFollowUpTemplateStage]: { ...previous[selectedFollowUpTemplateStage], isActive: event.target.checked } }))} disabled={isSavingFollowUpTemplate} className="h-3.5 w-3.5 rounded border-violet-300 text-violet-600 focus:ring-violet-500" />Active for manual follow-ups</label></div>
-                  <div><label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Email body</label><textarea value={selectedFollowUpTemplate.body} onChange={(event) => setFollowUpTemplates((previous) => ({ ...previous, [selectedFollowUpTemplateStage]: { ...previous[selectedFollowUpTemplateStage], body: event.target.value } }))} disabled={isSavingFollowUpTemplate} placeholder={"Hi {{first_name}},\n\nI wanted to follow up on my earlier email about {{campaignName}}.\n\nWould you be open to a quick conversation?"} className="min-h-28 w-full resize-y rounded-md border border-violet-200 bg-white px-3 py-2 text-sm text-slate-950 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:cursor-not-allowed disabled:opacity-60" /></div>
-                  <div className="flex flex-wrap gap-2 xl:w-40 xl:flex-col"><Button type="button" onClick={() => void handleSaveFollowUpTemplate()} disabled={isSavingFollowUpTemplate || !selectedFollowUpTemplate.subject.trim() || !selectedFollowUpTemplate.body.trim()} className="h-10 bg-violet-600 px-3.5 text-white hover:bg-violet-700">{isSavingFollowUpTemplate ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save template</Button><Button type="button" variant="ghost" onClick={() => void handleClearFollowUpTemplate()} disabled={isSavingFollowUpTemplate || (!selectedFollowUpTemplate.id && !selectedFollowUpTemplate.subject && !selectedFollowUpTemplate.body)} className="h-10 border border-violet-200 bg-white px-3 text-violet-700 hover:bg-violet-50"><Trash2 className="mr-2 h-4 w-4" />Clear</Button></div>
-                </div>
+                <EmailSequenceTemplateEditor
+                  steps={FOLLOW_UP_STEPS.map((label, index) => ({label, configured: Boolean(followUpTemplates[index + 1]?.subject.trim() && followUpTemplates[index + 1]?.body.trim())}))}
+                  selected={selectedFollowUpTemplateStage - 1} onSelect={index => setSelectedFollowUpTemplateStage(index + 1)}
+                  subject={selectedFollowUpTemplate.subject} body={selectedFollowUpTemplate.body} disabled={isSavingFollowUpTemplate}
+                  onSubjectChange={subject => setFollowUpTemplates(previous => ({...previous, [selectedFollowUpTemplateStage]: {...previous[selectedFollowUpTemplateStage], subject}}))}
+                  onBodyChange={body => setFollowUpTemplates(previous => ({...previous, [selectedFollowUpTemplateStage]: {...previous[selectedFollowUpTemplateStage], body}}))}
+                  bodyPlaceholder={"Hi {{first_name}},\n\nI wanted to follow up on my earlier email about {{campaignName}}.\n\nWould you be open to a quick conversation?"}
+                  subjectExtra={<label className="mt-3 flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={selectedFollowUpTemplate.isActive} onChange={(event) => setFollowUpTemplates((previous) => ({ ...previous, [selectedFollowUpTemplateStage]: { ...previous[selectedFollowUpTemplateStage], isActive: event.target.checked } }))} disabled={isSavingFollowUpTemplate} className="h-3.5 w-3.5 rounded border-violet-300 text-violet-600 focus:ring-violet-500" />Active for manual follow-ups</label>}
+                  actions={<><Button type="button" onClick={() => void handleSaveFollowUpTemplate()} disabled={isSavingFollowUpTemplate || !selectedFollowUpTemplate.subject.trim() || !selectedFollowUpTemplate.body.trim()} className="h-10 bg-violet-600 px-3.5 text-white hover:bg-violet-700">{isSavingFollowUpTemplate ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save template</Button><Button type="button" variant="ghost" onClick={() => void handleClearFollowUpTemplate()} disabled={isSavingFollowUpTemplate || (!selectedFollowUpTemplate.id && !selectedFollowUpTemplate.subject && !selectedFollowUpTemplate.body)} className="h-10 border border-violet-200 bg-white px-3 text-violet-700 hover:bg-violet-50"><Trash2 className="mr-2 h-4 w-4" />Clear</Button></>}
+                />
               </div>
             ) : null}
           </div>
         </Card>
       ) : null}
 
-      <Card className="campaign-leads-panel relative isolate mt-3 flex flex-col overflow-hidden rounded-2xl border border-[rgb(255_255_255_/_0.82)] bg-[linear-gradient(160deg,rgba(255,255,255,0.84)_0%,rgba(250,252,255,0.66)_56%,rgba(240,246,253,0.56)_100%)] backdrop-blur-[16px] [backdrop-filter:saturate(175%)_blur(16px)] shadow-[0_0_0_1px_rgba(255,255,255,0.82),0_0_12px_-9px_rgba(2,10,27,0.58),0_0_6px_-5px_rgba(15,23,42,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_0_rgba(221,230,244,0.74),inset_0_0_22px_rgba(255,255,255,0.2)]">
-        <div className="pointer-events-none absolute -right-20 -top-24 h-60 w-60 rounded-full bg-gradient-to-br from-sky-300/34 via-blue-500/12 to-blue-700/0 blur-3xl dark:hidden" />
-        <div className="pointer-events-none absolute -left-24 -bottom-20 h-56 w-56 rounded-full bg-gradient-to-tr from-blue-300/20 via-sky-200/10 to-transparent blur-3xl dark:hidden" />
-
+      <LeadSheetPanel>
         <div className="relative z-[6] flex flex-col gap-2 px-6 pt-0.5 sm:flex-row sm:items-center sm:justify-between">
           {canManageLeadActions ? (
-            <div className="inline-flex flex-wrap items-center rounded-xl border border-zinc-300/90 bg-white/60 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_8px_-10px_rgba(2,10,27,0.34)] backdrop-blur-[6px] dark:border-zinc-700 dark:bg-zinc-800/90 dark:shadow-none">
-              {leadFilterTabs.map((tab) => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setLeadFilter(tab.key)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    leadFilter === tab.key
-                      ? "bg-zinc-900 text-white shadow-[0_6px_10px_-12px_rgba(2,10,27,0.42)]"
-                      : "text-zinc-600 hover:bg-white hover:text-zinc-900"
-                  }`}
-                >
-                  {tab.label}
-                  <span className={`ml-1.5 text-[10px] ${leadFilter === tab.key ? "text-white/80" : "text-zinc-400"}`}>
-                    {tab.count}
-                  </span>
-                </button>
-              ))}
+            <div className={leadSheetToolbarClassName}>
+              <LeadSheetFilterButtons items={leadFilterTabs} value={leadFilter} onChange={setLeadFilter} />
 
               <span className="mx-1.5 h-4 w-px bg-zinc-300/80" aria-hidden="true" />
 
@@ -4785,7 +4774,7 @@ function SuperAdminCampaignDetailPage() {
             </div>
           </div>
         )}
-      </Card>
+      </LeadSheetPanel>
 
       {/* Hidden file inputs (separate) */}
       <input

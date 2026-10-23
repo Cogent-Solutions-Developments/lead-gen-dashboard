@@ -104,7 +104,9 @@ function SettingsCard({
 function SettingsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const activeSection = parseSettingsSection(searchParams.get("section"));
+  const requestedSection = parseSettingsSection(searchParams.get("section"));
+  const activeSection = requestedSection === "automated-outreach" ? "outreach" : requestedSection;
+  const statusMailGroup = requestedSection === "automated-outreach" || searchParams.get("department") === "status-outreach";
 
   const navigateToSection = (section: SettingsSection) => {
     router.push(buildSettingsHref(searchParams.toString(), section), { scroll: false });
@@ -133,7 +135,7 @@ function SettingsContent() {
                 </Link>
               ))}
             </nav>
-            {activeSection === "outreach" ? <OutreachMailWebhookSettings onBack={() => navigateToSection(null)} /> : activeSection === "whatsapp" ? <OutreachWhatsAppSettings onBack={() => navigateToSection(null)} /> : <OutreachCredentialSettings onBack={() => navigateToSection(null)} />}
+            {activeSection === "outreach" ? <OutreachMailWebhookSettings key={statusMailGroup ? "status-outreach" : "sales"} initialDepartment={statusMailGroup ? "status-outreach" : "sales"} onBack={() => navigateToSection(null)} /> : activeSection === "whatsapp" ? <OutreachWhatsAppSettings onBack={() => navigateToSection(null)} /> : <OutreachCredentialSettings onBack={() => navigateToSection(null)} />}
           </div>
         ) : activeSection === "opt-out" ? (
           <MarketingOptOutSettings onBack={() => navigateToSection(null)} />
@@ -177,9 +179,9 @@ function SettingsContent() {
               ariaLabel="Open Outreach Configuration"
               icon={WebhooksLogoIcon}
               title="Outreach Configuration"
-              description="Manage mail webhooks and WhatsApp outreach independently."
+              description="Manage mail webhooks, WhatsApp, and Status Outreach."
               detailLabel="Available configuration"
-              detailTitle="Mail webhook and WhatsApp"
+              detailTitle="Mail, WhatsApp, and Status Outreach"
               detailDescription="Sales, Delegate, and Production departments"
               delay={0.14}
             />

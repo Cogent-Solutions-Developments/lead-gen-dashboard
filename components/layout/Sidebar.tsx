@@ -39,6 +39,7 @@ import { availablePersonasForUser, businessWorkspaceForRole, clearAuthSession, g
 import { canAccessAutocall } from "@/lib/autocall-access";
 import { useAuth } from "@/hooks/useAuth";
 import { UserAvatar } from "@/components/profile/UserAvatar";
+import { SidebarNavItem } from "@/components/layout/SidebarNavItem";
 import { SupernizoMark } from "@/components/brand/SupernizoMark";
 import { SupernizoWordmark } from "@/components/brand/SupernizoWordmark";
 import { toast } from "sonner";
@@ -239,39 +240,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 * index }}
             >
-              <Link href={item.href} className="group block min-w-0">
-                <div
-                  className={`relative flex min-w-0 items-center py-3.5 transition-all duration-300 ${
-                    isActive
-                      ? "bg-white/10 text-white"
-                      : "text-white/40 hover:bg-white/5 hover:text-white/80"
-                  } ${isExpanded ? "gap-4 px-5" : "justify-center px-0"}`}
-                >
-                  {/* Active Indicator Bar */}
-                  {isActive && (
-                    <motion.div
-                      layoutId="sidebar-active-bar"
-                      className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1.5 bg-white rounded-r-full shadow-[0_0_15px_rgba(255,255,255,0.5)]"
-                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    />
-                  )}
-                  
-                  <span
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${
-                      isActive ? "bg-white/12 text-white" : "text-white/35 group-hover:bg-white/6 group-hover:text-white/70"
-                    }`}
-                  >
-                    <item.icon className="h-5 w-5" />
-                  </span>
-                  
-                  <span className={`min-w-0 truncate whitespace-nowrap text-base tracking-tight transition-all duration-200 ${
-                    isActive ? "font-medium" : "font-light"
-                  } ${isExpanded ? "flex-1 opacity-100" : "w-0 overflow-hidden opacity-0"
-                  }`}>
-                    {isSuperAdmin || item.ceoOnly ? item.name : item.normalLabel ?? item.name}
-                  </span>
-                </div>
-              </Link>
+              <SidebarNavItem href={item.href} label={isSuperAdmin || item.ceoOnly ? item.name : item.normalLabel ?? item.name} icon={item.icon} isActive={isActive} expanded={isExpanded} activeIndicatorId="sidebar-active-bar" />
             </motion.div>
           );
         })}
