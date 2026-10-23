@@ -139,6 +139,12 @@ test("content settings tabs mount only their own control center and retain direc
   selected = "status-outreach"; view.render();
   assert.equal(view.all(node => node.type === "ContentGenerationControlCenter").length, 0);
   assert.equal(view.all(node => node.type === "StatusOutreachControlCenter").length, 1);
+  selected = "status-outreach&view=delivery"; view.render();
+  assert.equal(view.find(node => node.type === "StatusOutreachControlCenter").props.view, "delivery");
+  const sectionNav = view.find(node => node.type === "nav" && node.props?.["aria-label"] === "Status Outreach sections");
+  assert.equal(sectionNav.props.children.length, 3);
+  assert.equal(view.find(node => node.props?.href === "/settings/content-generation?tab=status-outreach&view=delivery").props["aria-current"], "page");
+  assert.equal(view.find(node => node.type === "AdminPanelShell").props.statusOutreachView, undefined);
 });
 
 test("event mode toggle sends its department, event and revision without altering lead status", async () => {
@@ -158,31 +164,37 @@ test("run monitoring offers recovery only for recoverable generation failures", 
   const calls=[];
   const usage={requests:3,inputTokens:100,outputTokens:50,unmeasuredRequests:0,reservedTokens:0};
   const run={id:'failed-run',eventName:'Summit',leadName:'Person',department:'sales',step:1,state:'failed',stage:'writer',completedStages:['planner'],usage,error:'Writer failed',recoverable:true,updatedAt:null};
-  const view=componentHarness("components/automated-outreach/StatusOutreachControlCenter.tsx", "StatusOutreachControlCenter", {
-    "@/hooks/useOutreachResource":{useOutreachResource:()=>({data:{states:{failed:1},usage,total:2,daily:[],stages:[],items:[run,{...run,id:'handed-off',state:'completed',recoverable:false}]},reload(){},error:null})},
+  const view=componentHarness("components/automated-outreach/StatusOutreachRuns.tsx", "StatusOutreachRuns", {
     "@/lib/automatedOutreach":{statusLabel:value=>value,outreachDate:()=>''},
-    "@/lib/automatedOutreachApi":{recoverStatusOutreachRun:async id=>calls.push(id)},
-  });
-  const recovery=view.all(node=>node.type==='Button'&&node.props?.children?.[1]==='Recover');
+  },{data:{states:{failed:1,completed:1},total:2,itemTotal:2,items:[run,{...run,id:'handed-off',state:'completed',recoverable:false}]},page:1,onPage(){},filter:'all',onFilter(){},search:'',onSearch(){},recovering:null,onRecover:id=>calls.push(id),actionError:null,notice:null});
+  const recovery=view.all(node=>node.type==='Button'&&node.props?.children?.some?.(child=>child==='Recover'));
   assert.equal(recovery.length,1);
-  recovery[0].props.onClick(); await new Promise(resolve=>setImmediate(resolve));view.render();
+  recovery[0].props.onClick();
   assert.deepEqual(calls,['failed-run']);
-  assert.ok(view.find(node=>node.props?.role==='status'));
+  assert.ok(view.find(node=>node.props?.['aria-label']==='Filter runs'));
 });
 
-test("delivery tracking and history remain available below content runs", () => {
+test("delivery tracking has its own Status Outreach view", () => {
   const view = componentHarness("components/automated-outreach/StatusOutreachControlCenter.tsx", "StatusOutreachControlCenter", {
     "@/hooks/useOutreachResource": {useOutreachResource: () => ({data:null,error:"Unavailable",reload(){}})},
-  });
+  },{view:'delivery'});
   assert.equal(view.all(node => node.type === "OutreachOperations").length, 1);
   const tracking = componentHarness("components/automated-outreach/OutreachOperations.tsx", "OutreachOperations", {});
   assert.equal(tracking.all(node => node.type === "OutreachDeliverySettings").length, 0);
-  const sections = tracking.all(node => node.type === "details");
-  assert.equal(sections.length, 1);
-  sections.forEach(node => node.props.onToggle({currentTarget:{open:true}}));
-  tracking.render();
+  assert.equal(tracking.all(node => node.type === "details").length, 0);
   assert.equal(tracking.all(node => node.type === "OutreachLeadTable").length, 1);
   assert.equal(tracking.all(node => node.type === "OutreachAuditLog").length, 0);
+});
+
+test("Status Outreach analytics separates total enrolled leads from agent runs and switches chart metrics", () => {
+  const usage={requests:3,inputTokens:1000,outputTokens:200,unmeasuredRequests:0,reservedTokens:0};
+  const view=componentHarness("components/automated-outreach/StatusOutreachAnalytics.tsx","StatusOutreachAnalytics",{
+    "@/lib/automatedOutreach":{statusLabel:value=>value},
+  },{data:{states:{completed:1},usage,total:1,leads:1,totalEnrolledLeads:8,rangeEnrolledLeads:2,estimatedSpendUsd:.01,unpricedRequests:0,pricingSnapshot:'test',daily:[{date:'2026-10-23',requests:3,inputTokens:1000,outputTokens:200,leads:1,enrolledLeads:2,completed:1,failed:0,estimatedSpendUsd:.01}],stages:[]},start:'2026-10-23',end:'2026-10-23'});
+  assert.ok(view.all(node=>node.props?.children==='Total enrolled leads').length);
+  assert.ok(view.all(node=>node.type==='Bar'&&node.props?.dataKey==='enrolledLeads').length);
+  view.find(node=>node.type==='button'&&node.props?.children==='spend').props.onClick();view.render();
+  assert.ok(view.all(node=>node.type==='Area'&&node.props?.dataKey==='estimatedSpendUsd').length);
 });
 
 test("tracking filters scope API requests and clear dependent filters when department changes", () => {

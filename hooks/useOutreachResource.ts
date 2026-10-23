@@ -4,14 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { apiClient } from "@/lib/apiClient";
 import { OUTREACH_API } from "@/lib/automatedOutreachApi";
 
-export function useOutreachResource<T>(path: string, refreshInterval = 30000) {
-  const [result, setResult] = useState<{ path: string; data: T | null; error: string | null }>({ path, data: null, error: null });
+export function useOutreachResource<T>(path: string | null, refreshInterval = 30000) {
+  const [result, setResult] = useState<{ path: string | null; data: T | null; error: string | null }>({ path, data: null, error: null });
   const [refreshing, setRefreshing] = useState(false);
   const [version, setVersion] = useState(0);
   const sequence = useRef(0);
   const reload = useCallback(() => setVersion((value) => value + 1), []);
 
   useEffect(() => {
+    if (!path) return;
     const controller = new AbortController();
     let active = true;
     let inFlight = false;
