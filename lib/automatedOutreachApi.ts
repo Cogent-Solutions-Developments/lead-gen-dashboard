@@ -32,7 +32,7 @@ export async function saveOutreachDeliveryConfiguration(payload: OutreachDeliver
 }
 
 export async function setEventOutreach(department: OutreachDepartment, eventKey: string, enabled: boolean, revision: number) {
-  return (await apiClient.put(`${OUTREACH_API}/event-outreach`, { department, eventKey, enabled, revision })).data;
+  return (await apiClient.put<{ enabled: boolean; revision: number }>(`${OUTREACH_API}/event-outreach`, { department, eventKey, enabled, revision })).data;
 }
 export async function recoverStatusOutreachRun(id: string) {
   return (await apiClient.post(`${OUTREACH_API}/content/runs/${encodeURIComponent(id)}/recover`, {})).data;
