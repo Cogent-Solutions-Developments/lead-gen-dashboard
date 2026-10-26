@@ -314,21 +314,21 @@ export function OutreachMailWebhookSettings({ onBack, initialDepartment = "sales
             <div><h3 className="font-semibold text-slate-900">Add {selectedSummary.label} webhook</h3><p className="text-sm text-slate-500">Enter the full URL once. Saved webhooks are masked after creation.</p></div>
             {selectedSummary.activeWebhookCount > 1 ? <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700"><RotateCw className="h-3.5 w-3.5" />Sequential rotation enabled</span> : null}
           </div>
-          <form className="grid gap-3 lg:grid-cols-[minmax(220px,0.65fr)_minmax(360px,1.35fr)_auto_auto] lg:items-end" onSubmit={handleCreate}>
-            <div className="space-y-1">
+          <form className="grid gap-3 lg:grid-cols-[minmax(0,0.65fr)_minmax(0,1.35fr)_auto_auto] lg:gap-y-1" onSubmit={handleCreate}>
+            <div className="grid min-w-0 gap-1 lg:row-span-3 lg:grid-rows-subgrid">
               <label className="block text-sm font-medium text-slate-700" htmlFor="mail-webhook-name">Webhook name</label>
-              <Input id="mail-webhook-name" value={webhookName} onChange={(event) => { setWebhookName(event.target.value); setNameCustomized(true); }} maxLength={120} placeholder="Sales Mail Webhook 1" autoComplete="off" disabled={creating} required />
+              <Input id="mail-webhook-name" className="h-10" value={webhookName} onChange={(event) => { setWebhookName(event.target.value); setNameCustomized(true); }} maxLength={120} placeholder="Sales Mail Webhook 1" autoComplete="off" disabled={creating} required />
               <p className="text-xs text-slate-500">Unique suggestion — edit it if you prefer another name.</p>
             </div>
-            <div className="space-y-1">
+            <div className="grid min-w-0 gap-1 lg:row-span-3 lg:grid-rows-subgrid">
               <label className="block text-sm font-medium text-slate-700" htmlFor="mail-webhook-url">Make.com webhook URL</label>
-              <Input id="mail-webhook-url" type="url" value={webhookUrl} onChange={(event) => setWebhookUrl(event.target.value)} placeholder="https://hook.make.com/..." autoComplete="off" disabled={creating} required />
+              <Input id="mail-webhook-url" className="h-10" type="url" value={webhookUrl} onChange={(event) => setWebhookUrl(event.target.value)} placeholder="https://hook.make.com/..." autoComplete="off" disabled={creating} required />
               <p className="text-xs text-slate-500">Stored securely and masked after saving.</p>
             </div>
-            <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700">
+            <label className="flex h-10 items-center gap-2 whitespace-nowrap rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 lg:col-start-3 lg:row-start-2">
               <input type="checkbox" checked={newWebhookActive} onChange={(event) => setNewWebhookActive(event.target.checked)} disabled={creating} className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900" />Active now
             </label>
-            <Button type="submit" disabled={creating || webhookName.trim().length < 3 || !webhookUrl.trim()} className="h-10">{creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Webhook className="mr-2 h-4 w-4" />}Add webhook</Button>
+            <Button type="submit" disabled={creating || webhookName.trim().length < 3 || !webhookUrl.trim()} className="h-10 lg:col-start-4 lg:row-start-2">{creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Webhook className="mr-2 h-4 w-4" />}Add webhook</Button>
           </form>
         </div>
 
