@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import {
   CalendarDays,
   ClipboardCheck,
@@ -24,9 +24,9 @@ import {
   BarChart3,
 } from "lucide-react";
 import { SidebarNavItem } from "@/components/layout/SidebarNavItem";
+import { MobileNavigation } from "@/components/layout/MobileNavigation";
 import { SupernizoMark } from "@/components/brand/SupernizoMark";
 import { SupernizoWordmark } from "@/components/brand/SupernizoWordmark";
-import { Button } from "@/components/ui/button";
 import { revokeAutocallSession, clearAuthSession, isCeoRole, isManagerRole } from "@/lib/auth";
 import { clearPersona } from "@/lib/persona";
 import { useAuth } from "@/hooks/useAuth";
@@ -236,52 +236,18 @@ export function AdminPanelShell({ children }: { children: React.ReactNode }) {
         </div>
       </motion.aside>
 
-      <div className="sidebar-modern fixed inset-x-0 top-0 z-40 border-b border-white/10 px-3 py-3 text-sidebar-foreground lg:hidden">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="min-w-0">
-              <SupernizoWordmark size="sm" />
-              <p className="text-xs text-sidebar-foreground/70">{isManager ? "Manager Panel" : isCeo ? "CEO Panel" : pathname.startsWith("/admin/lead-intelligence") ? "Status Outreach" : "Admin Panel"}</p>
-            </div>
-          </div>
-
-          <Button
-            variant="ghost"
-            onClick={handleSignOut}
-            className="h-10 shrink-0 rounded-full bg-white/10 px-3 text-sidebar-foreground/80 hover:bg-white/15 hover:text-sidebar-accent-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-            <span className="sr-only">Sign out</span>
-          </Button>
-        </div>
-
-        <nav className="scrollbar-hide mt-3 flex gap-2 overflow-x-auto pb-1">
-          {visibleTabs.map((item) => {
-            const isActive = item.match(pathname);
-            return (
-              <Link key={item.name} href={item.href} className="shrink-0">
-                <Button
-                  variant="ghost"
-                  className={`h-10 gap-2 rounded-full border px-3 text-sm ${
-                    isActive
-                      ? "border-white/70 bg-white text-zinc-950"
-                      : "border-white/20 bg-white/10 text-sidebar-foreground/85 hover:bg-white/15 hover:text-sidebar-accent-foreground"
-                  }`}
-                >
-                  <item.icon className="h-4 w-4" />
-                  <span>{item.name}</span>
-                </Button>
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
+      <MobileNavigation
+        title={isManager ? "Manager Panel" : pathname.startsWith("/admin/lead-intelligence") ? "Status Outreach" : "Admin Panel"}
+        items={visibleTabs.map((item) => ({ ...item, isActive: item.match(pathname) }))}
+        accountHref="/choose-persona"
+        accountLabel={user?.username || "Workspaces"}
+        onSignOut={handleSignOut}
+      />
 
       <main
-        className={`min-h-screen overflow-x-hidden bg-transparent p-4 pt-32 transition-[margin] duration-300 ease-out sm:p-5 sm:pt-32 lg:p-6 ${
-          sidebarExpanded ? "lg:ml-72" : "lg:ml-24"
+        className={`min-h-screen min-w-0 overflow-x-hidden bg-transparent p-4 pt-24 [--app-sidebar-width:0rem] transition-[margin] duration-300 ease-out sm:p-5 sm:pt-24 lg:p-6 ${
+          sidebarExpanded ? "lg:ml-72 lg:[--app-sidebar-width:18rem]" : "lg:ml-24 lg:[--app-sidebar-width:6rem]"
         }`}
-        style={{ "--app-sidebar-width": sidebarExpanded ? "18rem" : "6rem" } as CSSProperties}
       >
         {children}
       </main>

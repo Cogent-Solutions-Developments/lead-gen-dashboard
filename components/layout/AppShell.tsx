@@ -1,7 +1,7 @@
 "use client";
 
 import { validateSessionOnReload, watchSessionValidation } from "@/lib/session-validation";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ReleaseAnnouncement } from "@/components/layout/ReleaseAnnouncement";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -296,10 +296,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           onHoverChange={setSidebarHovered}
         />
         <main
-          className={`min-h-screen bg-transparent p-6 transition-[margin] duration-300 ease-out ${
-            sidebarExpanded ? "ml-72" : "ml-24"
+          className={`min-h-screen min-w-0 bg-transparent p-4 pt-24 [--app-sidebar-width:0rem] transition-[margin] duration-300 ease-out sm:px-6 lg:p-6 ${
+            sidebarExpanded ? "lg:ml-72 lg:[--app-sidebar-width:18rem]" : "lg:ml-24 lg:[--app-sidebar-width:6rem]"
           }`}
-          style={{ "--app-sidebar-width": sidebarExpanded ? "18rem" : "6rem" } as CSSProperties}
         >
           {children}
         </main>
@@ -342,10 +341,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         onHoverChange={setSidebarHovered}
       />
       <main
-        className={`min-h-screen bg-transparent transition-[margin] duration-300 ease-out ${
-          sidebarExpanded ? "ml-72" : "ml-24"
-        } ${isFlushContentRoute ? "p-0" : "p-6"}`}
-        style={{ "--app-sidebar-width": sidebarExpanded ? "18rem" : "6rem" } as CSSProperties}
+        className={`min-h-screen min-w-0 bg-transparent [--app-sidebar-width:0rem] transition-[margin] duration-300 ease-out ${
+          sidebarExpanded ? "lg:ml-72 lg:[--app-sidebar-width:18rem]" : "lg:ml-24 lg:[--app-sidebar-width:6rem]"
+        } ${isFlushContentRoute ? "p-0 pt-20 lg:pt-0" : "p-4 pt-24 sm:px-6 lg:p-6"}`}
       >
         {children}
       </main>
