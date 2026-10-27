@@ -447,6 +447,7 @@ export async function listMyEventLeads(canonicalEventKey: string, params?: Event
   const { data } = await apiClientDelegateSales.get<EventLeadListResponse>(
     `/api/delegate-sales/my-leads/events/${encodeURIComponent(canonicalEventKey)}/leads`,
     {
+      signal: params?.signal,
       params: {
         limit: params?.limit,
         offset: params?.offset,
@@ -551,6 +552,7 @@ export async function listEventLeads(canonicalEventKey: string, params?: EventLe
   const { data } = await apiClientDelegateSales.get<EventLeadListResponse>(
     `/api/delegate-sales/events/${encodeURIComponent(canonicalEventKey)}/leads`,
     {
+      signal: params?.signal,
       params: {
         limit: params?.limit,
         offset: params?.offset,
