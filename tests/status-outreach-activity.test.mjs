@@ -30,6 +30,44 @@ function harness(path, name, imports, props = {}, globals = {}) {
 const mail = { sent: 9, sent24h: 2, awaitingConfirmation: 3, scheduledLeads: 2, needsAttention: 1, pausedLeads: 1 };
 const data = { items: [{ key: "proposal-sent", label: "Proposal Sent", count: 7, updated24h: 2, lastUpdatedAt: null, mail }], events: [{ key: "summit", name: "Summit" }], total: 7, updated24h: 2, asOf: "2026-10-21T10:00:00Z", mail };
 const normal = { OUTREACH_DEPARTMENTS: [{ key: "sales", label: "Sales" }], statusLabel: x => x };
+
+test("Sri Lanka date ranges include both days and use local calendar presets", () => {
+  const now = new Date("2026-10-27T20:00:00Z"); // Already October 28 in Sri Lanka.
+  assert.deepEqual(activity.statusActivityDatePreset(1, now), { startDate: "2026-10-28", endDate: "2026-10-28" });
+  assert.deepEqual(activity.statusActivityDatePreset(7, now), { startDate: "2026-10-22", endDate: "2026-10-28" });
+  assert.deepEqual(activity.statusActivityDatePreset(30, new Date("2026-03-01T05:00:00Z")), { startDate: "2026-01-31", endDate: "2026-03-01" });
+  const bounds = activity.statusActivityDateBounds({ startDate: "2026-10-27", endDate: "2026-10-27" });
+  assert.equal(new Date(bounds.start).toISOString(), "2026-10-26T18:30:00.000Z");
+  assert.equal(new Date(bounds.endExclusive - 1).toISOString(), "2026-10-27T18:29:59.999Z");
+  assert.equal(new Date(bounds.endExclusive).toISOString(), "2026-10-27T18:30:00.000Z");
+  assert.match(activity.statusActivityDateError({ startDate: "2026-02-30", endDate: "2026-03-01" }), /valid/);
+  assert.match(activity.statusActivityDateError({ startDate: "2026-10-28", endDate: "2026-10-27" }), /on or before/);
+});
+
+test("date drafts only change the chart and drill-down scope after Apply", () => {
+  let path;
+  const view = harness("components/automated-outreach/StatusActivityChart.tsx", "StatusActivityChart", {
+    "@/lib/automatedOutreach": normal, "@/lib/statusOutreachActivity": activity,
+    "@/hooks/useStatusActivity": { useStatusActivity: value => { path = value; return { data, reload() {} }; } },
+  });
+  const original = path;
+  const dateInput = label => view.find(node => node.props?.["aria-label"] === label);
+  dateInput("From date").props.onChange({ target: { value: "2026-10-01" } }); view.render();
+  dateInput("To date").props.onChange({ target: { value: "2026-10-03" } }); view.render();
+  assert.equal(path, original);
+  view.find(node => node.props?.["aria-label"]?.startsWith("Proposal Sent:")).props.onClick(); view.render();
+  view.find(node => node.props?.["aria-label"] === "Filter by latest status update date").props.onSubmit({ preventDefault() {} }); view.render();
+  const query = new URLSearchParams(path.split("?")[1]);
+  assert.equal(query.get("startDate"), "2026-10-01");
+  assert.equal(query.get("endDate"), "2026-10-03");
+  assert.equal(query.get("timezone"), "Asia/Colombo");
+  assert.equal(view.all(node => node.type === "StatusActivityDrawer").length, 0);
+  view.find(node => node.props?.["aria-label"]?.startsWith("Proposal Sent:")).props.onClick(); view.render();
+  assert.equal(view.find(node => node.type === "StatusActivityDrawer").props.range.startDate, "2026-10-01");
+  dateInput("From date").props.onChange({ target: { value: "2026-10-05" } }); view.render();
+  assert.equal(view.find(node => node.type === "button" && node.props.children === "Apply").props.disabled, true);
+  assert.ok(view.find(node => node.props?.id === "status-date-error"));
+});
 test("chart filter scope resets the event and opens the selected status without navigation", () => {
   let path;
   const view = harness("components/automated-outreach/StatusActivityChart.tsx", "StatusActivityChart", {
@@ -44,6 +82,11 @@ test("chart filter scope resets the event and opens the selected status without 
   assert.equal(view.find(node => node.type === "StatusActivityDrawer").props.status.key, "proposal-sent");
   view.all(node => node.type === "select")[1].props.onChange({ target: { value: "summit" } }); view.render();
   assert.match(path, /eventKey=summit/);
+  assert.equal(view.find(node => node.type === "StatusActivityReportDownload").props.filters.eventKey, "summit");
+  view.all(node => node.type === "select")[1].props.onChange({ target: { value: "" } }); view.render();
+  assert.doesNotMatch(path, /eventKey/);
+  assert.equal(view.find(node => node.type === "StatusActivityReportDownload").props.filters.eventKey, "");
+  view.all(node => node.type === "select")[1].props.onChange({ target: { value: "summit" } }); view.render();
   view.all(node => node.type === "select")[0].props.onChange({ target: { value: "sales" } }); view.render();
   assert.match(path, /department=sales/); assert.doesNotMatch(path, /eventKey/);
   assert.equal(view.all(node => node.type === "StatusActivityDrawer").length, 0);

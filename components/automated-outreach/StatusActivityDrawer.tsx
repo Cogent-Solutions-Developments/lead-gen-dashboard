@@ -4,14 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowDownWideNarrow, ArrowUpRight, RefreshCw, Search, X } from "lucide-react";
 import { statusLabel } from "@/lib/automatedOutreach";
-import { statusActivityPath, statusActivityTime, type StatusActivityLead, type StatusActivityPage } from "@/lib/statusOutreachActivity";
+import { STATUS_ACTIVITY_TIME_ZONE, statusActivityPath, statusActivityTime, type StatusActivityDateRange, type StatusActivityLead, type StatusActivityPage } from "@/lib/statusOutreachActivity";
 import { useStatusActivity } from "@/hooks/useStatusActivity";
 import { StatusActivityPagination } from "./StatusActivityPagination";
 import { StatusLeadDetails } from "./StatusLeadDetails";
 import styles from "./StatusActivityDrawer.module.css";
 
-export function StatusActivityDrawer({ status, department, eventKey, eventName, onClose }: {
-  status: { key: string; label: string }; department: string; eventKey: string; eventName: string; onClose: () => void;
+export function StatusActivityDrawer({ status, department, eventKey, eventName, onClose, range }: {
+  range?: StatusActivityDateRange; status: { key: string; label: string }; department: string; eventKey: string; eventName: string; onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const list = useRef<HTMLDivElement>(null);
@@ -21,7 +21,7 @@ export function StatusActivityDrawer({ status, department, eventKey, eventName, 
   const [draft, setDraft] = useState("");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const query = statusActivityPath(department, eventKey, { status: status.key, search, offset: String((page - 1) * pageSize), limit: String(pageSize) });
+  const query = statusActivityPath(department, eventKey, { ...(range ? { ...range, timezone: STATUS_ACTIVITY_TIME_ZONE } : {}), status: status.key, search, offset: String((page - 1) * pageSize), limit: String(pageSize) });
   const { data, error, reload, refreshing } = useStatusActivity<StatusActivityPage<StatusActivityLead>>(`/status-activity/leads?${query}`, 15000);
   const selected = data?.items.find(lead => lead.id === selectedId);
   // Status changes can remove the final page while this view is open.
@@ -53,7 +53,7 @@ export function StatusActivityDrawer({ status, department, eventKey, eventName, 
           <div className={styles.titleGroup}>
             <p className={styles.eyebrow}>Status Outreach / Lead activity</p>
             <div className={styles.title}><h2 id="status-cluster-title">{status.label}</h2><span className={styles.count}>{data ? `${data.total.toLocaleString()} ${search ? "matching " : ""}lead${data.total === 1 ? "" : "s"}` : "Loading…"}</span></div>
-            <p className={styles.scope}>{department ? statusLabel(department) : "All departments"}<span aria-hidden="true"> / </span>{eventName}</p>
+            <p className={styles.scope}>{department ? statusLabel(department) : "All departments"}<span aria-hidden="true"> / </span>{eventName}{range && <span> / Latest update: {range.startDate} to {range.endDate} (Sri Lanka time)</span>}</p>
           </div>
           <button type="button" autoFocus className={styles.closeButton} aria-label="Close status details" onClick={onClose}><X size={18} aria-hidden="true" /><span>Close</span></button>
         </div>
