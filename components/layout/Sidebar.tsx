@@ -40,6 +40,7 @@ import { canAccessAutocall } from "@/lib/autocall-access";
 import { useAuth } from "@/hooks/useAuth";
 import { UserAvatar } from "@/components/profile/UserAvatar";
 import { SidebarNavItem } from "@/components/layout/SidebarNavItem";
+import { MobileNavigation } from "@/components/layout/MobileNavigation";
 import { SupernizoMark } from "@/components/brand/SupernizoMark";
 import { SupernizoWordmark } from "@/components/brand/SupernizoWordmark";
 import { toast } from "sonner";
@@ -137,6 +138,19 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
     () => getDailyDealBellMedia(user?.id || user?.username),
     [user?.id, user?.username]
   );
+  const visibleNavItems = (isBusiness ? [...businessNavItems, { name: "Autocall", href: "/autocall", icon: Phone }] : navItems)
+    .filter((item) => {
+      if (item.href === "/autocall") return canAccessAutocall(user);
+      if (isBusiness) return true;
+      if (item.submissionViewerOnly) return !isSuperAdmin && (isCeo || isManager);
+      if (isSuperAdmin) {
+        return item.href !== "/dashboard" && !item.normalOnly && !item.managerOnly && !item.ceoOnly;
+      }
+      if (isCeo) return !item.superOnly && !item.managerOnly;
+      if (item.superOnly || item.ceoOnly) return false;
+      if (item.managerOnly) return isManager;
+      return true;
+    });
 
   const handleSignOut = async () => {
     try {
@@ -195,7 +209,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
       transition={{ duration: 0.3 }}
       onMouseEnter={() => onHoverChange(true)}
       onMouseLeave={() => onHoverChange(false)}
-      className={`sidebar-modern fixed left-0 top-0 z-40 flex h-screen min-w-0 flex-col overflow-hidden font-sans text-white shadow-[22px_0_45px_-34px_rgba(2,10,27,0.65)] transition-[width,padding] duration-300 ease-out ${
+      className={`sidebar-modern fixed left-0 top-0 z-40 hidden h-screen min-w-0 flex-col overflow-hidden font-sans text-white shadow-[22px_0_45px_-34px_rgba(2,10,27,0.65)] transition-[width,padding] duration-300 ease-out lg:flex ${
         isExpanded ? "w-72 px-6 py-8" : "w-24 p-6"
       }`}
     >
@@ -217,21 +231,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
           isExpanded ? "-mx-4" : "-mx-6"
         }`}
       >
-        {(isBusiness ? [...businessNavItems, { name: "Autocall", href: "/autocall", icon: Phone }] : navItems)
-          .filter((item) => {
-            if (item.href === "/autocall") return canAccessAutocall(user);
-            if (isBusiness) return true;
-            if (item.submissionViewerOnly) return !isSuperAdmin && (isCeo || isManager);
-            if (isSuperAdmin) {
-              return item.href !== "/dashboard" && !item.normalOnly && !item.managerOnly && !item.ceoOnly;
-            }
-            if (isCeo) return !item.superOnly && !item.managerOnly;
-            if (item.superOnly) return false;
-            if (item.ceoOnly) return false;
-            if (item.managerOnly) return isManager;
-            return true;
-          })
-          .map((item, index) => {
+        {visibleNavItems.map((item, index) => {
           const isActive = pathname === item.href;
           return (
             <motion.div
@@ -415,6 +415,41 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
         </motion.div>
       </div>
     </motion.aside>
+    <MobileNavigation
+      title={isBusiness ? `${businessLabel} Workspace` : `${personaLabel} Workspace`}
+      items={visibleNavItems.map((item) => ({
+        ...item,
+        name: isSuperAdmin || item.ceoOnly ? item.name : item.normalLabel ?? item.name,
+        isActive: pathname === item.href,
+      }))}
+      accountHref={isSuperAdmin ? "/choose-persona" : "/profile"}
+      accountLabel={isSuperAdmin ? "Workspaces" : user?.fullName?.trim() || user?.username || "Profile"}
+      onSignOut={handleSignOut}
+    >
+      {canSwitchWorkspace ? (
+        <div className="mt-4 space-y-1 border-t border-white/15 pt-4">
+          <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/60">Workspaces</p>
+          {availablePersonas.map((workspace) => {
+            const WorkspaceIcon = workspaceIcons[workspace];
+            const isCurrent = workspace === persona;
+            return (
+              <button key={workspace} type="button" disabled={isCurrent} aria-label={isCurrent ? `Current workspace: ${workspaceLabels[workspace]}` : `Switch to ${workspaceLabels[workspace]}`} onClick={() => {
+                setPersona(workspace);
+                router.replace("/campaigns");
+              }} className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm focus-visible:outline-2 focus-visible:outline-white ${isCurrent ? "bg-white/15 text-white" : "text-white/90 hover:bg-white/10"}`}>
+                <WorkspaceIcon className="size-5 shrink-0" />
+                <span>{workspaceLabels[workspace]}{isCurrent ? <span className="ml-2 text-xs text-white/70">Current</span> : null}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+      {!isBusiness && !isSuperAdmin && !isCeo && (persona === "sales" || persona === "delegate-sales") ? (
+        <button type="button" disabled={ringingBell} onClick={() => setRingBellModalOpen(true)} className="mt-4 flex min-h-11 w-full items-center gap-3 rounded-xl border border-white/20 bg-white/10 px-3 py-3 text-left text-sm text-white hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-white">
+          <BellRing className="size-5 shrink-0" />Ring the deal bell
+        </button>
+      ) : null}
+    </MobileNavigation>
     {ringBellModalOpen ? (
       <div className="fixed inset-0 z-[90] flex items-center justify-center p-6 font-sans">
         <button

@@ -8,7 +8,7 @@ import ts from "typescript";
 
 const config = { revision: 4, model: "gpt-6-luna", modelOptions: ["gpt-6-luna"], reasoningEffort: "none", maxOutputTokens: 2200, prompt: "Original guidance", enabled: true, senderName: "Events team", senderEmail: "events@example.com", callbackBaseUrl: "https://backend.example.com", callbackSecretConfigured: true, apiKeySource: "AGENTIC_CONTENT_OPENAI_API_KEY", missingConfiguration: [], webhooks: Object.fromEntries(["sales", "delegate", "production"].map(key => [key, { configured: true, maskedUrl: "https://hook.make.com/...masked" }])) };
 
-function harness(kind, save) {
+function harness(kind, save, initialConfig = config) {
   const source = readFileSync(new URL(`../components/automated-outreach/Outreach${kind}Settings.tsx`, import.meta.url), "utf8");
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText;
   const states = [];
@@ -23,7 +23,7 @@ function harness(kind, save) {
     if (name === "next/link") return "a";
     return new Proxy({}, { get: (_, key) => key });
   }});
-  function render(current = config) { cursor = 0; tree = testModule.exports[`Outreach${kind}Form`]({ config: current, reload() {} }); }
+  function render(current = initialConfig) { cursor = 0; tree = testModule.exports[`Outreach${kind}Form`]({ config: current, reload() {} }); }
   function all(predicate, node = tree, found = []) {
     if (Array.isArray(node)) { node.forEach(child => all(predicate, child, found)); return found; }
     if (!node || typeof node !== "object") return found;
@@ -81,31 +81,72 @@ test("event template editor saves all three emails in its own scope and retains 
 
 test("delivery saves only the global switch and has no sender or callback fields", async () => {
   let payload;
-  const view = harness("Delivery", async value => { payload = value; return { ...config, revision: 5 }; });
-  view.field("Enable automatic outreach delivery").props.onChange({ target: { checked: false } }); view.render();
-  await view.submit();
+  const view = harness("Delivery", async value => { payload = value; return { ...config, ...value, revision: 5 }; });
+  view.field("Enable automatic outreach delivery").props.onChange({ target: { checked: false } });
+  await new Promise(resolve => setImmediate(resolve)); view.render();
   assert.deepEqual(Object.keys(payload).sort(), ["enabled", "revision"]);
   assert.equal(payload.enabled, false);
+  assert.equal(view.field("Enable automatic outreach delivery").props.checked, false);
+  assert.ok(view.find(node => node.props?.children === "Global setting saved"));
+  assert.equal(view.all(node => node.props?.type === "submit").length, 0);
   assert.equal(view.all(node => ["password", "email", "url"].includes(node.props?.type)).length, 0);
 });
 
-for (const [kind, label, field] of [["Content", "Outreach editorial guidance", "prompt"], ["Delivery", "Enable automatic outreach delivery", "enabled"]]) {
+test("event control revisions do not strand an unchanged global delivery switch", async () => {
+  let payload;
+  const view = harness("Delivery", async value => { payload = value; return { ...config, ...value, revision: 6 }; });
+  view.render({ ...config, revision: 5 });
+  view.field("Enable automatic outreach delivery").props.onChange({ target: { checked: false } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(payload.revision, 5);
+});
+
+test("switching the global default on can be saved after an event changes", async () => {
+  let payload;
+  const initial = { ...config, enabled: false };
+  const view = harness("Delivery", async value => { payload = value; return { ...initial, ...value, revision: 6 }; }, initial);
+  view.render({ ...initial, revision: 5, eventOutreach: { sales: { summit: true } } });
+  view.field("Enable automatic outreach delivery").props.onChange({ target: { checked: true } });
+  await new Promise(resolve => setImmediate(resolve)); view.render({ ...initial, revision: 5 });
+  assert.equal(payload.enabled, true);
+  assert.equal(payload.revision, 5);
+  assert.equal(view.field("Enable automatic outreach delivery").props.checked, true);
+});
+
+test("delivery can reload a global change made elsewhere", () => {
+  const view = harness("Delivery", async () => config);
+  const updated = { ...config, revision: 5, enabled: false };
+  view.render(updated);
+  assert.ok(view.find(node => node.props?.children === "Automatic outreach changed elsewhere."));
+  view.find(node => node.props?.children === "Reload saved value").props.onClick(); view.render(updated);
+  assert.equal(view.field("Enable automatic outreach delivery").props.checked, false);
+});
+
+test("delivery restores the saved switch after a failed update", async () => {
+  const view = harness("Delivery", async () => { throw new Error("Conflict"); });
+  view.field("Enable automatic outreach delivery").props.onChange({ target: { checked: false } });
+  await new Promise(resolve => setImmediate(resolve)); view.render();
+  assert.equal(view.field("Enable automatic outreach delivery").props.checked, true);
+  assert.ok(view.find(node => node.props?.role === "alert"));
+});
+
+for (const [kind, label, field] of [["Content", "Outreach editorial guidance", "prompt"]]) {
   test(`${kind} retains unsaved edits on refresh and requires explicit reload after a revision conflict`, () => {
     const view = harness(kind, async () => config);
     view.field(label).props.onChange({ target: { value: "Unsaved edit", checked: false } });
-    const updated = { ...config, revision: 5, [field]: kind === "Delivery" ? true : "Saved elsewhere" };
+    const updated = { ...config, revision: 5, [field]: "Saved elsewhere" };
     view.render(updated);
-    assert.equal(kind === "Delivery" ? view.field(label).props.checked : view.field(label).props.value, kind === "Delivery" ? false : "Unsaved edit");
+    assert.equal(view.field(label).props.value, "Unsaved edit");
     assert.equal(view.find(node => node.props?.type === "submit").props.disabled, true);
     view.find(node => node.props?.children === "Reload saved values").props.onClick(); view.render(updated);
-    assert.equal(kind === "Delivery" ? view.field(label).props.checked : view.field(label).props.value, kind === "Delivery" ? true : "Saved elsewhere");
+    assert.equal(view.field(label).props.value, "Saved elsewhere");
     assert.equal(view.find(node => node.props?.type === "submit").props.disabled, false);
   });
   test(`${kind} retains draft after a failed save`, async () => {
     const view = harness(kind, async () => { throw new Error("Conflict"); });
     view.field(label).props.onChange({ target: { value: "Unsaved edit", checked: false } }); view.render();
     await view.submit(); view.render();
-    assert.equal(kind === "Delivery" ? view.field(label).props.checked : view.field(label).props.value, kind === "Delivery" ? false : "Unsaved edit");
+    assert.equal(view.field(label).props.value, "Unsaved edit");
     assert.ok(view.find(node => node.props?.role === "alert"));
   });
 }
@@ -150,14 +191,32 @@ test("content settings tabs mount only their own control center and retain direc
 test("event mode toggle sends its department, event and revision without altering lead status", async () => {
   const calls=[];
   const view=componentHarness("components/automated-outreach/OutreachEvents.tsx", "OutreachEvents", {
-    "@/hooks/useOutreachResource":{useOutreachResource:()=>({data:{revision:7,items:[{key:'summit',name:'Summit',leads:5,active:3,statuses:{'proposal-sent':5},outreachEnabled:true}]},reload(){},error:null})},
+    "@/hooks/useOutreachResource":{useOutreachResource:()=>({data:{revision:7,enabled:true,items:[{key:'summit',name:'Summit',leads:5,active:3,statuses:{'proposal-sent':5},outreachEnabled:true}]},reload(){},error:null})},
     "@/lib/automatedOutreach":{statusLabel:value=>value},
-    "@/lib/automatedOutreachApi":{setEventContentMode:async(...args)=>calls.push(args)},
+    "@/lib/automatedOutreachApi":{setEventContentMode:async(...args)=>calls.push(args),setEventOutreach:async(...args)=>calls.push(['delivery',...args])},
   },{department:'sales'});
   const control=view.find(node=>node.type==='OutreachModeToggle');
   assert.equal(control.props.value,'template');
   control.props.onChange('generated'); await new Promise(resolve=>setImmediate(resolve));
   assert.deepEqual(calls,[['sales','summit','generated',7]]);
+  const switches=view.all(node=>node.type?.name==='EventSwitch');
+  assert.equal(switches.length,1);
+  switches[0].props.onChange(false); await new Promise(resolve=>setImmediate(resolve));
+  assert.deepEqual(calls.slice(1),[['delivery','sales','summit',false,8]]);
+});
+
+test("event outreach can be configured while global delivery is off", async () => {
+  const calls=[];
+  const view=componentHarness("components/automated-outreach/OutreachEvents.tsx", "OutreachEvents", {
+    "@/hooks/useOutreachResource":{useOutreachResource:()=>({data:{revision:3,enabled:false,items:[{key:'summit',name:'Summit',leads:1,active:1,statuses:{},outreachEnabled:false}]},reload(){},error:null})},
+    "@/lib/automatedOutreach":{statusLabel:value=>value},
+    "@/lib/automatedOutreachApi":{setEventOutreach:async(...args)=>calls.push(args)},
+  },{department:'sales'});
+  const control=view.find(node=>node.type?.name==='EventSwitch');
+  assert.equal(control.props.disabled,false);
+  assert.equal(control.props.checked,false);
+  control.props.onChange(true); await new Promise(resolve=>setImmediate(resolve));
+  assert.deepEqual(calls,[['sales','summit',true,3]]);
 });
 
 test("run monitoring offers recovery only for recoverable generation failures", async () => {

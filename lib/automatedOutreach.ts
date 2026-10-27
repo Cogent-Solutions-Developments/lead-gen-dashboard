@@ -27,6 +27,7 @@ export type OutreachConfiguration = {
   enabled: boolean; revision: number;
   contentMode?: OutreachContentMode;
   eventContentModes?: Partial<Record<OutreachDepartment, Record<string, OutreachContentMode>>>;
+  eventOutreach?: Partial<Record<OutreachDepartment, Record<string, boolean>>>;
   eventTemplates?: Partial<Record<OutreachDepartment, Record<string, OutreachEmailTemplate[]>>>;
   templateStarters?: OutreachEmailTemplate[];
   templateVariables?: string[];
