@@ -117,7 +117,7 @@ test("delivery can reload a global change made elsewhere", () => {
   const view = harness("Delivery", async () => config);
   const updated = { ...config, revision: 5, enabled: false };
   view.render(updated);
-  assert.ok(view.find(node => node.props?.children === "Automatic outreach changed elsewhere."));
+  assert.ok(view.find(node => node.props?.children === "Automatic delivery changed elsewhere."));
   view.find(node => node.props?.children === "Reload saved value").props.onClick(); view.render(updated);
   assert.equal(view.field("Enable automatic outreach delivery").props.checked, false);
 });
