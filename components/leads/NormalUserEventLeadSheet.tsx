@@ -507,7 +507,6 @@ const INITIAL_DATA_CACHE_TTL_MS = 2 * 60 * 1000;
 const LEAD_PAGE_CACHE_TTL_MS = 60 * 1000;
 const MAX_INITIAL_DATA_CACHE_ENTRIES = 8;
 const MAX_LEAD_PAGE_CACHE_ENTRIES = 24;
-const LEAD_SHEET_DEPARTMENT_PERSONAS: LeadSheetDepartmentPersona[] = ["sales", "delegates", "production"];
 const DEFAULT_LEAD_GROUP_FILTER_OPTIONS: Array<{
   value: LeadFilterState["department"];
   label: string;
@@ -789,7 +788,6 @@ type LeadPageFetchParams = {
 const initialDataCache = new Map<string, CacheEntry<LeadSheetInitialData>>();
 const initialDataInFlight = new Map<string, Promise<LeadSheetInitialData>>();
 const leadPageCache = new Map<string, CacheEntry<EventLeadListResponse>>();
-const leadPageInFlight = new Map<string, Promise<EventLeadListResponse>>();
 const registryEventsCache = new Map<string, CacheEntry<AdminEventItem[]>>();
 const registryEventsInFlight = new Map<string, Promise<AdminEventItem[]>>();
 
@@ -1011,6 +1009,7 @@ async function getLeadPageCached({
   canonicalEventKey,
   params,
   fetcher,
+  signal,
   force = false,
 }: {
   cacheScope: string;
@@ -1019,6 +1018,7 @@ async function getLeadPageCached({
   canonicalEventKey: string;
   params: LeadPageFetchParams;
   fetcher: () => Promise<EventLeadListResponse>;
+  signal?: AbortSignal;
   force?: boolean;
 }) {
   const cacheKey = leadPageCacheKey(cacheScope, mode, persona, canonicalEventKey, params);
@@ -1026,11 +1026,10 @@ async function getLeadPageCached({
     const cached = readFreshCache(leadPageCache, cacheKey);
     if (cached) return cached;
 
-    const inFlight = leadPageInFlight.get(cacheKey);
-    if (inFlight) return inFlight;
   }
 
   const request = fetcher().then((response) => {
+    if (signal?.aborted) return response;
     writeBoundedCache(
       leadPageCache,
       cacheKey,
@@ -1041,12 +1040,7 @@ async function getLeadPageCached({
     return response;
   });
 
-  leadPageInFlight.set(cacheKey, request);
-  try {
-    return await request;
-  } finally {
-    if (leadPageInFlight.get(cacheKey) === request) leadPageInFlight.delete(cacheKey);
-  }
+  return request;
 }
 
 function getStatusDotClass(status: string) {
@@ -1513,46 +1507,6 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
   }, [loadMyLeadCampaigns]);
 
   useEffect(() => {
-    if (!dataPersona || isMyLeadsMode) return;
-
-    const timer = window.setTimeout(() => {
-      const prefetchParams: LeadPageFetchParams = {
-        limit: DEFAULT_PAGE_SIZE,
-        offset: 0,
-        includeManual: true,
-        sort: "createdAt:desc",
-      };
-
-      for (const personaToPrefetch of LEAD_SHEET_DEPARTMENT_PERSONAS) {
-        if (personaToPrefetch === effectivePersona) continue;
-
-        void getInitialLeadSheetData({
-          cacheScope,
-          mode,
-          persona: personaToPrefetch,
-          fixedStatuses: fixedWorkflowStatusesForPersona(personaToPrefetch),
-          listEventsFn: () => listEventsForPersona(personaToPrefetch),
-        })
-          .then((data) => {
-            const firstEventKey = data.events[0]?.canonicalEventKey;
-            if (!firstEventKey) return null;
-            return getLeadPageCached({
-              cacheScope,
-              mode,
-              persona: personaToPrefetch,
-              canonicalEventKey: firstEventKey,
-              params: prefetchParams,
-              fetcher: () => listEventLeadsForPersona(personaToPrefetch, firstEventKey, prefetchParams),
-            });
-          })
-          .catch(() => null);
-      }
-    }, 350);
-
-    return () => window.clearTimeout(timer);
-  }, [cacheScope, dataPersona, effectivePersona, isMyLeadsMode, mode]);
-
-  useEffect(() => {
     const handle = window.setTimeout(() => {
       setPageOffset(0);
       setSearchQuery(searchInput.trim());
@@ -1637,12 +1591,17 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
     }));
   }, [activeRegistryEvents, canUseTemplateUpload, selectedEventKey, uploadParam]);
 
+  const leadPageAbortRef = useRef<AbortController | null>(null);
+
   const loadEventPage = useCallback(async (
     canonicalEventKey: string,
     nextOffset: number,
     query: string,
     options: { force?: boolean } = {}
   ) => {
+    leadPageAbortRef.current?.abort();
+    const controller = new AbortController();
+    leadPageAbortRef.current = controller;
     const requestPersona = effectivePersona;
     const requestId = ++leadPageRequestRef.current;
     const params: LeadPageFetchParams = {
@@ -1686,10 +1645,11 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
         canonicalEventKey,
         params,
         force,
-        fetcher: () => leadSheetApi.listEventLeads(canonicalEventKey, params),
+        signal: controller.signal,
+        fetcher: () => leadSheetApi.listEventLeads(canonicalEventKey, { ...params, signal: controller.signal }),
       });
 
-      if (leadPageRequestRef.current !== requestId || latestPersonaRef.current !== requestPersona) {
+      if (controller.signal.aborted || leadPageRequestRef.current !== requestId || latestPersonaRef.current !== requestPersona) {
         return response;
       }
 
@@ -1703,14 +1663,14 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
       );
       return response;
     } catch (error: unknown) {
-      if (leadPageRequestRef.current !== requestId || latestPersonaRef.current !== requestPersona) return null;
+      if (controller.signal.aborted || leadPageRequestRef.current !== requestId || latestPersonaRef.current !== requestPersona) return null;
       toast.error("Failed to load lead sheet", {
         description: getErrorMessage(error),
       });
       setLeadPage((prev) => (prev?.event.canonicalEventKey === canonicalEventKey ? prev : null));
       return null;
     } finally {
-      if (leadPageRequestRef.current === requestId && latestPersonaRef.current === requestPersona) {
+      if (!controller.signal.aborted && leadPageRequestRef.current === requestId && latestPersonaRef.current === requestPersona) {
         setLoadingLeads(false);
       }
     }
@@ -1723,6 +1683,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
     }
     setLeadPage((prev) => (prev?.event.canonicalEventKey === selectedEventKey ? prev : null));
     void loadEventPage(selectedEventKey, pageOffset, searchQuery);
+    return () => leadPageAbortRef.current?.abort();
   }, [loadEventPage, pageOffset, scopedEvents.length, searchQuery, selectedEventKey]);
 
   const activeLeadPage =
