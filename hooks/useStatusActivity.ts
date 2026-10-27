@@ -26,7 +26,9 @@ export function useStatusActivity<T>(path: string, interval = 5000, refreshKey =
       } catch (error) {
         if (active) setSnapshot(old => ({
           path, data: old.path === path ? old.data : null, previous: old.path === path ? old.previous : null,
-          error: error instanceof Error ? error.message : "Could not refresh workflow activity",
+          error: (error as { status?: number })?.status === 404
+            ? "Status activity is unavailable. Please retry or contact your administrator."
+            : error instanceof Error ? error.message : "Could not refresh workflow activity",
         }));
       } finally {
         pending = false;

@@ -18,6 +18,38 @@ export type StatusHistoryEntry = {
 };
 export type StatusActivityPage<T> = { items: T[]; total: number; offset: number; limit: number };
 
+export const STATUS_ACTIVITY_TIME_ZONE = "Asia/Colombo";
+export type StatusActivityDateRange = { startDate: string; endDate: string };
+
+export function statusActivityDatePreset(days: 1 | 7 | 30, now = new Date()): StatusActivityDateRange {
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone: STATUS_ACTIVITY_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(now);
+  const part = (type: string) => parts.find(value => value.type === type)!.value;
+  const endDate = `${part("year")}-${part("month")}-${part("day")}`;
+  const start = new Date(`${endDate}T00:00:00Z`);
+  start.setUTCDate(start.getUTCDate() - days + 1);
+  return { startDate: start.toISOString().slice(0, 10), endDate };
+}
+
+export function statusActivityDateError(range: StatusActivityDateRange) {
+  const valid = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+    Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+  if (!valid(range.startDate) || !valid(range.endDate)) return "Choose valid From and To dates.";
+  if (range.startDate > range.endDate) return "From date must be on or before To date.";
+  return null;
+}
+
+/** Inclusive calendar dates in Sri Lanka; the next midnight is excluded. */
+export function statusActivityDateBounds(range: StatusActivityDateRange) {
+  const error = statusActivityDateError(range);
+  if (error) throw new Error(error);
+  return {
+    start: Date.parse(`${range.startDate}T00:00:00+05:30`),
+    endExclusive: Date.parse(`${range.endDate}T00:00:00+05:30`) + 86400000,
+  };
+}
+
 export function statusActivityPath(department: string, eventKey: string, extra: Record<string, string> = {}) {
   const params = new URLSearchParams(extra);
   if (department) params.set("department", department);
