@@ -13,7 +13,7 @@ permissions:
 jobs:
   quality:
     if: ${{ github.event.action != 'closed' || github.event.pull_request.merged == true }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@v5
@@ -33,7 +33,7 @@ jobs:
 
   deploy_preview:
     if: ${{ github.event.action == 'closed' && github.event.pull_request.merged == true && github.base_ref == 'development' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: quality
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -74,7 +74,7 @@ jobs:
 
   deploy_production:
     if: ${{ github.event.action == 'closed' && github.event.pull_request.merged == true && github.base_ref == 'main' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: quality
     concurrency:
       group: vercel-production
