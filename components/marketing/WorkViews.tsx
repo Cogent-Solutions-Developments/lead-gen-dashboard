@@ -171,6 +171,7 @@ export function RequestTable({
   context: Context;
   onOpen: (id: string) => void;
 }) {
+  if (!rows.length) return <div className={styles.empty}><Inbox size={24} /><h3>No requests in this view</h3><p>New requests will appear here. If you’re filtering, try another stage or event.</p></div>;
   return (
     <div className={styles.tableWrap}>
       <table className={styles.table}>
@@ -199,26 +200,26 @@ export function RequestTable({
                   {label(row.kind)}
                 </small>
               </td>
-              <td>
+              <td data-label="Stage">
                 <span className={styles.badge} data-status={row.status}>
                   {statusLabel(row.status)}
                 </span>
               </td>
-              <td>
+              <td data-label="Priority">
                 <span className={styles.priority} data-priority={row.priority}>
                   {label(row.priority)}
                 </span>
               </td>
-              <td>
+              <td data-label="Progress">
                 {row.tasks.filter((t) => t.status === "done").length}/
                 {row.tasks.length}
               </td>
-              <td>{shortDate(row.dueAt)}</td>
-              <td>
+              <td data-label="Due date">{shortDate(row.dueAt)}</td>
+              <td data-label="Owners">
                 <small>
                   {[...new Set(row.tasks.map((t) => t.assigneeName))].join(
                     ", ",
-                  )}
+                  ) || "Not assigned yet"}
                 </small>
               </td>
             </tr>
@@ -322,6 +323,8 @@ export function Calendar({
     const d = new Date(year, m - 1 + delta, 1);
     onMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   };
+  const scheduled = rows.filter(row => row.dueAt && new Date(row.dueAt).getFullYear() === year && new Date(row.dueAt).getMonth() === m - 1)
+    .sort((a, b) => new Date(a.dueAt!).getTime() - new Date(b.dueAt!).getTime());
   return (
     <section className={styles.calendar}>
       <div className={styles.sectionHeading}>
@@ -357,6 +360,7 @@ export function Calendar({
                       (r) =>
                         r.dueAt &&
                         new Date(r.dueAt).getDate() === day &&
+                        new Date(r.dueAt).getFullYear() === year &&
                         new Date(r.dueAt).getMonth() === m - 1,
                     )
                     .map((r) => (
@@ -377,6 +381,14 @@ export function Calendar({
             </div>
           );
         })}
+      </div>
+      <div className={styles.calendarAgenda}>
+        {scheduled.length ? scheduled.map(row => (
+          <button key={row.id} onClick={() => onOpen(row.id)}>
+            <time dateTime={row.dueAt!}>{new Date(row.dueAt!).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</time>
+            <strong>{row.title}</strong><span className={styles.badge} data-status={row.status}>{statusLabel(row.status)}</span>
+          </button>
+        )) : <div className={styles.empty}>No deadlines this month.</div>}
       </div>
     </section>
   );

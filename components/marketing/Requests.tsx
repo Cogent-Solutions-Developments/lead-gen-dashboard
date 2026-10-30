@@ -317,11 +317,13 @@ function TaskCard({
   request,
   context,
   onSave,
+  readOnly = false,
 }: {
   task: Task;
   request: MarketingRequest;
   context: Context;
   onSave: (r: MarketingRequest) => void;
+  readOnly?: boolean;
 }) {
   const [status, setStatus] = useState(
     task.status === "waiting" ? "ready" : task.status,
@@ -332,6 +334,7 @@ function TaskCard({
   const [busy, setBusy] = useState(false);
   const closed = ["completed", "cancelled"].includes(request.status);
   async function save(reassign = false, nextStatus = status) {
+    if (readOnly || busy) return;
     setBusy(true);
     try {
       onSave(
@@ -373,7 +376,7 @@ function TaskCard({
       )}
       {task.status === "waiting" && <p>Waiting for flyer design completion.</p>}
       {task.note && <p className={styles.prewrap}>{task.note}</p>}
-      {task.canUpdate &&
+      {task.canUpdate && !readOnly &&
         !closed &&
         !["waiting", "done"].includes(task.status) && (
           <div className={styles.actions}>
@@ -394,7 +397,7 @@ function TaskCard({
             </button>
           </div>
         )}
-      {task.canUpdate && !closed && task.status !== "waiting" && (
+      {task.canUpdate && !readOnly && !closed && task.status !== "waiting" && (
         <details>
           <summary>Update task</summary>
           <label>
@@ -425,7 +428,7 @@ function TaskCard({
           </button>
         </details>
       )}
-      {context.manager && !closed && (
+      {context.manager && !readOnly && !closed && (
         <details>
           <summary>Reassign task</summary>
           <label>
@@ -471,10 +474,12 @@ export function RequestDetail({
   request,
   context,
   onSave,
+  readOnly = false,
 }: {
   request: MarketingRequest;
   context: Context;
   onSave: (r: MarketingRequest) => void;
+  readOnly?: boolean;
 }) {
   const [editing, setEditing] = useState<MarketingRequest | null>(null);
   const [section, setSection] = useState("delivery");
@@ -485,6 +490,7 @@ export function RequestDetail({
   const [image, setImage] = useState<File | null>(null);
   const [acceptWarning, setAcceptWarning] = useState(false);
   async function action(path: string, body: unknown, method = "POST") {
+    if (readOnly || busy) return;
     setBusy(true);
     try {
       onSave(
@@ -503,7 +509,7 @@ export function RequestDetail({
     }
   }
   async function uploadImage() {
-    if (!image) return;
+    if (readOnly || !image) return;
     if (image.size > 10 * 1024 * 1024) {
       toast.error("Maximum file size is 10MB");
       return;
@@ -514,7 +520,7 @@ export function RequestDetail({
     data.set("acceptWarning", String(acceptWarning));
     await action("/speaker-image", data);
   }
-  if (editing)
+  if (editing && !readOnly)
     return (
       <RequestForm
         context={context}
@@ -529,6 +535,7 @@ export function RequestDetail({
     );
   return (
     <section className={styles.panel}>
+      {readOnly && <p role="status" className={styles.notice}>Read-only request view. Changes are disabled when opened from a notification.</p>}
       <div className={styles.taskHeading}>
         <h2>{request.title}</h2>
         <span className={styles.badge} data-status={request.status}>
@@ -543,7 +550,7 @@ export function RequestDetail({
         {label(request.priority)} priority · {formatDate(request.dueAt)}
       </p>
       <div className={styles.actions}>
-        {request.canEdit && (
+        {request.canEdit && !readOnly && (
           <button onClick={() => setEditing(request)}>Edit request fields</button>
         )}
         <button
@@ -586,7 +593,7 @@ export function RequestDetail({
           {request.kind === "speaker_update" && (
             <details>
               <summary>Speaker image</summary>
-              {request.canEdit && request.details.image && (
+              {request.canEdit && !readOnly && request.details.image && (
                 <button
                   disabled={busy}
                   onClick={() =>
@@ -612,7 +619,7 @@ export function RequestDetail({
                   Download speaker image
                 </button>
               )}
-              {request.canEdit && (
+              {request.canEdit && !readOnly && (
                 <>
                   <label>
                     Add or replace speaker image
@@ -672,9 +679,10 @@ export function RequestDetail({
               request={request}
               context={context}
               onSave={onSave}
+              readOnly={readOnly}
             />
           ))}
-          {context.manager && (
+          {context.manager && !readOnly && (
             <details open={request.status === "review"}>
               <summary>Manager verification</summary>
               <label>
@@ -757,25 +765,29 @@ export function RequestDetail({
       )}
       {section === "activity" && (
         <>
-          <label>
-            Comment
-            <textarea
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              maxLength={5000}
-            />
-          </label>
-          <button
-            disabled={busy || !comment.trim()}
-            onClick={() =>
-              void action("/comments", {
-                version: request.version,
-                text: comment,
-              })
-            }
-          >
-            Add comment
-          </button>
+          {!readOnly && (
+            <>
+              <label>
+                Comment
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  maxLength={5000}
+                />
+              </label>
+              <button
+                disabled={busy || !comment.trim()}
+                onClick={() =>
+                  void action("/comments", {
+                    version: request.version,
+                    text: comment,
+                  })
+                }
+              >
+                Add comment
+              </button>
+            </>
+          )}
           <HistoryList items={[...request.history].reverse()} />
         </>
       )}

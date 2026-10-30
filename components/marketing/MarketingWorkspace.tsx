@@ -1,12 +1,12 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   KanbanSquare,
   Megaphone,
   FolderOpen,
   FileText,
-  Users,
   Plus,
   Search,
   List,
@@ -43,6 +43,8 @@ import styles from "./marketing.module.css";
 const monthNow = () =>
   `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
 export default function MarketingWorkspace() {
+  const { user } = useAuth();
+  const authScopeKey = JSON.stringify([user?.id, user?.role, ...(user?.departmentAssignments || [])]);
   const router = useRouter();
   const params = useSearchParams();
   const query = params.toString();
@@ -50,33 +52,38 @@ export default function MarketingWorkspace() {
   const eventId = params.get("event") || "";
   const view = params.get("view") || "board";
   const rawRequestId = params.get("request");
+  // Legacy notification links have a request ID without an explicit workspace tab.
+  const requestReadOnly = Boolean(rawRequestId && (params.get("readOnly") === "1" || !params.has("tab")));
   const rawCreating = params.get("create") === "1";
   const month = params.get("month") || monthNow();
   const search = params.get("search") || "";
   const status = params.get("status") || "";
   const priority = params.get("priority") || "";
+  const overdue = params.get("overdue") === "1";
   const offset = Number(params.get("offset") || 0) || 0;
   const [context, setContext] = useState<Context | null>(null);
   const requester = Boolean(context && !context.staff);
   const activeFilter = params.get("active") === "1";
   const taskOnly = Boolean(context?.staff && !context.manager);
-  const tab = requester && !["agenda", "materials"].includes(requestedTab) ? "overview" : taskOnly && (rawRequestId || rawCreating || !["agenda", "materials", "social", "my-tasks"].includes(requestedTab)) ? "my-tasks" : requestedTab;
+  const socialDenied = Boolean(context?.staff && requestedTab === "social" && !context.social);
+  const tab = socialDenied ? "my-tasks" : requester && !["agenda", "materials"].includes(requestedTab) ? "overview" : taskOnly && (rawRequestId || rawCreating || !["agenda", "materials", "social", "my-tasks"].includes(requestedTab)) ? "my-tasks" : requestedTab;
   useEffect(() => {
     if (!requester || tab === requestedTab) return;
     const next = new URLSearchParams(query);
     next.set("tab", tab);
+    if (requestReadOnly) next.set("readOnly", "1");
     ["view", "priority", "overdue"].forEach(key => next.delete(key));
     router.replace(`/marketing?${next}`, { scroll: false });
-  }, [requester, tab, requestedTab, query, router]);
+  }, [requester, tab, requestedTab, requestReadOnly, query, router]);
   const requestId = taskOnly ? null : rawRequestId;
-  const creating = !taskOnly && rawCreating;
+  const creating = !taskOnly && !requestReadOnly && rawCreating;
   useEffect(() => {
-    if (!taskOnly || (tab === requestedTab && !rawRequestId && !rawCreating)) return;
+    if ((!taskOnly && !socialDenied) || (tab === requestedTab && !rawRequestId && !rawCreating)) return;
     const next = new URLSearchParams(query);
     next.set("tab", tab);
     ["request", "create", "status", "view", "offset"].forEach(key => next.delete(key));
     router.replace(`/marketing?${next}`, { scroll: false });
-  }, [taskOnly, tab, requestedTab, rawRequestId, rawCreating, query, router]);
+  }, [taskOnly, socialDenied, tab, requestedTab, rawRequestId, rawCreating, query, router]);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [rows, setRows] = useState<RequestSummary[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -110,7 +117,7 @@ export default function MarketingWorkspace() {
         if (!c.signal.aborted) setError(e.message);
       });
     return () => c.abort();
-  }, []);
+  }, [authScopeKey]);
   useEffect(() => {
     if (!context?.manager || tab !== "overview") return;
     const c = new AbortController();
@@ -125,9 +132,9 @@ export default function MarketingWorkspace() {
         if (!c.signal.aborted) setError(e.message);
       });
     return () => c.abort();
-  }, [context, taskOnly, tab, eventId, refresh]);
+  }, [context, taskOnly, eventId, refresh, tab]);
   useEffect(() => {
-    if (!context || taskOnly || !["overview", "requests", "social"].includes(tab)) return;
+    if (!context || taskOnly || !["overview", "requests"].includes(tab)) return;
     const c = new AbortController();
     const p = new URLSearchParams({ limit: "40", offset: String(offset) });
     if (requester) {
@@ -139,8 +146,7 @@ export default function MarketingWorkspace() {
     if (priority && !requester) p.set("priority", priority);
     if (search) p.set("search", search);
     if (tab === "my-tasks") p.set("assigned", "true");
-    if (tab === "social") p.set("taskKind", "social");
-    if (params.get("overdue") && !requester) p.set("overdue", "true");
+    if (overdue && !requester) p.set("overdue", "true");
     if (!requester && view === "calendar") {
       const [y, m] = month.split("-").map(Number);
       p.set("dueFrom", `${month}-01`);
@@ -183,10 +189,10 @@ export default function MarketingWorkspace() {
     view,
     month,
     refresh,
-    params,
+    overdue,
   ]);
   useEffect(() => {
-    if (taskOnly || !context?.staff) return;
+    if (taskOnly || !context?.staff || tab !== "overview") return;
     const c = new AbortController();
     marketing<{ items: RequestSummary[] }>(
       `/requests?assigned=true&active=true&limit=8${eventId ? `&eventId=${eventId}` : ""}`,
@@ -199,7 +205,7 @@ export default function MarketingWorkspace() {
         if (!c.signal.aborted) setError(e.message);
       });
     return () => c.abort();
-  }, [context, taskOnly, eventId, refresh]);
+  }, [context, taskOnly, eventId, refresh, tab]);
   useEffect(() => {
     const timer = setInterval(() => setRefresh((v) => v + 1), 30000);
     return () => clearInterval(timer);
@@ -230,9 +236,9 @@ export default function MarketingWorkspace() {
   }, [creating, requestId, context]);
   const open = (id: string) => {
     setDetailError("");
-    navigate({ request: id, create: null });
+    navigate({ tab, request: id, create: null, readOnly: null });
   };
-  const close = () => navigate({ request: null, create: null });
+  const close = () => navigate({ request: null, create: null, readOnly: null });
   function saved(r: MarketingRequest) {
     setSelected(r);
     setRefresh((v) => v + 1);
@@ -244,6 +250,7 @@ export default function MarketingWorkspace() {
       offset: null,
       request: null,
       create: null,
+      readOnly: null,
       status: null,
       overdue: null,
       view: null,
@@ -270,9 +277,9 @@ export default function MarketingWorkspace() {
           >
             <RefreshCw size={16} />
           </button>
-          {context && !taskOnly && <button
+          {context && !taskOnly && !requestReadOnly && <button
             className={styles.primary}
-            onClick={() => navigate({ create: "1", request: null })}
+            onClick={() => navigate({ create: "1", request: null, readOnly: null })}
           >
             <Plus size={16} />
             {context?.manager ? "Create task" : "New request"}
@@ -306,7 +313,7 @@ export default function MarketingWorkspace() {
                 aria-label="Event"
                 value={eventId}
                 onChange={(e) =>
-                  navigate({ event: e.target.value, offset: null })
+                  navigate({ event: e.target.value, offset: null, request: null, create: null, readOnly: null })
                 }
               >
                 <option value="">All events</option>
@@ -496,34 +503,16 @@ export default function MarketingWorkspace() {
               </div>
             </>
           )}
-          {(tab === "my-tasks" || (taskOnly && tab === "social")) && (
+          {context.staff && (tab === "my-tasks" || tab === "social") && (
                 <OwnTasks key={`${eventId}:${tab}`} context={context} eventId={eventId} social={tab === "social"} refresh={refresh} />
               )}
-              {!taskOnly && !requester && ["requests", "social"].includes(tab) && (
+              {!taskOnly && !requester && tab === "requests" && (
             <>
               <div className={styles.sectionHeading}>
                 <div>
-                  <h2>
-                    {tab === "social"
-                      ? "Social media queue"
-                      : tab === "my-tasks"
-                        ? "My tasks"
-                        : "Request board"}
-                  </h2>
-                  <p>
-                    {tab === "social"
-                      ? "Flyer completion unlocks publishing. Record completion and links in the task."
-                      : tab === "my-tasks"
-                        ? "Everything assigned to you, from first action to delivery."
-                        : "Track owners, deadlines and progress through every stage."}
-                  </p>
+                  <h2>Request board</h2>
+                  <p>Track owners, deadlines and progress through every stage.</p>
                 </div>
-                {tab === "social" && context.manager && (
-                  <button onClick={() => switchTab("team")}>
-                    <Users size={16} />
-                    Manage responsibility
-                  </button>
-                )}
               </div>
               <div className={styles.filterBar}>
                 <form
@@ -615,13 +604,6 @@ export default function MarketingWorkspace() {
                 <div className={styles.empty} role="status">
                   Loading requests…
                 </div>
-              ) : tab !== "requests" ? (
-                <TaskQueue
-                  rows={rows}
-                  context={context}
-                  social={tab === "social"}
-                  onOpen={open}
-                />
               ) : view === "calendar" ? (
                 <Calendar
                   rows={rows}
@@ -712,8 +694,9 @@ export default function MarketingWorkspace() {
             />
           ) : selected?.id === requestId ? (
             <RequestDetail
-              key={selected.id}
+              key={`${selected.id}:${requestReadOnly}`}
               request={selected}
+              readOnly={requestReadOnly}
               context={context}
               onSave={saved}
             />
