@@ -22,6 +22,9 @@ import {
 import { downloadEventAgendaFile, downloadEventDocumentFile } from "@/lib/apiRouter";
 import { autocallIncomingCallHref, autocallNotificationHref } from "@/lib/autocall-deep-link";
 
+import { MARKETING_TASKS_CHANGED_EVENT } from "@/lib/marketing-workflow-events";
+import { marketingNotificationHref } from "@/lib/marketing-notification-link";
+
 const NOTIFICATION_POLL_MS = 5_000;
 
 function errorMessage(error: unknown) {
@@ -106,6 +109,8 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const requestRef = useRef<AbortController | null>(null);
   const actionControllersRef = useRef<Set<AbortController>>(new Set());
+  const knownMarketingIdsRef = useRef<Set<string>>(new Set());
+  const marketingInitializedRef = useRef(false);
   const notificationsRef = useRef<PeopleNotification[]>([]);
   const notificationCountRef = useRef(0);
   const nextNotificationOffsetRef = useRef(0);
@@ -134,6 +139,11 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
         signal: controller.signal,
       });
       if (controller.signal.aborted) return;
+      const marketing = response.notifications.filter(item => item.type === "marketing_update");
+      const hasNewMarketing = marketingInitializedRef.current && marketing.some(item => !knownMarketingIdsRef.current.has(item.id));
+      marketing.forEach(item => knownMarketingIdsRef.current.add(item.id));
+      marketingInitializedRef.current = true;
+      if (hasNewMarketing) window.dispatchEvent(new Event(MARKETING_TASKS_CHANGED_EVENT));
       const now = new Date();
       const today = localCalendarDateKey(now);
       const dailyNotifications = notificationsWithinReadRetention(
@@ -164,6 +174,8 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
 
   useEffect(() => {
     const actionControllers = actionControllersRef.current;
+    knownMarketingIdsRef.current.clear();
+    marketingInitializedRef.current = false;
     void load();
     const interval = window.setInterval(() => void load(), NOTIFICATION_POLL_MS);
     return () => {
@@ -270,8 +282,8 @@ export function NotificationCenter({ sessionKey }: { sessionKey: string }) {
     }
 
     if (notification.type === "marketing_update") {
-      const href = String(notification.metadata?.href || "");
-      if (href === "/marketing" || href.startsWith("/marketing?")) { setOpen(false); router.push(href); }
+      const href = marketingNotificationHref(String(notification.metadata?.href || ""));
+      if (href) { setOpen(false); router.push(href); }
       return;
     }
 

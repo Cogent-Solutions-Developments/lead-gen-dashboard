@@ -50,6 +50,15 @@ const sourceLabel = (asset: Asset) =>
     ? "Event Document Library"
     : "Marketing library";
 
+function availableAgendas(items: Asset[]): Asset[] {
+  const latest = items.reduce<Asset | undefined>((current, item) => {
+    if (!current) return item;
+    const difference = Date.parse(item.createdAt) - Date.parse(current.createdAt);
+    return difference > 0 || (difference === 0 && item.id > current.id) ? item : current;
+  }, undefined);
+  return items.map(item => ({ ...item, isLatest: item === latest, status: item === latest ? "released" : "superseded" }));
+}
+
 export function Library(props: Props) {
   return <EventLibrary key={`${props.eventId}:${props.category}`} {...props} />;
 }
@@ -113,9 +122,10 @@ function EventLibrary({ context, eventId, category }: Props) {
       setBusy(false);
     }
   }
-  const latest = data.items.filter((a) => a.isLatest);
-  const drafts = data.items.filter((a) => a.status === "draft");
-  const filtered = data.items.filter((a) =>
+  const items = category === "agenda" ? availableAgendas(data.items) : data.items;
+  const latest = items.filter((a) => a.isLatest);
+  const drafts = category === "agenda" ? [] : items.filter((a) => a.status === "draft");
+  const filtered = items.filter((a) =>
     `${a.title} ${a.fileName || ""} ${a.createdByName || ""}`
       .toLowerCase()
       .includes(search.toLowerCase()),
@@ -127,7 +137,7 @@ function EventLibrary({ context, eventId, category }: Props) {
     busy,
     onView: setPreview,
     onDownload: downloadFile,
-    onRelease: context.manager ? release : undefined,
+    onRelease: category === "materials" && context.manager ? release : undefined,
     onReplace: context.canUpload ? setUploadTitle : undefined,
   };
   if (!eventId)
@@ -141,7 +151,7 @@ function EventLibrary({ context, eventId, category }: Props) {
       <div className={styles.sectionHeading}>
         <div>
           <h2>{title} library</h2>
-          <p>Current files, review drafts and upload history for this event.</p>
+          <p>{category === "agenda" ? "Uploaded agendas are immediately available to everyone with access to this event." : "Current files, review drafts and upload history for this event."}</p>
         </div>
         <div className={styles.actions}>
           <button
@@ -174,7 +184,7 @@ function EventLibrary({ context, eventId, category }: Props) {
         <div className={styles.libraryCurrent}>
           <section
             className={styles.panel}
-            aria-label="Latest published versions"
+            aria-label={category === "agenda" ? "Latest agenda" : "Latest published versions"}
           >
             <div className={styles.taskHeading}>
               <h2>
@@ -189,7 +199,7 @@ function EventLibrary({ context, eventId, category }: Props) {
               <div className={styles.empty}>
                 <FileText size={24} />
                 <p>
-                  {drafts.length
+                  {category === "agenda" ? "No agenda has been uploaded for this event yet." : drafts.length
                     ? "No published version yet. Drafts are awaiting manager release."
                     : "No files have been published for this event yet."}
                 </p>
@@ -235,8 +245,7 @@ function EventLibrary({ context, eventId, category }: Props) {
             >
               <h2>Awaiting manager release · {drafts.length}</h2>
               <p>
-                Published files stay available until a manager releases a
-                replacement.
+                Published files stay available until a manager releases a replacement.
               </p>
               <div className={styles.libraryGrid}>
                 {drafts.map((asset) => (
@@ -350,7 +359,7 @@ function EventLibrary({ context, eventId, category }: Props) {
                           <small>
                             {asset.title} · {sourceLabel(asset)}
                           </small>
-                          {asset.releasedAt &&
+                          {category !== "agenda" && asset.releasedAt &&
                             asset.source !== "event_documents" && (
                               <small>
                                 Released {formatDate(asset.releasedAt)}
@@ -481,7 +490,7 @@ function AssetCard({
       </p>
       {asset.releasedAt && asset.source !== "event_documents" && (
         <small>
-          Released {formatDate(asset.releasedAt)}
+          {asset.category === "agenda" ? "Published" : "Released"} {formatDate(asset.releasedAt)}
           {asset.releasedByName ? ` by ${asset.releasedByName}` : ""}
         </small>
       )}
@@ -560,7 +569,7 @@ function UploadDialog({
     setError("");
     try {
       await marketing("/library", "POST", form);
-      toast.success("Draft uploaded for manager release");
+      toast.success(category === "agenda" ? "Agenda uploaded" : "Draft uploaded for manager release");
       onUploaded();
     } catch (err) {
       setError(message(err));
@@ -658,8 +667,7 @@ function UploadDialog({
           </label>
         )}
         <p className={styles.notice}>
-          Uploads are saved as drafts. A Marketing Manager releases each version
-          for other departments.
+          {category === "agenda" ? "This agenda will be available to everyone with access to this event as soon as the upload finishes. Previous versions remain in the upload history." : "Uploads are saved as drafts. A Marketing Manager releases each version for other departments."}
         </p>
         {error && (
           <p role="alert" className={styles.error}>
@@ -680,7 +688,7 @@ function UploadDialog({
               (warning && !acceptWarning)
             }
           >
-            {busy ? "Uploading…" : "Upload draft"}
+            {busy ? "Uploading…" : category === "agenda" ? "Upload agenda" : "Upload draft"}
           </button>
         </div>
       </form>

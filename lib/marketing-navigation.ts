@@ -6,10 +6,12 @@ export function marketingNavigation(user: AuthUser | null | undefined, event: st
   const roles = [user?.role || "", ...(user?.departmentAssignments || [])];
   const manager = roles.some(role => ["super_admin_user", "ceo_user", "marketing_manager_user"].includes(role));
   const staff = manager || roles.some(role => MARKETING_ROLES.includes(role));
+  const social = roles.includes("marketing_social") && roles.some(role => MARKETING_ROLES.includes(role));
   const sections = [
     ...(!staff || manager ? [{ key: "overview", name: staff ? "Marketing overview" : "My requests", icon: LayoutDashboard }] : []),
     ...(manager ? [{ key: "requests", name: "Requests", icon: KanbanSquare }] : []),
-    ...(staff ? [{ key: "my-tasks", name: "My tasks", icon: ListTodo }, { key: "social", name: "Social media", icon: Megaphone }] : []),
+    ...(staff ? [{ key: "my-tasks", name: "My tasks", icon: ListTodo }] : []),
+    ...(staff && social ? [{ key: "social", name: "Social media", icon: Megaphone }] : []),
     { key: "agenda", name: "Agenda", icon: FileText },
     { key: "materials", name: "Materials", icon: FolderOpen },
     ...(manager ? [{ key: "team", name: "Team & activity", icon: Users }] : []),
