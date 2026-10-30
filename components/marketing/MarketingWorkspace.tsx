@@ -26,6 +26,7 @@ import {
   type Overview,
 } from "./api";
 import { RequestDetail, RequestForm } from "./Requests";
+import { RequesterTracker } from "./RequesterTracker";
 import { OwnTasks } from "./OwnTasks";
 import { Library } from "./Library";
 import { Settings } from "./Settings";
@@ -56,8 +57,17 @@ export default function MarketingWorkspace() {
   const priority = params.get("priority") || "";
   const offset = Number(params.get("offset") || 0) || 0;
   const [context, setContext] = useState<Context | null>(null);
+  const requester = Boolean(context && !context.staff);
+  const activeFilter = params.get("active") === "1";
   const taskOnly = Boolean(context?.staff && !context.manager);
-  const tab = taskOnly && (rawRequestId || rawCreating || !["agenda", "materials", "social", "my-tasks"].includes(requestedTab)) ? "my-tasks" : requestedTab;
+  const tab = requester && !["agenda", "materials"].includes(requestedTab) ? "overview" : taskOnly && (rawRequestId || rawCreating || !["agenda", "materials", "social", "my-tasks"].includes(requestedTab)) ? "my-tasks" : requestedTab;
+  useEffect(() => {
+    if (!requester || tab === requestedTab) return;
+    const next = new URLSearchParams(query);
+    next.set("tab", tab);
+    ["view", "priority", "overdue"].forEach(key => next.delete(key));
+    router.replace(`/marketing?${next}`, { scroll: false });
+  }, [requester, tab, requestedTab, query, router]);
   const requestId = taskOnly ? null : rawRequestId;
   const creating = !taskOnly && rawCreating;
   useEffect(() => {
@@ -84,6 +94,7 @@ export default function MarketingWorkspace() {
     Object.entries(changes).forEach(([k, v]) =>
       v === null || v === "" ? p.delete(k) : p.set(k, v),
     );
+    if (requester && p.toString() !== query && ["event", "status", "active", "offset", "search"].some(key => key in changes)) setLoading(true);
     router.replace(`/marketing?${p}`, { scroll: false });
   }
   const refreshContext = useCallback(async () => {
@@ -101,7 +112,7 @@ export default function MarketingWorkspace() {
     return () => c.abort();
   }, []);
   useEffect(() => {
-    if (!context || taskOnly || tab !== "overview") return;
+    if (!context?.manager || tab !== "overview") return;
     const c = new AbortController();
     marketing<Overview>(
       `/overview${eventId ? `?eventId=${eventId}` : ""}`,
@@ -119,14 +130,18 @@ export default function MarketingWorkspace() {
     if (!context || taskOnly || !["overview", "requests", "social"].includes(tab)) return;
     const c = new AbortController();
     const p = new URLSearchParams({ limit: "40", offset: String(offset) });
+    if (requester) {
+      p.set("mine", "true");
+      if (activeFilter) p.set("active", "true");
+    }
     if (eventId) p.set("eventId", eventId);
-    if (status) p.set("status", status);
-    if (priority) p.set("priority", priority);
+    if (status && (!requester || status === "completed")) p.set("status", status);
+    if (priority && !requester) p.set("priority", priority);
     if (search) p.set("search", search);
     if (tab === "my-tasks") p.set("assigned", "true");
     if (tab === "social") p.set("taskKind", "social");
-    if (params.get("overdue")) p.set("overdue", "true");
-    if (view === "calendar") {
+    if (params.get("overdue") && !requester) p.set("overdue", "true");
+    if (!requester && view === "calendar") {
       const [y, m] = month.split("-").map(Number);
       p.set("dueFrom", `${month}-01`);
       p.set(
@@ -140,6 +155,7 @@ export default function MarketingWorkspace() {
       counts: Record<string, number>;
     }>(`/requests?${p}`, "GET", undefined, c.signal)
       .then((r) => {
+        if (c.signal.aborted) return;
         setRows(r.items);
         setTotal(r.total);
         setCounts(r.counts);
@@ -156,6 +172,8 @@ export default function MarketingWorkspace() {
   }, [
     context,
     taskOnly,
+    requester,
+    activeFilter,
     eventId,
     status,
     priority,
@@ -203,7 +221,7 @@ export default function MarketingWorkspace() {
         if (!c.signal.aborted) setDetailError(e.message);
       });
     return () => c.abort();
-  }, [context, taskOnly, requestId]);
+  }, [context, taskOnly, requestId, refresh]);
   useEffect(() => {
     const node = dialog.current;
     if ((creating || requestId) && context) {
@@ -240,10 +258,10 @@ export default function MarketingWorkspace() {
             <Megaphone size={14} /> Marketing department
           </div>
           <h1>
-            Marketing workspace
+            {requester && tab === "overview" ? "My requests" : "Marketing workspace"}
             <span className={styles.liveDot} />
           </h1>
-          <p>Plan the work. Keep every delivery moving.</p>
+          {!requester && <p>Plan the work. Keep every delivery moving.</p>}
         </div>
         <div className={styles.headerActions}>
           <button
@@ -306,10 +324,17 @@ export default function MarketingWorkspace() {
                   ? "Social media responsibility"
                   : context.staff
                     ? "Marketing team"
-                    : "Department requests"}
+                    : "My requests"}
             </span>
           </div>
-          {!taskOnly && tab === "overview" && (
+          {requester && tab === "overview" && (
+                <RequesterTracker rows={rows} context={context} total={total} offset={offset} loading={loading}
+                  filter={status === "completed" ? "completed" : activeFilter ? "active" : "all"} search={search}
+                  onFilter={filter => navigate({status: filter === "completed" ? "completed" : null, active: filter === "active" ? "1" : null, offset: null})}
+                  onSearch={search => navigate({search, offset: null})} onPage={offset => navigate({offset: String(offset)})}
+                  onOpen={open} onCreate={() => navigate({create: "1", request: null})} />
+              )}
+              {context.manager && tab === "overview" && (
             <>
               <div className={styles.welcome}>
                 <div>
@@ -474,7 +499,7 @@ export default function MarketingWorkspace() {
           {(tab === "my-tasks" || (taskOnly && tab === "social")) && (
                 <OwnTasks key={`${eventId}:${tab}`} context={context} eventId={eventId} social={tab === "social"} refresh={refresh} />
               )}
-              {!taskOnly && ["requests", "social"].includes(tab) && (
+              {!taskOnly && !requester && ["requests", "social"].includes(tab) && (
             <>
               <div className={styles.sectionHeading}>
                 <div>
