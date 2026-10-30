@@ -476,7 +476,7 @@ export function RequestDetail({
   context: Context;
   onSave: (r: MarketingRequest) => void;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState<MarketingRequest | null>(null);
   const [section, setSection] = useState("delivery");
   const [comment, setComment] = useState("");
   const [reviewNote, setReviewNote] = useState("");
@@ -519,10 +519,10 @@ export function RequestDetail({
       <RequestForm
         context={context}
         eventId={request.eventId}
-        request={request}
-        onCancel={() => setEditing(false)}
+        request={editing}
+        onCancel={() => setEditing(null)}
         onSave={(r) => {
-          setEditing(false);
+          setEditing(null);
           onSave(r);
         }}
       />
@@ -544,7 +544,7 @@ export function RequestDetail({
       </p>
       <div className={styles.actions}>
         {request.canEdit && (
-          <button onClick={() => setEditing(true)}>Edit request fields</button>
+          <button onClick={() => setEditing(request)}>Edit request fields</button>
         )}
         <button
           onClick={() =>
