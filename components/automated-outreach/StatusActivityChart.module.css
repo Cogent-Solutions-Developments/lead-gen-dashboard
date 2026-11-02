@@ -33,8 +33,29 @@
 .filter select { appearance: none; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 11px; cursor: pointer; padding: 4px 2px; min-width: 0; width: 74px; text-overflow: ellipsis; outline: none; }
 .filter:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; }
 .filter svg { flex-shrink: 0; }
-.eventFilter select { width: 230px; }
 .filter option { background: var(--surface); color: var(--ink); }
+.dateFilters { margin: 0 26px 16px; padding: 14px 0 0; border-top: 1px solid var(--line); }
+.dateHeading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 10px; font-size: 11px; font-weight: 600; }
+.dateHeading > span + span { color: var(--muted); font-size: 10px; font-weight: 400; }
+.dateControls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.dateField { display: grid; gap: 5px; min-width: 140px; color: var(--muted); font-size: 10px; }
+.dateField input, .dateField select { height: 34px; min-width: 0; padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--ink); font: inherit; font-size: 11px; color-scheme: light; }
+.eventDateField { width: 260px; max-width: 100%; }
+.eventDateField select { width: 100%; text-overflow: ellipsis; cursor: pointer; }
+:global(.dark) .dateField input { color-scheme: dark; }
+.dateField input:focus-visible, .dateField select:focus-visible, .dateButton:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.dateField input[aria-invalid="true"] { border-color: #b77928; }
+.datePresets { display: flex; flex-wrap: wrap; gap: 6px; }
+.dateButton { height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--muted); font: inherit; font-size: 11px; cursor: pointer; }
+.dateButton:hover, .dateButton[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.applyDates { background: var(--accent); border-color: var(--accent); color: var(--surface); font-weight: 600; }
+.applyDates:hover { color: var(--surface); }
+.dateButton:disabled { opacity: .5; cursor: default; }
+.dateHint, .dateError { margin: 9px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.dateError { color: #b77928; }
+.reportDownload { display: grid; gap: 5px; }
+.reportButton { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.reportDownload p { max-width: 360px; margin: 0; }
 .instrumentBar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin: 0 26px; padding: 13px 0 16px; border-top: 1px solid var(--line); }
 .metrics { display: flex; flex-wrap: wrap; gap: 20px; color: var(--muted); font-size: 11px; }
 .metrics strong { font-size: 14px; color: var(--ink); font-weight: 600; margin-right: 4px; font-variant-numeric: tabular-nums; }
@@ -128,6 +149,9 @@
   .filters { width: 100%; flex-wrap: wrap; }
   .filter { width: 100%; min-width: 0; }
   .filter select { width: 100%; flex: 1; }
+  .dateFilters { margin-inline: 18px; }
+  .dateField { flex: 1; min-width: 120px; }
+  .datePresets { width: 100%; }
   .instrumentBar { margin: 0 18px; }
   .scrollArea { padding: 0 18px; }
   .footer { padding: 15px 18px; }
