@@ -418,10 +418,10 @@ test("people endpoints stay centralized and authentication remains shell-control
   assert.match(shell, /router\.replace\("\/sign-in"\)/);
 });
 
-test("manager summary and filtered detail requests use their matching backend routes", () => {
+test("manager summary and filtered detail requests consume the full performance report", () => {
   for (const relativePath of ["lib/auth.ts", "app/admin/admin-api.ts"]) {
     const source = read(relativePath);
-    assert.match(source, /fetchManagerUserPerformance[\s\S]*?\/api\/manager\/user-performance/);
+    assert.match(source, /fetchManagerUserPerformance[\s\S]*?\/api\/manager\/performance/);
     assert.match(source, /fetchManagerPerformance[\s\S]*?\/api\/manager\/performance/);
   }
 });
