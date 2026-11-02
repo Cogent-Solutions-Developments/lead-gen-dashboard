@@ -216,6 +216,7 @@ function TrackingCard({
           <small>
             {context.events.find((event) => event.id === row.eventId)?.name ||
               "Event"}
+            {row.sourceRequestId && " · Follow-up"}
           </small>
           <h2>
             <button onClick={() => onOpen(row.id)}>

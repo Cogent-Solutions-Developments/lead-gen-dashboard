@@ -36,3 +36,15 @@ Light carries the current Heavy Marketing behavior while retaining its sidebar, 
 - Calendar dates match both month and year, with a compact mobile deadline list. Request tables retain responsive labels and empty states.
 
 Verification used adapted Heavy regression cases against Light's actual components with the existing Heavy Vitest runtime (no Light dependency additions), Light's native role/notification-link tests, type checking, lint and a production build. A browser check used disposable API data to confirm the task brief, status save and flyer-to-social handoff. It did not exercise deployed sign-in or production records.
+
+
+### Speaker follow-ups and deferred social creation (2 November 2026)
+
+- New speaker requests create website, flyer and agenda tasks. The social task is inserted and assigned only when the flyer is completed, within the same locked transaction. The handoff notification is persisted with that transaction and published after commit. Repeated completion cannot create duplicate tasks or handoffs. Legacy waiting social rows are preserved but hidden until their flyer is done; the assignment worker can recover a missed eligible handoff.
+- Editing speaker fields creates a new request linked by `sourceRequestId`. Website and agenda tasks are created by default. The original details, status, revisions and completed tasks stay unchanged; its history records the follow-up link and its optimistic version advances to reject stale edits. Every follow-up has its own completion and manager review.
+- Edit forms support No post changes, Update post, Delete post and Republish post. Update/republish adds flyer work and creates social work after design completion. Delete creates a social removal task directly, without requiring a new design. These are tracked work instructions; the system does not call external social-platform deletion/publishing APIs.
+- `followUpId` is a client-generated idempotency key. Retries against the same source return the existing follow-up; stale edits with a different key fail. Links to the original and subsequent follow-ups remain available in request details.
+- An initial image may attach to a new, untouched request using `initialUpload=true`; subsequent image replacements/removals create follow-ups too. Inherited images are authorized through the new request's server-controlled image reference; other storage IDs remain inaccessible. Newly uploaded images belong to their own follow-up.
+- Heavy and Light retain their own controls, themes and fonts. Task briefs display the requested speaker-post action.
+
+Deployment: `migrations/20261102_marketing_speaker_followups.sql` adds nullable request linkage and workflow metadata without deleting previous work. It is wired into the existing `python -m tools.run_schema_migration` / startup schema path. Deploy the backend/API and worker with that migration before the frontends. Existing non-speaker edits and manager correction/reopen actions retain their previous behavior.

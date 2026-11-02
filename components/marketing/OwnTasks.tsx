@@ -42,6 +42,7 @@ type OwnTask = {
   canUpdate: boolean;
   assigneeId?: string | null;
   assigneeName?: string;
+  speakerPostAction?: string;
   details: Record<string, string>;
 };
 const statuses = ["ready", "waiting", "in_progress", "blocked", "done"];
@@ -377,6 +378,7 @@ function OwnTaskRow({
               </button>
             </header>
             <div className={styles.taskBriefBody}>
+              {task.speakerPostAction && task.speakerPostAction !== "none" && <p>Speaker post: {label(task.speakerPostAction)}</p>}
               <dl className={styles.taskBriefContext}>
                 <div><dt>Event</dt><dd>{eventName}</dd></div>
                 <div><dt>Due date</dt><dd>{task.dueAt ? formatDate(task.dueAt) : "No deadline"}</dd></div>
