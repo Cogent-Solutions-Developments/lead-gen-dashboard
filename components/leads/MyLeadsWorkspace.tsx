@@ -2485,7 +2485,7 @@ export function MyLeadsWorkspace({
                         value={dealAmountUsd}
                         onChange={(event) => setDealAmountUsd(event.target.value)}
                         placeholder="0.00"
-                        className="h-11 rounded-xl border-zinc-200 bg-white shadow-none focus-visible:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
+                        className="h-11 rounded-xl border-zinc-200 bg-white text-foreground caret-foreground shadow-none focus-visible:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
                       />
                     </label>
                     <label className="flex min-h-0 flex-1 flex-col gap-2">

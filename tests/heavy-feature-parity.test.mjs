@@ -95,7 +95,7 @@ test("manager performance is period-aware and omits inactive users", () => {
   assert.match(picker, /period === "weekly" \? "week"/);
   assert.match(picker, /anchorDateForPeriod/);
   assert.match(adminPage, /<PeriodDatePicker period=\{period\}/);
-  assert.match(adminPage, /formatUsd\(selectedCluster\.revenueUsd\)/);
+  assert.match(adminPage, /formatUsd\(selectedCluster\?\.revenueUsd\)/);
   assert.match(adminApi, /dealAmountUsd: activity\.dealAmountUsd/);
   assert.match(adminApi, /revenueUsd: Number\(data\.summary\?\.revenueUsd/);
 });

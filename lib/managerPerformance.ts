@@ -5,6 +5,10 @@ import type {
   ManagerUserPerformance,
 } from "@/lib/auth";
 
+export function isSalesPerformancePipeline(pipeline?: string) {
+  return pipeline === "sales" || pipeline === "delegate_sales" || pipeline === "delegate-sales";
+}
+
 export function activeManagerUsers(users?: ManagerPerformanceTeamUser[] | null) {
   return (users || []).filter((user) => user.isActive !== false);
 }

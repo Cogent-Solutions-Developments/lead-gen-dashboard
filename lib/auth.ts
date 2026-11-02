@@ -2132,12 +2132,16 @@ export async function fetchAdminUserPerformance(options: {
 
 function managerPerformancePipeline(persona?: string) {
   const normalized = String(persona || "").trim().toLowerCase();
+  if (normalized === "delegate-sales" || normalized === "delegate_sales") return "delegate_sales";
   if (normalized === "delegates") return "delegate";
   if (normalized === "production") return "production";
   return "sales";
 }
 
 function managerPerformanceMetric(pipeline: string) {
+  if (pipeline === "delegate_sales") {
+    return { metricKey: "proposal-sent", metricLabel: "Proposals Sent", accent: "#7c3aed", label: "Delegate Sales" };
+  }
   if (pipeline === "sales") {
     return { metricKey: "proposal-sent", metricLabel: "Proposals Sent", accent: "#2563eb", label: "Sales" };
   }
@@ -2154,6 +2158,7 @@ function managerInitials(value: string) {
 }
 
 export async function fetchManagerUserPerformance(options: {
+  pipeline?: "sales" | "delegate_sales" | "delegate" | "production";
   period?: AdminUserPerformancePeriod;
   date?: string;
   limit?: number;
@@ -2162,8 +2167,9 @@ export async function fetchManagerUserPerformance(options: {
   if (options.period) params.set("period", options.period);
   if (options.date) params.set("date", options.date);
   if (options.limit) params.set("limit", String(options.limit));
+  if (options.pipeline) params.set("pipeline", options.pipeline);
   const suffix = params.toString() ? `?${params.toString()}` : "";
-  const data = await authRequest<ManagerPerformanceResponse>(`/api/manager/user-performance${suffix}`);
+  const data = await authRequest<ManagerPerformanceResponse>(`/api/manager/performance${suffix}`);
   const pipeline = managerPerformancePipeline(data.managerScope?.persona);
   const metric = managerPerformanceMetric(pipeline);
   const runners = [...(data.perUserPerformance || [])]
