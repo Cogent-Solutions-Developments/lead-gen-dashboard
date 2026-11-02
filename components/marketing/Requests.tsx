@@ -41,6 +41,7 @@ export function RequestForm({
     "social",
   ]);
   const [kind, setKind] = useState(request?.kind || "web_design");
+  const [postAction, setPostAction] = useState("none");
   const [busy, setBusy] = useState(false);
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -78,7 +79,7 @@ export function RequestForm({
         request ? `/requests/${request.id}` : "/requests",
         request ? "PATCH" : "POST",
         request
-          ? { ...payload, version: request.version }
+          ? { ...payload, version: request.version, ...(kind === "speaker_update" ? { followUpId: id, postAction } : {}) }
           : {
               ...payload,
               id,
@@ -90,6 +91,7 @@ export function RequestForm({
       if (!request && kind === "speaker_update" && speakerImage) {
         const imageData = new FormData();
         imageData.set("file", speakerImage);
+        imageData.set("initialUpload", "true");
         imageData.set("version", String(row.version));
         imageData.set("acceptWarning", String(imageWarning));
         try {
@@ -108,7 +110,7 @@ export function RequestForm({
       }
       onSave(row);
       toast.success(
-        request ? "Request updated" : "Request created and tasks assigned",
+        request && row.id !== request.id ? "Follow-up request created" : request ? "Request updated" : "Request created and tasks assigned",
       );
     } catch (err) {
       failure(err);
@@ -126,7 +128,8 @@ export function RequestForm({
     : "";
   return (
     <form className={styles.panel} onSubmit={submit}>
-      <h2>{request ? "Edit request" : "New request"}</h2>
+      <h2>{request?.kind === "speaker_update" ? "New speaker follow-up" : request ? "Edit request" : "New request"}</h2>
+      {request?.kind === "speaker_update" && <p>Creates new website and agenda tasks. Previous work stays unchanged.</p>}
       <div className={styles.formGrid}>
         {!request && (
           <>
@@ -157,6 +160,16 @@ export function RequestForm({
             </label>
           </>
         )}
+        {request?.kind === "speaker_update" && (<fieldset className={styles.full}>
+          <legend>Speaker post</legend>
+          <div className={styles.actions}>
+            {[["none", "No post changes"], ["update", "Update post"], ["delete", "Delete post"], ["republish", "Republish post"]].map(([value, name]) => (
+              <label key={value} className={styles.check}>
+                <input type="radio" name="postAction" value={value} checked={postAction === value} onChange={() => setPostAction(value)} />{name}
+              </label>
+            ))}
+          </div>
+        </fieldset>)}
         {kind === "other" && !request && (
           <fieldset className={styles.full}>
             <legend>Delivery stages</legend>
@@ -268,7 +281,7 @@ export function RequestForm({
       )}
       <div className={styles.actions}>
         <button className={styles.primary} disabled={busy}>
-          {busy ? "Saving…" : "Save request"}
+          {busy ? "Saving…" : request?.kind === "speaker_update" ? "Create follow-up" : "Save request"}
         </button>
         <button type="button" onClick={onCancel}>
           Cancel
@@ -489,19 +502,16 @@ export function RequestDetail({
   const [busy, setBusy] = useState(false);
   const [image, setImage] = useState<File | null>(null);
   const [acceptWarning, setAcceptWarning] = useState(false);
+  const [postAction, setPostAction] = useState("none");
+  const [followUpId] = useState(() => crypto.randomUUID());
   async function action(path: string, body: unknown, method = "POST") {
     if (readOnly || busy) return;
     setBusy(true);
     try {
-      onSave(
-        await marketing<MarketingRequest>(
-          `/requests/${request.id}${path}`,
-          method,
-          body,
-        ),
-      );
+      const updated = await marketing<MarketingRequest>(`/requests/${request.id}${path}`, method, body);
+      onSave(updated);
       setComment("");
-      toast.success("Request updated");
+      toast.success(updated.id !== request.id ? "Follow-up request created" : "Request updated");
     } catch (err) {
       failure(err);
     } finally {
@@ -516,6 +526,8 @@ export function RequestDetail({
     }
     const data = new FormData();
     data.set("file", image);
+    data.set("followUpId", followUpId);
+    data.set("postAction", postAction);
     data.set("version", String(request.version));
     data.set("acceptWarning", String(acceptWarning));
     await action("/speaker-image", data);
@@ -549,6 +561,9 @@ export function RequestDetail({
       <p>
         {label(request.priority)} priority · {formatDate(request.dueAt)}
       </p>
+      {request.sourceRequestId && <a href={`/marketing?tab=overview&request=${request.sourceRequestId}&readOnly=1`}>Original request</a>}
+      {!!request.followUps?.length && <div className={styles.actions}>{request.followUps.map((id, index) => <a key={id} href={`/marketing?tab=overview&request=${id}&readOnly=1`}>Follow-up {index + 1}</a>)}</div>}
+      {request.speakerPostAction && request.speakerPostAction !== "none" && <p>Speaker post: {label(request.speakerPostAction)}</p>}
       <div className={styles.actions}>
         {request.canEdit && !readOnly && (
           <button onClick={() => setEditing(request)}>Edit request fields</button>
@@ -593,13 +608,23 @@ export function RequestDetail({
           {request.kind === "speaker_update" && (
             <details>
               <summary>Speaker image</summary>
+              {request.canEdit && !readOnly && <><p>Changing the image creates a follow-up request.</p><fieldset className={styles.full}>
+          <legend>Speaker post</legend>
+          <div className={styles.actions}>
+            {[["none", "No post changes"], ["update", "Update post"], ["delete", "Delete post"], ["republish", "Republish post"]].map(([value, name]) => (
+              <label key={value} className={styles.check}>
+                <input type="radio" name="postAction" value={value} checked={postAction === value} onChange={() => setPostAction(value)} />{name}
+              </label>
+            ))}
+          </div>
+        </fieldset></>}
               {request.canEdit && !readOnly && request.details.image && (
                 <button
                   disabled={busy}
                   onClick={() =>
                     void action(
                       "/speaker-image",
-                      { version: request.version },
+                      { version: request.version, followUpId, postAction },
                       "DELETE",
                     )
                   }

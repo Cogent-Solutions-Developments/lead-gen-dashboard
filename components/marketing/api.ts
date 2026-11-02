@@ -21,6 +21,8 @@ export type History = {
   requestId?: string;
 };
 export type RequestSummary = {
+  sourceRequestId?: string | null;
+  speakerPostAction?: string;
   overdue: boolean;
   createdAt: string;
   requesterName: string;
@@ -36,6 +38,9 @@ export type RequestSummary = {
   updatedAt: string;
 };
 export type MarketingRequest = Omit<RequestSummary, "tasks"> & {
+  sourceRequestId?: string | null;
+  speakerPostAction?: string;
+  followUps?: string[];
   requesterId: string;
   requesterName: string;
   department: string;
