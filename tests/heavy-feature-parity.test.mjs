@@ -117,7 +117,7 @@ test("deal bell identity is verified server-side", () => {
   const route = read("app/api/ring-bell/route.ts");
   const auth = read("lib/server/apiAuth.ts");
   assert.match(route, /verifyBackendUser\(request\)/);
-  assert.match(route, /user\.role !== "sales_user"/);
+  assert.match(route, /canRingDealBell\(user\)/);
   assert.doesNotMatch(route, /request\.json\(\)/);
   assert.match(auth, /\/api\/auth\/me/);
   assert.match(auth, /cache: "no-store"/);

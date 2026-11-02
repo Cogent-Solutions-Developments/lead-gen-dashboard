@@ -5,6 +5,7 @@ export type VerifiedBackendUser = {
   username: string;
   fullName: string;
   role: string;
+  departmentAssignments: string[];
 };
 
 export class ApiAuthenticationError extends Error {
@@ -70,6 +71,9 @@ export async function verifyBackendUser(request: Request): Promise<VerifiedBacke
     username: cleanText(user.username, 160),
     fullName: cleanText(user.fullName ?? user.full_name ?? user.username),
     role: cleanText(user.role, 80),
+    departmentAssignments: Array.isArray(user.departmentAssignments)
+      ? user.departmentAssignments.filter((value): value is string => typeof value === "string")
+      : [],
   };
   if (!verified.id || !verified.username || !verified.role) {
     throw new ApiAuthenticationError("The authenticated user response is invalid.", 401);

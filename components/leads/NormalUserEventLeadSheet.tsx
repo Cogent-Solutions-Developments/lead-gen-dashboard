@@ -1108,7 +1108,7 @@ function updateSearchParam(pathname: string, searchParams: URLSearchParams, key:
 }
 
 type LeadSheetDataMode = "shared" | "my-leads";
-type LeadSheetDepartmentPersona = Extract<Persona, "sales" | "delegates" | "production">;
+type LeadSheetDepartmentPersona = Extract<Persona, "sales" | "delegate-sales" | "delegates" | "production">;
 
 type NormalUserEventLeadSheetProps = {
   mode?: LeadSheetDataMode;
@@ -1271,9 +1271,13 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
   const whatsappOutreachEnabled = useWhatsAppOutreach();
   const { persona } = usePersona();
   const effectivePersona: LeadSheetDepartmentPersona =
-    dataPersona ?? (persona === "delegates" || persona === "production" ? persona : "sales");
+    dataPersona ?? (persona === "delegate-sales" || persona === "delegates" || persona === "production" ? persona : "sales");
   const effectiveLeadGroup: LeadGroup =
-    leadGroup ?? (effectivePersona === "delegates" ? "delegate" : effectivePersona);
+    leadGroup ?? (
+      effectivePersona === "delegates" ? "delegate"
+        : effectivePersona === "delegate-sales" ? "delegate_sales"
+          : effectivePersona
+    );
   const { role, user } = useAuth();
   const cacheScope = useMemo(
     () => [role || "unknown-role", user?.id || user?.username || "anonymous", mode, effectiveLeadGroup].join(":"),
@@ -1409,7 +1413,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
   const statusOptions = useMemo(() => {
     return workflowStatuses.length > 0 ? workflowStatuses : fixedWorkflowStatuses;
   }, [fixedWorkflowStatuses, workflowStatuses]);
-  const canUseDealBellFlow = role === "sales_user";
+  const canUseDealBellFlow = effectivePersona === "sales" || effectivePersona === "delegate-sales";
   const isPipelineUserRole = role === "sales_user" || role === "delegate_user" || role === "production_user";
   const canUseTemplateUpload = isMyLeadsMode && isPipelineUserRole;
   const canUseManualLeadAdd = isMyLeadsMode && isPipelineUserRole;
@@ -3411,7 +3415,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
         </div>
       </div>
 
-      {pendingStatusChange ? (
+      {pendingStatusChange && !ringBellConfirmOpen ? (
         <LeadSheetDialog
           open
           eyebrow=""
@@ -3806,8 +3810,8 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
         </LeadSheetDialog>
       ) : null}
 
-      {ringBellConfirmOpen && pendingStatusChange ? (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center p-6">
+      {ringBellConfirmOpen && pendingStatusChange ? createPortal(
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
           <button
             type="button"
             aria-label="Close bell confirmation"
@@ -3817,7 +3821,7 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
             }}
           />
 
-          <div className="relative z-[1] w-full max-w-lg overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_90px_-54px_rgba(2,10,27,0.82)]">
+          <div role="dialog" aria-modal="true" aria-label="Ring the deal bell?" className="relative z-[1] w-full max-w-lg overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_90px_-54px_rgba(2,10,27,0.82)]">
             <Button
               type="button"
               variant="ghost"
@@ -3886,7 +3890,8 @@ export function NormalUserEventLeadSheet({ mode = "shared", departmentTabs, data
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
 
       {contactChoiceLead ? (
