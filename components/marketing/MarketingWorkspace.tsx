@@ -49,7 +49,7 @@ export default function MarketingWorkspace() {
   const params = useSearchParams();
   const query = params.toString();
   const requestedTab = params.get("tab") || "overview";
-  const eventId = params.get("event") || "";
+  const requestedEventId = params.get("event") || "";
   const view = params.get("view") || "board";
   const rawRequestId = params.get("request");
   // Legacy notification links have a request ID without an explicit workspace tab.
@@ -67,6 +67,12 @@ export default function MarketingWorkspace() {
   const taskOnly = Boolean(context?.staff && !context.manager);
   const socialDenied = Boolean(context?.staff && requestedTab === "social" && !context.social);
   const tab = socialDenied ? "my-tasks" : requester && !["agenda", "materials"].includes(requestedTab) ? "overview" : taskOnly && (rawRequestId || rawCreating || !["agenda", "materials", "social", "my-tasks"].includes(requestedTab)) ? "my-tasks" : requestedTab;
+  const libraryTab = tab === "agenda" || tab === "materials";
+  const eventId = requestedEventId === "all" && !libraryTab
+    ? ""
+    : requestedEventId && requestedEventId !== "all"
+      ? requestedEventId
+      : context?.events[0]?.id || "";
   useEffect(() => {
     if (!requester || tab === requestedTab) return;
     const next = new URLSearchParams(query);
@@ -305,12 +311,14 @@ export default function MarketingWorkspace() {
               <CalendarDays size={15} />
               <select
                 aria-label="Event"
-                value={eventId}
+                value={eventId || (libraryTab ? "" : "all")}
+                disabled={!context.events.length}
                 onChange={(e) =>
                   navigate({ event: e.target.value, offset: null, request: null, create: null, readOnly: null })
                 }
               >
-                <option value="">All events</option>
+                {!libraryTab && <option value="all">All events</option>}
+                {!context.events.length && <option value="">No active events</option>}
                 {context.events.map((e) => (
                   <option key={e.id} value={e.id}>
                     {e.name}

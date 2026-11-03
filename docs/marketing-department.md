@@ -85,3 +85,12 @@ Deploy the updated backend before this frontend: creation sends `kind=other` wit
 
 
 Combined choices stay under one request with independent task owners and statuses; every selected task must finish before manager approval. The form prevents submitting with no choice selected. Selecting the manager-only Custom workflow clears preset choices; selecting a preset clears Custom workflow, preventing ambiguous mixed submissions.
+
+
+### Active-event defaults
+
+Marketing event pickers default to the first event in the API's active-event list when no event has been selected. An explicit event selection or event-specific link takes precedence. Agenda and Materials omit All events and immediately fetch the selected event's files; incoming aggregate links also resolve to an active event on these pages. Their upload dialogs inherit that event. If no active events are available, the event picker is disabled and no library read is sent.
+
+Other Marketing views retain an explicit All events option using `event=all`, while starting with an active event by default. Fonts, themes, navigation and other departments are unchanged. This is a frontend-only change and requires no API deployment or migration.
+
+Validation: Heavy Marketing workspace/library/request tests passed 74 checks; actual Light Marketing components passed 105 checks through the parity harness. Both frontend full lint checks and production builds passed. Coverage includes default library reads, explicit event preservation, aggregate library links, empty active-event lists, and explicit aggregate request views.
