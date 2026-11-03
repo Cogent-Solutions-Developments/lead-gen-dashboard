@@ -314,38 +314,34 @@ function RequestEditDialog({ context, request, onClose, onSave }: {
   </dialog>;
 }
 
+function HistoryValue({ value }: { value: unknown }) {
+  if (value == null || value === "") return <>None</>;
+  if (Array.isArray(value)) return value.length ? <>{value.map((entry,index) => <div key={index}><HistoryValue value={entry} /></div>)}</> : <>None</>;
+  if (typeof value === "object") return <dl className={styles.historyFields}>{Object.entries(value).map(([key,entry]) => <div key={key}><dt>{label(key)}</dt><dd><HistoryValue value={entry} /></dd></div>)}</dl>;
+  return <>{typeof value === "boolean" ? value ? "Yes" : "No" : String(value)}</>;
+}
+
 export function HistoryList({ items }: { items: History[] }) {
-  return (
+  const [page, setPage] = useState(0);
+  const pageSize = 5;
+  const pages = Math.max(1, Math.ceil(items.length / pageSize));
+  const current = Math.min(page, pages - 1);
+  const start = current * pageSize;
+  return <section aria-label="Request activity history">
     <ol className={styles.history}>
-      {items.map((item) => (
-        <li key={item.id}>
-          <strong>{item.action}</strong>
-          <span>
-            {item.actor} · {formatDate(item.createdAt)}
-          </span>
-          {Object.entries(item.detail).map(([key, value]) => (
-            <p key={key}>
-              {label(key)}:{" "}
-              {value &&
-              typeof value === "object" &&
-              "before" in value &&
-              "after" in value ? (
-                <span className={styles.historyChange}>
-                  <del>{String(value.before ?? "Empty")}</del>
-                  {" → "}
-                  <strong>{String(value.after ?? "Empty")}</strong>
-                </span>
-              ) : Array.isArray(value) ? (
-                value.map(String).join(", ")
-              ) : (
-                String(value ?? "—")
-              )}
-            </p>
-          ))}
-        </li>
-      ))}
+      {items.slice(start, start + pageSize).map(item => <li key={item.id}>
+        <details className={styles.historyEntry}>
+          <summary><strong>{item.action.replace(/_/g, " ")}</strong><small>{item.actor} · {formatDate(item.createdAt)}</small></summary>
+          <HistoryValue value={item.detail} />
+        </details>
+      </li>)}
     </ol>
-  );
+    {!items.length && <p>No activity yet.</p>}
+    <div className={styles.historyPagination} aria-label="Activity pages">
+      <small>{items.length ? `${start + 1}-${Math.min(start + pageSize, items.length)} of ${items.length}` : "0 updates"} · Page {current + 1} of {pages}</small>
+      <div><button type="button" disabled={!current} onClick={() => setPage(current - 1)}>Previous</button><button type="button" disabled={current + 1 >= pages} onClick={() => setPage(current + 1)}>Next</button></div>
+    </div>
+  </section>;
 }
 
 function TaskCard({
@@ -610,7 +606,7 @@ export function RequestDetail({
           Refresh progress
         </button>
       </div>
-      <nav className={styles.tabs} aria-label="Request sections">
+      <nav className={`${styles.tabs} ${styles.requestSections}`} aria-label="Request sections">
         {[
           ...(request.sourceRequestId ? [["changes", "Changes"]] : []),
           ["delivery", "Delivery"],
@@ -825,7 +821,8 @@ export function RequestDetail({
       {section === "activity" && (
         <>
           {!readOnly && (
-            <>
+            <details className={styles.activityComment}>
+              <summary>Add a comment</summary>
               <label>
                 Comment
                 <textarea
@@ -845,9 +842,9 @@ export function RequestDetail({
               >
                 Add comment
               </button>
-            </>
+            </details>
           )}
-          <HistoryList items={[...request.history].reverse()} />
+          <HistoryList key={request.id} items={[...request.history].reverse()} />
         </>
       )}
     </section>

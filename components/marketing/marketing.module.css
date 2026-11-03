@@ -1539,3 +1539,19 @@
   .deliveryRing { width: 128px; height: 128px; flex-basis: 128px; padding: 12px; }
   .dayBar { margin: 0 2px; }
 }
+
+/* Keep request history finite; expand only the update being inspected. */
+.workspace .requestSections { position: sticky; top: -1px; z-index: 6; background: var(--mk-canvas); }
+.historyEntry { padding: 0; }
+.historyEntry summary { cursor: pointer; padding: 10px 0; }
+.historyEntry summary strong { display: inline; }
+.historyEntry summary small { display: block; margin-top: 4px; }
+.historyFields { margin: 8px 0; padding: 0; }
+.historyFields > div { display: grid; grid-template-columns: minmax(80px, 1fr) minmax(0, 3fr); gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--mk-border); }
+.historyFields dt { color: var(--mk-muted); }
+.historyFields dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
+.historyFields .historyFields { margin: 0; }
+.historyPagination { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--mk-border); padding-top: 12px; }
+.historyPagination > div { display: flex; gap: 8px; }
+.activityComment { margin: 12px 0; }
+.activityComment > summary { cursor: pointer; padding: 8px 0; }

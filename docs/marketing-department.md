@@ -103,3 +103,8 @@ Request progress replaces the redundant My work queue with a status ring and cli
 Activity totals cover all authorized updates in the selected event over seven UTC days, rather than the old latest-12 entry sample. Zero days remain visible, and missing activity data is shown as unavailable. Detailed history remains in the existing activity log. Marketing keeps its megaphone icon; Social media uses Share2. Existing fonts, themes, navigation, role permissions and other departments are preserved.
 
 Deploy the updated backend API before this frontend to provide `overview.activitySummary`. No schema migration or new dependency is required. Both production builds and full lint passed; Heavy chart/workspace/navigation checks passed 40 tests, and actual Light Marketing components passed 111 checks across the main run and focused chart rerun.
+
+
+### Compact request activity
+
+Request activity shows five updates per page, newest first, with explicit page and item counts. Each update expands on demand, and nested before/after fields render as readable labels and values instead of object placeholders. The comment editor is collapsed by default. Request section tabs stay sticky within the popup so users can switch sections without scrolling back to the top. Existing fonts, themes, task controls, uploads and read-only permissions are preserved. No backend change is required.
