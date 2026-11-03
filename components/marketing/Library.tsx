@@ -64,6 +64,10 @@ export function Library(props: Props) {
 }
 
 function EventLibrary({ context, eventId, category }: Props) {
+  const canUpload = context.canUpload && (
+    context.manager || context.role === "marketing_designer_user" ||
+    context.roles?.includes("marketing_designer_user")
+  );
   const [data, setData] = useState<LibraryData>({ items: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -138,7 +142,7 @@ function EventLibrary({ context, eventId, category }: Props) {
     onView: setPreview,
     onDownload: downloadFile,
     onRelease: category === "materials" && context.manager ? release : undefined,
-    onReplace: context.canUpload ? setUploadTitle : undefined,
+    onReplace: canUpload ? setUploadTitle : undefined,
   };
   if (!eventId)
     return (
@@ -161,7 +165,7 @@ function EventLibrary({ context, eventId, category }: Props) {
           >
             <RefreshCw size={16} /> Refresh
           </button>
-          {context.canUpload && (
+          {canUpload && (
             <button
               className={styles.primary}
               onClick={() =>
@@ -228,7 +232,7 @@ function EventLibrary({ context, eventId, category }: Props) {
                     <button onClick={() => setPreview(asset)}>
                       <Eye size={15} /> View
                     </button>
-                    {category === "materials" && context.canUpload && (
+                    {category === "materials" && canUpload && (
                       <button onClick={() => setUploadTitle(asset.title)}>
                         <Upload size={15} /> Upload new version
                       </button>
@@ -423,7 +427,7 @@ function EventLibrary({ context, eventId, category }: Props) {
           {note.note && <p>{note.note}</p>}
         </details>
       ))}
-      {uploadTitle !== null && (
+      {canUpload && uploadTitle !== null && (
         <UploadDialog
           category={category}
           eventId={eventId}
