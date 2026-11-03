@@ -23,6 +23,7 @@ const taskVisuals = {
   website: { name: "Website", icon: Code2 },
   flyer: { name: "Flyer", icon: Paintbrush },
   agenda: { name: "Agenda", icon: FileText },
+  materials: { name: "Materials", icon: FileText },
   social: { name: "Social", icon: Megaphone },
   leads: { name: "Leads", icon: Inbox },
 };

@@ -8,12 +8,14 @@ import {
   label,
   taskLabel,
   formatDate,
+  canUploadLibrary,
   type Context,
   type MarketingRequest,
   type Task,
   type History,
 } from "./api";
 import styles from "./marketing.module.css";
+import { LibraryUploadDialog } from "./LibraryUploadDialog";
 
 function failure(err: unknown) {
   toast.error(err instanceof Error ? err.message : "Could not save changes");
@@ -175,7 +177,7 @@ export function RequestForm({
             <legend>Delivery stages</legend>
             <p>Choose the work needed. Owners are assigned automatically.</p>
             <div className={styles.actions}>
-              {["website", "flyer", "agenda", "social", "leads"].map((k) => (
+              {["website", "flyer", "agenda", "materials", "social", "leads"].map((k) => (
                 <label key={k} className={styles.check}>
                   <input
                     type="checkbox"
@@ -338,6 +340,7 @@ function TaskCard({
   onSave: (r: MarketingRequest) => void;
   readOnly?: boolean;
 }) {
+  const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState(
     task.status === "waiting" ? "ready" : task.status,
   );
@@ -345,6 +348,7 @@ function TaskCard({
   const [assignee, setAssignee] = useState(task.assigneeId || "");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const uploadCategory = task.kind === "agenda" || task.kind === "materials" ? task.kind : null;
   const closed = ["completed", "cancelled"].includes(request.status);
   async function save(reassign = false, nextStatus = status) {
     if (readOnly || busy) return;
@@ -383,8 +387,7 @@ function TaskCard({
       )}
       {task.kind === "agenda" && (
         <p>
-          Maintain the PDF in the separate Agenda library, then update this
-          task.
+          Upload the PDF here to save it in the Agenda library and complete this task.
         </p>
       )}
       {task.status === "waiting" && <p>Waiting for flyer design completion.</p>}
@@ -431,6 +434,7 @@ function TaskCard({
               onChange={(e) => setNote(e.target.value)}
             />
           </label>
+          {uploadCategory && canUploadLibrary(context) && task.status !== "done" && <button className={styles.primary} disabled={busy || !task.assigneeId} onClick={() => setUploading(true)}>Upload & complete</button>}
           <button
             disabled={
               busy || !task.assigneeId || (status === "blocked" && !note.trim())
@@ -479,6 +483,15 @@ function TaskCard({
           Completed {formatDate(task.completedAt)} · Revision {task.revision}
         </small>
       )}
+      {uploading && uploadCategory && canUploadLibrary(context) && task.canUpdate && !closed && task.status !== "done" && !readOnly && <LibraryUploadDialog
+        category={uploadCategory}
+        eventId={request.eventId}
+        eventName={context.events.find(event => event.id === request.eventId)?.name || "Event"}
+        initialTitle={uploadCategory === "agenda" ? "Agenda" : request.title}
+        task={{ requestId: request.id, taskId: task.id, version: request.version, note }}
+        onClose={() => setUploading(false)}
+        onUploaded={result => { setUploading(false); if (result && "id" in result.request) onSave(result.request); }}
+      />}
     </article>
   );
 }

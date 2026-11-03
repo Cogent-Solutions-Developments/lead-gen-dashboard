@@ -14,6 +14,7 @@ import {
   PencilLine,
   RefreshCw,
   Search,
+  Upload,
   X,
 } from "lucide-react";
 import {
@@ -22,9 +23,11 @@ import {
   label,
   taskLabel,
   formatDate,
+  canUploadLibrary,
   type Context,
 } from "./api";
 import styles from "./marketing.module.css";
+import { LibraryUploadDialog } from "./LibraryUploadDialog";
 import { MARKETING_TASKS_CHANGED_EVENT } from "@/lib/marketing-workflow-events";
 
 type OwnTask = {
@@ -217,6 +220,7 @@ export function OwnTasks({
                   <OwnTaskRow
                     key={task.id}
                     task={task}
+                    context={context}
                     ownerName={social && task.assigneeName ? task.assigneeId === context.userId ? "You" : task.assigneeName : undefined}
                     eventName={
                       context.events.find((event) => event.id === task.eventId)
@@ -268,11 +272,13 @@ export function OwnTasks({
 
 function OwnTaskRow({
   task,
+  context,
   eventName,
   onSaved,
   ownerName,
 }: {
   task: OwnTask;
+  context: Context;
   eventName: string;
   onSaved: () => void;
   ownerName?: string;
@@ -282,6 +288,7 @@ function OwnTaskRow({
     note: string;
     version: number;
   } | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -293,12 +300,15 @@ function OwnTaskRow({
   const updateButton = useRef<HTMLButtonElement>(null);
   const statusInput = useRef<HTMLSelectElement>(null);
   const editing = editor !== null;
+  const uploadCategory = task.kind === "agenda" || task.kind === "materials" ? task.kind : null;
+  const canUpload = canUploadLibrary(context) && task.canUpdate && task.status !== "done" && !!uploadCategory;
   useEffect(() => {
     if (editing) statusInput.current?.focus();
     else if (saved) updateButton.current?.focus();
   }, [editing, saved]);
   const dirty = editor !== null && (editor.status !== task.status || editor.note !== (task.note || ""));
   function cancel() {
+    setUploading(false);
     setEditor(null);
     setError("");
     updateButton.current?.focus();
@@ -549,10 +559,11 @@ function OwnTaskRow({
                 <div className={styles.taskEditorFooter}>
                   <span className={styles.taskEditorHint}>{busy ? "Saving your update…" : dirty ? "Changes are not saved yet." : "Choose a status or add a note to make an update."}</span>
                   <div className={styles.taskEditorActions}>
+                    {canUpload && <button type="button" className={styles.primary} disabled={busy} onClick={() => setUploading(true)}><Upload size={15} aria-hidden="true" />Upload & complete</button>}
                     <button type="button" disabled={busy} onClick={cancel}>Cancel</button>
                     <button
                       type="submit"
-                      className={styles.primary}
+                      className={canUpload ? undefined : styles.primary}
                       disabled={
                         busy || !dirty || (editor.status === "blocked" && !editor.note.trim())
                       }
@@ -564,6 +575,15 @@ function OwnTaskRow({
                 </div>
               </form>
             )}
+            {uploading && editor && canUpload && uploadCategory && <LibraryUploadDialog
+              category={uploadCategory}
+              eventId={task.eventId}
+              eventName={eventName}
+              initialTitle={uploadCategory === "agenda" ? "Agenda" : task.title}
+              task={{ requestId: task.requestId, taskId: task.id, version: editor.version, note: editor.note }}
+              onClose={() => setUploading(false)}
+              onUploaded={() => { setUploading(false); setEditor(null); setSaved(true); onSaved(); }}
+            />}
           </td>
         </tr>
       )}

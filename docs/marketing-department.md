@@ -48,3 +48,12 @@ Verification used adapted Heavy regression cases against Light's actual componen
 - Heavy and Light retain their own controls, themes and fonts. Task briefs display the requested speaker-post action.
 
 Deployment: `migrations/20261102_marketing_speaker_followups.sql` adds nullable request linkage and workflow metadata without deleting previous work. It is wired into the existing `python -m tools.run_schema_migration` / startup schema path. Deploy the backend/API and worker with that migration before the frontends. Existing non-speaker edits and manager correction/reopen actions retain their previous behavior.
+
+
+### Upload and complete a task
+
+Agenda and Marketing materials tasks offer **Upload & complete** from their existing status controls. The dialog preselects the task's event, preserves the task note and reuses the library upload validation and size warnings. A successful upload stores the version and completes that task in one backend transaction, then refreshes the task table. Failed uploads retain the selected file for retry; the upload UUID prevents duplicate versions when a successful response is lost.
+
+Only authorized Manager/Designer accounts receive this action. Speaker flyer tasks remain status-only. Standalone library uploads do not change task status. Agendas are immediately available; materials still require manager release. Request completion still requires manager approval. Managers can create a custom Marketing materials task and configure its Designer owner through existing assignment controls.
+
+Deploy the updated Marketing backend and worker before this frontend. No font, theme, navigation or other department changes are required.

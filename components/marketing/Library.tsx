@@ -4,7 +4,6 @@ import {
   useEffect,
   useRef,
   useState,
-  type FormEvent,
 } from "react";
 import {
   Download,
@@ -13,18 +12,19 @@ import {
   History,
   RefreshCw,
   Upload,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   marketing,
   download,
   formatDate,
+  canUploadLibrary,
   type Asset,
   type Context,
 } from "./api";
 import styles from "./marketing.module.css";
 import { DocumentPreview } from "./DocumentPreview";
+import { LibraryUploadDialog } from "./LibraryUploadDialog";
 
 type Props = {
   context: Context;
@@ -64,10 +64,7 @@ export function Library(props: Props) {
 }
 
 function EventLibrary({ context, eventId, category }: Props) {
-  const canUpload = context.canUpload && (
-    context.manager || context.role === "marketing_designer_user" ||
-    context.roles?.includes("marketing_designer_user")
-  );
+  const canUpload = canUploadLibrary(context);
   const [data, setData] = useState<LibraryData>({ items: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -428,7 +425,7 @@ function EventLibrary({ context, eventId, category }: Props) {
         </details>
       ))}
       {canUpload && uploadTitle !== null && (
-        <UploadDialog
+        <LibraryUploadDialog
           category={category}
           eventId={eventId}
           eventName={
@@ -521,181 +518,5 @@ function AssetCard({
         )}
       </div>
     </article>
-  );
-}
-
-function UploadDialog({
-  category,
-  eventId,
-  eventName,
-  initialTitle,
-  onClose,
-  onUploaded,
-}: {
-  category: Props["category"];
-  eventId: string;
-  eventName: string;
-  initialTitle: string;
-  onClose: () => void;
-  onUploaded: () => void;
-}) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [acceptWarning, setAcceptWarning] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const recommended = category === "agenda" ? 3 : 5;
-  const tooLarge = !!file && file.size > 10 * 1024 * 1024;
-  const invalidPdf =
-    !!file &&
-    category === "agenda" &&
-    !file.name.toLowerCase().endsWith(".pdf");
-  const warning = !!file && file.size > recommended * 1024 * 1024;
-  useEffect(() => {
-    const node = dialog.current;
-    node?.showModal();
-    return () => node?.close();
-  }, []);
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!file || busy || tooLarge || invalidPdf || (warning && !acceptWarning))
-      return;
-    const form = new FormData(event.currentTarget);
-    if (!String(form.get("title") || "").trim()) {
-      setError("Enter a material title.");
-      return;
-    }
-    form.set("eventId", eventId);
-    form.set("category", category);
-    form.set("file", file);
-    form.set("acceptWarning", String(acceptWarning));
-    setBusy(true);
-    setError("");
-    try {
-      await marketing("/library", "POST", form);
-      toast.success(category === "agenda" ? "Agenda uploaded" : "Draft uploaded for manager release");
-      onUploaded();
-    } catch (err) {
-      setError(message(err));
-      setBusy(false);
-    }
-  }
-  return (
-    <dialog
-      ref={dialog}
-      className={styles.libraryDialog}
-      aria-labelledby="library-upload-title"
-      onCancel={(event) => {
-        event.preventDefault();
-        if (!busy) onClose();
-      }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget && !busy) onClose();
-      }}
-    >
-      <div className={styles.taskHeading}>
-        <h2 id="library-upload-title">
-          Upload {category === "agenda" ? "agenda" : "marketing material"}
-        </h2>
-        <button
-          type="button"
-          aria-label="Close upload"
-          disabled={busy}
-          onClick={onClose}
-        >
-          <X size={18} />
-        </button>
-      </div>
-      <p>{eventName}</p>
-      <form onSubmit={submit}>
-        <label>
-          Title
-          <input
-            name="title"
-            required
-            maxLength={200}
-            defaultValue={initialTitle}
-            readOnly={!!initialTitle}
-            placeholder="e.g. Sponsor brochure"
-          />
-        </label>
-        {!initialTitle && (
-          <p>
-            Use an existing title to add a version to that material’s history.
-          </p>
-        )}
-        <label className={styles.upload}>
-          Select file
-          <input
-            type="file"
-            required
-            accept={category === "agenda" ? ".pdf,application/pdf" : undefined}
-            onChange={(event) => {
-              setFile(event.target.files?.[0] || null);
-              setAcceptWarning(false);
-              setError("");
-            }}
-            disabled={busy}
-          />
-        </label>
-        <p>
-          {category === "agenda"
-            ? "PDF only."
-            : "Documents and creative files."}{" "}
-          Recommended: {recommended}MB or below. Maximum: 10MB.
-        </p>
-        {file && (
-          <p>
-            {file.name} · {sizeLabel(file.size)}
-          </p>
-        )}
-        {tooLarge && (
-          <p role="alert" className={styles.error}>
-            Maximum file size is 10MB. Choose a smaller file.
-          </p>
-        )}
-        {invalidPdf && (
-          <p role="alert" className={styles.error}>
-            Agenda files must be PDFs.
-          </p>
-        )}
-        {warning && !tooLarge && (
-          <label className={styles.check}>
-            <input
-              type="checkbox"
-              checked={acceptWarning}
-              onChange={(event) => setAcceptWarning(event.target.checked)}
-              disabled={busy}
-            />
-            This file exceeds the recommended {recommended}MB. Upload anyway.
-          </label>
-        )}
-        <p className={styles.notice}>
-          {category === "agenda" ? "This agenda will be available to everyone with access to this event as soon as the upload finishes. Previous versions remain in the upload history." : "Uploads are saved as drafts. A Marketing Manager releases each version for other departments."}
-        </p>
-        {error && (
-          <p role="alert" className={styles.error}>
-            {error}
-          </p>
-        )}
-        <div className={styles.actions}>
-          <button type="button" disabled={busy} onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            className={styles.primary}
-            disabled={
-              busy ||
-              !file ||
-              tooLarge ||
-              invalidPdf ||
-              (warning && !acceptWarning)
-            }
-          >
-            {busy ? "Uploading…" : category === "agenda" ? "Upload agenda" : "Upload draft"}
-          </button>
-        </div>
-      </form>
-    </dialog>
   );
 }

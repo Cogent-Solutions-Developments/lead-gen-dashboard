@@ -11,6 +11,7 @@ const workTypes = [
   { kind: "website", title: "Website updates", description: "Update event pages and website content.", role: "developer", icon: Globe },
   { kind: "flyer", title: "Speaker flyers", description: "Design flyers for confirmed speakers.", role: "designer", icon: Palette },
   { kind: "agenda", title: "Agenda updates", description: "Prepare and update the event agenda.", role: "designer", icon: FileText },
+  { kind: "materials", title: "Marketing materials", description: "Prepare and upload event marketing resources.", role: "designer", icon: FileText },
   { kind: "social", title: "Social media", description: "Publish approved content and record post links.", role: "social media team member", icon: Megaphone },
   { kind: "leads", title: "Lead delivery", description: "Prepare and deliver requested lead lists.", role: "marketing manager", icon: Users },
 ];

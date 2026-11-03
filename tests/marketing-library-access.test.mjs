@@ -11,6 +11,12 @@ const source = readFileSync(new URL("../components/marketing/Library.tsx", impor
 const code = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
 }).outputText;
+const apiModule = { exports: {} };
+const apiSource = readFileSync(new URL("../components/marketing/api.ts", import.meta.url), "utf8");
+runInNewContext(ts.transpileModule(apiSource, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, {
+  module: apiModule, exports: apiModule.exports,
+  require(name) { if (name.startsWith("@/lib/")) return {}; throw new Error(name); },
+});
 const testModule = { exports: {} };
 runInNewContext(code, {
   module: testModule,
@@ -20,9 +26,10 @@ runInNewContext(code, {
     if (name === "react/jsx-runtime") return jsxRuntime;
     if (name === "lucide-react") return new Proxy({}, { get: () => () => null });
     if (name === "sonner") return { toast: { success() {} } };
-    if (name === "./api") return {};
+    if (name === "./api") return apiModule.exports;
     if (name === "./marketing.module.css") return {};
     if (name === "./DocumentPreview") return { DocumentPreview: () => null };
+    if (name === "./LibraryUploadDialog") return { LibraryUploadDialog: () => null };
     throw new Error(`Unexpected library dependency: ${name}`);
   },
 });

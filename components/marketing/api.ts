@@ -177,6 +177,7 @@ export const taskLabel = (kind: string) =>
     website: "Website update",
     flyer: "Speaker flyer design",
     agenda: "Agenda update",
+    materials: "Marketing materials",
     social: "Social media",
     leads: "Lead delivery",
   })[kind] || label(kind);
@@ -210,3 +211,12 @@ export async function previewUrl(path: string, signal?: AbortSignal): Promise<st
     throw new Error("Invalid preview link.");
   return `${baseUrl()}${data.url}`;
 }
+
+
+export function canUploadLibrary(context: Context): boolean {
+  return !!context.canUpload && (context.manager || context.role === "marketing_designer_user" || !!context.roles?.includes("marketing_designer_user"));
+}
+export type TaskUploadResult = {
+  asset: Asset;
+  request: MarketingRequest | Pick<MarketingRequest, "version" | "tasks">;
+};
