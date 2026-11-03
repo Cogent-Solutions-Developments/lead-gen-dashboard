@@ -6,7 +6,7 @@ import { runInNewContext } from "node:vm";
 import * as jsxRuntime from "react/jsx-runtime";
 import ts from "typescript";
 
-function editor() {
+function editor(creating = false, manager = true) {
   const states = [], calls = [], errors = [];
   let cursor = 0, tree;
   const react = { useState(initial) {
@@ -30,15 +30,16 @@ function editor() {
         if (name === "./SpeakerChanges") return { SpeakerChanges: () => null };
         if (name === "./LibraryUploadDialog") return { LibraryUploadDialog: () => null };
         if (name === "sonner") return { toast: { success() {}, error(error) { errors.push(error); } } };
-        if (name === "./api") return { label: value => value, marketing: async (...args) => { calls.push(args); return { id: "new-subtask" }; } };
+        if (name === "./api") return { label: value => value, taskLabel: value => value, marketing: async (...args) => { calls.push(args); return { id: "new-subtask" }; } };
         throw new Error(`Unexpected dependency: ${name}`);
       },
     });
     return compiledModule.exports;
   }
   const picker = load("SpeakerOperationPicker.tsx");
-  const { RequestForm } = load("Requests.tsx", { "./SpeakerOperationPicker": picker });
-  const props = { context: { manager: true }, eventId: "event", request: { id: "parent", title: "Main speaker task", kind: "speaker_update", version: 7, priority: "normal", dueAt: null, details: { speakerName: "Alex", designation: "Director", company: "Example" } }, onSave() {}, onCancel() {} };
+  const otherPicker = load("OtherOperationPicker.tsx");
+  const { RequestForm } = load("Requests.tsx", { "./SpeakerOperationPicker": picker, "./OtherOperationPicker": otherPicker });
+  const props = { context: { manager, role: "production_user", events: [{id:"event",name:"Conference"}] }, eventId: "event", request: creating ? undefined : { id: "parent", title: "Main speaker task", kind: "speaker_update", version: 7, priority: "normal", dueAt: null, details: { speakerName: "Alex", designation: "Director", company: "Example" } }, onSave() {}, onCancel() {} };
   function render() { cursor = 0; tree = RequestForm(props); }
   function all(predicate, node = tree, found = []) {
     if (Array.isArray(node)) { node.forEach(child => all(predicate, child, found)); return found; }
@@ -48,11 +49,18 @@ function editor() {
     return found;
   }
   render();
-  return { all, calls, errors, props, render, choose(operation) {
+  return { all, calls, errors, props, render, chooseOther(operation) {
+    all(node => node.type === "select" && node.props.value === "web_design")[0].props.onChange({target:{value:"other"}}); render();
+    const node = all(node => node.type === otherPicker.OtherOperationPicker)[0];
+    assert.ok(node, "Other radio choices must be visible");
+    const radioTree = otherPicker.OtherOperationPicker(node.props);
+    if (!manager) assert.equal(all(item => item.type === "input" && item.props.value === "custom", radioTree).length, 0);
+    node.props.onChange(operation); render();
+  }, choose(operation) {
     const node = all(node => node.type === picker.SpeakerOperationPicker)[0];
     assert.ok(node, "Operation picker must be present");
     node.props.onChange(operation); render();
-  }, submit() { return tree.props.onSubmit({ preventDefault() {}, currentTarget: { priority: "normal", dueAt: "", speakerName: "Alex", designation: "Director", company: "Example", instructions: "Requested change" } }); } };
+  }, submit() { return tree.props.onSubmit({ preventDefault() {}, currentTarget: { title:"Other marketing work", eventId:"event", priority: "normal", dueAt: "", speakerName: "Alex", designation: "Director", company: "Example", instructions: "Requested change" } }); } };
 }
 
 for (const operation of ["website", "agenda", "website_agenda", "update_post", "delete_post", "republish_post"]) {
@@ -73,3 +81,22 @@ for (const operation of ["website", "agenda", "website_agenda", "update_post", "
     assert.match(payload.followUpId, /^[0-9a-f-]{36}$/);
   });
 }
+
+for (const operation of ["website", "materials", "agenda"]) {
+  test(`department requesters can route Other ${operation} without custom-stage access`, async () => {
+    const view=editor(true,false);
+    assert.equal(view.all(node=>node.type==="option" && node.props.value==="other").length,1);
+    view.chooseOther(operation);
+    await view.submit();
+    assert.equal(view.errors.length,0);
+    const [path,method,payload]=view.calls[0];
+    assert.equal(path,"/requests"); assert.equal(method,"POST");
+    assert.equal(payload.kind,"other"); assert.equal(payload.operation,operation);
+    assert.equal(payload.taskKinds,undefined);
+  });
+}
+test("Marketing Managers retain custom delivery stages",async()=>{
+  const view=editor(true,true); view.chooseOther("custom"); await view.submit();
+  const payload=view.calls[0][2];
+  assert.ok(Array.isArray(payload.taskKinds)); assert.equal(payload.operation,undefined);
+});

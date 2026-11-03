@@ -73,3 +73,12 @@ Deploy the updated backend before the frontend because the edit API now accepts 
 View changes opens a saved comparison in an assigned speaker-update task's brief. Request details also have a Changes tab. The shared comparison supports side-by-side and unified layouts, word-level added/removed highlighting, and optional unchanged fields. Full current details are collapsed for updates to keep the focus on changes. Initial request briefs, fonts and themes retain their existing presentation.
 
 Task comparisons load only when opening a brief and are aborted on close. The backend exposes the saved creation-time values through the authorized task; the UI does not need full parent history. Previous/current image downloads use the child request's authorized image route. Missing historical baselines and operation-only updates have distinct states. Long biography comparisons use a bounded algorithm and preserve the exact original/requested text. Deploy the comparison-enabled backend before this frontend; no new dependency or migration is required.
+
+
+### Compact request popups and Other requests
+
+New request and request details open in centred native popups. Short requests shrink to their content; long forms scroll under the fixed close header. Mobile screens retain viewport margins. Existing edit, speaker-update and upload popups remain available, and Escape closes only the active inner popup. New requests cannot close during submission. Existing fonts, themes, navigation and page widths are preserved.
+
+Department requesters can choose Other, then select Website update (Developer), Marketing materials (Designer), or Agenda update (Designer). The server creates only the selected task using existing event/default assignments. Managers additionally retain Custom workflow for selecting delivery stages. Existing task updates, task-linked uploads, version history, notifications, requester tracking and manager approval apply; materials still need manager release.
+
+Deploy the updated backend before this frontend: creation now sends `kind=other` with `operation=website|materials|agenda`. The server rejects mixed operation/custom-stage payloads and prevents department requesters from choosing arbitrary task kinds. Manager custom payloads remain compatible. No new schema migration or dependency is required.

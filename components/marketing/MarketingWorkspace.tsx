@@ -11,7 +11,6 @@ import {
   Search,
   List,
   CalendarDays,
-  X,
   RefreshCw,
   ArrowRight,
   Clock3,
@@ -25,6 +24,7 @@ import {
   type MarketingRequest,
   type Overview,
 } from "./api";
+import { MarketingDialog } from "./MarketingDialog";
 import { RequestDetail, RequestForm } from "./Requests";
 import { RequesterTracker } from "./RequesterTracker";
 import { OwnTasks } from "./OwnTasks";
@@ -94,7 +94,7 @@ export default function MarketingWorkspace() {
   const [detailError, setDetailError] = useState("");
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
-  const dialog = useRef<HTMLDialogElement>(null);
+  const [requestBusy, setRequestBusy] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
   function navigate(changes: Record<string, string | null>) {
     const p = new URLSearchParams(query);
@@ -228,12 +228,6 @@ export default function MarketingWorkspace() {
       });
     return () => c.abort();
   }, [context, taskOnly, requestId, refresh]);
-  useEffect(() => {
-    const node = dialog.current;
-    if ((creating || requestId) && context) {
-      if (node && !node.open) node.showModal();
-    } else if (node?.open) node.close();
-  }, [creating, requestId, context]);
   const open = (id: string) => {
     setDetailError("");
     navigate({ tab, request: id, create: null, readOnly: null });
@@ -666,24 +660,7 @@ export default function MarketingWorkspace() {
           )}
         </>
       )}
-      <dialog
-        ref={dialog}
-        className={styles.drawer}
-        aria-label={creating ? "Create marketing request" : "Request details"}
-        onCancel={(e) => {
-          e.preventDefault();
-          close();
-        }}
-        onClick={(e) => {
-          if (e.target === dialog.current) close();
-        }}
-      >
-        <div className={styles.drawerHeader}>
-          <span>{creating ? "New marketing work" : "Request details"}</span>
-          <button onClick={close} aria-label="Close request">
-            <X size={20} />
-          </button>
-        </div>
+      <MarketingDialog open={!!context && (creating || !!requestId)} title={creating ? "New marketing work" : "Request details"} label={creating ? "Create marketing request" : "Request details"} busy={requestBusy} onClose={close}>
         {context &&
           (creating ? (
             <RequestForm
@@ -691,6 +668,7 @@ export default function MarketingWorkspace() {
               eventId={eventId}
               onSave={saved}
               onCancel={close}
+                  onBusyChange={setRequestBusy}
             />
           ) : selected?.id === requestId ? (
             <RequestDetail
@@ -703,7 +681,7 @@ export default function MarketingWorkspace() {
           ) : (
             <p role="status">{detailError || "Loading request…"}</p>
           ))}
-      </dialog>
+      </MarketingDialog>
     </section>
   );
 }

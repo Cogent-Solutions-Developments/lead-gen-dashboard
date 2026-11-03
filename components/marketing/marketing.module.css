@@ -791,52 +791,53 @@
   margin: 3px 0;
   overflow-wrap: anywhere;
 }
-.workspace .drawer {
+.workspace .requestDialog {
   position: fixed;
-  inset: 0 0 0 auto;
-  margin: 0;
-  max-height: 100dvh;
-  height: 100dvh;
-  width: min(800px, 96vw);
+  inset: 0;
+  margin: auto;
+  max-height: calc(100dvh - 48px);
+  height: fit-content;
+  width: min(920px, calc(100vw - 48px));
   max-width: none;
-  border: 0;
-  border-left: 1px solid var(--mk-border);
-  padding: 0 24px 32px;
+  border: 1px solid var(--mk-border);
+  border-radius: 20px;
+  padding: 0;
   background: var(--mk-canvas);
   color: var(--mk-text);
-  box-shadow: -20px 0 80px rgb(0 0 0 / 16%);
-  overflow: auto;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 24%);
+  overflow: hidden;
 }
-.drawer::backdrop {
+.workspace .requestDialog[open] { display: flex; flex-direction: column; }
+.requestDialogBody { overflow: auto; min-height: 0; padding: 20px; overscroll-behavior: contain; }
+.workspace .requestDialogBody > .panel { margin: 0; border: 0; box-shadow: none; background: transparent; padding: 0; }
+.requestDialog::backdrop {
   background: rgb(15 23 42 / 40%);
   backdrop-filter: blur(3px);
 }
-.drawerHeader {
+.requestDialogHeader {
+  flex-shrink: 0;
   position: sticky;
   top: 0;
   z-index: 5;
   background: var(--mk-canvas);
   border-bottom: 1px solid var(--mk-border);
-  padding: 14px 0;
+  padding: 14px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin-bottom: 0;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1px;
   font-weight: 600;
 }
-.drawerHeader button {
+.requestDialogHeader button {
   padding: 7px;
 }
-.drawer > .panel {
-  box-shadow: none;
-}
-.drawer .tabs {
+.requestDialog .tabs {
   margin: 20px 0 14px;
 }
-.drawer .tabs button {
+.requestDialog .tabs button {
   flex: 1;
 }
 .taskHeading {
@@ -1125,13 +1126,12 @@
     font-size: 10px;
     flex-shrink: 0;
   }
-  .workspace .drawer {
-    width: 100vw;
-    padding: 0 14px 24px;
+  .workspace .requestDialog {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+    padding: 0;
   }
-  .drawer > .panel {
-    padding: 16px;
-  }
+  .requestDialogBody { padding: 14px; }
   .formGrid {
     grid-template-columns: 1fr;
   }
@@ -1154,7 +1154,7 @@
 .progress span {
   font-size: 10px;
 }
-.workspace .drawer {
+.workspace .requestDialog {
   overscroll-behavior: contain;
 }
 
@@ -1505,3 +1505,5 @@
 .diffText ins { background: color-mix(in srgb, #22c55e 24%, transparent); text-decoration: none; }
 .workspace .diffEmpty { margin: 0; }
 @media (max-width: 650px) { .diffColumns { grid-template-columns: 1fr; } }
+
+.otherOperationChoices { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }

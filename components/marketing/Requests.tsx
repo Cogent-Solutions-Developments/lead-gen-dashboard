@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { X, CornerDownRight, ArrowUpRight } from "lucide-react";
+import { OtherOperationPicker } from "./OtherOperationPicker";
 import { SpeakerChanges } from "./SpeakerChanges";
 import { SpeakerOperationPicker, speakerOperations } from "./SpeakerOperationPicker";
 import {
@@ -50,6 +51,7 @@ export function RequestForm({
   ]);
   const [kind, setKind] = useState(request?.kind || "web_design");
   const [operation, setOperation] = useState("website_agenda");
+  const [otherOperation, setOtherOperation] = useState("website");
   const [speakerName, setSpeakerName] = useState(request?.details.speakerName || "");
   const [busy, setBusy] = useState(false);
   async function submit(e: FormEvent<HTMLFormElement>) {
@@ -63,7 +65,7 @@ export function RequestForm({
       return;
     }
     const data = new FormData(e.currentTarget);
-    if (!request && kind === "other" && !taskKinds.length) {
+    if (!request && kind === "other" && otherOperation === "custom" && !taskKinds.length) {
       toast.error("Select at least one delivery stage");
       return;
     }
@@ -95,7 +97,7 @@ export function RequestForm({
               id,
               kind,
               eventId: data.get("eventId"),
-              ...(kind === "other" ? { taskKinds } : {}),
+              ...(kind === "other" ? otherOperation === "custom" && context.manager ? { taskKinds } : { operation: otherOperation } : {}),
             },
       );
       if (!request && kind === "speaker_update" && speakerImage) {
@@ -164,15 +166,14 @@ export function RequestForm({
                   ["production_user", "production_manager_user"].includes(
                     context.role,
                   )) && <option value="speaker_update">Speaker update</option>}
-                {context.manager && (
-                  <option value="other">Internal marketing task</option>
-                )}
+                <option value="other">Other</option>
               </select>
             </label>
           </>
         )}
         {request?.kind === "speaker_update" && <SpeakerOperationPicker value={operation} onChange={setOperation} />}
-        {kind === "other" && !request && (
+        {kind === "other" && !request && <OtherOperationPicker value={otherOperation} onChange={setOtherOperation} manager={context.manager} />}
+        {kind === "other" && !request && context.manager && otherOperation === "custom" && (
           <fieldset className={styles.full}>
             <legend>Delivery stages</legend>
             <p>Choose the work needed. Owners are assigned automatically.</p>
@@ -194,7 +195,7 @@ export function RequestForm({
             </div>
           </fieldset>
         )}
-        {request?.kind !== "speaker_update" && <label>
+        {request?.kind !== "speaker_update" && <label className={styles.full}>
           Task name
           <input name="title" required maxLength={200} defaultValue={request?.title} />
         </label>}
