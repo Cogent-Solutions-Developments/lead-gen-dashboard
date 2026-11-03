@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { X, CornerDownRight, ArrowUpRight } from "lucide-react";
+import { SpeakerChanges } from "./SpeakerChanges";
 import { SpeakerOperationPicker, speakerOperations } from "./SpeakerOperationPicker";
 import {
   marketing,
@@ -606,6 +607,7 @@ export function RequestDetail({
       </div>
       <nav className={styles.tabs} aria-label="Request sections">
         {[
+          ...(request.sourceRequestId ? [["changes", "Changes"]] : []),
           ["delivery", "Delivery"],
           ["brief", "Request brief"],
           ["activity", `Activity (${request.history.length})`],
@@ -619,6 +621,7 @@ export function RequestDetail({
           </button>
         ))}
       </nav>
+      {section === "changes" && <SpeakerChanges comparison={request.comparison ?? { available: false, fields: [] }} requestId={request.id} />}
       {section === "brief" && (
         <>
           <dl className={styles.fields}>

@@ -27,6 +27,7 @@ function editor() {
         if (name === "react/jsx-runtime") return jsxRuntime;
         if (name === "lucide-react") return new Proxy({}, { get: () => () => null });
         if (name === "./marketing.module.css") return {};
+        if (name === "./SpeakerChanges") return { SpeakerChanges: () => null };
         if (name === "./LibraryUploadDialog") return { LibraryUploadDialog: () => null };
         if (name === "sonner") return { toast: { success() {}, error(error) { errors.push(error); } } };
         if (name === "./api") return { label: value => value, marketing: async (...args) => { calls.push(args); return { id: "new-subtask" }; } };

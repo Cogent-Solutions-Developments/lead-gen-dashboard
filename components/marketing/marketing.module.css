@@ -1485,3 +1485,23 @@
 .relatedSubtasks progress::-webkit-progress-value { background: var(--mk-accent); border-radius: 6px; }
 .relatedSubtasks progress::-moz-progress-bar { background: var(--mk-accent); border-radius: 6px; }
 @media (max-width: 600px) { .operationChoices { grid-template-columns: 1fr; } .relatedSubtasks > a { flex-wrap: wrap; } }
+
+/* Request comparisons use inherited fonts and the workspace palette. */
+.speakerChanges { margin: 14px 0; }
+.diffToolbar, .diffToolbar h3, .changeRow > header { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.diffToolbar { justify-content: space-between; }
+.diffToolbar > div { display: flex; gap: 4px; }
+.diffToolbar button[aria-pressed="true"] { border-color: var(--mk-accent); background: var(--mk-tint); }
+.changeRow { border: 1px solid var(--mk-border); border-radius: 12px; overflow: hidden; margin: 12px 0; }
+.changeRow > header { justify-content: space-between; padding: 10px 12px; background: var(--mk-subtle); }
+.diffColumns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.diffColumns[data-unified="true"] { grid-template-columns: 1fr; }
+.diffSide { min-width: 0; padding: 12px; border-inline-start: 3px solid var(--mk-border); }
+.diffSide[data-side="before"] { border-color: #ef4444; background: color-mix(in srgb, #ef4444 7%, var(--mk-bg)); }
+.diffSide[data-side="after"] { border-color: #22c55e; background: color-mix(in srgb, #22c55e 7%, var(--mk-bg)); }
+.diffSideLabel { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; color: var(--mk-muted); }
+.diffText { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 360px; overflow: auto; line-height: 1.7; }
+.diffText del { background: color-mix(in srgb, #ef4444 24%, transparent); }
+.diffText ins { background: color-mix(in srgb, #22c55e 24%, transparent); text-decoration: none; }
+.workspace .diffEmpty { margin: 0; }
+@media (max-width: 650px) { .diffColumns { grid-template-columns: 1fr; } }

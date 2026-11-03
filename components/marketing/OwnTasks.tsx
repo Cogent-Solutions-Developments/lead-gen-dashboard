@@ -27,11 +27,13 @@ import {
   type Context,
 } from "./api";
 import styles from "./marketing.module.css";
+import { SpeakerChanges } from "./SpeakerChanges";
 import { LibraryUploadDialog } from "./LibraryUploadDialog";
 import { MARKETING_TASKS_CHANGED_EVENT } from "@/lib/marketing-workflow-events";
 
 type OwnTask = {
   parentTitle?: string | null;
+  sourceRequestId?: string | null;
   id: string;
   requestId: string;
   requestVersion: number;
@@ -290,6 +292,7 @@ function OwnTaskRow({
     version: number;
   } | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [briefOpen, setBriefOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -300,6 +303,7 @@ function OwnTaskRow({
   const briefDialog = useRef<HTMLDialogElement>(null);
   const updateButton = useRef<HTMLButtonElement>(null);
   const statusInput = useRef<HTMLSelectElement>(null);
+  function closeBrief() { briefDialog.current?.close(); setBriefOpen(false); }
   const editing = editor !== null;
   const uploadCategory = task.kind === "agenda" || task.kind === "materials" ? task.kind : null;
   const canUpload = canUploadLibrary(context) && task.canUpdate && task.status !== "done" && !!uploadCategory;
@@ -367,13 +371,14 @@ function OwnTaskRow({
             aria-haspopup="dialog"
             onClick={() => {
               setBriefError("");
-              briefDialog.current?.showModal();
+              setBriefOpen(true); briefDialog.current?.showModal();
             }}
           >
-            <FileText size={14} aria-hidden="true" />View task brief
+            <FileText size={14} aria-hidden="true" />{task.sourceRequestId ? "View changes" : "View task brief"}
           </button>
           <dialog
             ref={briefDialog}
+            onClose={() => setBriefOpen(false)}
             className={styles.taskBriefDialog}
             aria-labelledby={`${briefId}-title`}
             aria-describedby={`${briefId}-description`}
@@ -384,28 +389,18 @@ function OwnTaskRow({
                 <h2 id={`${briefId}-title`}>Task brief</h2>
                 <p id={`${briefId}-description`}>{taskLabel(task.kind)} · {task.title}</p>
               </div>
-              <button type="button" aria-label="Close task brief" onClick={() => briefDialog.current?.close()}>
+              <button type="button" aria-label="Close task brief" onClick={() => closeBrief()}>
                 <X size={18} aria-hidden="true" />
               </button>
             </header>
             <div className={styles.taskBriefBody}>
+              {briefOpen && task.sourceRequestId && <SpeakerChanges taskId={task.id} requestId={task.requestId} />}
               {task.speakerPostAction && task.speakerPostAction !== "none" && <p>Speaker post: {label(task.speakerPostAction)}</p>}
               <dl className={styles.taskBriefContext}>
                 <div><dt>Event</dt><dd>{eventName}</dd></div>
                 <div><dt>Due date</dt><dd>{task.dueAt ? formatDate(task.dueAt) : "No deadline"}</dd></div>
               </dl>
-              {Object.entries(task.details).some(([key, value]) => key !== "image" && value) ? (
-                <dl className={styles.taskBriefDetails}>
-                  {Object.entries(task.details)
-                    .filter(([key, value]) => key !== "image" && value)
-                    .map(([key, value]) => (
-                      <div key={key}>
-                        <dt>{label(key.replace(/([a-z])([A-Z])/g, "$1 $2"))}</dt>
-                        <dd>{value}</dd>
-                      </div>
-                    ))}
-                </dl>
-              ) : <p>No additional brief provided.</p>}
+              {task.sourceRequestId ? <details><summary>Full current brief</summary><TaskBriefFields details={task.details} /></details> : <TaskBriefFields details={task.details} />}
               {briefError && <p role="alert" className={styles.error}>{briefError}</p>}
             </div>
             <footer className={styles.taskBriefFooter}>
@@ -415,7 +410,7 @@ function OwnTaskRow({
                   {downloading ? "Downloading…" : "Download speaker image"}
                 </button>
               )}
-              <button type="button" className={styles.primary} onClick={() => briefDialog.current?.close()}>Done</button>
+              <button type="button" className={styles.primary} onClick={() => closeBrief()}>Done</button>
             </footer>
           </dialog>
         </td>
@@ -590,4 +585,9 @@ function OwnTaskRow({
       )}
     </Fragment>
   );
+}
+
+function TaskBriefFields({ details }: { details: Record<string, string> }) {
+  const fields = Object.entries(details).filter(([key, value]) => key !== "image" && value);
+  return fields.length ? <dl className={styles.taskBriefDetails}>{fields.map(([key, value]) => <div key={key}><dt>{label(key.replace(/([a-z])([A-Z])/g, "$1 $2"))}</dt><dd>{value}</dd></div>)}</dl> : <p>No additional brief provided.</p>;
 }

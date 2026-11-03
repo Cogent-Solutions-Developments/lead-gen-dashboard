@@ -66,3 +66,10 @@ Add speaker update opens a native popup over the existing request. Choose Websit
 Each operation creates only its required Marketing work. Website goes to Developer; Agenda goes to Designer; post updates/republication go to Designer and then Social after design completion; deletion goes directly to Social. Every update retains separate status, history and manager approval. Parent request details show named children and progress links; task tables and manager work views show the parent name. Existing completed work and request titles remain intact.
 
 Deploy the updated backend before the frontend because the edit API now accepts `operation` and returns structured subtask summaries. No new schema migration or font changes are needed.
+
+
+### Speaker before/after comparison
+
+View changes opens a saved comparison in an assigned speaker-update task's brief. Request details also have a Changes tab. The shared comparison supports side-by-side and unified layouts, word-level added/removed highlighting, and optional unchanged fields. Full current details are collapsed for updates to keep the focus on changes. Initial request briefs, fonts and themes retain their existing presentation.
+
+Task comparisons load only when opening a brief and are aborted on close. The backend exposes the saved creation-time values through the authorized task; the UI does not need full parent history. Previous/current image downloads use the child request's authorized image route. Missing historical baselines and operation-only updates have distinct states. Long biography comparisons use a bounded algorithm and preserve the exact original/requested text. Deploy the comparison-enabled backend before this frontend; no new dependency or migration is required.

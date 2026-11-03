@@ -1,6 +1,7 @@
 import { getAuthHeader } from "@/lib/auth";
 import { getLocalDevNgrokHeaders } from "@/lib/devNgrok";
 
+export type SpeakerComparison = { available: boolean; fields: { field: string; before: string; after: string }[] };
 export type Task = {
   id: string;
   kind: string;
@@ -42,6 +43,7 @@ export type RequestSummary = {
 export type MarketingRequest = Omit<RequestSummary, "tasks"> & {
   sourceRequestId?: string | null;
   speakerPostAction?: string;
+  comparison?: SpeakerComparison | null;
   followUps?: string[];
   subtasks?: { id: string; title: string; status: string; operations: string[]; tasks: { kind: string; status: string }[] }[];
   requesterId: string;
