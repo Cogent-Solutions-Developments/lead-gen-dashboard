@@ -61,7 +61,7 @@ type SidebarNavItem = {
 
 const navItems: SidebarNavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Marketing", href: "/marketing", icon: ClipboardList },
+  { name: "Marketing", href: "/marketing", icon: Megaphone },
   { name: "Autocall", href: "/autocall", icon: Phone },
   { name: "Campaigns", normalLabel: "Conferences", href: "/campaigns", icon: Rocket },
   { name: "New Campaign", href: "/campaigns/new", icon: Plus, superOnly: true },
@@ -124,7 +124,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
         ? "Finance"
         : "Marketing";
   const businessNavItems: SidebarNavItem[] = businessWorkspace
-    ? [{ name: `${businessLabel} Workspace`, href: businessWorkspace === "marketing" ? "/marketing" : `/business/${businessWorkspace}`, icon: BriefcaseBusiness }, ...(businessWorkspace !== "marketing" ? [{ name: "Marketing", href: "/marketing", icon: ClipboardList }] : [])]
+    ? [{ name: `${businessLabel} Workspace`, href: businessWorkspace === "marketing" ? "/marketing" : `/business/${businessWorkspace}`, icon: BriefcaseBusiness }, ...(businessWorkspace !== "marketing" ? [{ name: "Marketing", href: "/marketing", icon: Megaphone }] : [])]
     : [];
   const [ringingBell, setRingingBell] = useState(false);
   const [ringBellModalOpen, setRingBellModalOpen] = useState(false);
@@ -156,6 +156,10 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
       if (item.managerOnly) return isManager;
       return true;
     });
+
+  const isNavigationActive = (href: string) => marketingRoute
+    ? href.startsWith("/marketing?") && new URLSearchParams(href.split("?")[1]).get("tab") === (searchParams.get("tab") || "overview")
+    : pathname === href;
 
   const handleSignOut = async () => {
     try {
@@ -237,7 +241,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
         }`}
       >
         {visibleNavItems.map((item, index) => {
-          const isActive = marketingRoute ? item.href.startsWith("/marketing?") && new URLSearchParams(item.href.split("?")[1]).get("tab") === (searchParams.get("tab") || "overview") : pathname === item.href;
+          const isActive = isNavigationActive(item.href);
           return (
             <motion.div
               key={item.name}
@@ -425,7 +429,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
       items={visibleNavItems.map((item) => ({
         ...item,
         name: isSuperAdmin || item.ceoOnly ? item.name : item.normalLabel ?? item.name,
-        isActive: pathname === item.href,
+        isActive: isNavigationActive(item.href),
       }))}
       accountHref={isSuperAdmin ? "/choose-persona" : "/profile"}
       accountLabel={isSuperAdmin ? "Workspaces" : user?.fullName?.trim() || user?.username || "Profile"}
