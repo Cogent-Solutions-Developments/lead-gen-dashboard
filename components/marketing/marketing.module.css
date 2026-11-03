@@ -1534,10 +1534,8 @@
 .activityLegend { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 12px; margin-top: 12px; font-size: 11px; }
 .activityLegend > span { display: flex; align-items: center; gap: 5px; color: var(--mk-muted); }
 .activityLegend strong { color: var(--mk-text); }
-.overviewLinks { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 18px; }
 @media (max-width: 600px) {
   .deliverySnapshot { gap: 14px; }
   .deliveryRing { width: 128px; height: 128px; flex-basis: 128px; padding: 12px; }
-  .overviewLinks { grid-template-columns: 1fr; }
   .dayBar { margin: 0 2px; }
 }

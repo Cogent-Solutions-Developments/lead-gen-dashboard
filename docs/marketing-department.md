@@ -98,7 +98,7 @@ Validation: Heavy Marketing workspace/library/request tests passed 74 checks; ac
 
 ### Visual manager overview
 
-Request progress replaces the redundant My work queue with a status ring and clickable status counts. Team activity replaces the text timeline with seven daily stacked bars; selecting a day shows a compact task/request/review/other breakdown. My tasks remains in the existing navigation and has a short overview link alongside Agenda and Materials. The overview avoids its unused assigned-queue and request-list reads. Switching events does not display another event's cached overview.
+Request progress replaces the redundant My work queue with a status ring and clickable status counts. Team activity replaces the text timeline with seven daily stacked bars; selecting a day shows a compact task/request/review/other breakdown. My tasks, Agenda and Materials remain in the existing navigation; their duplicate overview shortcuts are removed. The overview avoids its unused assigned-queue and request-list reads. Switching events does not display another event's cached overview.
 
 Activity totals cover all authorized updates in the selected event over seven UTC days, rather than the old latest-12 entry sample. Zero days remain visible, and missing activity data is shown as unavailable. Detailed history remains in the existing activity log. Marketing keeps its megaphone icon; Social media uses Share2. Existing fonts, themes, navigation, role permissions and other departments are preserved.
 

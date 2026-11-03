@@ -5,8 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   KanbanSquare,
   Megaphone,
-  FolderOpen,
-  FileText,
   Plus,
   Search,
   List,
@@ -15,7 +13,6 @@ import {
   ArrowRight,
   Clock3,
   CheckCheck,
-  ListTodo,
   AlertCircle,
 } from "lucide-react";
 import {
@@ -407,11 +404,6 @@ export default function MarketingWorkspace() {
                   <OverviewInsights overview={overview}
                     onStatus={status => navigate({ tab: "requests", status, overdue: null, offset: null, search: null, priority: null })}
                     onActivity={() => switchTab("team")} />
-                  <div className={`${styles.quickLinks} ${styles.overviewLinks}`}>
-                    <button onClick={() => switchTab("my-tasks")}><ListTodo size={20} /><strong>My tasks</strong><ArrowRight size={16} /></button>
-                    <button onClick={() => switchTab("agenda")}><FileText size={20} /><strong>Agenda</strong><ArrowRight size={16} /></button>
-                    <button onClick={() => switchTab("materials")}><FolderOpen size={20} /><strong>Materials</strong><ArrowRight size={16} /></button>
-                  </div>
                 </>
           )}
           {context.staff && (tab === "my-tasks" || tab === "social") && (
