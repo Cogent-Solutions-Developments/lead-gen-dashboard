@@ -1,12 +1,15 @@
 "use client";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
+import { X, CornerDownRight, ArrowUpRight } from "lucide-react";
+import { SpeakerOperationPicker, speakerOperations } from "./SpeakerOperationPicker";
 import {
   marketing,
   download,
   eligible,
   label,
   taskLabel,
+  speakerOperationLabel,
   formatDate,
   canUploadLibrary,
   type Context,
@@ -27,12 +30,14 @@ export function RequestForm({
   request,
   onSave,
   onCancel,
+  onBusyChange,
 }: {
   context: Context;
   eventId: string;
   request?: MarketingRequest;
   onSave: (r: MarketingRequest) => void;
   onCancel: () => void;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const [id] = useState(() => crypto.randomUUID());
   const [speakerImage, setSpeakerImage] = useState<File | null>(null);
@@ -43,7 +48,8 @@ export function RequestForm({
     "social",
   ]);
   const [kind, setKind] = useState(request?.kind || "web_design");
-  const [postAction, setPostAction] = useState("none");
+  const [operation, setOperation] = useState("website_agenda");
+  const [speakerName, setSpeakerName] = useState(request?.details.speakerName || "");
   const [busy, setBusy] = useState(false);
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -61,13 +67,14 @@ export function RequestForm({
       return;
     }
     setBusy(true);
+    onBusyChange?.(true);
     const details = Object.fromEntries(
       ["speakerName", "designation", "company", "bio", "instructions"].map(
         (key) => [key, String(data.get(key) || "")],
       ),
     );
     const payload = {
-      title: data.get("title"),
+      title: request?.kind === "speaker_update" ? request.title : data.get("title"),
       details,
       priority: data.get("priority"),
       dueAt: request && String(data.get("dueAt") || "") === date
@@ -81,7 +88,7 @@ export function RequestForm({
         request ? `/requests/${request.id}` : "/requests",
         request ? "PATCH" : "POST",
         request
-          ? { ...payload, version: request.version, ...(kind === "speaker_update" ? { followUpId: id, postAction } : {}) }
+          ? { ...payload, version: request.version, ...(kind === "speaker_update" ? { followUpId: id, operation } : {}) }
           : {
               ...payload,
               id,
@@ -112,12 +119,13 @@ export function RequestForm({
       }
       onSave(row);
       toast.success(
-        request && row.id !== request.id ? "Follow-up request created" : request ? "Request updated" : "Request created and tasks assigned",
+        request && row.id !== request.id ? "Speaker subtask added" : request ? "Request updated" : "Request created and tasks assigned",
       );
     } catch (err) {
       failure(err);
     } finally {
       setBusy(false);
+      onBusyChange?.(false);
     }
   }
   const date = request?.dueAt
@@ -130,8 +138,8 @@ export function RequestForm({
     : "";
   return (
     <form className={styles.panel} onSubmit={submit}>
-      <h2>{request?.kind === "speaker_update" ? "New speaker follow-up" : request ? "Edit request" : "New request"}</h2>
-      {request?.kind === "speaker_update" && <p>Creates new website and agenda tasks. Previous work stays unchanged.</p>}
+      <h2>{request?.kind === "speaker_update" ? "Add speaker update" : request ? "Edit request" : "New request"}</h2>
+      {request?.kind === "speaker_update" && <p className={styles.parentReference}><CornerDownRight size={16} aria-hidden="true" />Subtask of <strong>{request.title}</strong></p>}
       <div className={styles.formGrid}>
         {!request && (
           <>
@@ -162,16 +170,7 @@ export function RequestForm({
             </label>
           </>
         )}
-        {request?.kind === "speaker_update" && (<fieldset className={styles.full}>
-          <legend>Speaker post</legend>
-          <div className={styles.actions}>
-            {[["none", "No post changes"], ["update", "Update post"], ["delete", "Delete post"], ["republish", "Republish post"]].map(([value, name]) => (
-              <label key={value} className={styles.check}>
-                <input type="radio" name="postAction" value={value} checked={postAction === value} onChange={() => setPostAction(value)} />{name}
-              </label>
-            ))}
-          </div>
-        </fieldset>)}
+        {request?.kind === "speaker_update" && <SpeakerOperationPicker value={operation} onChange={setOperation} />}
         {kind === "other" && !request && (
           <fieldset className={styles.full}>
             <legend>Delivery stages</legend>
@@ -194,15 +193,13 @@ export function RequestForm({
             </div>
           </fieldset>
         )}
-        <label>
-          Title
-          <input
-            name="title"
-            required
-            maxLength={200}
-            defaultValue={request?.title}
-          />
-        </label>
+        {request?.kind !== "speaker_update" && <label>
+          Task name
+          <input name="title" required maxLength={200} defaultValue={request?.title} />
+        </label>}
+        {request?.kind === "speaker_update" && <div className={styles.full} role="status">
+          <small>New subtask</small><strong className={styles.subtaskPreview}>{speakerOperations.find(item => item.value === operation)?.name} · {speakerName || request.title}</strong>
+        </div>}
         <label>
           Priority
           <select name="priority" defaultValue={request?.priority || "normal"}>
@@ -231,6 +228,7 @@ export function RequestForm({
                   required
                   maxLength={key === "speakerName" ? 200 : 300}
                   defaultValue={request?.details[key]}
+                  onChange={key === "speakerName" ? event => setSpeakerName(event.target.value) : undefined}
                 />
               </label>
             ))}
@@ -283,14 +281,31 @@ export function RequestForm({
       )}
       <div className={styles.actions}>
         <button className={styles.primary} disabled={busy}>
-          {busy ? "Saving…" : request?.kind === "speaker_update" ? "Create follow-up" : "Save request"}
+          {busy ? "Saving…" : request?.kind === "speaker_update" ? "Add subtask" : "Save request"}
         </button>
-        <button type="button" onClick={onCancel}>
+        <button type="button" disabled={busy} onClick={onCancel}>
           Cancel
         </button>
       </div>
     </form>
   );
+}
+
+function RequestEditDialog({ context, request, onClose, onSave }: {
+  context: Context; request: MarketingRequest; onClose: () => void; onSave: (row: MarketingRequest) => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const node = dialog.current;
+    node?.showModal();
+    return () => node?.close();
+  }, []);
+  return <dialog ref={dialog} className={`${styles.libraryDialog} ${styles.speakerEditDialog}`} aria-label={request.kind === "speaker_update" ? "Add speaker update" : "Edit request"}
+    onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
+    <button className={styles.editClose} type="button" aria-label="Close edit" disabled={busy} onClick={onClose}><X size={18} /></button>
+    <RequestForm context={context} eventId={request.eventId} request={request} onCancel={onClose} onSave={onSave} onBusyChange={setBusy} />
+  </dialog>;
 }
 
 export function HistoryList({ items }: { items: History[] }) {
@@ -524,7 +539,7 @@ export function RequestDetail({
       const updated = await marketing<MarketingRequest>(`/requests/${request.id}${path}`, method, body);
       onSave(updated);
       setComment("");
-      toast.success(updated.id !== request.id ? "Follow-up request created" : "Request updated");
+      toast.success(updated.id !== request.id ? "Speaker subtask added" : "Request updated");
     } catch (err) {
       failure(err);
     } finally {
@@ -545,21 +560,10 @@ export function RequestDetail({
     data.set("acceptWarning", String(acceptWarning));
     await action("/speaker-image", data);
   }
-  if (editing && !readOnly)
-    return (
-      <RequestForm
-        context={context}
-        eventId={request.eventId}
-        request={editing}
-        onCancel={() => setEditing(null)}
-        onSave={(r) => {
-          setEditing(null);
-          onSave(r);
-        }}
-      />
-    );
   return (
     <section className={styles.panel}>
+      {editing && !readOnly && <RequestEditDialog context={context} request={editing}
+        onClose={() => setEditing(null)} onSave={row => { setEditing(null); onSave(row); }} />}
       {readOnly && <p role="status" className={styles.notice}>Read-only request view. Changes are disabled when opened from a notification.</p>}
       <div className={styles.taskHeading}>
         <h2>{request.title}</h2>
@@ -574,12 +578,21 @@ export function RequestDetail({
       <p>
         {label(request.priority)} priority · {formatDate(request.dueAt)}
       </p>
-      {request.sourceRequestId && <a href={`/marketing?tab=overview&request=${request.sourceRequestId}&readOnly=1`}>Original request</a>}
-      {!!request.followUps?.length && <div className={styles.actions}>{request.followUps.map((id, index) => <a key={id} href={`/marketing?tab=overview&request=${id}&readOnly=1`}>Follow-up {index + 1}</a>)}</div>}
+      {!!request.operations?.length && <small>{request.operations.map(speakerOperationLabel).join(" + ")}</small>}
+      {request.sourceRequestId && <a className={styles.parentReference} href={`/marketing?tab=overview&request=${request.sourceRequestId}${readOnly ? "&readOnly=1" : ""}`}><CornerDownRight size={16} aria-hidden="true" />Subtask of {request.parentTitle || "original request"}<ArrowUpRight size={14} aria-hidden="true" /></a>}
+      {!!request.subtasks?.length && <section aria-label="Speaker update subtasks" className={styles.relatedSubtasks}>
+        <h3>Speaker updates <small>{request.subtasks.length}</small></h3>
+        {request.subtasks.map(child => <a key={child.id} href={`/marketing?tab=overview&request=${child.id}${readOnly ? "&readOnly=1" : ""}`}>
+          <CornerDownRight size={18} aria-hidden="true" /><div><strong>{child.title}</strong><small>{child.operations.map(speakerOperationLabel).join(" + ")}</small>
+          <progress aria-label={`${child.title} progress`} max={child.tasks.length + 1} value={child.tasks.filter(task => task.status === "done").length + (child.status === "completed" ? 1 : 0)} />
+          <small>{child.tasks.map(task => `${taskLabel(task.kind)} ${task.status === "done" ? "✓" : "·"}`).join("  ")} · Manager {child.status === "completed" ? "✓" : "·"}</small></div>
+          <span className={styles.badge} data-status={child.status}>{child.status === "review" ? "Final check" : label(child.status)}</span><ArrowUpRight size={14} aria-hidden="true" />
+        </a>)}
+      </section>}
       {request.speakerPostAction && request.speakerPostAction !== "none" && <p>Speaker post: {label(request.speakerPostAction)}</p>}
       <div className={styles.actions}>
         {request.canEdit && !readOnly && (
-          <button onClick={() => setEditing(request)}>Edit request fields</button>
+          <button onClick={() => setEditing(request)}>{request.kind === "speaker_update" ? "Add speaker update" : "Edit request fields"}</button>
         )}
         <button
           onClick={() =>
@@ -621,7 +634,7 @@ export function RequestDetail({
           {request.kind === "speaker_update" && (
             <details>
               <summary>Speaker image</summary>
-              {request.canEdit && !readOnly && <><p>Changing the image creates a follow-up request.</p><fieldset className={styles.full}>
+              {request.canEdit && !readOnly && <><p>Changing the image creates a new speaker subtask.</p><fieldset className={styles.full}>
           <legend>Speaker post</legend>
           <div className={styles.actions}>
             {[["none", "No post changes"], ["update", "Update post"], ["delete", "Delete post"], ["republish", "Republish post"]].map(([value, name]) => (

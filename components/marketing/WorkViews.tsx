@@ -69,7 +69,7 @@ export function RequestCard({
         </span>
         <ArrowUpRight size={15} />
       </div>
-      <strong>{row.title}</strong>
+      <strong>{row.title}</strong>{row.parentTitle && <small>↳ {row.parentTitle}</small>}
       <span className={styles.cardSubtitle}>
         {label(row.kind)} ·{" "}
         {context.events.find((e) => e.id === row.eventId)?.name || "Event"}
@@ -386,7 +386,7 @@ export function Calendar({
         {scheduled.length ? scheduled.map(row => (
           <button key={row.id} onClick={() => onOpen(row.id)}>
             <time dateTime={row.dueAt!}>{new Date(row.dueAt!).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</time>
-            <strong>{row.title}</strong><span className={styles.badge} data-status={row.status}>{statusLabel(row.status)}</span>
+            <strong>{row.title}</strong>{row.parentTitle && <small>↳ {row.parentTitle}</small>}<span className={styles.badge} data-status={row.status}>{statusLabel(row.status)}</span>
           </button>
         )) : <div className={styles.empty}>No deadlines this month.</div>}
       </div>

@@ -15,7 +15,7 @@ import {
   Plus,
   AlertCircle,
 } from "lucide-react";
-import { type RequestSummary, type Context, formatDate } from "./api";
+import { type RequestSummary, type Context, formatDate, speakerOperationLabel } from "./api";
 import styles from "./marketing.module.css";
 
 type Filter = "all" | "active" | "completed";
@@ -217,7 +217,7 @@ function TrackingCard({
           <small>
             {context.events.find((event) => event.id === row.eventId)?.name ||
               "Event"}
-            {row.sourceRequestId && " · Follow-up"}
+            {row.sourceRequestId && " · Subtask"}
           </small>
           <h2>
             <button onClick={() => onOpen(row.id)}>
@@ -225,6 +225,7 @@ function TrackingCard({
               <ArrowUpRight size={16} aria-hidden="true" />
             </button>
           </h2>
+          {row.parentTitle && <small>↳ {row.parentTitle}</small>}{!!row.operations?.length && <small>{row.operations.map(speakerOperationLabel).join(" + ")}</small>}
         </div>
         <span className={styles.badge} data-status={row.status}>
           {row.status === "completed" ? (

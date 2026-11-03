@@ -57,3 +57,12 @@ Agenda and Marketing materials tasks offer **Upload & complete** from their exis
 Only authorized Manager/Designer accounts receive this action. Speaker flyer tasks remain status-only. Standalone library uploads do not change task status. Agendas are immediately available; materials still require manager release. Request completion still requires manager approval. Managers can create a custom Marketing materials task and configure its Designer owner through existing assignment controls.
 
 Deploy the updated Marketing backend and worker before this frontend. No font, theme, navigation or other department changes are required.
+
+
+### Speaker update subtasks
+
+Add speaker update opens a native popup over the existing request. Choose Website, Agenda, Website & agenda, Update post, Republish post or Delete post. The operation and speaker generate the subtask name, and the original task name remains visible as its parent. New request forms use Task name rather than Title.
+
+Each operation creates only its required Marketing work. Website goes to Developer; Agenda goes to Designer; post updates/republication go to Designer and then Social after design completion; deletion goes directly to Social. Every update retains separate status, history and manager approval. Parent request details show named children and progress links; task tables and manager work views show the parent name. Existing completed work and request titles remain intact.
+
+Deploy the updated backend before the frontend because the edit API now accepts `operation` and returns structured subtask summaries. No new schema migration or font changes are needed.

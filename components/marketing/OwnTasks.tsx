@@ -31,6 +31,7 @@ import { LibraryUploadDialog } from "./LibraryUploadDialog";
 import { MARKETING_TASKS_CHANGED_EVENT } from "@/lib/marketing-workflow-events";
 
 type OwnTask = {
+  parentTitle?: string | null;
   id: string;
   requestId: string;
   requestVersion: number;
@@ -358,7 +359,7 @@ function OwnTaskRow({
         <td>
           <div className={styles.ownTaskIdentity}>
             <span className={styles.ownTaskIcon}><ListTodo size={18} aria-hidden="true" /></span>
-            <div><strong>{taskLabel(task.kind)}</strong><small>{task.title}</small>{ownerName && <small>Assigned to {ownerName}</small>}</div>
+            <div><strong>{taskLabel(task.kind)}</strong><small>{task.title}</small>{task.parentTitle && <small>↳ {task.parentTitle}</small>}{ownerName && <small>Assigned to {ownerName}</small>}</div>
           </div>
           <button
             type="button"

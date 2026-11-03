@@ -21,6 +21,8 @@ export type History = {
   requestId?: string;
 };
 export type RequestSummary = {
+  parentTitle?: string | null;
+  operations?: string[];
   sourceRequestId?: string | null;
   speakerPostAction?: string;
   overdue: boolean;
@@ -41,6 +43,7 @@ export type MarketingRequest = Omit<RequestSummary, "tasks"> & {
   sourceRequestId?: string | null;
   speakerPostAction?: string;
   followUps?: string[];
+  subtasks?: { id: string; title: string; status: string; operations: string[]; tasks: { kind: string; status: string }[] }[];
   requesterId: string;
   requesterName: string;
   department: string;
@@ -220,3 +223,5 @@ export type TaskUploadResult = {
   asset: Asset;
   request: MarketingRequest | Pick<MarketingRequest, "version" | "tasks">;
 };
+
+export const speakerOperationLabel = (operation: string) => ({ website: "Website", agenda: "Agenda", update_post: "Update post", delete_post: "Delete post", republish_post: "Republish post" })[operation] || label(operation);

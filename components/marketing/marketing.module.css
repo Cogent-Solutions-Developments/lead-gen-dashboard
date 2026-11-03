@@ -1461,3 +1461,27 @@
 
 .workspace .ownTaskUpdate[aria-expanded="true"] { border-color:var(--mk-accent); color:var(--mk-accent); }
 .teamActivity { min-width:0; }
+
+/* Speaker updates inherit the workspace palette and typography. */
+.workspace .operationFieldset { border: 0; padding: 0; margin: 8px 0; min-width: 0; }
+.operationFieldset legend { padding: 0; margin-bottom: 8px; }
+.operationChoices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.workspace .operationChoices label { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; text-align: left; gap: 9px; padding: 12px; margin: 0; min-height: 64px; border: 1px solid var(--mk-border); border-radius: 12px; cursor: pointer; background: var(--mk-bg); }
+.operationChoices label[data-selected="true"] { border-color: var(--mk-accent); background: var(--mk-tint); }
+.workspace .operationChoices input[type="radio"] { width: 16px; min-height: 16px; height: 16px; padding: 0; margin: 0; flex: 0 0 16px; accent-color: var(--mk-accent); }
+.operationChoices small { display: block; margin-top: 3px; }
+.parentReference { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.subtaskPreview { display: block; margin-top: 5px; }
+.workspace .speakerEditDialog { width: min(840px, calc(100vw - 32px)); padding: 24px; position: fixed; }
+.workspace .speakerEditDialog > form { border: 0; box-shadow: none; padding: 0; background: transparent; }
+.workspace .speakerEditDialog > form > h2 { padding-right: 40px; }
+.workspace .speakerEditDialog .editClose { position: absolute; right: 20px; top: 20px; z-index: 2; padding: 7px; }
+.relatedSubtasks { margin: 14px 0; }
+.relatedSubtasks > a { display: flex; justify-content: flex-start; gap: 10px; margin: 8px 0; padding: 12px; }
+.relatedSubtasks > a > div { flex: 1; min-width: 0; }
+.relatedSubtasks strong, .relatedSubtasks > a small { display: block; }
+.relatedSubtasks progress { display: block; width: 100%; height: 6px; margin: 9px 0; accent-color: var(--mk-accent); appearance: none; border: 0; border-radius: 6px; overflow: hidden; background: var(--mk-border); }
+.relatedSubtasks progress::-webkit-progress-bar { background: var(--mk-border); }
+.relatedSubtasks progress::-webkit-progress-value { background: var(--mk-accent); border-radius: 6px; }
+.relatedSubtasks progress::-moz-progress-bar { background: var(--mk-accent); border-radius: 6px; }
+@media (max-width: 600px) { .operationChoices { grid-template-columns: 1fr; } .relatedSubtasks > a { flex-wrap: wrap; } }
