@@ -1,4 +1,4 @@
-import { LayoutDashboard, KanbanSquare, ListTodo, Megaphone, FileText, FolderOpen, Users, Home } from "lucide-react";
+import { LayoutDashboard, KanbanSquare, ListTodo, Share2, FileText, FolderOpen, Users, Home } from "lucide-react";
 import { getAuthLandingPath, type AuthUser } from "@/lib/auth";
 import { MARKETING_ROLES } from "@/lib/marketing-role-selection";
 
@@ -11,7 +11,7 @@ export function marketingNavigation(user: AuthUser | null | undefined, event: st
     ...(!staff || manager ? [{ key: "overview", name: staff ? "Marketing overview" : "My requests", icon: LayoutDashboard }] : []),
     ...(manager ? [{ key: "requests", name: "Requests", icon: KanbanSquare }] : []),
     ...(staff ? [{ key: "my-tasks", name: "My tasks", icon: ListTodo }] : []),
-    ...(staff && social ? [{ key: "social", name: "Social media", icon: Megaphone }] : []),
+    ...(staff && social ? [{ key: "social", name: "Social media", icon: Share2 }] : []),
     { key: "agenda", name: "Agenda", icon: FileText },
     { key: "materials", name: "Materials", icon: FolderOpen },
     ...(manager ? [{ key: "team", name: "Team & activity", icon: Users }] : []),

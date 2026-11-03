@@ -277,7 +277,7 @@
 }
 .overviewGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1.8fr) minmax(270px, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
   align-items: start;
 }
@@ -1507,3 +1507,37 @@
 @media (max-width: 650px) { .diffColumns { grid-template-columns: 1fr; } }
 
 .otherOperationChoices { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+
+/* Marketing overview: request distribution and seven-day activity. */
+.insightPanel { display: flex; flex-direction: column; }
+.deliverySnapshot { display: flex; align-items: center; justify-content: space-around; flex: 1; gap: 24px; padding: 16px 0; }
+.deliveryRing { width: 158px; height: 158px; flex: 0 0 158px; border-radius: 50%; padding: 14px; }
+.deliveryRing > div { height: 100%; border-radius: 50%; background: var(--mk-canvas); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 4px; }
+.deliveryRing strong { font-size: 30px; line-height: 1; }
+.deliveryRing small, .insightPanel small { color: var(--mk-muted); }
+.statusLegend { display: grid; gap: 4px; min-width: 0; flex: 1; max-width: 230px; }
+.workspace .statusLegend button { display: flex; align-items: center; gap: 10px; padding: 8px; border: 0; background: transparent; text-align: left; }
+.workspace .statusLegend button:disabled { opacity: .65; }
+.statusLegend strong { margin-left: auto; }
+.chartDot { height: 8px; width: 8px; border-radius: 50%; flex-shrink: 0; }
+.activityChart { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.workspace button.chartDay { display: flex; flex-direction: column; align-items: stretch; gap: 7px; padding: 7px 5px; background: transparent; border: 0; min-width: 0; text-align: center; }
+.workspace button.chartDay[aria-pressed="true"] { background: var(--mk-tint); outline: 1px solid var(--mk-accent); }
+.barValue { font-size: 12px; font-variant-numeric: tabular-nums; }
+.barTrack { height: 128px; display: flex; flex-direction: column; justify-content: flex-end; background: repeating-linear-gradient(to top, var(--mk-border) 0, var(--mk-border) 1px, transparent 1px, transparent 32px); }
+.dayBar { display: flex; flex-direction: column-reverse; overflow: hidden; min-height: 3px; border-radius: 6px 6px 0 0; background: var(--mk-border); margin: 0 5px; }
+.dayBar > span { display: block; flex-shrink: 0; }
+.chartDay time { font-size: 11px; color: var(--mk-muted); }
+.activityReadout { margin-top: 15px; border-top: 1px solid var(--mk-border); padding-top: 12px; }
+.activityReadout > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }
+.activityReadout time { color: var(--mk-muted); }
+.activityLegend { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 12px; margin-top: 12px; font-size: 11px; }
+.activityLegend > span { display: flex; align-items: center; gap: 5px; color: var(--mk-muted); }
+.activityLegend strong { color: var(--mk-text); }
+.overviewLinks { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 18px; }
+@media (max-width: 600px) {
+  .deliverySnapshot { gap: 14px; }
+  .deliveryRing { width: 128px; height: 128px; flex-basis: 128px; padding: 12px; }
+  .overviewLinks { grid-template-columns: 1fr; }
+  .dayBar { margin: 0 2px; }
+}

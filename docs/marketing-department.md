@@ -94,3 +94,12 @@ Marketing event pickers default to the first event in the API's active-event lis
 Other Marketing views retain an explicit All events option using `event=all`, while starting with an active event by default. Fonts, themes, navigation and other departments are unchanged. This is a frontend-only change and requires no API deployment or migration.
 
 Validation: Heavy Marketing workspace/library/request tests passed 74 checks; actual Light Marketing components passed 105 checks through the parity harness. Both frontend full lint checks and production builds passed. Coverage includes default library reads, explicit event preservation, aggregate library links, empty active-event lists, and explicit aggregate request views.
+
+
+### Visual manager overview
+
+Request progress replaces the redundant My work queue with a status ring and clickable status counts. Team activity replaces the text timeline with seven daily stacked bars; selecting a day shows a compact task/request/review/other breakdown. My tasks remains in the existing navigation and has a short overview link alongside Agenda and Materials. The overview avoids its unused assigned-queue and request-list reads. Switching events does not display another event's cached overview.
+
+Activity totals cover all authorized updates in the selected event over seven UTC days, rather than the old latest-12 entry sample. Zero days remain visible, and missing activity data is shown as unavailable. Detailed history remains in the existing activity log. Marketing keeps its megaphone icon; Social media uses Share2. Existing fonts, themes, navigation, role permissions and other departments are preserved.
+
+Deploy the updated backend API before this frontend to provide `overview.activitySummary`. No schema migration or new dependency is required. Both production builds and full lint passed; Heavy chart/workspace/navigation checks passed 40 tests, and actual Light Marketing components passed 111 checks across the main run and focused chart rerun.

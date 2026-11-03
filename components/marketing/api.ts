@@ -63,7 +63,13 @@ export type Member = {
   social: boolean;
   roles: string[];
 };
+export type ActivitySummary = {
+  timezone: "UTC";
+  total: number;
+  days: { date: string; tasks: number; requests: number; reviews: number; other: number }[];
+};
 export type Overview = {
+  activitySummary?: ActivitySummary;
   counts: Record<string, number>;
   active: number;
   myTasks: number;

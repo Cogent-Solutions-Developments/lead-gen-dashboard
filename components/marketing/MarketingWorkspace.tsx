@@ -15,6 +15,7 @@ import {
   ArrowRight,
   Clock3,
   CheckCheck,
+  ListTodo,
   AlertCircle,
 } from "lucide-react";
 import {
@@ -29,13 +30,12 @@ import { RequestDetail, RequestForm } from "./Requests";
 import { RequesterTracker } from "./RequesterTracker";
 import { OwnTasks } from "./OwnTasks";
 import { Library } from "./Library";
+import { OverviewInsights } from "./OverviewInsights";
 import { Settings } from "./Settings";
 import {
   Board,
   RequestTable,
-  TaskQueue,
   Calendar,
-  shortDate,
   stages,
 } from "./WorkViews";
 import styles from "./marketing.module.css";
@@ -90,11 +90,11 @@ export default function MarketingWorkspace() {
     ["request", "create", "status", "view", "offset"].forEach(key => next.delete(key));
     router.replace(`/marketing?${next}`, { scroll: false });
   }, [taskOnly, socialDenied, tab, requestedTab, rawRequestId, rawCreating, query, router]);
-  const [overview, setOverview] = useState<Overview | null>(null);
+  const [overviewResult, setOverviewResult] = useState<{eventId: string; data: Overview} | null>(null);
+  const overview = overviewResult?.eventId === eventId ? overviewResult.data : null;
   const [rows, setRows] = useState<RequestSummary[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [total, setTotal] = useState(0);
-  const [myRows, setMyRows] = useState<RequestSummary[]>([]);
   const [selected, setSelected] = useState<MarketingRequest | null>(null);
   const [error, setError] = useState("");
   const [detailError, setDetailError] = useState("");
@@ -133,14 +133,14 @@ export default function MarketingWorkspace() {
       undefined,
       c.signal,
     )
-      .then(setOverview)
+      .then(data => { if (!c.signal.aborted) setOverviewResult({ eventId, data }); })
       .catch((e) => {
         if (!c.signal.aborted) setError(e.message);
       });
     return () => c.abort();
   }, [context, taskOnly, eventId, refresh, tab]);
   useEffect(() => {
-    if (!context || taskOnly || !["overview", "requests"].includes(tab)) return;
+    if (!context || taskOnly || !["overview", "requests"].includes(tab) || (context.manager && tab === "overview")) return;
     const c = new AbortController();
     const p = new URLSearchParams({ limit: "40", offset: String(offset) });
     if (requester) {
@@ -197,21 +197,6 @@ export default function MarketingWorkspace() {
     refresh,
     overdue,
   ]);
-  useEffect(() => {
-    if (taskOnly || !context?.staff || tab !== "overview") return;
-    const c = new AbortController();
-    marketing<{ items: RequestSummary[] }>(
-      `/requests?assigned=true&active=true&limit=8${eventId ? `&eventId=${eventId}` : ""}`,
-      "GET",
-      undefined,
-      c.signal,
-    )
-      .then((r) => setMyRows(r.items))
-      .catch((e) => {
-        if (!c.signal.aborted) setError(e.message);
-      });
-    return () => c.abort();
-  }, [context, taskOnly, eventId, refresh, tab]);
   useEffect(() => {
     const timer = setInterval(() => setRefresh((v) => v + 1), 30000);
     return () => clearInterval(timer);
@@ -419,91 +404,15 @@ export default function MarketingWorkspace() {
                   </button>
                 ))}
               </div>
-              <div className={styles.overviewGrid}>
-                <section className={styles.panel}>
-                  <div className={styles.sectionHeading}>
-                    <div>
-                      <h2>
-                        {context.staff ? "My work queue" : "Recent requests"}
-                      </h2>
-                      <p>
-                        {context.staff
-                          ? "Your next delivery steps, with clear owners and deadlines."
-                          : "Track delivery from request to completion."}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() =>
-                        switchTab(context.staff ? "my-tasks" : "requests")
-                      }
-                    >
-                      View all <ArrowRight size={14} />
-                    </button>
+                  <OverviewInsights overview={overview}
+                    onStatus={status => navigate({ tab: "requests", status, overdue: null, offset: null, search: null, priority: null })}
+                    onActivity={() => switchTab("team")} />
+                  <div className={`${styles.quickLinks} ${styles.overviewLinks}`}>
+                    <button onClick={() => switchTab("my-tasks")}><ListTodo size={20} /><strong>My tasks</strong><ArrowRight size={16} /></button>
+                    <button onClick={() => switchTab("agenda")}><FileText size={20} /><strong>Agenda</strong><ArrowRight size={16} /></button>
+                    <button onClick={() => switchTab("materials")}><FolderOpen size={20} /><strong>Materials</strong><ArrowRight size={16} /></button>
                   </div>
-                  {context.staff ? (
-                    <TaskQueue
-                      rows={myRows}
-                      activeOnly
-                      context={context}
-                      social={false}
-                      onOpen={open}
-                    />
-                  ) : (
-                    <RequestTable
-                      rows={rows.slice(0, 6)}
-                      context={context}
-                      onOpen={open}
-                    />
-                  )}
-                  <div className={styles.quickLinks}>
-                    <button onClick={() => switchTab("agenda")}>
-                      <FileText size={20} />
-                      <span>
-                        <strong>Agenda library</strong>
-                        <small>Released PDFs & version history</small>
-                      </span>
-                      <ArrowRight size={16} />
-                    </button>
-                    <button onClick={() => switchTab("materials")}>
-                      <FolderOpen size={20} />
-                      <span>
-                        <strong>Marketing materials</strong>
-                        <small>Event assets & approved resources</small>
-                      </span>
-                      <ArrowRight size={16} />
-                    </button>
-                  </div>
-                </section>
-                <section className={styles.panel}>
-                  <div className={styles.sectionHeading}>
-                    <h2>Recent activity</h2>
-                    <span className={styles.live}>Live</span>
-                  </div>
-                  <ol className={styles.activity}>
-                    {overview?.activity.map((a) => (
-                      <li key={a.id}>
-                        <span className={styles.activityDot} />
-                        <button onClick={() => open(a.requestId)}>
-                          <strong>{a.action}</strong>
-                          <span>{a.title}</span>
-                          <small>
-                            {a.actor} · {shortDate(a.createdAt)}
-                          </small>
-                        </button>
-                      </li>
-                    ))}
-                  </ol>
-                  {!overview?.activity.length && (
-                    <div className={styles.empty}>
-                      <Clock3 size={24} />
-                      <p>
-                        Activity will appear as your team works on requests.
-                      </p>
-                    </div>
-                  )}
-                </section>
-              </div>
-            </>
+                </>
           )}
           {context.staff && (tab === "my-tasks" || tab === "social") && (
                 <OwnTasks key={`${eventId}:${tab}`} context={context} eventId={eventId} social={tab === "social"} refresh={refresh} />
