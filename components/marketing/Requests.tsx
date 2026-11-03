@@ -51,7 +51,7 @@ export function RequestForm({
   ]);
   const [kind, setKind] = useState(request?.kind || "web_design");
   const [operation, setOperation] = useState("website_agenda");
-  const [otherOperation, setOtherOperation] = useState("website");
+  const [otherOperations, setOtherOperations] = useState<string[]>(["website"]);
   const [speakerName, setSpeakerName] = useState(request?.details.speakerName || "");
   const [busy, setBusy] = useState(false);
   async function submit(e: FormEvent<HTMLFormElement>) {
@@ -65,7 +65,11 @@ export function RequestForm({
       return;
     }
     const data = new FormData(e.currentTarget);
-    if (!request && kind === "other" && otherOperation === "custom" && !taskKinds.length) {
+    if (!request && kind === "other" && !otherOperations.length) {
+      toast.error("Select at least one type of work");
+      return;
+    }
+    if (!request && kind === "other" && otherOperations.includes("custom") && !taskKinds.length) {
       toast.error("Select at least one delivery stage");
       return;
     }
@@ -97,7 +101,7 @@ export function RequestForm({
               id,
               kind,
               eventId: data.get("eventId"),
-              ...(kind === "other" ? otherOperation === "custom" && context.manager ? { taskKinds } : { operation: otherOperation } : {}),
+              ...(kind === "other" ? otherOperations.includes("custom") && context.manager ? { taskKinds } : { operations: otherOperations } : {}),
             },
       );
       if (!request && kind === "speaker_update" && speakerImage) {
@@ -172,8 +176,8 @@ export function RequestForm({
           </>
         )}
         {request?.kind === "speaker_update" && <SpeakerOperationPicker value={operation} onChange={setOperation} />}
-        {kind === "other" && !request && <OtherOperationPicker value={otherOperation} onChange={setOtherOperation} manager={context.manager} />}
-        {kind === "other" && !request && context.manager && otherOperation === "custom" && (
+        {kind === "other" && !request && <OtherOperationPicker value={otherOperations} onChange={setOtherOperations} manager={context.manager} />}
+        {kind === "other" && !request && context.manager && otherOperations.includes("custom") && (
           <fieldset className={styles.full}>
             <legend>Delivery stages</legend>
             <p>Choose the work needed. Owners are assigned automatically.</p>
