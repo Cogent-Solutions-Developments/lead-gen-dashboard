@@ -1,3 +1,15 @@
+# Libraries-only release scope
+
+Branch: `feat/imp/marketing-libraries-only`. Full workflow remains on `feat/marketing-department` awaiting CEO approval. Do not deploy or push without a separate request.
+
+Marketing opens directly to Agenda. Every department, including Sales, Delegates, Production and Delegate Sales, sees only Agenda and Materials. Marketing staff use the same two pages with existing Manager/Designer upload permissions. No request creation/tracking, tasks, social queue, charts, team assignment, landing page or task-linked uploads are mounted. Existing fonts, Light sidebar and Heavy floating dock remain.
+
+The matching backend exposes context and standalone library endpoints only, with no scheduled workflow automation. Upload limits, native PDF preview, legacy event agendas, version history, downloads and manager material release remain. Old workflow links normalize to Agenda. Dormant workflow component/source files are retained for the future approved rollout and are not imported by the workspace.
+
+---
+
+# Historical full-workflow implementation (not this release)
+
 # Marketing department
 
 The independent workspace is `/marketing`. Requests and stage completion are separate from the Agenda and Marketing Materials upload libraries. Speaker flyer design is status-only: completing it unlocks Social Media, with no flyer upload.

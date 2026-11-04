@@ -158,7 +158,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
     });
 
   const isNavigationActive = (href: string) => marketingRoute
-    ? href.startsWith("/marketing?") && new URLSearchParams(href.split("?")[1]).get("tab") === (searchParams.get("tab") || "overview")
+    ? href.startsWith("/marketing?") && new URLSearchParams(href.split("?")[1]).get("tab") === (searchParams.get("tab") || "agenda")
     : pathname === href;
 
   const handleSignOut = async () => {

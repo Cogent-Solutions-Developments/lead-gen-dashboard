@@ -1,596 +1,72 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  KanbanSquare,
-  Megaphone,
-  Plus,
-  Search,
-  List,
-  CalendarDays,
-  RefreshCw,
-  ArrowRight,
-  Clock3,
-  CheckCheck,
-  AlertCircle,
-} from "lucide-react";
-import {
-  marketing,
-  type Context,
-  type RequestSummary,
-  type MarketingRequest,
-  type Overview,
-} from "./api";
-import { MarketingDialog } from "./MarketingDialog";
-import { RequestDetail, RequestForm } from "./Requests";
-import { RequesterTracker } from "./RequesterTracker";
-import { OwnTasks } from "./OwnTasks";
+import { useAuth } from "@/hooks/useAuth";
+import { CalendarDays, Megaphone } from "lucide-react";
+import { marketing, type Context } from "./api";
 import { Library } from "./Library";
-import { OverviewInsights } from "./OverviewInsights";
-import { Settings } from "./Settings";
-import {
-  Board,
-  RequestTable,
-  Calendar,
-  stages,
-} from "./WorkViews";
 import styles from "./marketing.module.css";
 
-const monthNow = () =>
-  `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+
 export default function MarketingWorkspace() {
   const { user } = useAuth();
   const authScopeKey = JSON.stringify([user?.id, user?.role, ...(user?.departmentAssignments || [])]);
   const router = useRouter();
   const params = useSearchParams();
   const query = params.toString();
-  const requestedTab = params.get("tab") || "overview";
-  const requestedEventId = params.get("event") || "";
-  const view = params.get("view") || "board";
-  const rawRequestId = params.get("request");
-  // Legacy notification links have a request ID without an explicit workspace tab.
-  const requestReadOnly = Boolean(rawRequestId && (params.get("readOnly") === "1" || !params.has("tab")));
-  const rawCreating = params.get("create") === "1";
-  const month = params.get("month") || monthNow();
-  const search = params.get("search") || "";
-  const status = params.get("status") || "";
-  const priority = params.get("priority") || "";
-  const overdue = params.get("overdue") === "1";
-  const offset = Number(params.get("offset") || 0) || 0;
-  const [context, setContext] = useState<Context | null>(null);
-  const requester = Boolean(context && !context.staff);
-  const activeFilter = params.get("active") === "1";
-  const taskOnly = Boolean(context?.staff && !context.manager);
-  const socialDenied = Boolean(context?.staff && requestedTab === "social" && !context.social);
-  const tab = socialDenied ? "my-tasks" : requester && !["agenda", "materials"].includes(requestedTab) ? "overview" : taskOnly && (rawRequestId || rawCreating || !["agenda", "materials", "social", "my-tasks"].includes(requestedTab)) ? "my-tasks" : requestedTab;
-  const libraryTab = tab === "agenda" || tab === "materials";
-  const eventId = requestedEventId === "all" && !libraryTab
-    ? ""
-    : requestedEventId && requestedEventId !== "all"
-      ? requestedEventId
-      : context?.events[0]?.id || "";
-  useEffect(() => {
-    if (!requester || tab === requestedTab) return;
-    const next = new URLSearchParams(query);
-    next.set("tab", tab);
-    if (requestReadOnly) next.set("readOnly", "1");
-    ["view", "priority", "overdue"].forEach(key => next.delete(key));
-    router.replace(`/marketing?${next}`, { scroll: false });
-  }, [requester, tab, requestedTab, requestReadOnly, query, router]);
-  const requestId = taskOnly ? null : rawRequestId;
-  const creating = !taskOnly && !requestReadOnly && rawCreating;
-  useEffect(() => {
-    if ((!taskOnly && !socialDenied) || (tab === requestedTab && !rawRequestId && !rawCreating)) return;
-    const next = new URLSearchParams(query);
-    next.set("tab", tab);
-    ["request", "create", "status", "view", "offset"].forEach(key => next.delete(key));
-    router.replace(`/marketing?${next}`, { scroll: false });
-  }, [taskOnly, socialDenied, tab, requestedTab, rawRequestId, rawCreating, query, router]);
-  const [overviewResult, setOverviewResult] = useState<{eventId: string; data: Overview} | null>(null);
-  const overview = overviewResult?.eventId === eventId ? overviewResult.data : null;
-  const [rows, setRows] = useState<RequestSummary[]>([]);
-  const [counts, setCounts] = useState<Record<string, number>>({});
-  const [total, setTotal] = useState(0);
-  const [selected, setSelected] = useState<MarketingRequest | null>(null);
+  const tab = params.get("tab") === "materials" ? "materials" : "agenda";
+  const [result, setResult] = useState<{ scope: string; context: Context } | null>(null);
   const [error, setError] = useState("");
-  const [detailError, setDetailError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [refresh, setRefresh] = useState(0);
-  const [requestBusy, setRequestBusy] = useState(false);
-  const searchInput = useRef<HTMLInputElement>(null);
-  function navigate(changes: Record<string, string | null>) {
-    const p = new URLSearchParams(query);
-    Object.entries(changes).forEach(([k, v]) =>
-      v === null || v === "" ? p.delete(k) : p.set(k, v),
-    );
-    if (requester && p.toString() !== query && ["event", "status", "active", "offset", "search"].some(key => key in changes)) setLoading(true);
-    router.replace(`/marketing?${p}`, { scroll: false });
-  }
-  const refreshContext = useCallback(async () => {
-    const c = await marketing<Context>("/context");
-    setContext(c);
-    return c;
-  }, []);
+  const [retry, setRetry] = useState(0);
+  const context = result?.scope === authScopeKey ? result.context : null;
+  const requestedEvent = params.get("event");
+  const eventId = context?.events.some(event => event.id === requestedEvent)
+    ? requestedEvent! : context?.events[0]?.id || "";
+
   useEffect(() => {
-    const c = new AbortController();
-    marketing<Context>("/context", "GET", undefined, c.signal)
-      .then(setContext)
-      .catch((e) => {
-        if (!c.signal.aborted) setError(e.message);
-      });
-    return () => c.abort();
-  }, [authScopeKey]);
-  useEffect(() => {
-    if (!context?.manager || tab !== "overview") return;
-    const c = new AbortController();
-    marketing<Overview>(
-      `/overview${eventId ? `?eventId=${eventId}` : ""}`,
-      "GET",
-      undefined,
-      c.signal,
-    )
-      .then(data => { if (!c.signal.aborted) setOverviewResult({ eventId, data }); })
-      .catch((e) => {
-        if (!c.signal.aborted) setError(e.message);
-      });
-    return () => c.abort();
-  }, [context, taskOnly, eventId, refresh, tab]);
-  useEffect(() => {
-    if (!context || taskOnly || !["overview", "requests"].includes(tab) || (context.manager && tab === "overview")) return;
-    const c = new AbortController();
-    const p = new URLSearchParams({ limit: "40", offset: String(offset) });
-    if (requester) {
-      p.set("mine", "true");
-      if (activeFilter) p.set("active", "true");
-    }
-    if (eventId) p.set("eventId", eventId);
-    if (status && (!requester || status === "completed")) p.set("status", status);
-    if (priority && !requester) p.set("priority", priority);
-    if (search) p.set("search", search);
-    if (tab === "my-tasks") p.set("assigned", "true");
-    if (overdue && !requester) p.set("overdue", "true");
-    if (!requester && view === "calendar") {
-      const [y, m] = month.split("-").map(Number);
-      p.set("dueFrom", `${month}-01`);
-      p.set(
-        "dueTo",
-        `${m === 12 ? y + 1 : y}-${String(m === 12 ? 1 : m + 1).padStart(2, "0")}-01`,
-      );
-    }
-    marketing<{
-      items: RequestSummary[];
-      total: number;
-      counts: Record<string, number>;
-    }>(`/requests?${p}`, "GET", undefined, c.signal)
-      .then((r) => {
-        if (c.signal.aborted) return;
-        setRows(r.items);
-        setTotal(r.total);
-        setCounts(r.counts);
-        setLoading(false);
-        setError("");
-      })
-      .catch((e) => {
-        if (!c.signal.aborted) {
-          setError(e.message);
-          setLoading(false);
+    const controller = new AbortController();
+    marketing<Context>("/context", "GET", undefined, controller.signal)
+      .then(context => {
+        if (!controller.signal.aborted) {
+          setResult({ scope: authScopeKey, context });
+          setError("");
         }
-      });
-    return () => c.abort();
-  }, [
-    context,
-    taskOnly,
-    requester,
-    activeFilter,
-    eventId,
-    status,
-    priority,
-    search,
-    offset,
-    tab,
-    view,
-    month,
-    refresh,
-    overdue,
-  ]);
-  useEffect(() => {
-    const timer = setInterval(() => setRefresh((v) => v + 1), 30000);
-    return () => clearInterval(timer);
-  }, []);
-  useEffect(() => {
-    if (!context || taskOnly || !requestId) return;
-    const c = new AbortController();
-    marketing<MarketingRequest>(
-      `/requests/${encodeURIComponent(requestId)}`,
-      "GET",
-      undefined,
-      c.signal,
-    )
-      .then((r) => {
-        setSelected(r);
-        setDetailError("");
       })
-      .catch((e) => {
-        if (!c.signal.aborted) setDetailError(e.message);
-      });
-    return () => c.abort();
-  }, [context, taskOnly, requestId, refresh]);
-  const open = (id: string) => {
-    setDetailError("");
-    navigate({ tab, request: id, create: null, readOnly: null });
-  };
-  const close = () => navigate({ request: null, create: null, readOnly: null });
-  function saved(r: MarketingRequest) {
-    setSelected(r);
-    setRefresh((v) => v + 1);
-    navigate({ request: r.id, create: null });
+      .catch(error => { if (!controller.signal.aborted) setError(error.message); });
+    return () => controller.abort();
+  }, [authScopeKey, retry]);
+
+  // Old request, task, notification and landing links enter the library safely.
+  useEffect(() => {
+    if (!context) return;
+    const next = new URLSearchParams({ tab });
+    if (eventId) next.set("event", eventId);
+    if (next.toString() !== query) router.replace(`/marketing?${next}`, { scroll: false });
+  }, [context, tab, eventId, query, router]);
+
+  function selectEvent(event: string) {
+    router.replace(`/marketing?${new URLSearchParams({ tab, event })}`, { scroll: false });
   }
-  const switchTab = (key: string) =>
-    navigate({
-      tab: key,
-      offset: null,
-      request: null,
-      create: null,
-      readOnly: null,
-      status: null,
-      overdue: null,
-      view: null,
-      search: null,
-      priority: null,
-    });
-  return (
-    <section className={styles.workspace}>
-      <header className={styles.header}>
-        <div>
-          <div className={styles.eyebrow}>
-            <Megaphone size={14} /> Marketing department
-          </div>
-          <h1>
-            {requester && tab === "overview" ? "My requests" : "Marketing workspace"}
-            <span className={styles.liveDot} />
-          </h1>
-          {!requester && <p>Plan the work. Keep every delivery moving.</p>}
-        </div>
-        <div className={styles.headerActions}>
-          <button
-            aria-label="Refresh workspace"
-            onClick={() => setRefresh((v) => v + 1)}
-          >
-            <RefreshCw size={16} />
-          </button>
-          {context && !taskOnly && !requestReadOnly && <button
-            className={styles.primary}
-            onClick={() => navigate({ create: "1", request: null, readOnly: null })}
-          >
-            <Plus size={16} />
-            {context?.manager ? "Create task" : "New request"}
-          </button>}
-        </div>
-      </header>
-      {error && (
-        <div className={styles.error} role="alert">
-          <AlertCircle size={17} />
-          {error}
-          <button
-            onClick={() => {
-              void refreshContext();
-              setRefresh((v) => v + 1);
-            }}
-          >
-            Retry
-          </button>
-        </div>
-      )}
-      {!context ? (
-        <div className={styles.empty} role="status">
-          Loading your workspace…
-        </div>
-      ) : (
-        <>
-          <div className={styles.scopeBar}>
-            <label>
-              <CalendarDays size={15} />
-              <select
-                aria-label="Event"
-                value={eventId || (libraryTab ? "" : "all")}
-                disabled={!context.events.length}
-                onChange={(e) =>
-                  navigate({ event: e.target.value, offset: null, request: null, create: null, readOnly: null })
-                }
-              >
-                {!libraryTab && <option value="all">All events</option>}
-                {!context.events.length && <option value="">No active events</option>}
-                {context.events.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <span>
-              {context.manager
-                ? "Manager workspace"
-                : context.social
-                  ? "Social media responsibility"
-                  : context.staff
-                    ? "Marketing team"
-                    : "My requests"}
-            </span>
-          </div>
-          {requester && tab === "overview" && (
-                <RequesterTracker rows={rows} context={context} total={total} offset={offset} loading={loading}
-                  filter={status === "completed" ? "completed" : activeFilter ? "active" : "all"} search={search}
-                  onFilter={filter => navigate({status: filter === "completed" ? "completed" : null, active: filter === "active" ? "1" : null, offset: null})}
-                  onSearch={search => navigate({search, offset: null})} onPage={offset => navigate({offset: String(offset)})}
-                  onOpen={open} onCreate={() => navigate({create: "1", request: null})} />
-              )}
-              {context.manager && tab === "overview" && (
-            <>
-              <div className={styles.welcome}>
-                <div>
-                  <h2>Your delivery overview</h2>
-                  <p>
-                    {overview?.active || 0} active requests across{" "}
-                    {eventId ? "this event" : "your workspace"}. Here’s what
-                    needs your attention.
-                  </p>
-                </div>
-                <span className={styles.today}>
-                  {new Date().toLocaleDateString(undefined, {
-                    weekday: "short",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </span>
-              </div>
-              <div className={styles.stats}>
-                {[
-                  {
-                    name: "Active requests",
-                    value: overview?.active || 0,
-                    icon: KanbanSquare,
-                    to: "requests",
-                    tone: "blue",
-                  },
-                  {
-                    name: "Awaiting review",
-                    value: overview?.counts.review || 0,
-                    icon: CheckCheck,
-                    to: "requests",
-                    filter: "review",
-                    tone: "purple",
-                  },
-                  {
-                    name: "Overdue",
-                    value: overview?.overdue || 0,
-                    icon: Clock3,
-                    to: "requests",
-                    late: true,
-                    tone: "amber",
-                  },
-                  {
-                    name: "Completed",
-                    value: overview?.counts.completed || 0,
-                    icon: CheckCheck,
-                    to: "requests",
-                    filter: "completed",
-                    tone: "green",
-                  },
-                ].map(({ name, value, icon: Icon, to, filter, late, tone }) => (
-                  <button
-                    key={name}
-                    className={styles.stat}
-                    onClick={() =>
-                      navigate({
-                        tab: to,
-                        status: filter || null,
-                        overdue: late ? "1" : null,
-                        offset: null,
-                      })
-                    }
-                  >
-                    <span className={styles.statIcon} data-tone={tone}>
-                      <Icon size={19} />
-                    </span>
-                    <span>
-                      <small>{name}</small>
-                      <strong>{value}</strong>
-                    </span>
-                    <ArrowRight size={16} />
-                  </button>
-                ))}
-              </div>
-                  <OverviewInsights overview={overview}
-                    onStatus={status => navigate({ tab: "requests", status, overdue: null, offset: null, search: null, priority: null })}
-                    onActivity={() => switchTab("team")} />
-                </>
-          )}
-          {context.staff && (tab === "my-tasks" || tab === "social") && (
-                <OwnTasks key={`${eventId}:${tab}`} context={context} eventId={eventId} social={tab === "social"} refresh={refresh} />
-              )}
-              {!taskOnly && !requester && tab === "requests" && (
-            <>
-              <div className={styles.sectionHeading}>
-                <div>
-                  <h2>Request board</h2>
-                  <p>Track owners, deadlines and progress through every stage.</p>
-                </div>
-              </div>
-              <div className={styles.filterBar}>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    navigate({
-                      search: searchInput.current?.value || null,
-                      offset: null,
-                    });
-                  }}
-                >
-                  <Search size={16} />
-                  <input
-                    ref={searchInput}
-                    key={search}
-                    aria-label="Search requests"
-                    placeholder="Search requests…"
-                    defaultValue={search}
-                  />
-                  <button type="submit">Search</button>
-                </form>
-                <select
-                  aria-label="Status"
-                  value={status}
-                  onChange={(e) =>
-                    navigate({ status: e.target.value, offset: null })
-                  }
-                >
-                  <option value="">All stages</option>
-                  {[...stages, ["cancelled", "Cancelled"]].map(([k, v]) => (
-                    <option key={k} value={k}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  aria-label="Priority"
-                  value={priority}
-                  onChange={(e) =>
-                    navigate({ priority: e.target.value, offset: null })
-                  }
-                >
-                  <option value="">Any priority</option>
-                  {["urgent", "high", "normal", "low"].map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
-                {(search || status || priority || params.get("overdue")) && (
-                  <button
-                    onClick={() =>
-                      navigate({
-                        search: null,
-                        status: null,
-                        priority: null,
-                        overdue: null,
-                        offset: null,
-                      })
-                    }
-                  >
-                    Clear filters
-                  </button>
-                )}
-                {tab === "requests" && (
-                  <div className={styles.viewSwitch} aria-label="Request view">
-                    {[
-                      { key: "board", icon: KanbanSquare, label: "Board" },
-                      { key: "list", icon: List, label: "List" },
-                      {
-                        key: "calendar",
-                        icon: CalendarDays,
-                        label: "Calendar",
-                      },
-                    ].map(({ key, icon: Icon, label }) => (
-                      <button
-                        key={key}
-                        aria-pressed={view === key}
-                        onClick={() => navigate({ view: key, offset: null })}
-                      >
-                        <Icon size={15} />
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {loading ? (
-                <div className={styles.empty} role="status">
-                  Loading requests…
-                </div>
-              ) : view === "calendar" ? (
-                <Calendar
-                  rows={rows}
-                  month={month}
-                  onMonth={(m) => navigate({ month: m, offset: null })}
-                  onOpen={open}
-                />
-              ) : view === "list" ? (
-                <RequestTable rows={rows} context={context} onOpen={open} />
-              ) : (
-                <Board
-                  rows={rows}
-                  context={context}
-                  onOpen={open}
-                  counts={counts}
-                />
-              )}
-              <footer className={styles.pagination}>
-                <span>
-                  {total
-                    ? `${offset + 1}–${Math.min(offset + 40, total)} of ${total} requests`
-                    : "No matching requests"}
-                  {view === "calendar" && total > 40
-                    ? " · Use Next to see more deadlines"
-                    : ""}
-                </span>
-                <div>
-                  <button
-                    disabled={!offset}
-                    onClick={() =>
-                      navigate({ offset: String(Math.max(0, offset - 40)) })
-                    }
-                  >
-                    Previous
-                  </button>
-                  <button
-                    disabled={offset + 40 >= total}
-                    onClick={() => navigate({ offset: String(offset + 40) })}
-                  >
-                    Next
-                  </button>
-                </div>
-              </footer>
-            </>
-          )}
-          {(tab === "agenda" || tab === "materials") && (
-            <Library
-              key={`${eventId}:${tab}`}
-              context={context}
-              eventId={eventId}
-              category={tab}
-            />
-          )}
-          {tab === "team" && context.manager && (
-            <Settings
-              context={context}
-              eventId={eventId}
-              onRefresh={refreshContext}
-            />
-          )}
-        </>
-      )}
-      <MarketingDialog open={!!context && (creating || !!requestId)} title={creating ? "New marketing work" : "Request details"} label={creating ? "Create marketing request" : "Request details"} busy={requestBusy} onClose={close}>
-        {context &&
-          (creating ? (
-            <RequestForm
-              context={context}
-              eventId={eventId}
-              onSave={saved}
-              onCancel={close}
-                  onBusyChange={setRequestBusy}
-            />
-          ) : selected?.id === requestId ? (
-            <RequestDetail
-              key={`${selected.id}:${requestReadOnly}`}
-              request={selected}
-              readOnly={requestReadOnly}
-              context={context}
-              onSave={saved}
-            />
-          ) : (
-            <p role="status">{detailError || "Loading request…"}</p>
-          ))}
-      </MarketingDialog>
-    </section>
-  );
+  const content = <>
+    {error && <div className={styles.error} role="alert">{error}<button onClick={() => setRetry(value => value + 1)}>Retry</button></div>}
+    {!context ? <div className={styles.empty} role="status">Loading Marketing libraries...</div> : <>
+      <div className={styles.scopeBar}>
+        <label><CalendarDays size={15} /><select aria-label="Event" value={eventId} disabled={!context.events.length} onChange={event => selectEvent(event.target.value)}>
+          {!context.events.length && <option value="">No active events</option>}
+          {context.events.map(event => <option key={event.id} value={event.id}>{event.name}</option>)}
+        </select></label>
+        <span>Agenda &amp; Marketing materials</span>
+      </div>
+      {!eventId ? <div className={styles.empty}>No active events available.</div> :
+        <Library key={`${authScopeKey}:${eventId}:${tab}`} context={context} eventId={eventId} category={tab} />}
+    </>}
+  </>;
+  return <section className={styles.workspace}>
+    <header className={styles.header}><div>
+      <div className={styles.eyebrow}><Megaphone size={14} /> Marketing department</div>
+      <h1>{tab === "agenda" ? "Agenda" : "Materials"}<span className={styles.liveDot} /></h1>
+      <p>Browse event agendas and marketing materials.</p>
+    </div></header>
+    {content}
+  </section>;
 }

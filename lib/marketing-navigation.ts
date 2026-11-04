@@ -1,26 +1,19 @@
-import { LayoutDashboard, KanbanSquare, ListTodo, Share2, FileText, FolderOpen, Users, Home } from "lucide-react";
+import { FileText, FolderOpen, Home } from "lucide-react";
 import { getAuthLandingPath, type AuthUser } from "@/lib/auth";
-import { MARKETING_ROLES } from "@/lib/marketing-role-selection";
 
-export function marketingNavigation(user: AuthUser | null | undefined, event: string | null) {
-  const roles = [user?.role || "", ...(user?.departmentAssignments || [])];
-  const manager = roles.some(role => ["super_admin_user", "ceo_user", "marketing_manager_user"].includes(role));
-  const staff = manager || roles.some(role => MARKETING_ROLES.includes(role));
-  const social = roles.includes("marketing_social") && roles.some(role => MARKETING_ROLES.includes(role));
-  const sections = [
-    ...(!staff || manager ? [{ key: "overview", name: staff ? "Marketing overview" : "My requests", icon: LayoutDashboard }] : []),
-    ...(manager ? [{ key: "requests", name: "Requests", icon: KanbanSquare }] : []),
-    ...(staff ? [{ key: "my-tasks", name: "My tasks", icon: ListTodo }] : []),
-    ...(staff && social ? [{ key: "social", name: "Social media", icon: Share2 }] : []),
+export function marketingSections() {
+  return [
     { key: "agenda", name: "Agenda", icon: FileText },
     { key: "materials", name: "Materials", icon: FolderOpen },
-    ...(manager ? [{ key: "team", name: "Team & activity", icon: Users }] : []),
   ];
-  const items = sections.map(item => {
+}
+
+export function marketingNavigation(user: AuthUser | null | undefined, event: string | null) {
+  const items = marketingSections().map(item => {
     const query = new URLSearchParams({ tab: item.key });
-    if (event) query.set("event", event);
+    if (event && event !== "all") query.set("event", event);
     return { ...item, href: `/marketing?${query}` };
   });
   const home = getAuthLandingPath(user?.role);
-  return home === "/marketing" ? items : [{ key: "home", name: "Main workspace", icon: Home, href: home }, ...items];
+  return home === "/marketing" ? items : [{ key: "workspace", name: "Main workspace", icon: Home, href: home }, ...items];
 }
