@@ -55,19 +55,44 @@ export default function MarketingWorkspace() {
     <MarketingLanding />
     {error && <div className={styles.error} role="alert">{error}<button onClick={() => setRetry(value => value + 1)}>Retry</button></div>}
   </>;
-  const content = <>
-    {error && <div className={styles.error} role="alert">{error}<button onClick={() => setRetry(value => value + 1)}>Retry</button></div>}
-    {!context ? <div className={styles.empty} role="status">Loading Marketing libraries...</div> : <>
-      <div className={styles.scopeBar}>
-        <label><CalendarDays size={15} /><select aria-label="Event" value={eventId} disabled={!context.events.length} onChange={event => selectEvent(event.target.value)}>
-          {!context.events.length && <option value="">No active events</option>}
-          {context.events.map(event => <option key={event.id} value={event.id}>{event.name}</option>)}
-        </select></label>
-      </div>
-      {!eventId ? <div className={styles.empty}>No active events available.</div> :
-        <Library key={`${authScopeKey}:${eventId}:${tab}`} context={context} eventId={eventId} category={tab} />}
-    </>}
-  </>;
+  const eventControl = context && (
+    <div className={styles.scopeBar}>
+      <label>
+        <CalendarDays size={15} />
+        <select
+            aria-label="Event"
+            value={eventId}
+            disabled={!context.events.length}
+            onChange={event => selectEvent(event.target.value)}
+          >
+            {!context.events.length && <option value="">No active events</option>}
+            {context.events.map(event => <option key={event.id} value={event.id}>{event.name}</option>)}
+          </select>
+      </label>
+    </div>
+  );
+  const content = (
+    <>
+      {error && (
+        <div className={styles.error} role="alert">
+          {error}<button onClick={() => setRetry(value => value + 1)}>Retry</button>
+        </div>
+      )}
+      {!context ? (
+        <div className={styles.empty} role="status">Loading Marketing libraries...</div>
+      ) : !eventId ? (
+        <div className={styles.empty}>No active events available.</div>
+      ) : (
+        <Library
+          key={`${authScopeKey}:${eventId}:${tab}`}
+          context={context}
+          eventId={eventId}
+          category={tab}
+          eventControl={eventControl}
+        />
+      )}
+    </>
+  );
   return <section className={styles.workspace}>
     <header className={styles.header}><div>
       <h1>{tab === "agenda" ? "Agenda" : "Materials"}</h1>

@@ -1556,49 +1556,248 @@
 .activityComment { margin: 12px 0; }
 .activityComment > summary { cursor: pointer; padding: 8px 0; }
 
-/* Library hierarchy: current agenda first; quiet, expandable history. */
-.libraryToolbar { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin: 0 0 20px; }
-.agendaHero { padding: clamp(24px, 3vw, 44px); border: 1px solid color-mix(in srgb, var(--mk-accent) 60%, var(--mk-border)); border-radius: 22px; background: linear-gradient(125deg, color-mix(in srgb, var(--mk-accent) 16%, var(--mk-bg)), var(--mk-bg)); box-shadow: 0 12px 38px color-mix(in srgb, var(--mk-accent) 10%, transparent); }
-.agendaHeroLabel { display: flex; align-items: center; gap: 12px; color: var(--mk-text); }
-.workspace .agendaHeroLabel h2 { font-size: clamp(22px, 2vw, 30px); }
-.agendaHeroContent { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 24px; margin-top: 30px; }
-.agendaHeroContent > div:first-child { min-width: 0; flex: 1 1 280px; overflow-wrap: anywhere; }
-.workspace .agendaHeroContent h3 { font-size: clamp(18px, 1.5vw, 24px); margin: 0 0 12px; }
-.workspace .agendaHeroContent p { margin: 0 0 6px; font-size: 12px; }
-.agendaHeroContent span { color: var(--mk-muted); font-size: 12px; }
-.agendaHeroContent .primary { min-height: 46px; padding-inline: 22px; }
-.agendaTimelineSection { margin-top: 10px; padding: 12px 4px; }
-.workspace .agendaTimelineSection h2 { font-size: 14px; color: var(--mk-muted); margin: 0 0 20px; display: flex; align-items: center; gap: 8px; }
-.agendaTimeline { list-style: none; padding: 0 0 0 20px; margin: 0 0 0 6px; border-left: 1px solid var(--mk-border); }
-.agendaTimeline > li { position: relative; padding: 0 0 12px; }
-.agendaTimeline > li::before { content: ""; position: absolute; left: -24px; top: 17px; width: 7px; height: 7px; border-radius: 50%; background: var(--mk-muted); }
-.agendaTimelineEntry { border-bottom: 1px solid var(--mk-border); }
-.agendaTimelineEntry summary { cursor: pointer; padding: 12px 0; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 12px; }
-.agendaTimelineEntry summary::after { content: "+"; margin-left: auto; color: var(--mk-muted); }
-.agendaTimelineEntry[open] summary::after { content: "−"; }
-.agendaTimelineEntry summary:focus-visible { outline: 2px solid var(--mk-accent); outline-offset: 3px; border-radius: 4px; }
-.timelineVersion, .agendaTimelineEntry time { color: var(--mk-muted); }
-.timelineName { overflow-wrap: anywhere; min-width: 0; flex: 1 1 200px; }
-.timelineDetails { padding: 4px 0 16px; font-size: 12px; }
+/* Event libraries: recognizable files, clear actions and restrained motion. */
+.library {
+  --lib-surface: #ffffff;
+  --lib-current: #047857;
+  --lib-pdf: #be123c;
+  --lib-document: #1d4ed8;
+  --lib-sheet: #047857;
+  --lib-image: #7c3aed;
+  --lib-media: #0369a1;
+  --lib-archive: #b45309;
+  min-width: 0;
+}
+
+.libraryToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.libraryEventControl { min-width: 0; flex: 1 1 280px; }
+.libraryEventControl:empty { flex-basis: 0; }
+.libraryEventControl .scopeBar { margin: 0; }
+.libraryEventControl .scopeBar > label { width: min(100%, 520px); }
+.libraryEventControl .scopeBar select,
+.libraryEventControl .scopeBar .selectTrigger { max-width: none; }
+.libraryToolbarActions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.workspace .libraryToolbarActions > button { min-height: 40px; }
+.libraryLoading { display: flex; align-items: center; gap: 8px; }
+.librarySpinner { animation: librarySpin .9s linear infinite; }
+@keyframes librarySpin { to { transform: rotate(360deg); } }
+
+.agendaLayout { gap: 26px; }
+.agendaHero {
+  position: relative;
+  padding: clamp(24px, 2.7vw, 40px);
+  border: 1px solid color-mix(in srgb, var(--mk-accent) 38%, var(--mk-border));
+  border-radius: 24px;
+  background: radial-gradient(ellipse at 0% 10%, var(--mk-tint), transparent 68%), var(--lib-surface);
+  box-shadow: 0 14px 48px color-mix(in srgb, var(--mk-accent) 7%, transparent);
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.agendaHero::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 28px;
+  right: 28px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--mk-accent) 80%, white), transparent);
+}
+.agendaHeroHeader { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.workspace .agendaHeroHeader h2 { font-size: 18px; font-weight: 500; letter-spacing: -.3px; }
+.currentVersion {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--lib-current) 18%, transparent);
+  border-radius: 100px;
+  background: color-mix(in srgb, var(--lib-current) 7%, transparent);
+  color: var(--lib-current);
+  font-size: 11px;
+  font-weight: 500;
+}
+.agendaHeroContent {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(20px, 2.5vw, 36px);
+  margin-top: 28px;
+}
+.agendaFileInfo { min-width: 0; }
+.workspace .agendaFileInfo h3 {
+  margin: 0 0 16px;
+  font-size: clamp(21px, 1.8vw, 30px);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -.5px;
+  overflow-wrap: anywhere;
+}
+.agendaFileMeta { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 18px; color: var(--mk-muted); font-size: 12px; }
+.agendaFileMeta > span,
+.agendaFileMeta > time { display: inline-flex; align-items: center; gap: 6px; }
+.agendaFileMeta svg { flex-shrink: 0; opacity: .8; }
+.agendaFileMeta .versionTag { padding: 3px 8px; border: 1px solid var(--mk-border); border-radius: 6px; color: var(--mk-text); background: var(--mk-subtle); font-size: 11px; }
+.fileUploader { display: flex; align-items: center; gap: 8px; margin-top: 16px; color: var(--mk-muted); font-size: 12px; }
+.uploaderAvatar { display: inline-flex; justify-content: center; align-items: center; width: 25px; height: 25px; flex-shrink: 0; border: 1px solid var(--mk-border); border-radius: 50%; background: var(--mk-subtle); color: var(--mk-text); font-size: 10px; font-weight: 500; }
+.workspace .agendaHeroActions { flex-direction: column; align-items: stretch; gap: 9px; margin: 0; min-width: 168px; }
+.workspace .agendaHeroActions > button { min-height: 44px; padding: 11px 18px; }
+.workspace .agendaHeroActions .primary { min-height: 48px; box-shadow: 0 4px 18px color-mix(in srgb, var(--mk-accent) 20%, transparent); }
+.agendaHeroActions .primary > svg:last-child { transition: transform .18s ease; }
+
+.fileMark,
+.fileMarkLarge {
+  --file-color: var(--mk-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--file-color);
+  background: color-mix(in srgb, var(--file-color) 9%, var(--lib-surface));
+  border: 1px solid color-mix(in srgb, var(--file-color) 18%, transparent);
+}
+.fileMark { width: 46px; height: 50px; border-radius: 12px; }
+.fileMarkLarge { flex-direction: column; gap: 12px; width: 98px; height: 124px; border-radius: 18px; }
+.fileMarkLarge > span { font-size: 10px; font-weight: 600; letter-spacing: 1.4px; }
+.fileMark[data-kind="pdf"], .fileMarkLarge[data-kind="pdf"] { --file-color: var(--lib-pdf); }
+.fileMark[data-kind="document"], .fileMarkLarge[data-kind="document"] { --file-color: var(--lib-document); }
+.fileMark[data-kind="spreadsheet"], .fileMarkLarge[data-kind="spreadsheet"] { --file-color: var(--lib-sheet); }
+.fileMark[data-kind="image"], .fileMarkLarge[data-kind="image"] { --file-color: var(--lib-image); }
+.fileMark[data-kind="media"], .fileMarkLarge[data-kind="media"] { --file-color: var(--lib-media); }
+.fileMark[data-kind="archive"], .fileMarkLarge[data-kind="archive"] { --file-color: var(--lib-archive); }
+
+.librarySectionHeader { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+.librarySectionHeader > h2 { display: flex; align-items: center; gap: 10px; }
+.librarySectionHeader > span { font-size: 11px; color: var(--mk-muted); }
+.agendaTimelineSection { padding: 0 4px; margin-top: 0; }
+.workspace .agendaTimelineSection h2 { font-size: 14px; color: var(--mk-muted); margin: 0; font-weight: 500; }
+.agendaTimeline { list-style: none; padding: 0 0 0 22px; margin: 0 0 0 7px; border-left: 1px solid var(--mk-border); }
+.agendaTimeline > li { position: relative; padding-bottom: 4px; }
+.agendaTimeline > li::before { content: ""; position: absolute; left: -26px; top: 29px; width: 7px; height: 7px; border-radius: 50%; background: var(--mk-muted); }
+.agendaTimeline > li[data-current="true"]::before { background: var(--lib-current); box-shadow: 0 0 0 4px color-mix(in srgb, var(--lib-current) 9%, transparent); }
+.workspace .agendaTimelineEntry { margin: 0; padding: 0; border: 0; border-bottom: 1px solid var(--mk-border); border-radius: 0; }
+.workspace .agendaTimelineEntry > summary { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 16px 10px 16px 0; font-size: 12px; font-weight: 400; list-style: none; cursor: pointer; transition: background .18s ease; }
+.agendaTimelineEntry summary::-webkit-details-marker { display: none; }
+.timelineVersion { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 28px; flex-shrink: 0; color: var(--mk-muted); font-size: 11px; background: var(--mk-subtle); border: 1px solid var(--mk-border); border-radius: 7px; }
+.timelineName { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; color: var(--mk-muted); }
+.agendaTimelineEntry time { color: var(--mk-muted); font-size: 11px; }
+.timelineCurrent { color: var(--lib-current); font-size: 10px; }
+.timelineChevron { margin-left: auto; color: var(--mk-muted); transition: transform .2s ease; flex-shrink: 0; }
+.agendaTimelineEntry[open] .timelineChevron { transform: rotate(180deg); }
+.agendaTimelineEntry[open] .timelineName { color: var(--mk-text); }
+.timelineDetails { padding: 8px 0 18px 44px; font-size: 12px; }
 .timelineDetails dl { display: flex; flex-wrap: wrap; gap: 16px 32px; margin: 0 0 16px; }
-.timelineDetails dt { color: var(--mk-muted); margin-bottom: 6px; }
+.timelineDetails dt { color: var(--mk-muted); font-size: 11px; margin-bottom: 6px; }
 .timelineDetails dd { margin: 0; overflow-wrap: anywhere; }
-.materialsSection > h2 { margin: 0 0 18px; }
-.materialsTable { min-width: 700px; }
-.materialsTable td:first-child { min-width: 220px; max-width: 400px; overflow-wrap: anywhere; }
-.materialsTable td:nth-child(4) { min-width: 0; white-space: nowrap; }
+.timelineDetails .actions { margin: 0; }
+
+.materialsSection { min-width: 0; }
+.workspace .materialsSection h2 { font-size: 18px; margin: 0; }
+.workspace .fileCount { display: inline-flex; align-items: center; justify-content: center; min-width: 25px; padding: 4px 7px; border-radius: 7px; border: 1px solid var(--mk-border); background: var(--mk-subtle); color: var(--mk-muted); font-size: 11px; line-height: 1; font-weight: 500; }
+.fileFilters { display: flex; gap: 7px; overflow-x: auto; max-width: 100%; padding: 0 0 18px; scrollbar-width: thin; }
+.workspace .fileFilters button { flex-shrink: 0; gap: 8px; min-height: 36px; padding: 7px 12px; background: transparent; border: 1px solid transparent; font-size: 12px; color: var(--mk-muted); }
+.workspace .fileFilters button[aria-pressed="true"] { background: var(--mk-tint); color: var(--mk-text); border-color: color-mix(in srgb, var(--mk-accent) 38%, var(--mk-border)); }
+.fileFilters button > span { display: inline-flex; align-items: center; justify-content: center; min-width: 17px; padding: 2px 4px; border-radius: 5px; background: var(--mk-subtle); font-size: 10px; }
+.materialsSection .agendaTableScroll { background: var(--lib-surface); border-radius: 16px; }
+.materialsTable { min-width: 860px; }
+.materialsTable th { background: var(--mk-subtle); padding-top: 15px; padding-bottom: 15px; font-size: 12px; }
+.materialsTable td { padding-top: 20px; padding-bottom: 20px; vertical-align: middle; }
+.materialsTable tr { transition: background .18s ease; }
+.materialsTable td:first-child { min-width: 260px; max-width: 480px; overflow-wrap: anywhere; }
+.materialsTable td:nth-child(2) { min-width: 150px; }
+.materialsTable td:nth-child(3) { min-width: 155px; }
+.materialsTable td:nth-child(4) { min-width: 80px; white-space: nowrap; }
 .materialsTable td:nth-child(5) { white-space: normal; }
-.materialsTable .actions { margin: 0; flex-wrap: wrap; }
+.materialIdentity { display: flex; align-items: center; gap: 14px; }
+.materialIdentity > div { min-width: 0; }
+.workspace .materialTitle { padding: 0; min-height: 28px; background: transparent; box-shadow: none; border: 0; border-radius: 3px; text-align: left; justify-content: flex-start; color: var(--mk-text); }
+.materialTitle > svg { color: var(--lib-document); flex-shrink: 0; opacity: .7; }
+.materialTitle strong { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+.materialsTable .materialIdentity small { font-size: 11px; color: var(--mk-muted); margin-top: 3px; line-height: 1.5; }
+.tableUploader { display: flex; align-items: center; gap: 8px; color: var(--mk-muted); font-size: 12px; }
+.materialsTable time { font-size: 12px; color: var(--mk-muted); }
+.fileSize { font-variant-numeric: tabular-nums; color: var(--mk-muted); font-size: 12px; }
+.workspace .materialsTable .actions { margin: 0; flex-wrap: wrap; gap: 7px; }
+.workspace .materialsTable .actions > button { min-height: 36px; padding: 8px 12px; white-space: nowrap; font-size: 12px; }
+.workspace .materialsTable .materialView { color: var(--lib-document); background: color-mix(in srgb, var(--lib-document) 6%, transparent); border-color: color-mix(in srgb, var(--lib-document) 20%, var(--mk-border)); }
+.libraryEmpty { display: flex; min-height: 150px; align-items: center; justify-content: center; flex-direction: column; gap: 16px; padding: 24px; color: var(--mk-muted); text-align: center; }
+.libraryEmpty p { margin: 0; }
+.materialsSection > .libraryEmpty { border: 1px dashed var(--mk-border); border-radius: 16px; background: var(--lib-surface); }
+.library button { transition: background .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.library button:focus-visible,
+.library summary:focus-visible { outline: 2px solid var(--mk-accent); outline-offset: 4px; }
+.library .agendaTableScroll:focus-visible { outline: 2px solid var(--mk-accent); outline-offset: 3px; }
+
 .officePreview { flex: 1; min-height: 0; overflow: auto; padding: 20px; }
 .officePreview p { white-space: pre-wrap; }
 .officePreview table { border-collapse: collapse; margin: 16px 0; font-size: 13px; min-width: 100%; }
 .officePreview td, .officePreview th { border: 1px solid var(--mk-border); padding: 8px 12px; white-space: pre-wrap; max-width: 420px; overflow-wrap: anywhere; }
 .officeTabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .officeTabs button[aria-pressed="true"] { border-color: var(--mk-accent); background: var(--mk-tint); }
-@media (max-width: 600px) { .agendaHeroContent { margin-top: 20px; } .agendaTimelineEntry time { flex-basis: 100%; } .agendaHeroContent .actions { width: 100%; } }
-
 .filePreview video { max-width: 100%; max-height: 100%; display: block; margin: auto; }
 .filePreview audio { width: 100%; margin: 24px auto; }
 
-.workspace .agendaTimelineEntry { border: 0; border-bottom: 1px solid var(--mk-border); border-radius: 0; padding: 0; margin: 0; }
-.workspace .agendaTimelineEntry summary { font-weight: 400; }
+@media (hover: hover) {
+  .agendaHero:hover { border-color: color-mix(in srgb, var(--mk-accent) 62%, var(--mk-border)); box-shadow: 0 14px 48px color-mix(in srgb, var(--mk-accent) 12%, transparent); }
+  .agendaHeroActions .primary:hover > svg:last-child { transform: translate(2px, -2px); }
+  .workspace .materialTitle:hover { color: var(--lib-document); text-decoration: underline; text-underline-offset: 4px; }
+  .workspace .fileFilters button:hover { background: var(--mk-subtle); color: var(--mk-text); }
+  .workspace .agendaTimelineEntry > summary:hover { background: color-mix(in srgb, var(--mk-subtle) 48%, transparent); }
+}
+@media (max-width: 1100px) {
+  .agendaHeroContent { grid-template-columns: auto minmax(0, 1fr); }
+  .workspace .agendaHeroActions { grid-column: 2; flex-direction: row; flex-wrap: wrap; justify-content: flex-start; }
+  .workspace .agendaHeroActions > button { flex: 0 1 auto; }
+}
+@media (max-width: 600px) {
+  .libraryToolbar { gap: 12px; margin-bottom: 20px; }
+  .libraryEventControl { flex-basis: 100%; }
+  .libraryToolbarActions { margin-left: auto; }
+  .agendaHero { border-radius: 18px; padding: 22px; }
+  .agendaHeroHeader { gap: 10px; }
+  .workspace .agendaHeroHeader h2 { font-size: 16px; }
+  .currentVersion { font-size: 10px; padding: 5px 8px; }
+  .agendaHeroContent { gap: 16px; margin-top: 24px; }
+  .fileMarkLarge { width: 56px; height: 76px; gap: 6px; border-radius: 12px; }
+  .fileMarkLarge > svg { width: 29px; height: 29px; }
+  .fileMarkLarge > span { font-size: 8px; letter-spacing: .8px; }
+  .workspace .agendaFileInfo h3 { font-size: 20px; margin-bottom: 12px; }
+  .agendaFileMeta { gap: 8px; font-size: 11px; }
+  .agendaFileMeta time { flex-basis: 100%; font-size: 10px; }
+  .fileUploader { margin-top: 12px; font-size: 11px; }
+  .workspace .agendaHeroActions { grid-column: 1 / -1; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .workspace .agendaHeroActions > button { flex: none; width: 100%; padding: 10px 12px; white-space: nowrap; }
+  .timelineName { flex: 1 1 140px; }
+  .agendaTimelineEntry time { padding-left: 44px; flex-basis: 100%; }
+  .timelineCurrent { display: none; }
+  .workspace .agendaTimelineEntry > summary { position: relative; padding-right: 24px; }
+  .timelineChevron { position: absolute; top: 22px; right: 4px; }
+  .timelineDetails { padding-left: 0; }
+  .timelineDetails dl { gap: 14px 20px; }
+  .fileFilters { flex-wrap: wrap; overflow-x: visible; gap: 4px; }
+  .materialsTable { display: block; min-width: 0; width: 100%; }
+  .materialsTable thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .materialsTable tbody { display: block; }
+  .materialsTable tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; padding: 18px; border-bottom: 1px solid var(--mk-border); }
+  .materialsTable tbody tr:last-child { border-bottom: 0; }
+  .materialsTable td, .materialsTable td:first-child, .materialsTable td:nth-child(2), .materialsTable td:nth-child(3), .materialsTable td:nth-child(4), .materialsTable td:nth-child(5) { display: block; min-width: 0; max-width: none; padding: 0; border: 0; white-space: normal; }
+  .materialsTable td:first-child, .materialsTable td:last-child { grid-column: 1 / -1; }
+  .materialsTable td:last-child { padding-top: 12px; border-top: 1px solid var(--mk-border); }
+  .materialsTable td[data-label]::before { content: attr(data-label); display: block; font-size: 10px; color: var(--mk-muted); margin-bottom: 6px; }
+  .materialIdentity { gap: 12px; }
+  .materialsTable .tableUploader { align-items: flex-start; }
+  .materialsTable .tableUploader > .uploaderAvatar { display: none; }
+  .materialsTable time { white-space: normal; line-height: 1.6; }
+  .workspace .materialsTable .actions > button { flex: 1 1 auto; justify-content: center; }
+
+  .workspace .fileFilters button { min-height: 40px; }
+  .workspace .materialTitle, .workspace .materialsTable .actions > button { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .library *, .library *::before, .library *::after { transition: none !important; animation: none !important; }
+}

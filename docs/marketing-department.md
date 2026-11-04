@@ -1,3 +1,9 @@
+## Library presentation and interaction polish
+
+The event selector and library controls share one compact toolbar. The current agenda uses a file-format icon, current-version badge, readable metadata, uploader identity and stronger View action. History stays secondary, with expandable rows and chevrons. Materials retains its title-first table, adds recognizable format icons, and opens previews from document titles as well as View buttons. Type filters and visible counts appear only when multiple file groups are present; filtering resets pagination. On phones, table rows stack so View and Download remain visible without horizontal scrolling.
+
+Downloads show progress on the selected file. Hover/focus states and restrained transitions use the existing themes, with reduced-motion support. Fonts, Heavy dock, Light sidebar, upload/release permissions, native PDF previews and the libraries-only workflow boundary remain unchanged. These changes improve discoverability; no claim of measured engagement uplift is made.
+
 ## Simplified event libraries
 
 Agenda emphasizes the latest upload in an accented card. A secondary paged timeline expands to show the same version, filename, uploader, date, size, title, source and status, with View/Download actions. History search and explanatory page subtitles are removed.
