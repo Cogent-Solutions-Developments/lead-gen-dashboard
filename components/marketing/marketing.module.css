@@ -1555,3 +1555,50 @@
 .historyPagination > div { display: flex; gap: 8px; }
 .activityComment { margin: 12px 0; }
 .activityComment > summary { cursor: pointer; padding: 8px 0; }
+
+/* Library hierarchy: current agenda first; quiet, expandable history. */
+.libraryToolbar { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin: 0 0 20px; }
+.agendaHero { padding: clamp(24px, 3vw, 44px); border: 1px solid color-mix(in srgb, var(--mk-accent) 60%, var(--mk-border)); border-radius: 22px; background: linear-gradient(125deg, color-mix(in srgb, var(--mk-accent) 16%, var(--mk-bg)), var(--mk-bg)); box-shadow: 0 12px 38px color-mix(in srgb, var(--mk-accent) 10%, transparent); }
+.agendaHeroLabel { display: flex; align-items: center; gap: 12px; color: var(--mk-text); }
+.workspace .agendaHeroLabel h2 { font-size: clamp(22px, 2vw, 30px); }
+.agendaHeroContent { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 24px; margin-top: 30px; }
+.agendaHeroContent > div:first-child { min-width: 0; flex: 1 1 280px; overflow-wrap: anywhere; }
+.workspace .agendaHeroContent h3 { font-size: clamp(18px, 1.5vw, 24px); margin: 0 0 12px; }
+.workspace .agendaHeroContent p { margin: 0 0 6px; font-size: 12px; }
+.agendaHeroContent span { color: var(--mk-muted); font-size: 12px; }
+.agendaHeroContent .primary { min-height: 46px; padding-inline: 22px; }
+.agendaTimelineSection { margin-top: 10px; padding: 12px 4px; }
+.workspace .agendaTimelineSection h2 { font-size: 14px; color: var(--mk-muted); margin: 0 0 20px; display: flex; align-items: center; gap: 8px; }
+.agendaTimeline { list-style: none; padding: 0 0 0 20px; margin: 0 0 0 6px; border-left: 1px solid var(--mk-border); }
+.agendaTimeline > li { position: relative; padding: 0 0 12px; }
+.agendaTimeline > li::before { content: ""; position: absolute; left: -24px; top: 17px; width: 7px; height: 7px; border-radius: 50%; background: var(--mk-muted); }
+.agendaTimelineEntry { border-bottom: 1px solid var(--mk-border); }
+.agendaTimelineEntry summary { cursor: pointer; padding: 12px 0; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 12px; }
+.agendaTimelineEntry summary::after { content: "+"; margin-left: auto; color: var(--mk-muted); }
+.agendaTimelineEntry[open] summary::after { content: "−"; }
+.agendaTimelineEntry summary:focus-visible { outline: 2px solid var(--mk-accent); outline-offset: 3px; border-radius: 4px; }
+.timelineVersion, .agendaTimelineEntry time { color: var(--mk-muted); }
+.timelineName { overflow-wrap: anywhere; min-width: 0; flex: 1 1 200px; }
+.timelineDetails { padding: 4px 0 16px; font-size: 12px; }
+.timelineDetails dl { display: flex; flex-wrap: wrap; gap: 16px 32px; margin: 0 0 16px; }
+.timelineDetails dt { color: var(--mk-muted); margin-bottom: 6px; }
+.timelineDetails dd { margin: 0; overflow-wrap: anywhere; }
+.materialsSection > h2 { margin: 0 0 18px; }
+.materialsTable { min-width: 700px; }
+.materialsTable td:first-child { min-width: 220px; max-width: 400px; overflow-wrap: anywhere; }
+.materialsTable td:nth-child(4) { min-width: 0; white-space: nowrap; }
+.materialsTable td:nth-child(5) { white-space: normal; }
+.materialsTable .actions { margin: 0; flex-wrap: wrap; }
+.officePreview { flex: 1; min-height: 0; overflow: auto; padding: 20px; }
+.officePreview p { white-space: pre-wrap; }
+.officePreview table { border-collapse: collapse; margin: 16px 0; font-size: 13px; min-width: 100%; }
+.officePreview td, .officePreview th { border: 1px solid var(--mk-border); padding: 8px 12px; white-space: pre-wrap; max-width: 420px; overflow-wrap: anywhere; }
+.officeTabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.officeTabs button[aria-pressed="true"] { border-color: var(--mk-accent); background: var(--mk-tint); }
+@media (max-width: 600px) { .agendaHeroContent { margin-top: 20px; } .agendaTimelineEntry time { flex-basis: 100%; } .agendaHeroContent .actions { width: 100%; } }
+
+.filePreview video { max-width: 100%; max-height: 100%; display: block; margin: auto; }
+.filePreview audio { width: 100%; margin: 24px auto; }
+
+.workspace .agendaTimelineEntry { border: 0; border-bottom: 1px solid var(--mk-border); border-radius: 0; padding: 0; margin: 0; }
+.workspace .agendaTimelineEntry summary { font-weight: 400; }

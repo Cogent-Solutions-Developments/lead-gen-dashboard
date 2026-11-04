@@ -70,7 +70,6 @@ function EventLibrary({ context, eventId, category }: Props) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [uploadTitle, setUploadTitle] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [preview, setPreview] = useState<Asset | null>(null);
   const request = useRef<AbortController | null>(null);
@@ -125,22 +124,9 @@ function EventLibrary({ context, eventId, category }: Props) {
   }
   const items = category === "agenda" ? availableAgendas(data.items) : data.items;
   const latest = items.filter((a) => a.isLatest);
-  const drafts = category === "agenda" ? [] : items.filter((a) => a.status === "draft");
-  const filtered = items.filter((a) =>
-    `${a.title} ${a.fileName || ""} ${a.createdByName || ""}`
-      .toLowerCase()
-      .includes(search.toLowerCase()),
-  );
   const pageSize = 10;
-  const lastPage = Math.max(0, Math.ceil(filtered.length / pageSize) - 1);
+  const lastPage = Math.max(0, Math.ceil(items.length / pageSize) - 1);
   const currentPage = Math.min(page, lastPage);
-  const actions = {
-    busy,
-    onView: setPreview,
-    onDownload: downloadFile,
-    onRelease: category === "materials" && context.manager ? release : undefined,
-    onReplace: canUpload ? setUploadTitle : undefined,
-  };
   if (!eventId)
     return (
       <div className={styles.empty}>
@@ -149,31 +135,11 @@ function EventLibrary({ context, eventId, category }: Props) {
     );
   return (
     <section aria-label={`${title} library`}>
-      <div className={styles.sectionHeading}>
-        <div>
-          <h2>{title} library</h2>
-          <p>{category === "agenda" ? "Uploaded agendas are immediately available to everyone with access to this event." : "Current files, review drafts and upload history for this event."}</p>
-        </div>
-        <div className={styles.actions}>
-          <button
-            disabled={loading || busy}
-            onClick={() => void load()}
-            aria-label="Refresh library"
-          >
-            <RefreshCw size={16} /> Refresh
-          </button>
-          {canUpload && (
-            <button
-              className={styles.primary}
-              onClick={() =>
-                setUploadTitle(category === "agenda" ? "Agenda" : "")
-              }
-            >
-              <Upload size={16} /> Upload{" "}
-              {category === "agenda" ? "new version" : "material"}
-            </button>
-          )}
-        </div>
+      <div className={styles.libraryToolbar}>
+        <button disabled={loading || busy} onClick={() => void load()} aria-label="Refresh library"><RefreshCw size={16} /> Refresh</button>
+        {canUpload && <button className={styles.primary} onClick={() => setUploadTitle(category === "agenda" ? "Agenda" : "")}>
+          <Upload size={16} /> {category === "agenda" ? "Upload new version" : "Upload material"}
+        </button>}
       </div>
       {error && (
         <p role="alert" className={styles.error}>
@@ -181,235 +147,67 @@ function EventLibrary({ context, eventId, category }: Props) {
         </p>
       )}
       {loading && <p role="status">Loading library…</p>}
-      <div className={styles.agendaLayout}>
-        <div className={styles.libraryCurrent}>
-          <section
-            className={styles.panel}
-            aria-label={category === "agenda" ? "Latest agenda" : "Latest published versions"}
-          >
-            <div className={styles.taskHeading}>
-              <h2>
-                <FileText size={18} />{" "}
-                {category === "agenda" ? "Latest agenda" : "Latest materials"}
-              </h2>
-              <span className={styles.badge}>
-                {latest.length} current {latest.length === 1 ? "file" : "files"}
-              </span>
+      {category === "agenda" ? <div className={styles.agendaLayout}>
+        <section className={styles.agendaHero} aria-label="Latest agenda">
+          <div className={styles.agendaHeroLabel}><FileText size={22} /><h2>Latest agenda</h2></div>
+          {!loading && !latest.length && <p>No agenda has been uploaded for this event yet.</p>}
+          {latest.map(asset => <div className={styles.agendaHeroContent} key={`${asset.source}:${asset.id}`}>
+            <div><h3>{asset.fileName || asset.title}</h3><p>v{asset.version} · {sizeLabel(asset.sizeBytes)} · {formatDate(asset.createdAt)}</p>
+              <span>{asset.createdByName || "Former user"}</span></div>
+            <div className={styles.actions}>
+              <button className={styles.primary} onClick={() => setPreview(asset)}><Eye size={17} /> View agenda</button>
+              <button disabled={busy} onClick={() => void downloadFile(asset)}><Download size={16} /> Download</button>
             </div>
-            {!loading && !latest.length && (
-              <div className={styles.empty}>
-                <FileText size={24} />
-                <p>
-                  {category === "agenda" ? "No agenda has been uploaded for this event yet." : drafts.length
-                    ? "No published version yet. Drafts are awaiting manager release."
-                    : "No files have been published for this event yet."}
-                </p>
-              </div>
-            )}
-            <div className={styles.agendaLatestList}>
-              {latest.map((asset) => (
-                <div
-                  className={styles.agendaLatestRow}
-                  key={`${asset.source}:${asset.id}`}
-                >
-                  <div>
-                    <strong>{asset.fileName || asset.title}</strong>
-                    <small>
-                      v{asset.version} · {sizeLabel(asset.sizeBytes)} · Uploaded{" "}
-                      {formatDate(asset.createdAt)}
-                    </small>
-                  </div>
+          </div>)}
+        </section>
+        <section className={styles.agendaTimelineSection} aria-label="Upload history">
+          <h2><History size={16} /> Upload history</h2>
+          <ol className={styles.agendaTimeline}>
+            {items.slice(currentPage * pageSize, (currentPage + 1) * pageSize).map(asset => <li key={`${asset.source}:${asset.id}`}>
+              <details className={styles.agendaTimelineEntry}>
+                <summary><span className={styles.timelineVersion}>v{asset.version}</span><span className={styles.timelineName}>{asset.fileName || asset.title}</span>
+                  <time dateTime={asset.createdAt}>{formatDate(asset.createdAt)}</time>{asset.isLatest && <span className={styles.badge}>Latest</span>}
+                </summary>
+                <div className={styles.timelineDetails}>
+                  <dl><div><dt>Uploaded by</dt><dd>{asset.createdByName || "Former user"}</dd></div>
+                    <div><dt>Size</dt><dd>{sizeLabel(asset.sizeBytes)}</dd></div>
+                    <div><dt>Title</dt><dd>{asset.title}</dd></div>
+                    <div><dt>Source</dt><dd>{sourceLabel(asset)}</dd></div>
+                    <div><dt>Status</dt><dd>{asset.isLatest ? "Latest" : "Previous version"}</dd></div></dl>
                   <div className={styles.actions}>
-                    <button
-                      disabled={busy}
-                      onClick={() => void downloadFile(asset)}
-                    >
-                      <Download size={15} /> Download
-                    </button>
-                    <button onClick={() => setPreview(asset)}>
-                      <Eye size={15} /> View
-                    </button>
-                    {category === "materials" && canUpload && (
-                      <button onClick={() => setUploadTitle(asset.title)}>
-                        <Upload size={15} /> Upload new version
-                      </button>
-                    )}
+                    <button aria-label={`View ${asset.fileName || asset.title}, version ${asset.version}`} onClick={() => setPreview(asset)}><Eye size={15} /> View</button>
+                    <button disabled={busy} onClick={() => void downloadFile(asset)}><Download size={15} /> Download</button>
                   </div>
                 </div>
-              ))}
-            </div>
-          </section>
-          {drafts.length > 0 && (
-            <section
-              className={styles.panel}
-              aria-label="Drafts awaiting release"
-            >
-              <h2>Awaiting manager release · {drafts.length}</h2>
-              <p>
-                Published files stay available until a manager releases a replacement.
-              </p>
-              <div className={styles.libraryGrid}>
-                {drafts.map((asset) => (
-                  <AssetCard
-                    key={asset.id}
-                    asset={asset}
-                    {...actions}
-                    onReplace={undefined}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
-        <section
-          className={`${styles.panel} ${styles.libraryHistoryPanel}`}
-          aria-label="Upload history"
-        >
-          <div className={styles.sectionHeading}>
-            <div>
-              <h2>
-                <History size={18} /> Upload history
-              </h2>
-              <p>
-                {data.items.length} uploaded{" "}
-                {data.items.length === 1 ? "version" : "versions"} · newest
-                uploads first
-              </p>
-            </div>
-            <label className={styles.librarySearch}>
-              Search history
-              <input
-                type="search"
-                value={search}
-                placeholder="Filename, title or uploader"
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(0);
-                }}
-              />
-            </label>
-          </div>
-          {!loading && !filtered.length && (
-            <p>
-              {search
-                ? "No versions match your search."
-                : "Upload history will appear here."}
-            </p>
-          )}
-          {filtered.length > 0 && (
-            <div
-              className={styles.agendaTableScroll}
-              role="region"
-              aria-label={`${title} versions`}
-              tabIndex={0}
-            >
-              <table
-                className={styles.agendaTable}
-                aria-label={`${title} upload history`}
-              >
-                <thead>
-                  <tr>
-                    {[
-                      "Version",
-                      "Document name",
-                      "Upload user",
-                      "Date",
-                      "Size",
-                      "Metadata",
-                      "View",
-                    ].map((heading) => (
-                      <th scope="col" key={heading}>
-                        {heading}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered
-                    .slice(currentPage * pageSize, (currentPage + 1) * pageSize)
-                    .map((asset) => (
-                      <tr key={`${asset.source}:${asset.id}`}>
-                        <td>v{asset.version}</td>
-                        <td className={styles.agendaDocumentName}>
-                          {asset.fileName || asset.title}
-                        </td>
-                        <td>{asset.createdByName || "Former user"}</td>
-                        <td>
-                          <time dateTime={asset.createdAt}>
-                            {formatDate(asset.createdAt)}
-                          </time>
-                        </td>
-                        <td>{sizeLabel(asset.sizeBytes)}</td>
-                        <td>
-                          <span
-                            className={styles.badge}
-                            data-status={
-                              asset.isLatest
-                                ? "released"
-                                : asset.status === "draft"
-                                  ? "review"
-                                  : asset.status
-                            }
-                          >
-                            {asset.isLatest
-                              ? "Latest"
-                              : asset.status === "draft"
-                                ? "Draft"
-                                : "Previous version"}
-                          </span>
-                          <small>
-                            {asset.title} · {sourceLabel(asset)}
-                          </small>
-                          {category !== "agenda" && asset.releasedAt &&
-                            asset.source !== "event_documents" && (
-                              <small>
-                                Released {formatDate(asset.releasedAt)}
-                                {asset.releasedByName
-                                  ? ` by ${asset.releasedByName}`
-                                  : ""}
-                              </small>
-                            )}
-                        </td>
-                        <td>
-                          <button
-                            aria-label={`View ${asset.fileName || asset.title}, version ${asset.version}`}
-                            onClick={() => setPreview(asset)}
-                          >
-                            <Eye size={15} /> View
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {filtered.length > 0 && (
-            <div className={styles.pagination}>
-              <span role="status">
-                {filtered.length ? currentPage * pageSize + 1 : 0}–
-                {Math.min((currentPage + 1) * pageSize, filtered.length)} of{" "}
-                {filtered.length} versions · Page {currentPage + 1} of{" "}
-                {lastPage + 1}
-              </span>
-              <div>
-                <button
-                  disabled={currentPage === 0}
-                  onClick={() => setPage(currentPage - 1)}
-                >
-                  Previous
-                </button>
-                <button
-                  disabled={currentPage === lastPage}
-                  onClick={() => setPage(currentPage + 1)}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
+              </details>
+            </li>)}
+          </ol>
         </section>
-      </div>
+      </div> : <section aria-label="Event materials" className={styles.materialsSection}>
+        <h2>Event materials</h2>
+        {!loading && !items.length && <p>No materials uploaded for this event.</p>}
+        {items.length > 0 && <div className={styles.agendaTableScroll} role="region" aria-label="Event materials list" tabIndex={0}>
+          <table className={`${styles.agendaTable} ${styles.materialsTable}`} aria-label="Event materials">
+            <thead><tr>{["Title", "Uploaded by", "Date", "Size", "Actions"].map(heading => <th scope="col" key={heading}>{heading}</th>)}</tr></thead>
+            <tbody>{items.slice(currentPage * pageSize, (currentPage + 1) * pageSize).map(asset => <tr key={`${asset.source}:${asset.id}`}>
+              <td><strong>{asset.title}</strong><small>{asset.fileName || asset.title}</small>{asset.status === "draft" && <span className={styles.badge}>Draft</span>}</td>
+              <td>{asset.createdByName || "Former user"}</td>
+              <td><time dateTime={asset.createdAt}>{formatDate(asset.createdAt)}</time></td><td>{sizeLabel(asset.sizeBytes)}</td>
+              <td><div className={styles.actions}>
+                <button aria-label={`View ${asset.title}`} onClick={() => setPreview(asset)}><Eye size={15} /> View</button>
+                <button aria-label={`Download ${asset.title}`} disabled={busy} onClick={() => void downloadFile(asset)}><Download size={15} /> Download</button>
+                {canUpload && <button aria-label={`Upload new version of ${asset.title}`} onClick={() => setUploadTitle(asset.title)}><Upload size={15} /> Upload new version</button>}
+                {context.manager && asset.status === "draft" && <button className={styles.primary} disabled={busy} onClick={() => void release(asset)}>Release this version</button>}
+              </div></td>
+            </tr>)}</tbody>
+          </table>
+        </div>}
+      </section>}
+      {items.length > pageSize && <div className={styles.pagination}>
+        <span role="status">{currentPage * pageSize + 1}–{Math.min((currentPage + 1) * pageSize, items.length)} of {items.length} · Page {currentPage + 1} of {lastPage + 1}</span>
+        <div><button disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>Previous</button>
+          <button disabled={currentPage === lastPage} onClick={() => setPage(currentPage + 1)}>Next</button></div>
+      </div>}
       {preview && (
         <DocumentPreview
           key={preview.id}
@@ -441,82 +239,5 @@ function EventLibrary({ context, eventId, category }: Props) {
         />
       )}
     </section>
-  );
-}
-
-function AssetCard({
-  asset,
-  busy,
-  onDownload,
-  onRelease,
-  onReplace,
-  onView,
-}: {
-  asset: Asset;
-  busy: boolean;
-  onDownload: (asset: Asset) => Promise<void>;
-  onRelease?: (asset: Asset) => Promise<void>;
-  onReplace?: (title: string) => void;
-  onView: (asset: Asset) => void;
-}) {
-  const status = asset.isLatest
-    ? "Latest"
-    : asset.status === "draft"
-      ? "Draft"
-      : "Previous version";
-  return (
-    <article className={styles.libraryFile}>
-      <div className={styles.taskHeading}>
-        <h3>{asset.fileName || asset.title}</h3>
-        <span
-          className={styles.badge}
-          data-status={
-            asset.isLatest
-              ? "released"
-              : asset.status === "draft"
-                ? "review"
-                : "superseded"
-          }
-        >
-          {status}
-        </span>
-      </div>
-      <p>
-        {asset.title} · {sourceLabel(asset)} · v{asset.version} ·{" "}
-        {sizeLabel(asset.sizeBytes)}
-      </p>
-      <p>
-        Uploaded {formatDate(asset.createdAt)} by{" "}
-        {asset.createdByName || "Former user"}
-      </p>
-      {asset.releasedAt && asset.source !== "event_documents" && (
-        <small>
-          {asset.category === "agenda" ? "Published" : "Released"} {formatDate(asset.releasedAt)}
-          {asset.releasedByName ? ` by ${asset.releasedByName}` : ""}
-        </small>
-      )}
-      <div className={styles.actions}>
-        <button disabled={busy} onClick={() => void onDownload(asset)}>
-          <Download size={15} /> Download
-        </button>
-        <button onClick={() => onView(asset)}>
-          <Eye size={15} /> View
-        </button>
-        {onReplace && (
-          <button onClick={() => onReplace(asset.title)}>
-            <Upload size={15} /> Upload new version
-          </button>
-        )}
-        {onRelease && asset.status === "draft" && (
-          <button
-            className={styles.primary}
-            disabled={busy}
-            onClick={() => void onRelease(asset)}
-          >
-            Release this version
-          </button>
-        )}
-      </div>
-    </article>
   );
 }

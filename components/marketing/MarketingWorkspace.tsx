@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { CalendarDays, Megaphone } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import { marketing, type Context } from "./api";
 import { Library } from "./Library";
 import { MarketingLanding } from "./MarketingLanding";
@@ -63,7 +63,6 @@ export default function MarketingWorkspace() {
           {!context.events.length && <option value="">No active events</option>}
           {context.events.map(event => <option key={event.id} value={event.id}>{event.name}</option>)}
         </select></label>
-        <span>Agenda &amp; Marketing materials</span>
       </div>
       {!eventId ? <div className={styles.empty}>No active events available.</div> :
         <Library key={`${authScopeKey}:${eventId}:${tab}`} context={context} eventId={eventId} category={tab} />}
@@ -71,9 +70,7 @@ export default function MarketingWorkspace() {
   </>;
   return <section className={styles.workspace}>
     <header className={styles.header}><div>
-      <div className={styles.eyebrow}><Megaphone size={14} /> Marketing department</div>
-      <h1>{tab === "agenda" ? "Agenda" : "Materials"}<span className={styles.liveDot} /></h1>
-      <p>Browse event agendas and marketing materials.</p>
+      <h1>{tab === "agenda" ? "Agenda" : "Materials"}</h1>
     </div></header>
     {content}
   </section>;

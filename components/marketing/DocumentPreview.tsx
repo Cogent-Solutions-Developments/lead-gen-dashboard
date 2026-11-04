@@ -1,15 +1,17 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Download, ExternalLink, RefreshCw, X } from "lucide-react";
-import { documentBlob, download, previewUrl, type Asset } from "./api";
+import { documentBlob, download, previewUrl, marketing, type Asset } from "./api";
 import styles from "./marketing.module.css";
 
 function previewKind(filename: string) {
   const extension = filename.split(".").pop()?.toLowerCase();
   if (extension === "pdf") return "pdf";
-  if (["png", "jpg", "jpeg", "webp", "gif"].includes(extension || ""))
+  if (["docx", "xlsx", "xlsm", "xltx", "pptx", "odt", "ods"].includes(extension || "")) return "office";
+  if (["mp4", "webm", "ogg", "mp3", "wav", "m4a"].includes(extension || "")) return "media";
+  if (["png", "jpg", "jpeg", "webp", "gif", "avif", "bmp", "svg", "ico"].includes(extension || ""))
     return "image";
-  if (["txt", "csv", "json", "md"].includes(extension || "")) return "text";
+  if (["txt", "csv", "json", "md", "log", "xml", "html", "css"].includes(extension || "")) return "text";
   return "unsupported";
 }
 
@@ -54,8 +56,8 @@ export function DocumentPreview({
     >
       <header className={styles.previewHeader}>
         <div>
-          <h2>{filename}</h2>
-          <small>Version {asset.version}</small>
+          <h2>{asset.category === "materials" ? asset.title : filename}</h2>
+          {asset.category === "materials" && <small>{filename}</small>}
         </div>
         <div className={styles.actions}>
           <button onClick={() => void save()} disabled={downloading}>
@@ -75,8 +77,7 @@ export function DocumentPreview({
       {kind === "unsupported" ? (
         <div className={styles.empty}>
           <p>
-            This file type cannot be previewed in the browser. Download it to
-            open in its application.
+            Download this file to open it in its application.
           </p>
         </div>
       ) : (
@@ -86,7 +87,7 @@ export function DocumentPreview({
               <RefreshCw size={14} /> Reload preview
             </button>
           </div>
-          {kind === "pdf" ? (
+          {kind === "office" ? <OfficePreview key={attempt} asset={asset} /> : kind === "pdf" ? (
             <PdfPreview
               key={attempt}
               path={asset.downloadUrl}
@@ -147,7 +148,7 @@ function FilePreview({
 }: {
   path: string;
   filename: string;
-  kind: "image" | "text";
+  kind: "image" | "text" | "media";
 }) {
   const [content, setContent] = useState("");
   const [error, setError] = useState("");
@@ -166,7 +167,7 @@ function FilePreview({
           const type =
             extension === "jpg" || extension === "jpeg"
               ? "image/jpeg"
-              : `image/${extension}`;
+              : extension === "svg" ? "image/svg+xml" : kind === "media" ? ({mp4: "video/mp4", webm: "video/webm", ogg: "audio/ogg", mp3: "audio/mpeg", wav: "audio/wav", m4a: "audio/mp4"}[extension || ""] || "application/octet-stream") : `image/${extension}`;
           url = URL.createObjectURL(new Blob([blob], { type }));
           setContent(url);
         }
@@ -188,6 +189,8 @@ function FilePreview({
         <p role="alert">{error}</p>
       ) : !content ? (
         <p role="status">Loading preview…</p>
+      ) : kind === "media" ? (
+        /\.(mp4|webm)$/i.test(filename) ? <video controls src={content} aria-label={filename} /> : <audio controls src={content} aria-label={filename} />
       ) : kind === "image" ? (
         // Uploaded raster files use authenticated blob URLs, not public image optimization.
         // eslint-disable-next-line @next/next/no-img-element
@@ -208,4 +211,30 @@ function FilePreview({
       )}
     </div>
   );
+}
+
+type OfficeData = { kind: string; limited: boolean; sections: { name: string; blocks: {text?: string; rows?: string[][]}[] }[] };
+function OfficePreview({ asset }: { asset: Asset }) {
+  const [data, setData] = useState<OfficeData | null>(null);
+  const [error, setError] = useState("");
+  const [section, setSection] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    marketing<OfficeData>(`/library/${encodeURIComponent(asset.id)}/content`, "GET", undefined, controller.signal)
+      .then(result => { if (!controller.signal.aborted) setData(result); })
+      .catch(error => { if (!controller.signal.aborted) setError(error.message); });
+    return () => controller.abort();
+  }, [asset.id]);
+  if (error) return <p role="alert" className={styles.error}>{error}</p>;
+  if (!data) return <p role="status">Opening document...</p>;
+  return <div className={styles.officePreview}>
+    <small>Content preview · Download for original formatting. Spreadsheets show up to 200 rows and 30 columns per sheet.</small>
+    {data.sections.length > 1 && <div className={styles.officeTabs} aria-label="Document sections">
+      {data.sections.map((item, index) => <button key={index} aria-pressed={section === index} onClick={() => setSection(index)}>{item.name}</button>)}
+    </div>}
+    {data.sections[section]?.blocks.map((block, index) => block.rows ? <table key={index} aria-label={data.sections[section].name}><tbody>
+      {block.rows.map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, col) => <td key={col}>{cell}</td>)}</tr>)}
+    </tbody></table> : <p key={index}>{block.text}</p>)}
+    {!data.sections.length && <p>No preview content. Download the original file to open it.</p>}
+  </div>;
 }

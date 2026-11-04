@@ -1,3 +1,11 @@
+## Simplified event libraries
+
+Agenda emphasizes the latest upload in an accented card. A secondary paged timeline expands to show the same version, filename, uploader, date, size, title, source and status, with View/Download actions. History search and explanatory page subtitles are removed.
+
+Materials shows an Event materials table only (no latest-files panel): upload title, filename beneath it, uploader, date, size and actions. Version and Metadata columns are removed. Existing draft visibility, manager release and upload permissions remain.
+
+PDFs retain the native browser viewer. Images, text and common media display in the app. Modern Word (.docx), Excel (.xlsx/.xlsm/.xltx), PowerPoint (.pptx), and OpenDocument files have authenticated, read-only content previews from the backend `/library/{id}/content` endpoint. No third-party document viewer receives files. Office formatting, embedded objects and charts are not reproduced. Spreadsheets show up to 10 sheets, 200 rows and 30 columns; formulas use cached results and macros never execute. Other formats, including legacy .doc/.xls, can be downloaded to open in their native applications. Existing large agenda PDFs remain viewable/downloadable.
+
 # Libraries-only release scope
 
 Branch: `feat/imp/marketing-libraries-only`. Full workflow remains on `feat/marketing-department` awaiting CEO approval. Do not deploy or push without a separate request.
