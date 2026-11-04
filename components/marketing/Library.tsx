@@ -21,6 +21,7 @@ import {
   Loader2,
   RefreshCw,
   Upload,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -28,6 +29,7 @@ import {
   download,
   formatDate,
   canUploadLibrary,
+  canDeleteLibrary,
   type Asset,
   type Context,
 } from "./api";
@@ -133,6 +135,7 @@ export function Library(props: Props) {
 
 function EventLibrary({ context, eventId, category, eventControl }: Props) {
   const canUpload = canUploadLibrary(context);
+  const canDelete = canDeleteLibrary(context);
   const [data, setData] = useState<LibraryData>({ items: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -142,6 +145,9 @@ function EventLibrary({ context, eventId, category, eventControl }: Props) {
   const [filter, setFilter] = useState<FileFilter>("all");
   const [page, setPage] = useState(0);
   const [preview, setPreview] = useState<Asset | null>(null);
+  const [deleting, setDeleting] = useState<Asset | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+  const deleteDialog = useRef<HTMLDialogElement>(null);
   const request = useRef<AbortController | null>(null);
   const title = category === "agenda" ? "Agenda" : "Marketing materials";
 
@@ -168,15 +174,35 @@ function EventLibrary({ context, eventId, category, eventControl }: Props) {
     return () => request.current?.abort();
   }, [eventId, load]);
 
-  async function release(asset: Asset) {
+  useEffect(() => {
+    if (!deleting || !canDelete) return;
+    const dialog = deleteDialog.current;
+    dialog?.showModal();
+    return () => dialog?.close();
+  }, [deleting, canDelete]);
+
+  function askDelete(asset: Asset) {
+    setDeleteError("");
+    setDeleting(asset);
+  }
+
+  async function confirmDelete() {
+    if (!deleting || !canDelete || busy) return;
+    const asset = deleting;
+    const path = asset.source === "event_documents"
+      ? `/library/event-agendas/${encodeURIComponent(asset.id)}`
+      : `/library/${encodeURIComponent(asset.id)}`;
     setBusy(true);
-    setError("");
+    setDeleteError("");
     try {
-      await marketing(`/library/${asset.id}/release`, "POST");
-      toast.success("Version released");
+      await marketing(path, "DELETE");
+      setData(current => ({ ...current, items: current.items.filter(item => assetKey(item) !== assetKey(asset)) }));
+      setPreview(current => current && assetKey(current) === assetKey(asset) ? null : current);
+      setDeleting(null);
+      toast.success("File deleted from Marketing");
       await load();
-    } catch (err) {
-      setError(message(err));
+    } catch (error) {
+      setDeleteError(message(error));
     } finally {
       setBusy(false);
     }
@@ -255,6 +281,7 @@ function EventLibrary({ context, eventId, category, eventControl }: Props) {
                 <div className={`${styles.actions} ${styles.agendaHeroActions}`}>
                   <button className={styles.primary} onClick={() => setPreview(asset)}><Eye size={17} /> View agenda <ArrowUpRight size={16} /></button>
                   <DownloadAction asset={asset} busy={busy} pending={downloadKey === assetKey(asset)} onDownload={downloadFile} />
+                  {canDelete && <button className={styles.libraryDelete} disabled={busy} aria-label={`Delete ${asset.fileName || asset.title}`} onClick={() => askDelete(asset)}><Trash2 size={15} /> Delete</button>}
                 </div>
               </div>
             ))}
@@ -287,6 +314,7 @@ function EventLibrary({ context, eventId, category, eventControl }: Props) {
                       <div className={styles.actions}>
                         <button aria-label={`View ${asset.fileName || asset.title}, version ${asset.version}`} onClick={() => setPreview(asset)}><Eye size={15} /> View</button>
                         <DownloadAction asset={asset} busy={busy} pending={downloadKey === assetKey(asset)} onDownload={downloadFile} />
+                        {canDelete && <button className={styles.libraryDelete} disabled={busy} aria-label={`Delete ${asset.fileName || asset.title}, version ${asset.version}`} onClick={() => askDelete(asset)}><Trash2 size={15} /> Delete</button>}
                       </div>
                     </div>
                   </details>
@@ -325,7 +353,6 @@ function EventLibrary({ context, eventId, category, eventControl }: Props) {
                           <div>
                             <button className={styles.materialTitle} aria-label={`Open ${asset.title}`} onClick={() => setPreview(asset)}><strong>{asset.title}</strong><ArrowUpRight size={14} /></button>
                             <small>{asset.fileName || asset.title}</small>
-                            {asset.status === "draft" && <span className={styles.badge}>Draft</span>}
                           </div>
                         </div>
                       </td>
@@ -336,8 +363,8 @@ function EventLibrary({ context, eventId, category, eventControl }: Props) {
                         <div className={styles.actions}>
                           <button className={styles.materialView} aria-label={`View ${asset.title}`} onClick={() => setPreview(asset)}><Eye size={15} /> View</button>
                           <DownloadAction asset={asset} busy={busy} pending={downloadKey === assetKey(asset)} onDownload={downloadFile} label={`Download ${asset.title}`} />
+                          {canDelete && <button className={styles.libraryDelete} disabled={busy} aria-label={`Delete ${asset.title}`} onClick={() => askDelete(asset)}><Trash2 size={15} /> Delete</button>}
                           {canUpload && <button aria-label={`Upload new version of ${asset.title}`} onClick={() => setUploadTitle(asset.title)}><Upload size={15} /> Upload new version</button>}
-                          {context.manager && asset.status === "draft" && <button className={styles.primary} disabled={busy} onClick={() => void release(asset)}>Release this version</button>}
                         </div>
                       </td>
                     </tr>
@@ -356,6 +383,23 @@ function EventLibrary({ context, eventId, category, eventControl }: Props) {
             <button disabled={currentPage === lastPage} onClick={() => setPage(currentPage + 1)}>Next</button>
           </div>
         </div>
+      )}
+      {canDelete && deleting && (
+        <dialog ref={deleteDialog} className={styles.libraryDialog} aria-labelledby="delete-library-title"
+          onCancel={event => { event.preventDefault(); if (!busy) setDeleting(null); }}>
+          <h2 id="delete-library-title">Delete file?</h2>
+          <p className={styles.prewrap}>{deleting.fileName || deleting.title}</p>
+          <p>This removes this file from Marketing. The deletion is recorded in the audit history.</p>
+          {deleting.source === "event_documents" && <p>The original Admin document stays in the Event Document Library.</p>}
+          {deleteError && <p role="alert" className={styles.error}>{deleteError}</p>}
+          <div className={styles.actions}>
+            <button disabled={busy} onClick={() => setDeleting(null)}>Cancel</button>
+            <button className={styles.libraryDelete} disabled={busy} onClick={() => void confirmDelete()}>
+              {busy ? <Loader2 size={16} className={styles.librarySpinner} /> : <Trash2 size={16} />}
+              {busy ? "Deleting..." : "Delete file"}
+            </button>
+          </div>
+        </dialog>
       )}
       {preview && <DocumentPreview key={assetKey(preview)} asset={preview} onClose={() => setPreview(null)} />}
       {data.legacyNotes?.map(note => (

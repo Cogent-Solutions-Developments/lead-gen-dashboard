@@ -1801,3 +1801,7 @@
 @media (prefers-reduced-motion: reduce) {
   .library *, .library *::before, .library *::after { transition: none !important; animation: none !important; }
 }
+
+/* Deletion is a secondary, explicitly confirmed Marketing Manager action. */
+.workspace .libraryDelete { color: var(--lib-pdf); border-color: color-mix(in srgb, var(--lib-pdf) 32%, var(--mk-border)); background: color-mix(in srgb, var(--lib-pdf) 5%, transparent); }
+.workspace .libraryDelete:hover:not(:disabled) { border-color: var(--lib-pdf); background: color-mix(in srgb, var(--lib-pdf) 12%, transparent); }

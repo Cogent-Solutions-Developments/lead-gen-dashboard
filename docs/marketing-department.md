@@ -1,14 +1,24 @@
+## Manager-only library deletion
+
+Delete actions are available only to primary/additional Marketing Managers with the backend `canDelete` capability. General Admin/CEO access, Designer, Developer, Social and requester roles alone do not grant deletion. A centered confirmation dialog supports cancellation, pending state and retry on failure.
+
+Deletion removes a selected upload from Marketing and blocks its Marketing view/download links. Audit records and storage bytes remain; this is not a permanent storage purge. Removing the current agenda falls back to the newest remaining upload. Admin-imported agendas can be removed from Marketing, while their Admin original remains unchanged; the confirmation explicitly explains this. No real user files were deleted during verification.
+
+## Immediate upload publication
+
+Both Agenda and Marketing Materials publish as soon as an authorized upload succeeds. There is no manager approval, draft label, release control or follow-up publication request. Existing legacy uploads remain available to internal event viewers without converting their stored history. Upload role checks, validation, size warnings, versions and document previews are preserved.
+
 ## Library presentation and interaction polish
 
 The event selector and library controls share one compact toolbar. The current agenda uses a file-format icon, current-version badge, readable metadata, uploader identity and stronger View action. History stays secondary, with expandable rows and chevrons. Materials retains its title-first table, adds recognizable format icons, and opens previews from document titles as well as View buttons. Type filters and visible counts appear only when multiple file groups are present; filtering resets pagination. On phones, table rows stack so View and Download remain visible without horizontal scrolling.
 
-Downloads show progress on the selected file. Hover/focus states and restrained transitions use the existing themes, with reduced-motion support. Fonts, Heavy dock, Light sidebar, upload/release permissions, native PDF previews and the libraries-only workflow boundary remain unchanged. These changes improve discoverability; no claim of measured engagement uplift is made.
+Downloads show progress on the selected file. Hover/focus states and restrained transitions use the existing themes, with reduced-motion support. Fonts, Heavy dock, Light sidebar, upload permissions, native PDF previews and the libraries-only workflow boundary remain unchanged. These changes improve discoverability; no claim of measured engagement uplift is made.
 
 ## Simplified event libraries
 
 Agenda emphasizes the latest upload in an accented card. A secondary paged timeline expands to show the same version, filename, uploader, date, size, title, source and status, with View/Download actions. History search and explanatory page subtitles are removed.
 
-Materials shows an Event materials table only (no latest-files panel): upload title, filename beneath it, uploader, date, size and actions. Version and Metadata columns are removed. Existing draft visibility, manager release and upload permissions remain.
+Materials shows an Event materials table only (no latest-files panel): upload title, filename beneath it, uploader, date, size and actions. Version and Metadata columns are removed. Existing upload permissions remain; uploads are immediately published.
 
 PDFs retain the native browser viewer. Images, text and common media display in the app. Modern Word (.docx), Excel (.xlsx/.xlsm/.xltx), PowerPoint (.pptx), and OpenDocument files have authenticated, read-only content previews from the backend `/library/{id}/content` endpoint. No third-party document viewer receives files. Office formatting, embedded objects and charts are not reproduced. Spreadsheets show up to 10 sheets, 200 rows and 30 columns; formulas use cached results and macros never execute. Other formats, including legacy .doc/.xls, can be downloaded to open in their native applications. Existing large agenda PDFs remain viewable/downloadable.
 
@@ -18,7 +28,7 @@ Branch: `feat/imp/marketing-libraries-only`. Full workflow remains on `feat/mark
 
 Marketing staff open on Marketing home and have three destinations: Landing page, Agenda and Materials. Other departments, including Sales, Delegates, Production and Delegate Sales, see only Agenda and Materials. Existing Manager/Designer upload permissions remain. No request creation/tracking, tasks, social queue, charts, team assignment or task-linked uploads are mounted. Existing fonts, Light sidebar and Heavy floating dock remain.
 
-The matching backend exposes context and standalone library endpoints only, with no scheduled workflow automation. Upload limits, native PDF preview, legacy event agendas, version history, downloads and manager material release remain. Old workflow links normalize to Marketing home for staff or Agenda for other departments. Dormant workflow component/source files are retained for the future approved rollout and are not imported by the workspace.
+The matching backend exposes context and standalone library endpoints only, with no scheduled workflow automation. Upload limits, native PDF preview, legacy event agendas, version history, downloads and immediate material publication remain. Old workflow links normalize to Marketing home for staff or Agenda for other departments. Dormant workflow component/source files are retained for the future approved rollout and are not imported by the workspace.
 
 ---
 

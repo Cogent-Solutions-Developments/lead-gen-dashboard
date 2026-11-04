@@ -67,7 +67,7 @@ export function LibraryUploadDialog({
         onUploaded(result);
       } else {
         await marketing("/library", "POST", form);
-        toast.success(category === "agenda" ? "Agenda uploaded" : "Draft uploaded for manager release");
+        toast.success(category === "agenda" ? "Agenda uploaded" : "Material uploaded");
         onUploaded();
       }
     } catch (err) {
@@ -169,7 +169,7 @@ export function LibraryUploadDialog({
         )}
         {task && <p className={styles.notice}>This upload is saved to this event’s {category === "agenda" ? "Agenda" : "Marketing Materials"} library and completes this task automatically.</p>}
         <p className={styles.notice}>
-          {category === "agenda" ? "This agenda will be available to everyone with access to this event as soon as the upload finishes. Previous versions remain in the upload history." : "Uploads are saved as drafts. A Marketing Manager releases each version for other departments."}
+          {category === "agenda" ? "This agenda will be available to everyone with access to this event as soon as the upload finishes. Previous versions remain in the upload history." : "This material will be available to everyone with access to this event as soon as the upload finishes. Previous versions remain available."}
         </p>
         {error && (
           <p role="alert" className={styles.error}>
@@ -190,7 +190,7 @@ export function LibraryUploadDialog({
               (warning && !acceptWarning)
             }
           >
-            {busy ? "Uploading…" : task ? "Upload & complete" : category === "agenda" ? "Upload agenda" : "Upload draft"}
+            {busy ? "Uploading…" : task ? "Upload & complete" : category === "agenda" ? "Upload agenda" : "Upload material"}
           </button>
         </div>
       </form>

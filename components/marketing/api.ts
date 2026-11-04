@@ -89,6 +89,7 @@ export type Context = {
   roles: string[];
   social: boolean;
   canUpload: boolean;
+  canDelete?: boolean;
   manager: boolean;
   staff: boolean;
   userId: string;
@@ -233,3 +234,7 @@ export type TaskUploadResult = {
 };
 
 export const speakerOperationLabel = (operation: string) => ({ website: "Website", agenda: "Agenda", update_post: "Update post", delete_post: "Delete post", republish_post: "Republish post" })[operation] || label(operation);
+
+export function canDeleteLibrary(context: Context): boolean {
+  return !!context.canDelete && (context.role === "marketing_manager_user" || !!context.roles?.includes("marketing_manager_user"));
+}
