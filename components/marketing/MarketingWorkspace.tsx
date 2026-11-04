@@ -5,6 +5,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { CalendarDays, Megaphone } from "lucide-react";
 import { marketing, type Context } from "./api";
 import { Library } from "./Library";
+import { MarketingLanding } from "./MarketingLanding";
+import { hasMarketingLanding } from "@/lib/marketing-navigation";
 import styles from "./marketing.module.css";
 
 
@@ -14,7 +16,9 @@ export default function MarketingWorkspace() {
   const router = useRouter();
   const params = useSearchParams();
   const query = params.toString();
-  const tab = params.get("tab") === "materials" ? "materials" : "agenda";
+  const landing = hasMarketingLanding(user);
+  const requestedTab = params.get("tab");
+  const tab = requestedTab === "materials" ? "materials" : requestedTab === "agenda" ? "agenda" : landing ? "home" : "agenda";
   const [result, setResult] = useState<{ scope: string; context: Context } | null>(null);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
@@ -36,7 +40,7 @@ export default function MarketingWorkspace() {
     return () => controller.abort();
   }, [authScopeKey, retry]);
 
-  // Old request, task, notification and landing links enter the library safely.
+  // Old workflow links enter home or a library without fetching workflow data.
   useEffect(() => {
     if (!context) return;
     const next = new URLSearchParams({ tab });
@@ -47,6 +51,10 @@ export default function MarketingWorkspace() {
   function selectEvent(event: string) {
     router.replace(`/marketing?${new URLSearchParams({ tab, event })}`, { scroll: false });
   }
+  if (tab === "home") return <>
+    <MarketingLanding />
+    {error && <div className={styles.error} role="alert">{error}<button onClick={() => setRetry(value => value + 1)}>Retry</button></div>}
+  </>;
   const content = <>
     {error && <div className={styles.error} role="alert">{error}<button onClick={() => setRetry(value => value + 1)}>Retry</button></div>}
     {!context ? <div className={styles.empty} role="status">Loading Marketing libraries...</div> : <>

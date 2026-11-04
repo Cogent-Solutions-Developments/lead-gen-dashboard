@@ -18,9 +18,16 @@ function navigation(role, assignments = []) {
   return compiled.exports.marketingNavigation({role, departmentAssignments: assignments}, "conference");
 }
 for (const role of ["sales_user", "delegate_user", "production_user", "delegate_sales_user", "marketing_user", "marketing_manager_user", "marketing_designer_user", "marketing_developer_user", "ceo_user", "super_admin_user"]) {
-  test(`${role}: only Agenda and Materials, even with manager/social responsibilities`, () => {
+  test(`${role}: home, Agenda and Materials with Marketing responsibility`, () => {
     const items = navigation(role, ["marketing_manager_user", "marketing_social"]).filter(item => item.href.startsWith("/marketing?"));
-    assert.deepEqual(Array.from(items, item => item.key), ["agenda", "materials"]);
+    assert.deepEqual(Array.from(items, item => item.key), ["home", "agenda", "materials"]);
     assert.ok(items.every(item => item.href.includes("event=conference")));
+  });
+}
+
+for (const role of ["sales_user", "delegate_user", "production_user", "delegate_sales_user"]) {
+  test(`${role}: no duplicate Marketing landing without Marketing responsibility`, () => {
+    const items = navigation(role).filter(item => item.href.startsWith("/marketing?"));
+    assert.deepEqual(Array.from(items, item => item.key), ["agenda", "materials"]);
   });
 }

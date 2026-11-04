@@ -1,5 +1,5 @@
 "use client";
-import { marketingNavigation } from "@/lib/marketing-navigation";
+import { hasMarketingLanding, marketingNavigation } from "@/lib/marketing-navigation";
 import { revokeAutocallSession } from "@/lib/auth";
 
 import Link from "next/link";
@@ -158,7 +158,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
     });
 
   const isNavigationActive = (href: string) => marketingRoute
-    ? href.startsWith("/marketing?") && new URLSearchParams(href.split("?")[1]).get("tab") === (searchParams.get("tab") || "agenda")
+    ? href.startsWith("/marketing?") && new URLSearchParams(href.split("?")[1]).get("tab") === (searchParams.get("tab") || (hasMarketingLanding(user) ? "home" : "agenda"))
     : pathname === href;
 
   const handleSignOut = async () => {

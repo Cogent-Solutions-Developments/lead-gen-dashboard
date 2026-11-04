@@ -2,9 +2,9 @@
 
 Branch: `feat/imp/marketing-libraries-only`. Full workflow remains on `feat/marketing-department` awaiting CEO approval. Do not deploy or push without a separate request.
 
-Marketing opens directly to Agenda. Every department, including Sales, Delegates, Production and Delegate Sales, sees only Agenda and Materials. Marketing staff use the same two pages with existing Manager/Designer upload permissions. No request creation/tracking, tasks, social queue, charts, team assignment, landing page or task-linked uploads are mounted. Existing fonts, Light sidebar and Heavy floating dock remain.
+Marketing staff open on Marketing home and have three destinations: Landing page, Agenda and Materials. Other departments, including Sales, Delegates, Production and Delegate Sales, see only Agenda and Materials. Existing Manager/Designer upload permissions remain. No request creation/tracking, tasks, social queue, charts, team assignment or task-linked uploads are mounted. Existing fonts, Light sidebar and Heavy floating dock remain.
 
-The matching backend exposes context and standalone library endpoints only, with no scheduled workflow automation. Upload limits, native PDF preview, legacy event agendas, version history, downloads and manager material release remain. Old workflow links normalize to Agenda. Dormant workflow component/source files are retained for the future approved rollout and are not imported by the workspace.
+The matching backend exposes context and standalone library endpoints only, with no scheduled workflow automation. Upload limits, native PDF preview, legacy event agendas, version history, downloads and manager material release remain. Old workflow links normalize to Marketing home for staff or Agenda for other departments. Dormant workflow component/source files are retained for the future approved rollout and are not imported by the workspace.
 
 ---
 
