@@ -1805,3 +1805,6 @@
 /* Deletion is a secondary, explicitly confirmed Marketing Manager action. */
 .workspace .libraryDelete { color: var(--lib-pdf); border-color: color-mix(in srgb, var(--lib-pdf) 32%, var(--mk-border)); background: color-mix(in srgb, var(--lib-pdf) 5%, transparent); }
 .workspace .libraryDelete:hover:not(:disabled) { border-color: var(--lib-pdf); background: color-mix(in srgb, var(--lib-pdf) 12%, transparent); }
+
+/* Long material filenames stay secondary without stretching the preview. */
+.materialPreviewFilename { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Download, ExternalLink, RefreshCw, X } from "lucide-react";
 import { documentBlob, download, previewUrl, marketing, type Asset } from "./api";
 import styles from "./marketing.module.css";
+import { MaterialContentPreview } from "./MaterialContentPreview";
 
 function previewKind(filename: string) {
   const extension = filename.split(".").pop()?.toLowerCase();
@@ -57,7 +58,7 @@ export function DocumentPreview({
       <header className={styles.previewHeader}>
         <div>
           <h2>{asset.category === "materials" ? asset.title : filename}</h2>
-          {asset.category === "materials" && <small>{filename}</small>}
+          {asset.category === "materials" && <small className={kind === "pdf" ? undefined : styles.materialPreviewFilename} title={kind === "pdf" ? undefined : filename}>{filename}</small>}
         </div>
         <div className={styles.actions}>
           <button onClick={() => void save()} disabled={downloading}>
@@ -87,7 +88,7 @@ export function DocumentPreview({
               <RefreshCw size={14} /> Reload preview
             </button>
           </div>
-          {kind === "office" ? <OfficePreview key={attempt} asset={asset} /> : kind === "pdf" ? (
+          {asset.category === "materials" && kind !== "pdf" ? <MaterialContentPreview key={attempt} asset={asset} kind={kind} /> : kind === "office" ? <OfficePreview key={attempt} asset={asset} /> : kind === "pdf" ? (
             <PdfPreview
               key={attempt}
               path={asset.downloadUrl}
