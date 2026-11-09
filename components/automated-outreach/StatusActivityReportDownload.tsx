@@ -4,8 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Download, RefreshCw } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import { OUTREACH_API } from "@/lib/automatedOutreachApi";
-import type { StatusActivityLead, StatusActivityPage } from "@/lib/statusOutreachActivity";
-import { collectStatusOutreachReport, createStatusOutreachReport, type StatusOutreachReportFilters } from "@/lib/statusOutreachReport";
+import { collectStatusOutreachReport, createStatusOutreachReport, type StatusOutreachReportFilters, type StatusOutreachReportSnapshot } from "@/lib/statusOutreachReport";
 import styles from "./StatusActivityChart.module.css";
 
 export function StatusActivityReportDownload({ filters, disabled = false }: {
@@ -23,14 +22,15 @@ export function StatusActivityReportDownload({ filters, disabled = false }: {
     setPreparing(true);
     setFeedback(null);
     try {
-      const rows = await collectStatusOutreachReport(filters, async (path, signal) =>
-        (await apiClient.get<StatusActivityPage<StatusActivityLead>>(OUTREACH_API + path, { signal })).data,
+      const snapshot = await collectStatusOutreachReport(filters, async (path, signal) =>
+        (await apiClient.get<StatusOutreachReportSnapshot>(OUTREACH_API + path, { signal })).data,
       controller.signal);
+      const rows = snapshot.items;
       if (!rows.length) {
         setFeedback({ text: "No leads match these filters. Try another date range, department, or event.", error: false });
         return;
       }
-      const report = createStatusOutreachReport(rows, filters);
+      const report = createStatusOutreachReport(rows, filters, new Date(snapshot.asOf));
       const { exportStatusOutreachWorkbook } = await import("@/lib/statusOutreachWorkbook");
       const bytes = await exportStatusOutreachWorkbook(report);
       controller.signal.throwIfAborted();

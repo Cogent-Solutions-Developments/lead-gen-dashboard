@@ -77,3 +77,23 @@ scheduler dispatch may take up to one minute. Saved previews are reused. Final
 content is refreshed by the send worker using current status and confirmed prior
 emails. Previews are labeled and do not send mail, count as sent, or alter dates.
 Deploy the updated frontend, API, and dedicated outreach worker together.
+
+## Status activity report API
+
+Excel downloads call `GET /api/admin/automated-outreach/status-activity/report`
+with the applied `startDate`, `endDate`, `timezone=Asia/Colombo`, and optional
+department/event filters. The response is one complete `{items, total, asOf}`
+snapshot across all eligible statuses. The report endpoint does not require a
+single status, and exports do not page through the live drill-down endpoint.
+The workbook's generated time comes from the server capture time (`asOf`).
+
+The backend must apply the same latest-status date bounds to the chart, drawer,
+and report, with both selected Sri Lanka calendar dates included. It reads every
+report batch and all enrichment in one read-only PostgreSQL REPEATABLE READ
+transaction. The frontend rejects incomplete or duplicate snapshot rows and
+invalid capture times. It has no fallback to live pagination.
+
+Deploy the report API before this frontend. No database migration is required.
+Existing callers of the paginated lead list retain their required `status` and
+can omit date filters to retain their prior behavior. Failed or timed-out exports
+must be retried; the client never downloads a partial workbook.

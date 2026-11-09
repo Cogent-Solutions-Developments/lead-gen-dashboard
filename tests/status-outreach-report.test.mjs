@@ -35,37 +35,47 @@ runInNewContext(workbookCode, { module: workbookModule, exports: workbookModule.
   require: key => { if (key === "./statusOutreachCharts") return chartsModule.exports; assert.equal(key, "exceljs"); return ExcelJS; } });
 const { exportStatusOutreachWorkbook } = workbookModule.exports;
 
-test("report collects every page and retains applied filter scope", async () => {
+const asOf = "2026-10-27T12:00:00Z";
+
+test("report requests one all-status snapshot with the applied filter scope", async () => {
   const items = Array.from({ length: 205 }, (_, i) => ({ ...lead, id: `lead-${i + 1}` }));
-  const offsets = [];
-  const rows = await collectStatusOutreachReport(filters, async path => {
+  let calls = 0;
+  const snapshot = await collectStatusOutreachReport(filters, async path => {
+    calls++;
+    assert.equal(path.split("?")[0], "/status-activity/report");
     const query = new URLSearchParams(path.split("?")[1]);
     assert.equal(query.get("department"), "sales"); assert.equal(query.get("eventKey"), filters.eventKey);
     assert.equal(query.get("startDate"), filters.startDate); assert.equal(query.get("endDate"), filters.endDate);
     assert.equal(query.get("timezone"), "Asia/Colombo"); assert.equal(query.get("status"), null);
-    const offset = Number(query.get("offset")); offsets.push(offset);
-    return { items: items.slice(offset, offset + 100), total: 205, offset, limit: 100 };
+    assert.equal(query.has("offset"), false); assert.equal(query.has("limit"), false);
+    return { items, total: 205, asOf };
   });
-  assert.equal(rows.length, 205);
-  assert.deepEqual(offsets, [0, 100, 200]);
-  assert.equal(new Set(rows.map(row => row.id)).size, 205);
+  assert.equal(snapshot.items.length, 205);
+  assert.equal(calls, 1);
+  assert.equal(snapshot.asOf, asOf);
 });
 
-test("incomplete or changing pages fail instead of downloading a partial report", async () => {
-  for (const second of [
-    { items: [], total: 2, offset: 1 },
-    { items: [lead], total: 2, offset: 1 },
-    { items: [{ ...lead, id: "lead-2" }], total: 3, offset: 1 },
+test("incomplete or malformed snapshots fail instead of downloading a partial report", async () => {
+  for (const invalid of [
+    { items: [], total: 2, asOf },
+    { items: [lead], total: 2, asOf },
+    { items: [lead, lead], total: 2, asOf },
+    { items: [lead], total: 1, asOf: "not-a-date" },
+    { items: [lead], total: 1, asOf: "2026-10-27" },
+    { items: [{ ...lead, id: "" }], total: 1, asOf },
+    { items: [null], total: 1, asOf },
+    { items: [lead], total: 1 },
+    { items: null, total: 0, asOf },
+    { items: [], total: -1, asOf },
+    null,
   ]) {
-    let calls = 0;
-    await assert.rejects(collectStatusOutreachReport(filters, async () => ++calls === 1
-      ? { items: [lead], total: 2, offset: 0 } : second), /retry/);
+    await assert.rejects(collectStatusOutreachReport(filters, async () => invalid), /retry/);
   }
   const controller = new AbortController();
   await assert.rejects(collectStatusOutreachReport(filters, async () => {
-    controller.abort(); return { items: [lead], total: 1, offset: 0 };
+    controller.abort(); return { items: [lead], total: 1, asOf };
   }, controller.signal), { name: "AbortError" });
-  assert.equal((await collectStatusOutreachReport(filters, async () => ({ items: [], total: 0, offset: 0 }))).length, 0);
+  assert.equal((await collectStatusOutreachReport(filters, async () => ({ items: [], total: 0, asOf }))).items.length, 0);
 });
 
 test("Excel data keeps dates and counts typed and confirmation states accurate", () => {
@@ -111,14 +121,12 @@ test("styled Excel round-trip preserves literal text, native tables, dates and p
   assert.equal(details.views[0].showGridLines, false);
 });
 
-test("summary reconciles to all exported filtered rows, including multiple pages", async () => {
+test("summary reconciles to a complete snapshot larger than one internal server page", async () => {
   const items = Array.from({ length: 105 }, (_, i) => ({ ...lead, id: `lead-${i + 1}`,
     status: i < 60 ? "proposal-sent" : "first-call", deliveryState: i < 3 ? "attention" : i < 5 ? "paused" : "active" }));
-  const rows = await collectStatusOutreachReport(filters, async path => {
-    const offset = Number(new URLSearchParams(path.split("?")[1]).get("offset"));
-    return { items: items.slice(offset, offset + 100), total: 105, offset, limit: 100 };
-  });
-  const report = createStatusOutreachReport(rows, filters);
+  const snapshot = await collectStatusOutreachReport(filters, async () => ({ items, total: 105, asOf }));
+  const report = createStatusOutreachReport(snapshot.items, filters, new Date(snapshot.asOf));
+  assert.equal(report.summary.generatedAt.toISOString(), "2026-10-27T17:30:00.000Z");
   const summary = report.summary;
   assert.equal(report.records.length, 105); assert.equal(summary.total, 105);
   assert.equal(summary.statuses.reduce((sum, item) => sum + item.count, 0), summary.total);

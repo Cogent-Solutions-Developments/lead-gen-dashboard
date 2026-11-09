@@ -1,35 +1,27 @@
 import { STATUS_ACTIVITY_TIME_ZONE, statusActivityDateError, statusActivityPath, statusMailStep,
-  type StatusActivityDateRange, type StatusActivityLead, type StatusActivityPage } from "./statusOutreachActivity";
+  type StatusActivityDateRange, type StatusActivityLead } from "./statusOutreachActivity";
 
 export type StatusOutreachReportFilters = StatusActivityDateRange & { department: string; eventKey: string };
-type ReadPage = (path: string, signal?: AbortSignal) => Promise<StatusActivityPage<StatusActivityLead>>;
-/** Read all matching pages, independently of the drawer's page size and search. */
-export async function collectStatusOutreachReport(filters: StatusOutreachReportFilters, readPage: ReadPage, signal?: AbortSignal) {
+export type StatusOutreachReportSnapshot = { items: StatusActivityLead[]; total: number; asOf: string };
+type ReadSnapshot = (path: string, signal?: AbortSignal) => Promise<StatusOutreachReportSnapshot>;
+/** The server materializes every eligible status in one consistent read-only transaction. */
+export async function collectStatusOutreachReport(filters: StatusOutreachReportFilters, readSnapshot: ReadSnapshot, signal?: AbortSignal) {
   const dateError = statusActivityDateError(filters);
   if (dateError) throw new Error(dateError);
-  const rows: StatusActivityLead[] = [];
-  const ids = new Set<string>();
-  let total: number | undefined;
-  do {
-    signal?.throwIfAborted();
-    const query = statusActivityPath(filters.department, filters.eventKey, {
-      startDate: filters.startDate, endDate: filters.endDate, timezone: STATUS_ACTIVITY_TIME_ZONE,
-      offset: String(rows.length), limit: "100",
-    });
-    const page = await readPage(`/status-activity/leads?${query}`, signal);
-    signal?.throwIfAborted();
-    if (!Number.isInteger(page.total) || page.total < 0 || page.offset !== rows.length ||
-        (total !== undefined && page.total !== total)) throw new Error("Lead results changed while preparing the report. Please retry.");
-    total = page.total;
-    if ((!page.items.length && rows.length < total) || rows.length + page.items.length > total ||
-        page.items.some(row => ids.has(row.id))) throw new Error("Could not retrieve a complete report. Please retry.");
-    for (const row of page.items) {
-      if (ids.has(row.id)) throw new Error("Lead results changed while preparing the report. Please retry.");
-      ids.add(row.id);
-      rows.push(row);
-    }
-  } while (rows.length < total);
-  return rows;
+  signal?.throwIfAborted();
+  const query = statusActivityPath(filters.department, filters.eventKey, {
+    startDate: filters.startDate, endDate: filters.endDate, timezone: STATUS_ACTIVITY_TIME_ZONE,
+  });
+  const snapshot = await readSnapshot(`/status-activity/report?${query}`, signal);
+  signal?.throwIfAborted();
+  if (!snapshot || !Number.isInteger(snapshot.total) || snapshot.total < 0 || !Array.isArray(snapshot.items) ||
+      snapshot.items.length !== snapshot.total || typeof snapshot.asOf !== "string" ||
+      !snapshot.asOf.endsWith("Z") || !Number.isFinite(Date.parse(snapshot.asOf)) ||
+      !snapshot.items.every(row => row && typeof row.id === "string" && row.id.trim().length > 0) ||
+      new Set(snapshot.items.map(row => row.id)).size !== snapshot.total) {
+    throw new Error("Could not retrieve a complete report snapshot. Please retry.");
+  }
+  return snapshot;
 }
 
 /** Excel stores local wall-clock dates without a timezone. All exported dates are Sri Lanka time. */
