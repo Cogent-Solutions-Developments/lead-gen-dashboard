@@ -95,7 +95,7 @@ test("manager performance is period-aware and omits inactive users", () => {
   assert.match(picker, /period === "weekly" \? "week"/);
   assert.match(picker, /anchorDateForPeriod/);
   assert.match(adminPage, /<PeriodDatePicker period=\{period\}/);
-  assert.match(adminPage, /formatUsd\(selectedCluster\.revenueUsd\)/);
+  assert.match(adminPage, /formatUsd\(selectedCluster\?\.revenueUsd\)/);
   assert.match(adminApi, /dealAmountUsd: activity\.dealAmountUsd/);
   assert.match(adminApi, /revenueUsd: Number\(data\.summary\?\.revenueUsd/);
 });
@@ -117,7 +117,7 @@ test("deal bell identity is verified server-side", () => {
   const route = read("app/api/ring-bell/route.ts");
   const auth = read("lib/server/apiAuth.ts");
   assert.match(route, /verifyBackendUser\(request\)/);
-  assert.match(route, /user\.role !== "sales_user"/);
+  assert.match(route, /canRingDealBell\(user\)/);
   assert.doesNotMatch(route, /request\.json\(\)/);
   assert.match(auth, /\/api\/auth\/me/);
   assert.match(auth, /cache: "no-store"/);

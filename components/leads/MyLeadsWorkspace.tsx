@@ -2422,7 +2422,7 @@ export function MyLeadsWorkspace({
         </LeadSheetDialog>
       ) : null}
 
-      {pendingStatusChange ? (
+      {pendingStatusChange && !ringBellConfirmOpen ? (
         <LeadSheetDialog
           open
           eyebrow=""
@@ -2485,7 +2485,7 @@ export function MyLeadsWorkspace({
                         value={dealAmountUsd}
                         onChange={(event) => setDealAmountUsd(event.target.value)}
                         placeholder="0.00"
-                        className="h-11 rounded-xl border-zinc-200 bg-white shadow-none focus-visible:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
+                        className="h-11 rounded-xl border-zinc-200 bg-white text-foreground caret-foreground shadow-none focus-visible:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
                       />
                     </label>
                     <label className="flex min-h-0 flex-1 flex-col gap-2">
@@ -2601,8 +2601,8 @@ export function MyLeadsWorkspace({
         </LeadSheetDialog>
       ) : null}
 
-      {ringBellConfirmOpen && pendingStatusChange ? (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center p-6">
+      {ringBellConfirmOpen && pendingStatusChange ? createPortal(
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
           <button
             type="button"
             aria-label="Close bell confirmation"
@@ -2612,7 +2612,7 @@ export function MyLeadsWorkspace({
             }}
           />
 
-          <div className="relative z-[1] w-full max-w-lg overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_90px_-54px_rgba(2,10,27,0.82)]">
+          <div role="dialog" aria-modal="true" aria-label="Ring the deal bell?" className="relative z-[1] w-full max-w-lg overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-[0_32px_90px_-54px_rgba(2,10,27,0.82)]">
             <Button
               type="button"
               variant="ghost"
@@ -2681,7 +2681,8 @@ export function MyLeadsWorkspace({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
 
       {contactChoiceLead ? (

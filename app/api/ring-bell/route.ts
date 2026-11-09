@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { canRingDealBell } from "@/lib/dealBellAccess";
 import { apiAuthenticationFailure, verifyBackendUser } from "@/lib/server/apiAuth";
 
 export const dynamic = "force-dynamic";
@@ -19,8 +20,8 @@ export async function POST(request: NextRequest) {
     return jsonResponse({ detail: failure.detail }, failure.status);
   }
 
-  if (user.role !== "sales_user" && user.role !== "sales_manager_user") {
-    return jsonResponse({ detail: "Only sales users can ring the deal bell." }, 403);
+  if (!canRingDealBell(user)) {
+    return jsonResponse({ detail: "Sales or Delegate Sales access is required to ring the deal bell." }, 403);
   }
 
   const webhookUrl = (process.env.TEAMS_DEAL_BELL_WEBHOOK_URL || "").trim();
