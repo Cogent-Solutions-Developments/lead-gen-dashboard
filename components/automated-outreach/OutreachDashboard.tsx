@@ -26,7 +26,7 @@ export function OutreachDashboard() {
       </Button>
     </CampaignPageHeader>
     <StatusActivityChart refreshKey={refreshKey} />
-    <OutreachFeedback error={error} loading={!data && !error} reload={reload} />
+    <OutreachFeedback error={error?.includes('"Not Found"') ? "Outreach data is unavailable. Please retry or contact your administrator." : error} loading={!data && !error} reload={reload} />
     {data && <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[
         { label: "Eligible lead inventory", value: total, icon: Users, detail: "Across all departments", tone: "bg-blue-50 text-blue-700" },
