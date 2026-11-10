@@ -33,6 +33,7 @@ export function statusActivityDatePreset(days: 1 | 7 | 30, now = new Date()): St
 }
 
 export function statusActivityDateError(range: StatusActivityDateRange) {
+  if (!range.startDate && !range.endDate) return null;
   const valid = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) &&
     Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
   if (!valid(range.startDate) || !valid(range.endDate)) return "Choose valid From and To dates.";
@@ -44,6 +45,7 @@ export function statusActivityDateError(range: StatusActivityDateRange) {
 export function statusActivityDateBounds(range: StatusActivityDateRange) {
   const error = statusActivityDateError(range);
   if (error) throw new Error(error);
+  if (!range.startDate && !range.endDate) return null;
   return {
     start: Date.parse(`${range.startDate}T00:00:00+05:30`),
     endExclusive: Date.parse(`${range.endDate}T00:00:00+05:30`) + 86400000,
@@ -51,7 +53,7 @@ export function statusActivityDateBounds(range: StatusActivityDateRange) {
 }
 
 export function statusActivityPath(department: string, eventKey: string, extra: Record<string, string> = {}) {
-  const params = new URLSearchParams(extra);
+  const params = new URLSearchParams(Object.entries(extra).filter(([, value]) => value !== ""));
   if (department) params.set("department", department);
   if (eventKey) params.set("eventKey", eventKey);
   return params.toString();

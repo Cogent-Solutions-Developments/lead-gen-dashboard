@@ -61,15 +61,15 @@ export function createStatusOutreachWorkbook(report: StatusOutreachReport) {
   const widths = [20, 28, 28, 36, 18, 38, 26, 24, 24, 26, 28, 28, 56, 24, 24, 28, 28, 28, 28, 28, 28, 28, 48];
   leads.columns = widths.map(width => ({ width }));
   title(summary, "B2", "Status Outreach");
-  setCell(summary, "B3", "Filtered lead report").font = { name: "Arial", size: 11, color: { argb: colors.muted } };
+  setCell(summary, "B3", report.summary.from ? "Filtered lead report" : "Overall lead report — all dates").font = { name: "Arial", size: 11, color: { argb: colors.muted } };
   for (let column = 2; column <= 6; column++) summary.getCell(4, column).border = { bottom: { style: "thin", color: { argb: colors.accent } } };
   const scope = report.summary;
   for (const [address, value] of [["B6", "From date"], ["E6", "To date"], ["B7", "Department"],
     ["B8", "Event"], ["B9", "Generated at"], ["E9", "Timezone"]] as const) {
     setCell(summary, address, value).font = { name: "Arial", size: 11, color: { argb: colors.muted } };
   }
-  setCell(summary, "C6", scope.from).numFmt = dateFormat;
-  setCell(summary, "F6", scope.to).numFmt = dateFormat;
+  setCell(summary, "C6", scope.from ?? "All dates").numFmt = dateFormat;
+  setCell(summary, "F6", scope.to ?? "All dates").numFmt = dateFormat;
   setCell(summary, "C7", scope.department);
   summary.mergeCells("C8:F8");
   setCell(summary, "C8", scope.event).alignment = { vertical: "middle", wrapText: true };
@@ -87,7 +87,7 @@ export function createStatusOutreachWorkbook(report: StatusOutreachReport) {
   statusColors(summary, `B${layout.tableHeaderRow + 1}:B${layout.tableHeaderRow + scope.statuses.length}`, `B${layout.tableHeaderRow + 1}`);
   const noteRow = layout.noteRow;
   summary.mergeCells(`B${noteRow}:F${noteRow + 1}`);
-  setCell(summary, `B${noteRow}`, "Current lead counts by status for the selected dates, department, and event. Dates filter the latest lead status update. Email confirmation details are on Leads.")
+  setCell(summary, `B${noteRow}`, `Current lead counts by status for ${scope.from ? "the selected dates" : "all dates"}, department, and event. Dates filter the latest lead status update. Email confirmation details are on Leads.`)
     .alignment = { wrapText: true, vertical: "middle" };
   summary.mergeCells(`B${noteRow + 3}:F${noteRow + 3}`);
   setCell(summary, `B${noteRow + 3}`, "All timestamps use Sri Lanka time (UTC+05:30).").font = { name: "Arial", size: 11, italic: true, color: { argb: colors.muted } };

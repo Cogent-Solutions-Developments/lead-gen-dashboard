@@ -7,12 +7,14 @@ import { OUTREACH_API } from "@/lib/automatedOutreachApi";
 import { collectStatusOutreachReport, createStatusOutreachReport, type StatusOutreachReportFilters, type StatusOutreachReportSnapshot } from "@/lib/statusOutreachReport";
 import styles from "./StatusActivityChart.module.css";
 
-export function StatusActivityReportDownload({ filters, disabled = false }: {
+export type StatusReportFeedback = { text: string; error: boolean } | null;
+
+export function StatusActivityReportDownload({ filters, disabled = false, onFeedback }: {
   filters: StatusOutreachReportFilters; disabled?: boolean;
+  onFeedback: (feedback: StatusReportFeedback) => void;
 }) {
   const request = useRef<AbortController | null>(null);
   const [preparing, setPreparing] = useState(false);
-  const [feedback, setFeedback] = useState<{ text: string; error: boolean } | null>(null);
   useEffect(() => () => { request.current?.abort(); }, []);
 
   async function download() {
@@ -20,14 +22,14 @@ export function StatusActivityReportDownload({ filters, disabled = false }: {
     const controller = new AbortController();
     request.current = controller;
     setPreparing(true);
-    setFeedback(null);
+    onFeedback(null);
     try {
       const snapshot = await collectStatusOutreachReport(filters, async (path, signal) =>
         (await apiClient.get<StatusOutreachReportSnapshot>(OUTREACH_API + path, { signal })).data,
       controller.signal);
       const rows = snapshot.items;
       if (!rows.length) {
-        setFeedback({ text: "No leads match these filters. Try another date range, department, or event.", error: false });
+        onFeedback({ text: "No leads match these filters. Try another date range, department, or event.", error: false });
         return;
       }
       const report = createStatusOutreachReport(rows, filters, new Date(snapshot.asOf));
@@ -44,9 +46,9 @@ export function StatusActivityReportDownload({ filters, disabled = false }: {
         // Allow the browser to start reading the download before releasing it.
         window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       }
-      setFeedback({ text: `Downloaded ${report.count.toLocaleString()} leads.`, error: false });
+      onFeedback({ text: `Downloaded ${report.count.toLocaleString()} leads.`, error: false });
     } catch (error) {
-      if (!controller.signal.aborted) setFeedback({ text: (error as { status?: number })?.status === 404
+      if (!controller.signal.aborted) onFeedback({ text: (error as { status?: number })?.status === 404
         ? "The report API is unavailable. Please try again after the backend is connected."
         : error instanceof Error ? error.message : "Could not download the report. Please retry.", error: true });
     } finally {
@@ -57,12 +59,12 @@ export function StatusActivityReportDownload({ filters, disabled = false }: {
     }
   }
 
-  return <div className={styles.reportDownload}>
-    <button type="button" className={`${styles.dateButton} ${styles.reportButton}`} onClick={() => void download()}
+  return <button type="button" className={`${styles.dateButton} ${styles.reportButton}`} onClick={() => void download()}
       disabled={disabled || preparing} aria-busy={preparing}>
       {preparing ? <RefreshCw size={13} className={styles.spinning} aria-hidden="true" /> : <Download size={13} aria-hidden="true" />}
-      {preparing ? "Preparing report…" : "Download report (Excel)"}
-    </button>
-    {feedback && <p role={feedback.error ? "alert" : "status"} className={feedback.error ? styles.dateError : styles.dateHint}>{feedback.text}</p>}
-  </div>;
+      <span className={styles.reportLabel}>
+        <span className={preparing ? styles.reportLabelHidden : undefined} aria-hidden={preparing}>Download report (Excel)</span>
+        {preparing && <span>Preparing report…</span>}
+      </span>
+    </button>;
 }

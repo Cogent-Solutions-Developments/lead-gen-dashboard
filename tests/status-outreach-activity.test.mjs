@@ -51,11 +51,18 @@ test("date drafts only change the chart and drill-down scope after Apply", () =>
     "@/hooks/useStatusActivity": { useStatusActivity: value => { path = value; return { data, reload() {} }; } },
   });
   const original = path;
+  const initialQuery = new URLSearchParams(original.split("?")[1]);
+  assert.equal(initialQuery.has("startDate"), false);
+  assert.equal(initialQuery.has("endDate"), false);
+  assert.equal(view.find(node => node.props?.["aria-label"] === "From date").props.value, "");
+  assert.equal(view.find(node => node.props?.["aria-label"] === "To date").props.value, "");
+  assert.equal(view.find(node => node.type === "button" && node.props.children === "All dates").props["aria-pressed"], true);
   const dateInput = label => view.find(node => node.props?.["aria-label"] === label);
   dateInput("From date").props.onChange({ target: { value: "2026-10-01" } }); view.render();
   dateInput("To date").props.onChange({ target: { value: "2026-10-03" } }); view.render();
   assert.equal(path, original);
   view.find(node => node.props?.["aria-label"]?.startsWith("Proposal Sent:")).props.onClick(); view.render();
+  assert.equal(view.find(node => node.type === "StatusActivityDrawer").props.range, undefined);
   view.find(node => node.props?.["aria-label"] === "Filter by latest status update date").props.onSubmit({ preventDefault() {} }); view.render();
   const query = new URLSearchParams(path.split("?")[1]);
   assert.equal(query.get("startDate"), "2026-10-01");
@@ -67,6 +74,21 @@ test("date drafts only change the chart and drill-down scope after Apply", () =>
   dateInput("From date").props.onChange({ target: { value: "2026-10-05" } }); view.render();
   assert.equal(view.find(node => node.type === "button" && node.props.children === "Apply").props.disabled, true);
   assert.ok(view.find(node => node.props?.id === "status-date-error"));
+  const filteredPath = path;
+  view.find(node => node.type === "button" && node.props.children === "All dates").props.onClick(); view.render();
+  assert.equal(path, filteredPath);
+  view.find(node => node.props?.["aria-label"] === "Filter by latest status update date").props.onSubmit({ preventDefault() {} }); view.render();
+  const allDatesQuery = new URLSearchParams(path.split("?")[1]);
+  assert.equal(allDatesQuery.has("startDate"), false);
+  assert.equal(allDatesQuery.has("endDate"), false);
+  assert.equal(view.find(node => node.type === "StatusActivityReportDownload").props.filters.startDate, "");
+});
+
+test("all dates is valid and a partial date range must be completed", () => {
+  assert.equal(activity.statusActivityDateError({ startDate: "", endDate: "" }), null);
+  assert.equal(activity.statusActivityDateBounds({ startDate: "", endDate: "" }), null);
+  assert.match(activity.statusActivityDateError({ startDate: "2026-10-01", endDate: "" }), /valid/);
+  assert.match(activity.statusActivityDateError({ startDate: "", endDate: "2026-10-27" }), /valid/);
 });
 test("chart filter scope resets the event and opens the selected status without navigation", () => {
   let path;

@@ -37,6 +37,7 @@
 .dateFilters { margin: 0 26px 16px; padding: 14px 0 0; border-top: 1px solid var(--line); }
 .dateHeading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 10px; font-size: 11px; font-weight: 600; }
 .dateHeading > span + span { color: var(--muted); font-size: 10px; font-weight: 400; }
+.dateControlGroup { width: fit-content; max-width: 100%; }
 .dateControls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
 .dateField { display: grid; gap: 5px; min-width: 140px; color: var(--muted); font-size: 10px; }
 .dateField input, .dateField select { height: 34px; min-width: 0; padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--ink); font: inherit; font-size: 11px; color-scheme: light; }
@@ -53,9 +54,11 @@
 .dateButton:disabled { opacity: .5; cursor: default; }
 .dateHint, .dateError { margin: 9px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
 .dateError { color: #b77928; }
-.reportDownload { display: grid; gap: 5px; }
 .reportButton { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
-.reportDownload p { max-width: 360px; margin: 0; }
+.reportLabel { display: grid; }
+.reportLabel > span { grid-area: 1 / 1; }
+.reportLabelHidden { visibility: hidden; }
+.reportFeedback { max-width: 360px; margin: 5px 0 0 auto; text-align: right; overflow-wrap: anywhere; }
 .instrumentBar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin: 0 26px; padding: 13px 0 16px; border-top: 1px solid var(--line); }
 .metrics { display: flex; flex-wrap: wrap; gap: 20px; color: var(--muted); font-size: 11px; }
 .metrics strong { font-size: 14px; color: var(--ink); font-weight: 600; margin-right: 4px; font-variant-numeric: tabular-nums; }

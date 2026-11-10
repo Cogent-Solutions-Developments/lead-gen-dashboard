@@ -81,8 +81,13 @@ Deploy the updated frontend, API, and dedicated outreach worker together.
 ## Status activity report API
 
 Excel downloads call `GET /api/admin/automated-outreach/status-activity/report`
-with the applied `startDate`, `endDate`, `timezone=Asia/Colombo`, and optional
-department/event filters. The response is one complete `{items, total, asOf}`
+with optional applied `startDate` / `endDate`, `timezone=Asia/Colombo`, and optional
+department/event filters. The chart starts with overall counts across all dates.
+Date fields and presets, including **All dates**, change the draft selection;
+only **Apply** changes the chart, lead details, and export date scope. All-date
+requests omit both date parameters; a partial date range is invalid. Download
+feedback appears below the controls and the button keeps its width while preparing.
+The response is one complete `{items, total, asOf}`
 snapshot across all eligible statuses. The report endpoint does not require a
 single status, and exports do not page through the live drill-down endpoint.
 The workbook's generated time comes from the server capture time (`asOf`).

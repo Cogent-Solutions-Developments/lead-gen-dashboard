@@ -7,15 +7,19 @@ import { useStatusActivity } from "@/hooks/useStatusActivity";
 import { STATUS_ACTIVITY_TIME_ZONE, statusActivityDateError, statusActivityDatePreset, statusActivityPath, statusActivityTime, statusChartScale, type StatusActivityBoard } from "@/lib/statusOutreachActivity";
 import { StatusActivityDrawer } from "./StatusActivityDrawer";
 import { StatusMailSummary } from "./StatusMailSummary";
-import { StatusActivityReportDownload } from "./StatusActivityReportDownload";
+import { StatusActivityReportDownload, type StatusReportFeedback } from "./StatusActivityReportDownload";
 import styles from "./StatusActivityChart.module.css";
 
 export function StatusActivityChart({ refreshKey = 0 }: { refreshKey?: number }) {
   const [department, setDepartment] = useState("");
   const [eventKey, setEventKey] = useState("");
   const [selected, setSelected] = useState<{ key: string; label: string } | null>(null);
-  const [range, setRange] = useState(() => statusActivityDatePreset(7));
+  const [range, setRange] = useState({ startDate: "", endDate: "" });
   const [draftRange, setDraftRange] = useState(range);
+  const [reportFeedback, setReportFeedback] = useState<{ scope: string; feedback: StatusReportFeedback } | null>(null);
+  const reportScope = `${department}:${eventKey}:${range.startDate}:${range.endDate}`;
+  const feedback = reportFeedback?.scope === reportScope ? reportFeedback.feedback : null;
+  if (reportFeedback && reportFeedback.scope !== reportScope) setReportFeedback(null);
   const dateError = statusActivityDateError(draftRange);
   const hasDateChanges = draftRange.startDate !== range.startDate || draftRange.endDate !== range.endDate;
   const { data, previous, error, reload, refreshing } = useStatusActivity<StatusActivityBoard>(
@@ -49,25 +53,29 @@ export function StatusActivityChart({ refreshKey = 0 }: { refreshKey?: number })
       setSelected(null);
     }}>
       <div className={styles.dateHeading}><span>Latest status update</span><span>Sri Lanka time (UTC+05:30) · Both dates included</span></div>
+      <div className={styles.dateControlGroup}>
       <div className={styles.dateControls}>
-        <label className={styles.dateField}>From date<input type="date" required aria-label="From date" aria-invalid={Boolean(dateError)} aria-describedby={dateError ? "status-date-error" : undefined} max={draftRange.endDate || undefined} value={draftRange.startDate} onChange={event => setDraftRange(current => ({ ...current, startDate: event.target.value }))} /></label>
-        <label className={styles.dateField}>To date<input type="date" required aria-label="To date" aria-invalid={Boolean(dateError)} aria-describedby={dateError ? "status-date-error" : undefined} min={draftRange.startDate || undefined} value={draftRange.endDate} onChange={event => setDraftRange(current => ({ ...current, endDate: event.target.value }))} /></label>
+        <label className={styles.dateField}>From date<input type="date" aria-label="From date" aria-invalid={Boolean(dateError)} aria-describedby={dateError ? "status-date-error" : undefined} max={draftRange.endDate || undefined} value={draftRange.startDate} onChange={event => setDraftRange(current => ({ ...current, startDate: event.target.value }))} /></label>
+        <label className={styles.dateField}>To date<input type="date" aria-label="To date" aria-invalid={Boolean(dateError)} aria-describedby={dateError ? "status-date-error" : undefined} min={draftRange.startDate || undefined} value={draftRange.endDate} onChange={event => setDraftRange(current => ({ ...current, endDate: event.target.value }))} /></label>
         <label className={`${styles.dateField} ${styles.eventDateField}`}>Event (optional)
           <select aria-label="Event (optional)" value={eventKey} onChange={event => { setEventKey(event.target.value); setSelected(null); }}>
             <option value="">All events</option>{data?.events.map(event => <option key={event.key} value={event.key}>{event.name}</option>)}
             {eventKey && !data?.events.some(event => event.key === eventKey) && <option value={eventKey}>Selected event</option>}
           </select>
         </label>
-        <div className={styles.datePresets} role="group" aria-label="Date presets">{([
+        <div className={styles.datePresets} role="group" aria-label="Date presets">
+          <button type="button" className={styles.dateButton} aria-pressed={!draftRange.startDate && !draftRange.endDate} onClick={() => setDraftRange({ startDate: "", endDate: "" })}>All dates</button>{([
           { days: 1, label: "Today" }, { days: 7, label: "Last 7 days" }, { days: 30, label: "Last 30 days" },
         ] as const).map(preset => {
           const dates = statusActivityDatePreset(preset.days);
           return <button key={preset.days} type="button" className={styles.dateButton} aria-pressed={draftRange.startDate === dates.startDate && draftRange.endDate === dates.endDate} onClick={() => setDraftRange(dates)}>{preset.label}</button>;
         })}</div>
         <button type="submit" className={`${styles.dateButton} ${styles.applyDates}`} disabled={Boolean(dateError) || !hasDateChanges}>Apply</button>
-        <StatusActivityReportDownload key={`${department}:${eventKey}:${range.startDate}:${range.endDate}`} filters={{ ...range, department, eventKey }} disabled={!data || Boolean(error) || Boolean(dateError) || hasDateChanges} />
+        <StatusActivityReportDownload key={reportScope} filters={{ ...range, department, eventKey }} disabled={!data || Boolean(error) || Boolean(dateError) || hasDateChanges} onFeedback={feedback => setReportFeedback({ scope: reportScope, feedback })} />
       </div>
-      {dateError ? <p role="alert" id="status-date-error" className={styles.dateError}>{dateError}</p> : <p className={styles.dateHint} role="status">Showing updates from {range.startDate} to {range.endDate}.{hasDateChanges ? " Apply to update the results." : ""}</p>}
+      {feedback && <p role={feedback.error ? "alert" : "status"} className={`${styles.reportFeedback} ${feedback.error ? styles.dateError : styles.dateHint}`}>{feedback.text}</p>}
+      </div>
+      {dateError ? <p role="alert" id="status-date-error" className={styles.dateError}>{dateError}</p> : <p className={styles.dateHint} role="status">{range.startDate ? `Showing updates from ${range.startDate} to ${range.endDate}.` : "Showing overall counts across all dates."}{hasDateChanges ? " Apply to update the results." : ""}</p>}
     </form>
 
     <div className={styles.instrumentBar}>
@@ -137,7 +145,7 @@ export function StatusActivityChart({ refreshKey = 0 }: { refreshKey?: number })
           </div>
         </div>
       </div>
-      {!data.total && <p className={styles.noResults}>No leads have a latest status update in this date range and filter selection. Try a different date range, department, or event.</p>}
+      {!data.total && <p className={styles.noResults}>{range.startDate ? "No leads have a latest status update in this date range and filter selection." : "No leads match this filter selection."} Try a different date range, department, or event.</p>}
       <footer className={styles.footer}>
         <div className={styles.legend}>
           <span><i className={styles.legendCurrent} aria-hidden="true" />Current count</span>
@@ -148,6 +156,6 @@ export function StatusActivityChart({ refreshKey = 0 }: { refreshKey?: number })
         <p>Hatching = updated in 24h · Mail totals grouped by current lead status</p>
       </footer>
     </>}
-    {selected && <StatusActivityDrawer range={range} status={selected} department={department} eventKey={eventKey} eventName={eventName} onClose={() => setSelected(null)} />}
+    {selected && <StatusActivityDrawer range={range.startDate ? range : undefined} status={selected} department={department} eventKey={eventKey} eventName={eventName} onClose={() => setSelected(null)} />}
   </section>;
 }

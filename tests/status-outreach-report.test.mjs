@@ -78,6 +78,31 @@ test("incomplete or malformed snapshots fail instead of downloading a partial re
   assert.equal((await collectStatusOutreachReport(filters, async () => ({ items: [], total: 0, asOf }))).items.length, 0);
 });
 
+test("overall reports omit date bounds and label the Excel export as all dates", async () => {
+  const allDates = { ...filters, startDate: "", endDate: "" };
+  await collectStatusOutreachReport(allDates, async path => {
+    const query = new URLSearchParams(path.split("?")[1]);
+    assert.equal(query.has("startDate"), false);
+    assert.equal(query.has("endDate"), false);
+    assert.equal(query.get("department"), "sales");
+    assert.equal(query.get("eventKey"), filters.eventKey);
+    return { items: [lead], total: 1, asOf };
+  });
+  const report = createStatusOutreachReport([lead], allDates, new Date(asOf));
+  assert.equal(report.filename, "status-outreach_all-dates.xlsx");
+  assert.equal(report.summary.from, null);
+  assert.equal(report.summary.to, null);
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(await exportStatusOutreachWorkbook(report));
+  const summary = workbook.getWorksheet("Summary");
+  assert.equal(summary.getCell("C6").value, "All dates");
+  assert.equal(summary.getCell("F6").value, "All dates");
+  assert.equal(summary.getCell("B3").value, "Overall lead report — all dates");
+  let reads = 0;
+  await assert.rejects(collectStatusOutreachReport({ ...allDates, startDate: filters.startDate }, async () => { reads++; }), /valid/);
+  assert.equal(reads, 0);
+});
+
 test("Excel data keeps dates and counts typed and confirmation states accurate", () => {
   const report = createStatusOutreachReport([lead], filters, new Date("2026-10-27T12:00:00Z"));
   assert.equal(report.filename, "status-outreach_2026-10-01_to_2026-10-27.xlsx");

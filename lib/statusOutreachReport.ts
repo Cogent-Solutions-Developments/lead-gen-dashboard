@@ -63,11 +63,12 @@ export function createStatusOutreachReport(rows: StatusActivityLead[], filters: 
       reportDate(lead.mail.messages.find(message => message.step === step)?.confirmedAt)] : ["Not recorded", null]),
     reportDate(lead.mail?.nextDueAt), lead.mail?.reason ?? null]);
   return {
-    filename: `status-outreach_${filters.startDate}_to_${filters.endDate}.xlsx`,
+    filename: filters.startDate ? `status-outreach_${filters.startDate}_to_${filters.endDate}.xlsx` : "status-outreach_all-dates.xlsx",
     count: rows.length, headers, records,
     summary: {
       generatedAt: reportDate(generatedAt.toISOString())!, timezone: STATUS_ACTIVITY_TIME_ZONE,
-      from: new Date(`${filters.startDate}T00:00:00Z`), to: new Date(`${filters.endDate}T00:00:00Z`),
+      from: filters.startDate ? new Date(`${filters.startDate}T00:00:00Z`) : null,
+      to: filters.endDate ? new Date(`${filters.endDate}T00:00:00Z`) : null,
       department: filters.department ? label(filters.department) : "All departments",
       event: filters.eventKey ? rows.find(lead => lead.eventKey === filters.eventKey)?.eventName || filters.eventKey : "All events",
       total: rows.length, confirmedEmails, awaitingConfirmation, scheduledLeads, needsAttention, pausedLeads, missingMailData,
