@@ -19,14 +19,14 @@ export function OutreachDashboard() {
   const sent = data?.departments.reduce((sum, row) => sum + row.sent, 0) ?? 0;
   const attention = data?.needsAttention ?? ((data?.states.attention ?? 0) + (data?.states.failed ?? 0) + (data?.states.blocked ?? 0));
   return <div className="space-y-6 p-1 font-sans text-zinc-950">
-    {data && (!data.configuration.enabled || data.configuration.missingConfiguration.length > 0) && <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200/80 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200"><span className="inline-flex items-center gap-2"><CircleAlert className="h-4 w-4 shrink-0" aria-hidden="true" />{!data.configuration.enabled ? "Automatic outreach is off by default. Individual events can be enabled." : "Automatic delivery is waiting for central configuration."}</span><Link href="/settings?section=outreach&department=status-outreach" className="inline-flex items-center gap-1 text-xs font-medium underline underline-offset-4">Open automation controls<ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" /></Link></div>}
+    {data && (!data.configuration.enabled || data.configuration.missingConfiguration.length > 0) && <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200/80 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200"><span className="inline-flex items-center gap-2"><CircleAlert className="h-4 w-4 shrink-0" aria-hidden="true" />{!data.configuration.enabled ? "Automatic email delivery is off by default. Content preparation continues for eligible leads." : "Automatic delivery is waiting for central configuration."}</span><Link href="/settings?section=outreach&department=status-outreach" className="inline-flex items-center gap-1 text-xs font-medium underline underline-offset-4">Open automation controls<ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" /></Link></div>}
     <CampaignPageHeader title="Status Outreach" description="Event lead status and automatic outreach across your departments.">
       <Button type="button" variant="outline" onClick={() => { reload(); setRefreshKey(value => value + 1); }} disabled={refreshing} className="analytics-frost-btn h-10 px-4">
         <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />Refresh
       </Button>
     </CampaignPageHeader>
     <StatusActivityChart refreshKey={refreshKey} />
-    <OutreachFeedback error={error} loading={!data && !error} reload={reload} />
+    <OutreachFeedback error={error?.includes('"Not Found"') ? "Outreach data is unavailable. Please retry or contact your administrator." : error} loading={!data && !error} reload={reload} />
     {data && <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[
         { label: "Eligible lead inventory", value: total, icon: Users, detail: "Across all departments", tone: "bg-blue-50 text-blue-700" },

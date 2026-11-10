@@ -30,6 +30,7 @@ import {
   type ManagerUserPerformanceActivity,
 } from "../admin-api";
 import { useAuth } from "@/hooks/useAuth";
+import { usePersona } from "@/hooks/usePersona";
 import {
   fetchUserActivity,
   type UserActivityRecord,
@@ -37,7 +38,7 @@ import {
 } from "@/lib/peopleApi";
 import { canMonitorUserActivity, formatEngagedDuration, hasRecordedUserActivity } from "@/lib/peopleUtils";
 import { formatUsd } from "@/lib/leadWorkflowHistory";
-import { managerActivityAttribution } from "@/lib/managerPerformance";
+import { isSalesPerformancePipeline, managerActivityAttribution } from "@/lib/managerPerformance";
 
 const PERIOD_OPTIONS: Array<{ value: AdminUserPerformancePeriod; label: string }> = [
   { value: "daily", label: "Daily" },
@@ -651,6 +652,8 @@ function UserKpiDetailDialog({
 
 export default function AdminUserPerformancePage() {
   const { user } = useAuth();
+  const { persona } = usePersona();
+  const performancePipeline = persona === "delegate-sales" ? "delegate_sales" : persona === "delegates" ? "delegate" : persona === "production" ? "production" : "sales";
   const [period, setPeriod] = useState<AdminUserPerformancePeriod>("daily");
   const [date, setDate] = useState(todayValue);
   const [data, setData] = useState<AdminUserPerformanceResponse | null>(null);
@@ -689,7 +692,7 @@ export default function AdminUserPerformancePage() {
     setLoading(true);
     try {
       const performanceRequest = isManagerView
-        ? fetchManagerUserPerformance({ period, date, limit: 300 })
+        ? fetchManagerUserPerformance({ period, date, pipeline: performancePipeline, limit: 300 })
         : fetchAdminUserPerformance({ period, date });
       const activityRequest = isManagerView
         ? Promise.resolve(null)
@@ -710,7 +713,7 @@ export default function AdminUserPerformancePage() {
     } finally {
       setLoading(false);
     }
-  }, [date, isManagerView, period]);
+  }, [date, isManagerView, period, performancePipeline]);
 
   useEffect(() => {
     void loadPerformance();
@@ -947,12 +950,12 @@ export default function AdminUserPerformancePage() {
                   {chartView === "pie" ? <PieKpiChart cluster={cluster} /> : <SpiderKpiChart cluster={cluster} maxValues={maxValues} />}
                 </div>
 
-                <div className={`mt-5 grid gap-3 border-t border-zinc-100 pt-5 ${cluster.pipeline === "sales" ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
+                <div className={`mt-5 grid gap-3 border-t border-zinc-100 pt-5 ${isSalesPerformancePipeline(cluster.pipeline) ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
                   <div>
                     <p className="text-[11px] font-medium text-zinc-400">Active</p>
                     <p className="mt-1 text-xl font-semibold text-slate-900">{formatNumber(cluster.activeUsers)}</p>
                   </div>
-                  {cluster.pipeline === "sales" ? (
+                  {isSalesPerformancePipeline(cluster.pipeline) ? (
                     <div>
                       <p className="text-[11px] font-medium text-zinc-400">Revenue</p>
                       <p className="mt-1 text-base font-semibold text-emerald-700">{formatUsd(cluster.revenueUsd) || "$0.00"}</p>
@@ -1047,7 +1050,7 @@ export default function AdminUserPerformancePage() {
                   </div>
                   <h3 className="mt-2 text-base font-semibold text-slate-950">{selectedCluster?.label || "Department"}</h3>
                 </div>
-                <div className={`grid grid-cols-2 gap-2 text-center text-xs ${selectedCluster?.pipeline === "sales" ? "sm:grid-cols-5 xl:w-[38rem]" : "sm:grid-cols-4 xl:w-[30rem]"}`}>
+                <div className={`grid grid-cols-2 gap-2 text-center text-xs ${isSalesPerformancePipeline(selectedCluster?.pipeline) ? "sm:grid-cols-5 xl:w-[38rem]" : "sm:grid-cols-4 xl:w-[30rem]"}`}>
                   <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-blue-700">
                     <p className="font-bold">{formatNumber(selectedCluster?.total)}</p>
                     <p>KPI</p>
@@ -1056,9 +1059,9 @@ export default function AdminUserPerformancePage() {
                     <p className="font-bold">{formatNumber(selectedCluster?.activeUsers)}</p>
                     <p>Active</p>
                   </div>
-                  {selectedCluster?.pipeline === "sales" ? (
+                  {isSalesPerformancePipeline(selectedCluster?.pipeline) ? (
                     <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-emerald-700">
-                      <p className="font-bold">{formatUsd(selectedCluster.revenueUsd) || "$0.00"}</p>
+                      <p className="font-bold">{formatUsd(selectedCluster?.revenueUsd) || "$0.00"}</p>
                       <p>Revenue</p>
                     </div>
                   ) : null}
@@ -1130,7 +1133,7 @@ export default function AdminUserPerformancePage() {
                           </Button>
                           <div className="text-right">
                             <p className="text-base font-bold tabular-nums text-slate-950">{formatNumber(value)}</p>
-                            {selectedCluster?.pipeline === "sales" ? (
+                            {isSalesPerformancePipeline(selectedCluster?.pipeline) ? (
                               <p className="text-[11px] font-semibold text-emerald-700">
                                 {formatUsd(runner.revenueUsd) || "$0.00"}
                               </p>
