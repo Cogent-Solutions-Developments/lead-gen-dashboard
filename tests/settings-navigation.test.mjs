@@ -48,7 +48,7 @@ function settingsBrowser(initialHref = "/settings") {
       }),
     },
     "framer-motion": { motion: { div: element("div"), button: element("button") } },
-    "lucide-react": { ArrowRight: () => null, FilePenLine: () => null, MonitorDot: () => null, UserRoundMinus: () => null, Workflow: () => null },
+    "lucide-react": { ArrowRight: () => null, FilePenLine: () => null, KeyRound: () => null, MonitorDot: () => null, UserRoundMinus: () => null, Workflow: () => null },
     "@/components/layout/AdminPanelShell": { AdminPanelShell: element("main") },
     "@/components/settings/MarketingOptOutSettings": { MarketingOptOutSettings: sectionView("opt-out") },
     "@/components/settings/OutreachCredentialSettings": { OutreachCredentialSettings: sectionView("credentials") },
@@ -85,6 +85,13 @@ function settingsBrowser(initialHref = "/settings") {
     forward: () => { position = Math.min(history.length - 1, position + 1); },
   };
 }
+
+test("event payment keys has a direct link from the settings overview", () => {
+  const browser = settingsBrowser();
+  assert.match(browser.render(), /Event Payment Keys/);
+  browser.click("/settings/event-payments");
+  assert.equal(browser.href(), "/settings/event-payments");
+});
 
 test("each settings section can be restored from its URL after refresh", () => {
   for (const section of ["outreach", "whatsapp", "credentials", "opt-out", "automated-outreach"]) {
