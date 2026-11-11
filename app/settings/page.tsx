@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, FilePenLine, MonitorDot, UserRoundMinus, Workflow, type LucideIcon } from "lucide-react";
+import { ArrowRight, FilePenLine, KeyRound, MonitorDot, UserRoundMinus, Workflow, type LucideIcon } from "lucide-react";
 import { WebhooksLogoIcon } from "@phosphor-icons/react/dist/csr/WebhooksLogo";
 
 import { AdminPanelShell } from "@/components/layout/AdminPanelShell";
@@ -196,6 +196,17 @@ function SettingsContent() {
               detailDescription="Manage phone and email opt-outs across all outreach channels."
               delay={0.18}
               tone="rose"
+            />
+            <SettingsCard
+              href="/settings/event-payments"
+              ariaLabel="Open Event Payment Keys"
+              icon={KeyRound}
+              title="Event Payment Keys"
+              description="Generate and manage API keys for event checkout."
+              detailLabel="Event integrations"
+              detailTitle="One key per event"
+              detailDescription="Copy a generated key into the event server’s private payment configuration."
+              delay={0.22}
             />
           </div>
         )}
