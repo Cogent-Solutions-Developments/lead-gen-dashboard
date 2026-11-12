@@ -85,7 +85,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const primaryPersona = personaForRole(role);
   const forcedPersona = forcedPersonaForUser(session?.user);
   const businessWorkspace = businessWorkspaceForRole(role);
-  const businessLandingPath = businessWorkspace ? `/business/${businessWorkspace}` : null;
+  const businessLandingPath = businessWorkspace === "marketing" ? "/marketing" : businessWorkspace ? `/business/${businessWorkspace}` : null;
   const isCeoWorkspaceAdminRoute = isCeo && isCeoAllowedAdminPath(pathname);
   const isAdminAreaRoute = isAdminAreaPath(pathname) && !isCeoWorkspaceAdminRoute;
   const sidebarExpanded = sidebarHovered;
@@ -180,7 +180,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
 
     if (isBusiness) {
-      if (businessLandingPath && pathname !== businessLandingPath && pathname !== "/profile") {
+      if (businessLandingPath && pathname !== businessLandingPath && pathname !== "/profile" && pathname !== "/marketing") {
         router.replace(businessLandingPath);
       }
       return;
@@ -288,7 +288,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (isBusiness) {
-    if (!businessLandingPath || (pathname !== businessLandingPath && pathname !== "/profile")) return null;
+    if (!businessLandingPath || (pathname !== businessLandingPath && pathname !== "/profile" && pathname !== "/marketing")) return null;
     return (
       <>
         <Sidebar

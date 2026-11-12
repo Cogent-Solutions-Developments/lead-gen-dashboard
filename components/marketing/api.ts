@@ -1,0 +1,240 @@
+import { getAuthHeader } from "@/lib/auth";
+import { getLocalDevNgrokHeaders } from "@/lib/devNgrok";
+
+export type SpeakerComparison = { available: boolean; fields: { field: string; before: string; after: string }[] };
+export type Task = {
+  id: string;
+  kind: string;
+  assigneeId: string | null;
+  assigneeName: string;
+  status: string;
+  note: string;
+  revision: number;
+  completedAt: string | null;
+  canUpdate: boolean;
+};
+export type History = {
+  id: string;
+  actor: string;
+  action: string;
+  detail: Record<string, unknown>;
+  createdAt: string;
+  requestId?: string;
+};
+export type RequestSummary = {
+  parentTitle?: string | null;
+  operations?: string[];
+  sourceRequestId?: string | null;
+  speakerPostAction?: string;
+  overdue: boolean;
+  createdAt: string;
+  requesterName: string;
+  department: string;
+  tasks: Pick<Task, "id" | "kind" | "status" | "assigneeId" | "assigneeName">[];
+  id: string;
+  title: string;
+  kind: string;
+  status: string;
+  eventId: string;
+  priority: string;
+  dueAt: string | null;
+  updatedAt: string;
+};
+export type MarketingRequest = Omit<RequestSummary, "tasks"> & {
+  sourceRequestId?: string | null;
+  speakerPostAction?: string;
+  comparison?: SpeakerComparison | null;
+  followUps?: string[];
+  subtasks?: { id: string; title: string; status: string; operations: string[]; tasks: { kind: string; status: string }[] }[];
+  requesterId: string;
+  requesterName: string;
+  department: string;
+  details: Record<string, string>;
+  version: number;
+  revision: number;
+  canEdit: boolean;
+  tasks: Task[];
+  history: History[];
+};
+export type Member = {
+  id: string;
+  name: string;
+  role: string;
+  social: boolean;
+  roles: string[];
+};
+export type ActivitySummary = {
+  timezone: "UTC";
+  total: number;
+  days: { date: string; tasks: number; requests: number; reviews: number; other: number }[];
+};
+export type Overview = {
+  activitySummary?: ActivitySummary;
+  counts: Record<string, number>;
+  active: number;
+  myTasks: number;
+  social: number;
+  overdue: number;
+  activity: {
+    id: string;
+    requestId: string;
+    title: string;
+    actor: string;
+    action: string;
+    createdAt: string;
+  }[];
+};
+export type Context = {
+  name: string;
+  roles: string[];
+  social: boolean;
+  canUpload: boolean;
+  canDelete?: boolean;
+  manager: boolean;
+  staff: boolean;
+  userId: string;
+  role: string;
+  events: { id: string; name: string }[];
+  users: Member[];
+  assignments: { scope: string; kind: string; userId: string }[];
+};
+export type Asset = {
+  id: string;
+  eventId: string;
+  category: string;
+  title: string;
+  version: number;
+  status: string;
+  createdAt: string;
+  releasedAt: string | null;
+  downloadUrl: string;
+  createdByName?: string;
+  releasedByName?: string;
+  fileName?: string;
+  sizeBytes?: number | null;
+  source?: 'marketing' | 'event_documents';
+  isLatest?: boolean;
+};
+
+function baseUrl() {
+  const base = (process.env.NEXT_PUBLIC_API_BASE_URL || "")
+    .trim()
+    .replace(/\/+$/, "");
+  if (!base) throw new Error("API URL is not configured");
+  return base;
+}
+
+export async function marketing<T>(
+  path: string,
+  method = "GET",
+  payload?: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
+  const isForm = payload instanceof FormData;
+  const response = await fetch(`${baseUrl()}/api/marketing-workflow${path}`, {
+    method,
+    signal,
+    headers: {
+      ...getAuthHeader(),
+      ...getLocalDevNgrokHeaders(),
+      ...(!isForm && payload !== undefined
+        ? { "Content-Type": "application/json" }
+        : {}),
+    },
+    body:
+      payload === undefined
+        ? undefined
+        : isForm
+          ? payload
+          : JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok)
+    throw new Error(
+      typeof data.detail === "string"
+        ? data.detail
+        : data.detail?.message ||
+            (response.status === 422
+              ? "Check the required fields and file format."
+              : "Marketing request failed."),
+    );
+  return data as T;
+}
+
+export async function documentBlob(path: string, signal?: AbortSignal) {
+  const response = await fetch(`${baseUrl()}${path}`, {
+    signal,
+    headers: { ...getAuthHeader(), ...getLocalDevNgrokHeaders() },
+  });
+  if (!response.ok)
+    throw new Error(
+      "The file is unavailable or you do not have permission to download it.",
+    );
+  return response.blob();
+}
+
+export async function download(path: string, filename: string) {
+  const url = URL.createObjectURL(await documentBlob(path));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export const label = (value: string) =>
+  value.replace(/_/g, " ").replace(/\b\w/g, (s) => s.toUpperCase());
+export const taskLabel = (kind: string) =>
+  ({
+    website: "Website update",
+    flyer: "Speaker flyer design",
+    agenda: "Agenda update",
+    materials: "Marketing materials",
+    social: "Social media",
+    leads: "Lead delivery",
+  })[kind] || label(kind);
+export const formatDate = (value: string | null) =>
+  value ? new Date(value).toLocaleString() : "No deadline";
+export function eligible(users: Member[], kind: string) {
+  const role =
+    kind === "website"
+      ? "marketing_developer_user"
+      : kind === "leads"
+        ? "marketing_manager_user"
+        : "marketing_designer_user";
+  return users.filter((u) =>
+    kind === "social" ? u.social : u.role === role || u.roles?.includes(role),
+  );
+}
+
+// Request a short-lived, single-document link; native viewers cannot send bearer headers.
+// Only this small JSON response is fetched here. The browser streams the PDF itself.
+export async function previewUrl(path: string, signal?: AbortSignal): Promise<string> {
+  const previewPath = path.replace(/\/download$/, "/preview");
+  const response = await fetch(`${baseUrl()}${previewPath}`, {
+    method: "POST",
+    signal,
+    headers: { ...getAuthHeader(), ...getLocalDevNgrokHeaders() },
+  });
+  if (!response.ok) throw new Error("Unable to open this PDF.");
+  const data: { url: string } = await response.json();
+  // Only the requested Marketing document may become the iframe's navigation target.
+  if (!data.url.startsWith(`${previewPath}?ticket=`))
+    throw new Error("Invalid preview link.");
+  return `${baseUrl()}${data.url}`;
+}
+
+
+export function canUploadLibrary(context: Context): boolean {
+  return !!context.canUpload && (context.manager || context.role === "marketing_designer_user" || !!context.roles?.includes("marketing_designer_user"));
+}
+export type TaskUploadResult = {
+  asset: Asset;
+  request: MarketingRequest | Pick<MarketingRequest, "version" | "tasks">;
+};
+
+export const speakerOperationLabel = (operation: string) => ({ website: "Website", agenda: "Agenda", update_post: "Update post", delete_post: "Delete post", republish_post: "Republish post" })[operation] || label(operation);
+
+export function canDeleteLibrary(context: Context): boolean {
+  return !!context.canDelete && (context.role === "marketing_manager_user" || !!context.roles?.includes("marketing_manager_user"));
+}

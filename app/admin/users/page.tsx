@@ -1,15 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MARKETING_ROLES, ROLE_PIPELINES, secondaryDepartmentsForRoles, incompatibleRoleSelection } from "@/lib/marketing-role-selection";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { UserRoleMultiSelect } from "@/components/admin/UserRoleMultiSelect";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
   BriefcaseBusiness,
   Building2,
   CalendarClock,
-  Check,
-  ChevronDown,
   Crown,
   Eye,
   EyeOff,
@@ -75,6 +75,7 @@ type UserFormState = {
   status: UserStatusValue | "";
   deactivationReason: string;
   autocallAccess: boolean;
+  socialAccess: boolean;
 };
 
 type DepartmentDefinition = {
@@ -95,27 +96,28 @@ const blankForm: UserFormState = {
   status: "",
   deactivationReason: "",
   autocallAccess: false,
+  socialAccess: false,
 };
 
 const departmentDefinitions: DepartmentDefinition[] = [
   {
     id: "administration",
     label: "Administration",
-    description: "Protected platform operators and ownership roles.",
+    description: "Platform administration and executive oversight.",
     roles: ["super_admin_user", "ceo_user"],
     icon: Crown,
   },
   {
     id: "sales",
     label: "Sales",
-    description: "Sales managers and outreach operators.",
+    description: "Sales outreach and team management.",
     roles: ["sales_manager_user", "sales_user"],
     icon: BriefcaseBusiness,
   },
   {
     id: "delegate-sales",
     label: "Delegate Sales",
-    description: "Delegate Sales managers and outreach operators.",
+    description: "Delegate sales outreach and team management.",
     roles: ["delegate_sales_manager_user", "delegate_sales_user"],
     assignment: "delegate_sales",
     icon: UsersRound,
@@ -123,28 +125,35 @@ const departmentDefinitions: DepartmentDefinition[] = [
   {
     id: "delegate",
     label: "Delegate",
-    description: "Delegate managers and validation operators.",
+    description: "Delegate validation and team management.",
     roles: ["delegate_manager_user", "delegate_user"],
     icon: UserCog,
   },
   {
     id: "production",
     label: "Production",
-    description: "Production managers and campaign execution users.",
+    description: "Campaign execution and production management.",
     roles: ["production_manager_user", "production_user"],
     icon: Building2,
   },
   {
+    id: "marketing",
+    label: "Marketing",
+    description: "Marketing leadership, design and development.",
+    roles: ["marketing_manager_user", "marketing_designer_user", "marketing_developer_user", "marketing_user"],
+    icon: BriefcaseBusiness,
+  },
+  {
     id: "business-operations",
     label: "Business Operations",
-    description: "Foundation workspace roles for non-pipeline operations.",
-    roles: ["marketing_user", "operational_user", "finance_user"],
+    description: "Operations and finance responsibilities.",
+    roles: ["operational_user", "finance_user"],
     icon: BriefcaseBusiness,
   },
   {
     id: "client",
     label: "Client",
-    description: "Event dashboard credentials created for client access.",
+    description: "Client access to event dashboards.",
     roles: ["client_user"],
     icon: KeyRound,
   },
@@ -221,36 +230,12 @@ function upsertCredential(rows: AdminClientCredential[], credential: AdminClient
   return [credential, ...rows];
 }
 
-const ROLE_PIPELINES: Partial<Record<AuthRole, string>> = {
-  sales_user: "sales",
-  sales_manager_user: "sales",
-  delegate_sales_user: "delegate_sales",
-  delegate_sales_manager_user: "delegate_sales",
-  delegate_user: "delegate",
-  delegate_manager_user: "delegate",
-  production_user: "production",
-  production_manager_user: "production",
-};
-
-function secondaryDepartmentsForRoles(roles: AuthRole[], existing: string[] = []) {
-  const primaryPipeline = ROLE_PIPELINES[roles[0]];
-  const departments = new Set<string>(
-    primaryPipeline
-      ? existing.filter((department) => department === "autocall")
-      : []
-  );
-  for (const role of roles.slice(1)) {
-    const pipeline = ROLE_PIPELINES[role];
-    if (pipeline && pipeline !== primaryPipeline) departments.add(pipeline);
-  }
-  return [...departments];
-}
-
 function assignmentForDepartment(departmentId: string) {
   return departmentId === "delegate-sales" ? "delegate_sales" : departmentId;
 }
 
 function assignedRoleForDepartment(user: AuthUser, department: string): AuthRole {
+  if (MARKETING_ROLES.includes(department as AuthRole)) return department as AuthRole;
   const manager = isManagerRole(user.role);
   const managerRoles: Record<string, AuthRole> = {
     sales: "sales_manager_user",
@@ -277,100 +262,13 @@ function selectedRolesForUser(user: AuthUser): AuthRole[] {
 }
 
 function roleForDepartment(user: AuthUser, departmentId: string): AuthRole {
+  if (departmentId === "marketing" && user.departmentAssignments?.includes("marketing_manager_user")) return "marketing_manager_user";
   const department = assignmentForDepartment(departmentId);
   const primaryPipeline = ROLE_PIPELINES[user.role];
   if (primaryPipeline === department || !user.departmentAssignments?.includes(department)) {
     return user.role;
   }
   return assignedRoleForDepartment(user, department);
-}
-
-function UserRoleMultiSelect({
-  selectedRoles,
-  roleOptions,
-  disabled,
-  onRolesChange,
-}: {
-  selectedRoles: AuthRole[];
-  roleOptions: AuthRole[];
-  disabled: boolean;
-  onRolesChange: (roles: AuthRole[]) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const closeOnOutsideClick = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", closeOnOutsideClick);
-    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
-  }, [open]);
-
-  return (
-    <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        aria-disabled={disabled}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        disabled={disabled}
-        onClick={() => setOpen((current) => !current)}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") setOpen(false);
-          if (event.key === "ArrowDown" && !open) {
-            event.preventDefault();
-            setOpen(true);
-          }
-        }}
-        className={`flex h-11 w-full items-center justify-between gap-3 rounded-lg border border-zinc-300 bg-white px-3.5 text-sm text-slate-900 shadow-none outline-none transition ${
-          disabled
-            ? "cursor-not-allowed opacity-60"
-            : "cursor-pointer hover:border-blue-300 focus-visible:border-blue-500 focus-visible:ring-3 focus-visible:ring-blue-100"
-        }`}
-      >
-        <span className="truncate">{selectedRoles.length ? selectedRoles.map(getRoleLabel).join(", ") : "Select department roles"}</span>
-        <ChevronDown className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-
-      {open ? (
-            <div role="menu" aria-label="User department roles" className="absolute left-0 top-full z-[200] mt-2 max-h-72 w-full min-w-72 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-[0_18px_42px_-20px_rgba(15,23,42,0.45)]">
-        <p className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-400">Department roles</p>
-          {roleOptions.map((role) => {
-            const selected = selectedRoles.includes(role);
-            return (
-              <button
-                key={role}
-                type="button"
-                role="menuitemcheckbox"
-                aria-checked={selected}
-                disabled={disabled}
-                onClick={() => {
-                  const nextRoles = selected
-                    ? selectedRoles.filter((value) => value !== role)
-                    : [...selectedRoles, role];
-                  if (nextRoles.length) onRolesChange(nextRoles);
-                }}
-                className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition ${
-                  selected ? "bg-blue-50 font-medium text-blue-800" : "text-zinc-700 hover:bg-zinc-50"
-                } disabled:cursor-not-allowed disabled:opacity-50`}
-              >
-                <span
-                  className={`flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded border ${
-                    selected ? "border-blue-600 bg-blue-600 text-white" : "border-zinc-300 bg-white"
-                  }`}
-                >
-                  {selected ? <Check className="h-3 w-3" /> : null}
-                </span>
-                {getRoleLabel(role)}
-              </button>
-            );
-          })}
-            </div>
-        ) : null}
-    </div>
-  );
 }
 
 function UserCard({
@@ -405,7 +303,7 @@ function UserCard({
   const currentDepartment = assignmentForDepartment(departmentId);
   const secondaryDepartmentLabels = (item.departmentAssignments || [])
     .filter((department) => department !== "autocall" && department !== currentDepartment)
-    .map((department) => department.replaceAll("_", " "));
+    .map((department) => department === "marketing_social" ? "Social media" : MARKETING_ROLES.includes(department as AuthRole) ? getRoleLabel(department as AuthRole) : department.replaceAll("_", " "));
   const clientCredential =
     showClientAccess && item.role === "client_user" ? selectPrimaryClientCredential(clientCredentials) : null;
 
@@ -716,10 +614,11 @@ export default function AdminUsersPage() {
         const rows = filteredUsers.filter((item) =>
           department.roles.includes(item.role) ||
           Boolean(department.assignment && item.departmentAssignments?.includes(department.assignment)) ||
-          item.departmentAssignments?.includes(department.id)
+          item.departmentAssignments?.includes(department.id) ||
+          (department.id === "marketing" && item.departmentAssignments?.some(value => MARKETING_ROLES.includes(value as AuthRole) || value === "marketing_social"))
         );
-        const managers = rows.filter((item) => isManagerRole(item.role));
-        const normalUsers = rows.filter((item) => !isManagerRole(item.role));
+        const managers = rows.filter((item) => department.id === "marketing" ? (item.role === "marketing_manager_user" || item.departmentAssignments?.includes("marketing_manager_user")) : isManagerRole(item.role));
+        const normalUsers = rows.filter((item) => !managers.includes(item));
         return { ...department, rows, managers, normalUsers };
       }),
     [filteredUsers, visibleDepartments]
@@ -784,6 +683,7 @@ export default function AdminUsersPage() {
       status: userLifecycleStatus(item),
       deactivationReason: item.deactivationReason || "",
       autocallAccess: item.departmentAssignments?.includes("autocall") ?? false,
+      socialAccess: item.departmentAssignments?.includes("marketing_social") ?? false,
       selectedRoles: selectedRolesForUser(item),
     });
     setEditingCredentialId(primaryCredential?.id || "");
@@ -817,6 +717,7 @@ export default function AdminUsersPage() {
       return;
     }
 
+    if (incompatibleRoleSelection(form.selectedRoles)) { toast.error("This role combination is not supported", {description:"Combine Marketing roles, or use a pipeline role first for additional pipeline access."}); return; }
     setSaving(true);
     try {
       let updatedCredential: AdminClientCredential | null = null;
@@ -828,13 +729,14 @@ export default function AdminUsersPage() {
           role: isSelf ? undefined : form.role,
           departmentAssignments: isSelf
             ? undefined
-            : secondaryDepartmentsForRoles(form.selectedRoles, users.find((item) => item.id === editingId)?.departmentAssignments || []),
+            : secondaryDepartmentsForRoles(form.selectedRoles, users.find((item) => item.id === editingId)?.departmentAssignments || [], form.socialAccess),
           lifecycleStatus: isSelf ? undefined : form.status,
           deactivationReason:
             isSelf || form.status === "active" ? undefined : form.deactivationReason.trim(),
         });
         if (
           isSuperAdmin &&
+          form.autocallAccess !== Boolean(users.find(item => item.id === editingId)?.departmentAssignments?.includes("autocall")) &&
           updated.role !== "super_admin_user" &&
           updated.role !== "client_user"
         ) {
@@ -876,7 +778,7 @@ export default function AdminUsersPage() {
           username,
           password: form.password,
           role: form.role,
-          departmentAssignments: secondaryDepartmentsForRoles(form.selectedRoles),
+          departmentAssignments: secondaryDepartmentsForRoles(form.selectedRoles, [], form.socialAccess),
           fullName: form.fullName.trim(),
           isActive: form.status === "active",
         });
@@ -1328,7 +1230,7 @@ export default function AdminUsersPage() {
           </div>
 
           <div className="grid gap-5 p-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(18rem,0.55fr)]">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid content-start items-start gap-4 md:grid-cols-2">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase text-zinc-500">Username</label>
                 <Input
@@ -1367,23 +1269,6 @@ export default function AdminUsersPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase text-zinc-500">Department roles</label>
-                <UserRoleMultiSelect
-                  selectedRoles={form.selectedRoles}
-                  roleOptions={roleOptions}
-                  disabled={editingSelf}
-                  onRolesChange={(selectedRoles) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      selectedRoles,
-                      role: selectedRoles[0] || prev.role,
-                    }))
-                  }
-                />
-                <p className="text-xs leading-5 text-zinc-500">Select one or more roles. The first selected role is the primary account role.</p>
-              </div>
-
-              <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase text-zinc-500">Status</label>
                 <Select
                   value={form.status}
@@ -1400,16 +1285,35 @@ export default function AdminUsersPage() {
                 </Select>
               </div>
 
+              <div className="space-y-1.5 md:col-span-2">
+                <label className="text-xs font-semibold uppercase text-zinc-500">Department roles</label>
+                <UserRoleMultiSelect
+                  selectedRoles={form.selectedRoles}
+                  roleOptions={roleOptions}
+                  departments={departmentDefinitions}
+                  disabled={editingSelf}
+                  onRolesChange={(selectedRoles) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      selectedRoles,
+                      role: selectedRoles[0] || "",
+                    }))
+                  }
+                />
+                <p className="text-xs leading-5 text-zinc-500">The first role is primary. Marketing roles can be combined.</p>
+                {form.selectedRoles.some(role => MARKETING_ROLES.includes(role)) && <label className="flex items-center gap-2 pt-2 text-sm font-medium text-slate-600"><input type="checkbox" checked={form.socialAccess} disabled={saving} onChange={e => setForm(prev => ({...prev, socialAccess:e.target.checked}))} className="h-4 w-4 rounded border-zinc-300 accent-blue-600"/>Social media responsibility</label>}
+              </div>
+
             </div>
 
-            <div className="rounded-lg border border-zinc-200 bg-zinc-50/70 p-4">
+            <div className="self-start rounded-lg border border-zinc-200 bg-zinc-50/70 p-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-md border border-blue-100 bg-blue-50 text-blue-700">
                 <UserPlus className="h-5 w-5" />
               </div>
               <h3 className="mt-4 text-sm font-semibold text-slate-900">Form Preview</h3>
               <div className="mt-3 space-y-2 text-sm text-zinc-600">
                 <p>User: {form.fullName.trim() || form.username.trim() || "Not set"}</p>
-                <p>Role: {form.role ? getRoleLabel(form.role) : "Not set"}</p>
+                <p>Roles: {form.selectedRoles.length ? form.selectedRoles.map(getRoleLabel).join(", ") : "Not set"}</p>
                 <p>Status: {form.status ? form.status : "Not set"}</p>
               </div>
               <Button
@@ -1710,16 +1614,18 @@ export default function AdminUsersPage() {
                       <UserRoleMultiSelect
                         selectedRoles={form.selectedRoles}
                         roleOptions={roleOptions}
+                        departments={departmentDefinitions}
                         disabled={editingSelf}
                         onRolesChange={(selectedRoles) =>
                           setForm((prev) => ({
                             ...prev,
                             selectedRoles,
-                            role: selectedRoles[0] || prev.role,
+                            role: selectedRoles[0] || "",
                           }))
                         }
                       />
-                      <p className="text-xs leading-5 text-zinc-500">Select one or more department roles. The first selected role is the primary account role.</p>
+                      <p className="text-xs leading-5 text-zinc-500">The first role is the primary account role. Marketing roles can be combined; Marketing Manager includes workspace access.</p>
+                      {form.selectedRoles.some(role => MARKETING_ROLES.includes(role)) && <label className="flex items-center gap-2 pt-2 text-sm font-medium text-slate-600"><input type="checkbox" checked={form.socialAccess} disabled={saving || Boolean(editingId && editingId === currentUser?.id)} onChange={e => setForm(prev => ({...prev, socialAccess:e.target.checked}))} className="h-4 w-4 rounded border-zinc-300 accent-blue-600"/>Social media responsibility</label>}
                       {editingSelf ? <p className="text-xs leading-5 text-zinc-500">Your own access is protected while editing.</p> : null}
                       {isSuperAdmin && form.role !== "super_admin_user" && form.role !== "client_user" ? (
                         <label className="flex items-center gap-2 pt-2 text-sm font-medium text-slate-600">

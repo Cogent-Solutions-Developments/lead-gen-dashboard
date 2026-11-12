@@ -1,9 +1,10 @@
 "use client";
+import { hasMarketingLanding, marketingNavigation } from "@/lib/marketing-navigation";
 import { revokeAutocallSession } from "@/lib/auth";
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Phone,
@@ -60,6 +61,7 @@ type SidebarNavItem = {
 
 const navItems: SidebarNavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Marketing", href: "/marketing", icon: Megaphone },
   { name: "Autocall", href: "/autocall", icon: Phone },
   { name: "Campaigns", normalLabel: "Conferences", href: "/campaigns", icon: Rocket },
   { name: "New Campaign", href: "/campaigns/new", icon: Plus, superOnly: true },
@@ -103,6 +105,8 @@ type SidebarProps = {
 
 export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const marketingRoute = pathname === "/marketing";
   const router = useRouter();
   const { persona } = usePersona();
   const { isCeo, isSuperAdmin, user } = useAuth();
@@ -120,7 +124,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
         ? "Finance"
         : "Marketing";
   const businessNavItems: SidebarNavItem[] = businessWorkspace
-    ? [{ name: `${businessLabel} Workspace`, href: `/business/${businessWorkspace}`, icon: BriefcaseBusiness }]
+    ? [{ name: `${businessLabel} Workspace`, href: businessWorkspace === "marketing" ? "/marketing" : `/business/${businessWorkspace}`, icon: BriefcaseBusiness }, ...(businessWorkspace !== "marketing" ? [{ name: "Marketing", href: "/marketing", icon: Megaphone }] : [])]
     : [];
   const [ringingBell, setRingingBell] = useState(false);
   const [ringBellModalOpen, setRingBellModalOpen] = useState(false);
@@ -138,8 +142,9 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
     () => getDailyDealBellMedia(user?.id || user?.username),
     [user?.id, user?.username]
   );
-  const visibleNavItems = (isBusiness ? [...businessNavItems, { name: "Autocall", href: "/autocall", icon: Phone }] : navItems)
+  const visibleNavItems = (marketingRoute ? (marketingNavigation(user, searchParams.get("event")) as SidebarNavItem[]) : isBusiness ? [...businessNavItems, { name: "Autocall", href: "/autocall", icon: Phone }] : navItems)
     .filter((item) => {
+      if (marketingRoute) return true;
       if (item.href === "/autocall") return canAccessAutocall(user);
       if (isBusiness) return true;
       if (item.submissionViewerOnly) return !isSuperAdmin && (isCeo || isManager);
@@ -151,6 +156,10 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
       if (item.managerOnly) return isManager;
       return true;
     });
+
+  const isNavigationActive = (href: string) => marketingRoute
+    ? href.startsWith("/marketing?") && new URLSearchParams(href.split("?")[1]).get("tab") === (searchParams.get("tab") || (hasMarketingLanding(user) ? "home" : "agenda"))
+    : pathname === href;
 
   const handleSignOut = async () => {
     try {
@@ -232,7 +241,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
         }`}
       >
         {visibleNavItems.map((item, index) => {
-          const isActive = pathname === item.href;
+          const isActive = isNavigationActive(item.href);
           return (
             <motion.div
               key={item.name}
@@ -420,7 +429,7 @@ export function Sidebar({ isExpanded, onHoverChange }: SidebarProps) {
       items={visibleNavItems.map((item) => ({
         ...item,
         name: isSuperAdmin || item.ceoOnly ? item.name : item.normalLabel ?? item.name,
-        isActive: pathname === item.href,
+        isActive: isNavigationActive(item.href),
       }))}
       accountHref={isSuperAdmin ? "/choose-persona" : "/profile"}
       accountLabel={isSuperAdmin ? "Workspaces" : user?.fullName?.trim() || user?.username || "Profile"}
