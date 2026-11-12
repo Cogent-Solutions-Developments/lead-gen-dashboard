@@ -445,6 +445,7 @@ export async function listMyLeadsEventLeads(
   const { data } = await apiClient.get<sales.EventLeadListResponse>(
     `${getMyLeadsPrefix(persona)}/events/${encodeURIComponent(canonicalEventKey)}/leads`,
     {
+      signal: params?.signal,
       params: {
         limit: params?.limit,
         offset: params?.offset,

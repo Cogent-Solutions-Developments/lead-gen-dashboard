@@ -16,7 +16,7 @@ function workspace(shared = false) {
   const lead = { id: "lead-1", employeeName: "Rejoice", company: "Tea Labs", email: "r@example.com", workflowStatus: "new", canonicalEventKey: "event-1", leadIdentityKey: "recipient-1" };
   const api = {
     listMyEvents: async () => ({ events: [{ canonicalEventKey: "event-1", canonicalEventName: "Conference" }] }),
-    listMyEventLeads: async () => ({ leads: [lead], total: 1 }),
+    listMyEventLeads: async () => ({ items: [lead], total: 1, hasMore: false }),
     updateLeadWorkflowStatus: async (...args) => {
       saved.push(args);
       return { id: lead.id, workflowStatus: args[1], workflowStatusLabel: "Deal Closed", workflowComment: args[2] };
@@ -62,7 +62,7 @@ function workspace(shared = false) {
   const router = { replace() {} };
   const params = new URLSearchParams("event=event-1");
   runInNewContext(code, {
-    module: mod, exports: mod.exports, URLSearchParams, URL, console,
+    module: mod, exports: mod.exports, URLSearchParams, URL, AbortController, console,
     document: { body, addEventListener() {}, removeEventListener() {} },
     window: { setTimeout: fn => { timers.push(fn); return timers.length; }, clearTimeout() {} },
     fetch: async (url, options) => { bells.push({ url, options }); return Response.json({ detail: "Teams is unavailable" }, { status: 503 }); },

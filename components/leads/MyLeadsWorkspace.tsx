@@ -64,7 +64,6 @@ import {
   generateLeadContent,
   getLeadWorkflowStatusHistory,
   getLeadOwnerHistory,
-  listMyAllLeads,
   listMyEventLeads,
   listMyEvents,
   searchMyLeads,
@@ -1011,8 +1010,6 @@ export function MyLeadsWorkspace({
     const requestId = ++rowsRequestRef.current;
 
     try {
-      const shouldSearchOrFilter =
-        searchInput.trim().length > 0 || filters.status !== "all" || filters.contact !== "all";
       const shouldUseScopedSearch = Boolean(selectedEventKey && filters.contact !== "all");
       const response = shouldUseScopedSearch
         ? await searchMyLeads(myLeadSearchParams(searchInput, filters, pageSize, pageOffset, selectedEventKey))
@@ -1024,12 +1021,10 @@ export function MyLeadsWorkspace({
             workflowStatus: filters.status === "all" ? undefined : filters.status,
             sort: "createdAt:desc",
           })
-        : shouldSearchOrFilter
-          ? await searchMyLeads(myLeadSearchParams(searchInput, filters, pageSize, pageOffset))
-          : await listMyAllLeads();
+        : await searchMyLeads(myLeadSearchParams(searchInput, filters, pageSize, pageOffset));
       if (requestId !== rowsRequestRef.current) return;
 
-      const items = "items" in response ? response.items : "leads" in response ? response.leads : [];
+      const items = response.items;
       const safeItems = Array.isArray(items) ? items : [];
       const total = Number("total" in response ? response.total : safeItems.length);
       setRows(safeItems.map(mapLeadItemToRow));
@@ -1053,18 +1048,13 @@ export function MyLeadsWorkspace({
     return () => window.clearTimeout(handle);
   }, [loadRows]);
 
-  const usesServerPagination = Boolean(
-    selectedEventKey || searchInput.trim().length > 0 || filters.status !== "all" || filters.contact !== "all"
-  );
   const visibleRows = useMemo(() => filterRows(rows, searchInput, filters), [filters, rows, searchInput]);
-  const pagedRows = usesServerPagination
-    ? visibleRows
-    : visibleRows.slice(pageOffset, pageOffset + pageSize);
+  const pagedRows = visibleRows;
   const activeFilterCount = [filters.status !== "all", filters.contact !== "all"].filter(Boolean).length;
-  const pageTotal = usesServerPagination ? leadListMeta.total : visibleRows.length;
+  const pageTotal = leadListMeta.total;
   const pageRangeStart = pagedRows.length > 0 ? pageOffset + 1 : 0;
   const pageRangeEnd = pageOffset + pagedRows.length;
-  const hasMore = usesServerPagination ? leadListMeta.hasMore : pageOffset + pageSize < pageTotal;
+  const hasMore = leadListMeta.hasMore;
   const editingLead = useMemo(
     () => rows.find((row) => row.id === editingLeadId) || null,
     [editingLeadId, rows]
