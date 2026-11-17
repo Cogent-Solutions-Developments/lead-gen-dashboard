@@ -153,6 +153,7 @@ export type CampaignListItem = {
   id: string;
   name: string;
   icpPreview: string;
+  info?: CampaignInfo | null;
   eventRegistryId?: string | null;
   canonicalEventKey?: string | null;
   canonicalEventName?: string | null;
