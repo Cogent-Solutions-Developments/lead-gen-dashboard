@@ -109,6 +109,15 @@ export async function enrichCampaignMetadata(
   now = Date.now(),
   onBatch?: (infoById: Record<string, CampaignInfo | null>) => void
 ) {
+  const includedInfo: Record<string, CampaignInfo | null> = {};
+  for (const campaign of campaigns) {
+    if (Object.prototype.hasOwnProperty.call(campaign, "info")) {
+      const info = campaign.info || null;
+      cache.set(campaign.id, { info, fetchedAt: now });
+      includedInfo[campaign.id] = info;
+    }
+  }
+  if (Object.keys(includedInfo).length > 0) onBatch?.(includedInfo);
   const needsInfo = campaigns.filter((campaign) => {
     if (campaign.category && campaign.date) return false;
     const cached = cache.get(campaign.id);

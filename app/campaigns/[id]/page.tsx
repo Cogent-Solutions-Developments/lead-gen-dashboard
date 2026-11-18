@@ -1883,15 +1883,37 @@ function SuperAdminCampaignDetailPage() {
     setCommonAttachmentId(mapped.id);
   };
 
+  const loadCampaignRows = async () => {
+    const { data } = await api.get(`/api/campaigns/${campaignId}/leads`, {
+      params: { status: "all", includeCampaign: true },
+    });
+    // Support a frontend rollout before the backend gains the combined response.
+    const campaign = data.campaign ?? (await api.get(`/api/campaigns/${campaignId}`)).data;
+    return { campaign, leads: (data.leads || []).map(mapCampaignLead) as Lead[] };
+  };
+
+  const refreshCampaignRows = async () => {
+    try {
+      const [rows, optOutRes] = await Promise.all([
+        loadCampaignRows(),
+        listWhatsAppOptOuts({ limit: 1000, activeOnly: true }),
+      ]);
+      setCampaign(rows.campaign);
+      setLeads(stabilizeLeadOrder(rows.leads));
+      setOptOutItems(Array.isArray(optOutRes?.items) ? optOutRes.items : []);
+    } catch (error: any) {
+      toast.error("Could not refresh campaign status", { description: error?.message });
+    }
+  };
+
   const fetchAll = async (options?: { silent?: boolean; syncSelectedLeadId?: string }) => {
     if (!options?.silent) {
       setLoading(true);
     }
     setIsEmailTemplateLoading(true);
     try {
-      const [cRes, lRes, infoRes, commonRes, optOutRes, templateRes, followUpTemplatesRes] = await Promise.all([
-        api.get(`/api/campaigns/${campaignId}`),
-        api.get(`/api/campaigns/${campaignId}/leads`, { params: { status: "all" } }),
+      const [rows, infoRes, commonRes, optOutRes, templateRes, followUpTemplatesRes] = await Promise.all([
+        loadCampaignRows(),
         api.get(`/api/campaigns/${campaignId}/info`).catch(() => null),
         api.get(`/api/campaigns/${campaignId}/common-attachments`).catch(() => null),
         listWhatsAppOptOuts({ limit: 1000, activeOnly: true }).catch(() => ({ ok: false, items: [] })),
@@ -1899,8 +1921,8 @@ function SuperAdminCampaignDetailPage() {
         api.get(`/api/campaigns/${campaignId}/follow-up-templates`).catch(() => null),
       ]);
 
-      setCampaign(cRes.data);
-      setCampaignCategory(String(infoRes?.data?.info?.category || cRes.data?.category || "").trim());
+      setCampaign(rows.campaign);
+      setCampaignCategory(String(infoRes?.data?.info?.category || rows.campaign?.category || "").trim());
       const configuredHeyreachCampaignId = String(infoRes?.data?.info?.heyreachCampaignId || "").trim();
       const configuredLinkedinTemplateBody = String(infoRes?.data?.info?.linkedinTemplateBody || "").trim();
       setHeyreachCampaignId(configuredHeyreachCampaignId);
@@ -1930,7 +1952,7 @@ function SuperAdminCampaignDetailPage() {
         setFollowUpTemplates(nextTemplates);
       }
 
-      const mapped: Lead[] = (lRes.data.leads || []).map(mapCampaignLead);
+      const mapped = rows.leads;
 
       setLeads(stabilizeLeadOrder(mapped));
       if (options?.syncSelectedLeadId) {
@@ -2016,18 +2038,24 @@ function SuperAdminCampaignDetailPage() {
     const waitForWhatsapp = expectedChannels.includes("whatsapp");
     let tries = 0;
     const maxTries = 40;
+    let inFlight = false;
 
     const t = setInterval(async () => {
+      if (inFlight) return;
       tries++;
       if (typeof document !== "undefined" && document.visibilityState !== "visible") {
         if (tries >= maxTries) clearInterval(t);
         return;
       }
 
+      inFlight = true;
       try {
-        const res = await api.get(`/api/campaigns/${campaignId}/leads`, { params: { status: "all" } });
+        const res = await api.get(`/api/campaigns/${campaignId}/leads`, { params: { status: "all", leadId } });
         const latest = (res.data.leads || []).find((x: any) => x.id === leadId);
-        if (!latest) return;
+        if (!latest) {
+          if (tries >= maxTries) clearInterval(t);
+          return;
+        }
         const latestOutreachStatus = extractOutreachStatus(latest);
 
         setLeads((prev) =>
@@ -2087,6 +2115,8 @@ function SuperAdminCampaignDetailPage() {
         }
       } catch {
         if (tries >= maxTries) clearInterval(t);
+      } finally {
+        inFlight = false;
       }
     }, 3000);
   };
@@ -2883,6 +2913,12 @@ function SuperAdminCampaignDetailPage() {
         });
         suppressedFromSend = Number(sendResult?.suppressedOptOut ?? 0);
         skippedNoChannel = Number(sendResult?.skippedNoChannel ?? 0);
+        const queuedCount = Number(sendResult?.queuedLeads ?? 0);
+        if (queuedCount > 0) {
+          toast.success("Outreach queued", {
+            description: `${queuedCount} lead(s) queued for ${channelLabel}.`,
+          });
+        }
       }
 
       const totalSuppressed = skippedCount + suppressedFromApprove + suppressedFromSend;
@@ -2900,14 +2936,14 @@ function SuperAdminCampaignDetailPage() {
       setShowBulkSendConfirm(false);
       setBulkSelectMode(false);
       setSelectedBulkLeadIds(new Set());
-      await fetchAll();
+      await refreshCampaignRows();
     } catch (error: any) {
       const detail = String(error?.response?.data?.detail || error?.message || "");
       if (isMarketingOptOutError(detail)) {
         toast.warning("Some selected leads are blocked", {
           description: "Suppressed leads are blocked from marketing outreach.",
         });
-        await fetchAll();
+        await refreshCampaignRows();
         return;
       }
       toast.error("Failed to queue bulk outreach", {

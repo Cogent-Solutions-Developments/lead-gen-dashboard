@@ -153,6 +153,7 @@ export type CampaignListItem = {
   id: string;
   name: string;
   icpPreview: string;
+  info?: CampaignInfo | null;
   eventRegistryId?: string | null;
   canonicalEventKey?: string | null;
   canonicalEventName?: string | null;
@@ -1224,6 +1225,7 @@ export type EventDocumentDeleteResponse = {
 };
 
 export type EventLeadListParams = {
+  signal?: AbortSignal;
   limit?: number;
   offset?: number;
   search?: string;
@@ -1809,6 +1811,7 @@ export async function listMyEventLeads(canonicalEventKey: string, params?: Event
   const { data } = await apiClient.get<EventLeadListResponse>(
     `/api/my-leads/events/${encodeURIComponent(canonicalEventKey)}/leads`,
     {
+      signal: params?.signal,
       params: {
         limit: params?.limit,
         offset: params?.offset,
@@ -1903,6 +1906,7 @@ export async function listEventLeads(canonicalEventKey: string, params?: EventLe
   const { data } = await apiClient.get<EventLeadListResponse>(
     `/api/events/${encodeURIComponent(canonicalEventKey)}/leads`,
     {
+      signal: params?.signal,
       params: {
         limit: params?.limit,
         offset: params?.offset,

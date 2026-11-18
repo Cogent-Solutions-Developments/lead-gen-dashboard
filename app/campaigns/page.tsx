@@ -33,7 +33,7 @@ import {
   deleteCampaign,
   forceDeleteCampaign,
   generateCampaignLeadContent,
-  getCampaignLeads,
+  getCampaignContentSummary,
   getCampaignInfo,
   listCampaigns,
   stopCampaign,
@@ -41,6 +41,7 @@ import {
   type CampaignInfo,
   type CampaignListItem,
   type LeadItem,
+  type CampaignContentSummaryResponse,
 } from "@/lib/apiRouter";
 import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
@@ -173,6 +174,12 @@ function summarizeCampaignContent(leads: LeadItem[]): CampaignContentSummary {
     emptyLeadIds,
     error: null,
   };
+}
+
+function normalizeCampaignContentSummary(response: CampaignContentSummaryResponse): CampaignContentSummary {
+  // Older backends ignore the summary parameter and still return complete leads.
+  if ("leads" in response) return summarizeCampaignContent(response.leads || []);
+  return { ...response, loading: false, loaded: true, error: null };
 }
 
 function statusUI(status: string) {
@@ -747,10 +754,10 @@ function SuperAdminCampaignsPage() {
       const pairs = await Promise.all(
         ids.map(async (id) => {
           try {
-            const response = await getCampaignLeads(id, "all");
+            const response = await getCampaignContentSummary(id);
             return {
               id,
-              summary: summarizeCampaignContent(response.leads || []),
+              summary: normalizeCampaignContentSummary(response),
               error: null,
             };
           } catch (error: unknown) {
@@ -840,8 +847,8 @@ function SuperAdminCampaignsPage() {
       }
 
       try {
-        const response = await getCampaignLeads(campaignId, "all");
-        const summary = summarizeCampaignContent(response.leads || []);
+        const response = await getCampaignContentSummary(campaignId);
+        const summary = normalizeCampaignContentSummary(response);
         setContentSummaryByCampaign((prev) => ({ ...prev, [campaignId]: summary }));
         return summary;
       } catch (error: unknown) {

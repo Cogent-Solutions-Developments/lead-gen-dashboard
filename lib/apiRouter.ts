@@ -278,6 +278,21 @@ export const deleteCampaignEmailTemplate: typeof sales.deleteCampaignEmailTempla
 export const getCampaignLeads: typeof sales.getCampaignLeads = (...args) =>
   pickModule().getCampaignLeads(...args);
 
+export type CampaignContentSummaryResponse = {
+  total: number;
+  completed: number;
+  emptyLeadIds: string[];
+} | { leads: sales.LeadItem[]; total: number };
+
+export async function getCampaignContentSummary(id: string) {
+  const prefix = getMyLeadsPrefix().replace(/\/my-leads$/, "");
+  const { data } = await apiClient.get<CampaignContentSummaryResponse>(
+    `${prefix}/campaigns/${encodeURIComponent(id)}/leads`,
+    { params: { status: "all", summary: true } }
+  );
+  return data;
+}
+
 export const listAllLeads: typeof sales.listAllLeads = (...args) =>
   pickModule().listAllLeads(...args);
 
@@ -445,6 +460,7 @@ export async function listMyLeadsEventLeads(
   const { data } = await apiClient.get<sales.EventLeadListResponse>(
     `${getMyLeadsPrefix(persona)}/events/${encodeURIComponent(canonicalEventKey)}/leads`,
     {
+      signal: params?.signal,
       params: {
         limit: params?.limit,
         offset: params?.offset,
