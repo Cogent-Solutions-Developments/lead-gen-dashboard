@@ -1,5 +1,6 @@
 import { AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import { getLocalDevNgrokHeaders } from "@/lib/devNgrok";
+import { invalidateCampaignPages } from "./campaignPageCache";
 import type { Persona } from "@/lib/persona";
 import {
   attachTeamLeadRequestHeaders,
@@ -1197,6 +1198,7 @@ export function updateStoredAuthUser(user: AuthUser) {
 
 export function clearAuthSession() {
   if (typeof window === "undefined") return;
+  invalidateCampaignPages();
   clearTeamLeadRequestScope();
   window.localStorage.removeItem(STORAGE_KEY);
   emitAuthChange();

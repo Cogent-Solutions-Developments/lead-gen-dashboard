@@ -57,12 +57,11 @@ import {
 } from "@/lib/campaignNavigation";
 import {
   enrichCampaignMetadata,
-  filterCampaigns,
   findCampaignCategories,
-  loadAllCampaigns,
   parseDbTimestamp,
   type CampaignInfoCache,
 } from "@/lib/campaignFilters";
+import { invalidateCampaignPages, loadCampaignPage, readCampaignPage } from "@/lib/campaignPageCache";
 
 const statusConfig: Record<
   string,
@@ -103,6 +102,7 @@ const statusConfig: Record<
 };
 
 const CAMPAIGN_LIST_POLL_MS = 30000;
+const CAMPAIGN_PAGE_SIZE = 5;
 const CONTENT_JOB_ACTIVE_STATES = new Set(["PENDING", "QUEUED", "STARTED", "PROGRESS", "RETRY", "PAUSING"]);
 
 type CampaignContentGenerationStatus = "preparing" | "running" | "stopping" | "paused";
@@ -322,6 +322,8 @@ function SuperAdminCampaignsPage() {
   const initialPage = parseCampaignPageParam(searchParams.get(CAMPAIGN_PAGE_QUERY_PARAM));
   const selectedCampaignId = searchParams.get(CAMPAIGN_SELECTED_QUERY_PARAM);
   const [items, setItems] = useState<CampaignListItem[]>([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [loadedQueryKey, setLoadedQueryKey] = useState("");
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [campaignInfoById, setCampaignInfoById] = useState<Record<string, CampaignInfo | null>>(
     {}
@@ -336,9 +338,10 @@ function SuperAdminCampaignsPage() {
   const [activeCategoryIndex, setActiveCategoryIndex] = useState(0);
   const [eventNameFilter, setEventNameFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+  const [appliedFilters, setAppliedFilters] = useState<CampaignFilterSnapshot>({ eventName: "", date: "", categories: [] });
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(() => initialPage);
-  const [itemsPerPage, setItemsPerPage] = useState(4);
+  const itemsPerPage = CAMPAIGN_PAGE_SIZE;
   const [dialogTarget, setDialogTarget] = useState<CampaignDialogTarget | null>(null);
   const [deleteBlockedDetail, setDeleteBlockedDetail] = useState<DeleteBlockedDetail | null>(null);
   const [isStopping, setIsStopping] = useState(false);
@@ -351,17 +354,39 @@ function SuperAdminCampaignsPage() {
     Record<string, CampaignContentSummary>
   >({});
   const { persona } = usePersona();
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, session } = useAuth();
   const filterPanelRef = useRef<HTMLDivElement | null>(null);
   const categoryListRef = useRef<HTMLDivElement | null>(null);
   const listViewportRef = useRef<HTMLDivElement | null>(null);
   const selectedCampaignRowRef = useRef<HTMLDivElement | null>(null);
   const contentGenerationControllersRef = useRef<Map<string, AbortController>>(new Map());
   const contentGenerationStopRequestedRef = useRef<Set<string>>(new Set());
-  const previousCampaignFiltersRef = useRef<CampaignFilterSnapshot | null>(null);
+  const previousCampaignFiltersRef = useRef<CampaignFilterSnapshot>({ eventName: "", date: "", categories: [] });
   const latestFetchRef = useRef(0);
   const fetchInProgressRef = useRef(false);
+  const activeCampaignsRef = useRef(false);
   const campaignInfoCacheRef = useRef<CampaignInfoCache>(new Map());
+  useEffect(() => {
+    activeCampaignsRef.current = items.some((campaign) =>
+      campaign.status === "processing" ||
+      CONTENT_JOB_ACTIVE_STATES.has(String(campaign.contentGenerationJob?.state || "").toUpperCase()) ||
+      ["preparing", "running", "stopping"].includes(contentGenerationByCampaign[campaign.id]?.status)
+    );
+  }, [items, contentGenerationByCampaign]);
+  const cacheScope = JSON.stringify([persona, session?.user.id, session?.user.role, session?.accessToken]);
+  const pageParams = useMemo(() => ({
+    status: "all", limit: itemsPerPage, offset: (currentPage - 1) * itemsPerPage,
+    search: appliedFilters.eventName.trim() || undefined,
+    categories: appliedFilters.categories,
+    date: appliedFilters.date || undefined,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    includeCategories: true,
+  }), [currentPage, itemsPerPage, appliedFilters]);
+  const queryKey = JSON.stringify([cacheScope, pageParams]);
+  const currentQueryRef = useRef({ cacheScope, pageParams, queryKey, persona });
+  useEffect(() => {
+    currentQueryRef.current = { cacheScope, pageParams, queryKey, persona };
+  }, [cacheScope, pageParams, queryKey, persona]);
 
   const replaceCampaignPage = useCallback(
     (page: number) => {
@@ -394,9 +419,15 @@ function SuperAdminCampaignsPage() {
     selectedCampaignRowRef.current?.scrollIntoView({ block: "nearest" });
   }, [loading, selectedCampaignId]);
 
-  const fetchData = useCallback(async (options?: { silent?: boolean; showErrors?: boolean }) => {
+  useEffect(() => {
+    if (!selectedCampaignId) listViewportRef.current?.scrollTo({ top: 0 });
+  }, [currentPage, selectedCampaignId]);
+
+  const fetchData = useCallback(async (options?: { silent?: boolean; showErrors?: boolean; force?: boolean }) => {
     const silent = Boolean(options?.silent);
-    if (silent && fetchInProgressRef.current) return;
+    if (silent && options?.force === false && fetchInProgressRef.current) return;
+    // Long-running generation actions must refresh the page currently being viewed.
+    const { cacheScope, pageParams, queryKey, persona } = currentQueryRef.current;
     const showErrors = options?.showErrors !== false;
     const fetchId = ++latestFetchRef.current;
     fetchInProgressRef.current = true;
@@ -407,12 +438,22 @@ function SuperAdminCampaignsPage() {
     }
 
     try {
-      const res = await loadAllCampaigns(listCampaigns);
+      const cached = options?.force === false ? readCampaignPage(cacheScope, pageParams) : undefined;
+      if (cached) {
+        setItems(cached.campaigns);
+        setTotalItems(cached.total);
+        setLoadedQueryKey(queryKey);
+        setCategoryOptions(cached.categories || []);
+        setLoading(false);
+      }
+      const res = await loadCampaignPage(cacheScope, pageParams, (params) => listCampaigns(params, persona), options?.force !== false);
       if (fetchId !== latestFetchRef.current) return;
+      setTotalItems(res.total);
+      setLoadedQueryKey(queryKey);
 
       if (!silent) {
         setItems(res.campaigns);
-        setCategoryOptions(res.categories);
+        setCategoryOptions(res.categories || []);
         setMetadataFailedCount(0);
         setLoadError(null);
         setMetadataLoading(true);
@@ -421,7 +462,7 @@ function SuperAdminCampaignsPage() {
 
       const enriched = await enrichCampaignMetadata(
         res.campaigns,
-        getCampaignInfo,
+        (id) => getCampaignInfo(id, persona),
         infoCache,
         Date.now(),
         (batchInfoById) => {
@@ -431,7 +472,7 @@ function SuperAdminCampaignsPage() {
       );
       if (fetchId !== latestFetchRef.current) return;
       setItems(enriched.campaigns);
-      setCategoryOptions(res.categories);
+      setCategoryOptions(res.categories || []);
       setCampaignInfoById((previous) => ({ ...previous, ...enriched.infoById }));
       setMetadataFailedCount(enriched.failedIds.length);
       setMetadataLoading(false);
@@ -456,18 +497,20 @@ function SuperAdminCampaignsPage() {
     let alive = true;
 
     (async () => {
-      await fetchData();
+      await fetchData({ force: false });
     })();
 
     const t = setInterval(() => {
       if (!alive) return;
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
-      void fetchData({ silent: true, showErrors: false });
+      if (fetchInProgressRef.current) return;
+      void fetchData({ silent: true, showErrors: false, force: activeCampaignsRef.current });
     }, CAMPAIGN_LIST_POLL_MS);
 
     const handleVisibilityChange = () => {
       if (!alive || document.visibilityState !== "visible") return;
-      void fetchData({ silent: true, showErrors: false });
+      if (fetchInProgressRef.current) return;
+      void fetchData({ silent: true, showErrors: false, force: activeCampaignsRef.current });
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
@@ -479,12 +522,12 @@ function SuperAdminCampaignsPage() {
       clearInterval(t);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [fetchData, persona]);
+  }, [fetchData, queryKey]);
 
   useEffect(() => {
     setCampaignInfoById({});
     setContentSummaryByCampaign({});
-  }, [persona]);
+  }, [cacheScope]);
 
   useEffect(() => {
     const controllers = contentGenerationControllersRef.current;
@@ -574,51 +617,9 @@ function SuperAdminCampaignsPage() {
     );
   };
 
-  useEffect(() => {
-    if (loading || items.length === 0) return;
-    const viewport = listViewportRef.current;
-    if (!viewport) return;
-
-    let rafId = 0;
-    const recompute = () => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        const sampleRow = viewport.querySelector<HTMLElement>("[data-campaign-row='true']");
-        const isDesktop = window.matchMedia("(min-width: 768px)").matches;
-        const fallbackRowHeight = isDesktop ? 154 : 210;
-        const rowHeight = sampleRow?.getBoundingClientRect().height || fallbackRowHeight;
-        const availableHeight = viewport.clientHeight;
-        if (!rowHeight || !availableHeight) return;
-
-        const maxRows = Math.max(1, Math.floor((availableHeight + 4) / rowHeight));
-        setItemsPerPage((prev) => (prev === maxRows ? prev : maxRows));
-      });
-    };
-
-    recompute();
-
-    const resizeObserver = new ResizeObserver(recompute);
-    resizeObserver.observe(viewport);
-    window.addEventListener("resize", recompute);
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      resizeObserver.disconnect();
-      window.removeEventListener("resize", recompute);
-    };
-  }, [items.length, loading]);
-
-  const filterResultsPending = metadataLoading && Boolean(dateFilter || selectedCategories.length);
-  const filteredItems = useMemo(
-    () => filterResultsPending ? [] : filterCampaigns(items, { eventName: eventNameFilter, date: dateFilter, categories: selectedCategories }),
-    [items, eventNameFilter, dateFilter, selectedCategories, filterResultsPending]
-  );
-  const totalItems = filteredItems.length;
+  const filterResultsPending = loading || loadedQueryKey !== queryKey;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-  const visibleItems = useMemo(
-    () => filteredItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage),
-    [filteredItems, currentPage, itemsPerPage]
-  );
+  const visibleItems = useMemo(() => loadedQueryKey === queryKey ? items : [], [loadedQueryKey, queryKey, items]);
 
   useEffect(() => {
     if (items.length === 0) return;
@@ -674,11 +675,15 @@ function SuperAdminCampaignsPage() {
       categories: selectedCategories,
     };
     const previousFilters = previousCampaignFiltersRef.current;
-    previousCampaignFiltersRef.current = nextFilters;
-
-    if (didCampaignFiltersChange(previousFilters, nextFilters)) {
-      replaceCampaignPage(1);
-    }
+    if (!didCampaignFiltersChange(previousFilters, nextFilters)) return;
+    const timer = window.setTimeout(() => {
+      previousCampaignFiltersRef.current = nextFilters;
+      if (didCampaignFiltersChange(previousFilters, nextFilters)) {
+        replaceCampaignPage(1);
+      }
+      setAppliedFilters(nextFilters);
+    }, 300);
+    return () => window.clearTimeout(timer);
   }, [selectedCategories, dateFilter, eventNameFilter, replaceCampaignPage]);
 
   useEffect(() => {
@@ -1224,6 +1229,8 @@ function SuperAdminCampaignsPage() {
       setDialogTarget(null);
       setDeleteBlockedDetail(null);
       toast.success("Campaign deleted", { description: result.data.message });
+      invalidateCampaignPages();
+      void fetchData();
     } catch (err: unknown) {
       toast.error("Delete failed", { description: getErrorMessage(err) });
     } finally {
@@ -1498,7 +1505,7 @@ function SuperAdminCampaignsPage() {
         <div className={listShell}>
           <CampaignListHeader />
 
-          <div ref={listViewportRef} className="min-h-0 flex-1 overflow-hidden">
+          <div ref={listViewportRef} className="min-h-0 flex-1 overflow-y-auto">
             {loading && <div className="px-5 py-8 text-sm text-zinc-500">Loading campaigns...</div>}
 
             {!loading && loadError && (
