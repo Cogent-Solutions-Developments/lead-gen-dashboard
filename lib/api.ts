@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance } from "axios";
 import { apiClient } from "./apiClient";
+import { invalidateCampaignPagesAfterMutation } from "./campaignPageCache";
 import { attachAuthToken, downloadProtectedFile, getAuthHeader } from "@/lib/auth";
 import { getLocalDevNgrokHeaders } from "@/lib/devNgrok";
 
@@ -2825,3 +2826,4 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use(attachAuthToken);
+api.interceptors.response.use(invalidateCampaignPagesAfterMutation);

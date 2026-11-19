@@ -1009,6 +1009,8 @@ export const api = axios.create({
   },
 });
 
+api.interceptors.response.use(invalidateCampaignPagesAfterMutation);
+
 api.interceptors.request.use((config) => {
   attachAuthToken(config);
   const url = config.url || "";
