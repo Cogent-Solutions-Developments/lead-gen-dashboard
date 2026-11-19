@@ -487,7 +487,8 @@ function SuperAdminCampaignsPage() {
     } finally {
       if (fetchId === latestFetchRef.current) {
         fetchInProgressRef.current = false;
-        if (!silent) setLoading(false);
+        // A silent refresh can supersede the request that started the loading state.
+        setLoading(false);
         setMetadataLoading(false);
       }
     }
