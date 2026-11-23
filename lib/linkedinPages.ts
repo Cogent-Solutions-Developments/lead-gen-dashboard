@@ -14,7 +14,7 @@ export type LinkedInCampaign = {
   fileName: string;
   eventKey?: string | null;
   totalLeads: number;
-  importSummary: { raw_rows: number; invalid_rows: number; duplicates_collapsed: number };
+  importSummary: { raw_rows: number; import_rows?: number; invalid_rows: number; duplicates_collapsed: number; invalid_reasons?: string[] };
   status: "uploaded";
   createdAt: string;
   createdBy: string;

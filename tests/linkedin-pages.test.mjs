@@ -165,6 +165,44 @@ test("a LinkedIn page uses the Outreach event list and reloads it after upload",
   assert.notEqual(view.find(node => node.type === "OutreachEvents").key, list.key);
 });
 
+test("partial uploads show their summary immediately and retain it when reopened", async () => {
+  const campaign = {...savedCampaign, importSummary: {raw_rows: 4, import_rows: 2, invalid_rows: 1, duplicates_collapsed: 1, invalid_reasons: ["Row 5: missing employee name"]}};
+  const props = {page: savedPage};
+  const list = harness("components/linkedin/LinkedInCampaignList.tsx", "LinkedInCampaignList", {}, props);
+  list.find(node => node.type === "OutreachEvents").props.actions.props.onClick();
+  list.render();
+  list.find(node => node.type === "UploadLinkedInCampaignDialog").props.onSaved(campaign);
+  list.render();
+  assert.equal(list.find(node => node.type === "LinkedInImportSummary").props.campaign, campaign);
+  props.page = {...savedPage, id: "another-page"};
+  list.render();
+  assert.equal(list.all(node => node.type === "LinkedInImportSummary").length, 0);
+
+  const reopened = harness("components/linkedin/LinkedInCampaignWorkspace.tsx", "LinkedInCampaignWorkspace", {
+    getLinkedInCampaign: async () => ({page: savedPage, campaign, items: [], total: 2, hasMore: false}),
+  }, {pageId: savedPage.id, campaignId: campaign.id});
+  await reopened.flush();
+  assert.equal(reopened.find(node => node.type === "LinkedInImportSummary").props.campaign, campaign);
+
+  const summary = harness("components/linkedin/LinkedInImportSummary.tsx", "LinkedInImportSummary", {}, {campaign});
+  assert.equal(summary.find(node => node.type === "li").props.children, "Row 5: missing employee name");
+  const text = summary.find(node => node.props?.role === "status").props.children.join("");
+  assert.match(text, /2 leads imported from 4 rows/);
+  assert.match(text, /1 invalid rows skipped/);
+  assert.match(text, /1 duplicate rows combined/);
+});
+
+test("complete imports show their counts without warnings and older summaries need no reasons", () => {
+  const complete = harness("components/linkedin/LinkedInImportSummary.tsx", "LinkedInImportSummary", {}, {campaign: savedCampaign});
+  assert.equal(complete.all(node => node.type === "li").length, 0);
+  assert.equal(complete.all(node => node.type === "div").length, 0);
+  assert.match(complete.find(node => node.props?.role === "status").props.children.join(""), /2 leads imported from 2 rows/);
+  const old = harness("components/linkedin/LinkedInImportSummary.tsx", "LinkedInImportSummary", {}, {
+    campaign: {...savedCampaign, importSummary: {raw_rows: 3, invalid_rows: 1, duplicates_collapsed: 0}},
+  });
+  assert.ok(old.find(node => node.type === "p" && node.props?.children === "Correct the skipped rows before uploading them in a new campaign."));
+});
+
 test("LinkedIn campaigns use page-scoped Outreach rows and the shared mode and delivery endpoints", async () => {
   let requested;
   const calls = [];
