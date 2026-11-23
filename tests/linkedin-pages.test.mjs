@@ -185,14 +185,15 @@ test("partial uploads show their summary immediately and retain it when reopened
   assert.equal(reopened.find(node => node.type === "LinkedInImportSummary").props.campaign, campaign);
 
   const summary = harness("components/linkedin/LinkedInImportSummary.tsx", "LinkedInImportSummary", {}, {campaign});
-  assert.equal(summary.find(node => node.type === "li").props.children, "Row 5: missing employee name");
+  assert.equal(summary.all(node => node.type === "li").length, 0);
+  assert.equal(summary.all(node => node.type === "div").length, 0);
   const text = summary.find(node => node.props?.role === "status").props.children.join("");
   assert.match(text, /2 leads imported from 4 rows/);
   assert.match(text, /1 invalid rows skipped/);
   assert.match(text, /1 duplicate rows combined/);
 });
 
-test("complete imports show their counts without warnings and older summaries need no reasons", () => {
+test("import summaries show counts without skipped-row warnings", () => {
   const complete = harness("components/linkedin/LinkedInImportSummary.tsx", "LinkedInImportSummary", {}, {campaign: savedCampaign});
   assert.equal(complete.all(node => node.type === "li").length, 0);
   assert.equal(complete.all(node => node.type === "div").length, 0);
@@ -200,7 +201,8 @@ test("complete imports show their counts without warnings and older summaries ne
   const old = harness("components/linkedin/LinkedInImportSummary.tsx", "LinkedInImportSummary", {}, {
     campaign: {...savedCampaign, importSummary: {raw_rows: 3, invalid_rows: 1, duplicates_collapsed: 0}},
   });
-  assert.ok(old.find(node => node.type === "p" && node.props?.children === "Correct the skipped rows before uploading them in a new campaign."));
+  assert.equal(old.all(node => node.type === "div").length, 0);
+  assert.match(old.find(node => node.props?.role === "status").props.children.join(""), /1 invalid rows skipped/);
 });
 
 test("LinkedIn campaigns use page-scoped Outreach rows and the shared mode and delivery endpoints", async () => {
