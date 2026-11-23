@@ -4,6 +4,7 @@ import test from "node:test";
 import { runInNewContext } from "node:vm";
 import * as jsxRuntime from "react/jsx-runtime";
 import ts from "typescript";
+import * as outreachTypes from "../lib/automatedOutreach.ts";
 import * as pageTypes from "../lib/linkedinPages.ts";
 
 const savedPage = { id: "saved-page", name: "Saved page", url: "https://www.linkedin.com/company/saved-page/", createdAt: "2026-11-19T00:00:00Z" };
@@ -46,7 +47,10 @@ function harness(file, exportName, api, props = {}) {
           }
         },
       };
-      if (name === "@/lib/linkedinPagesApi") return api;
+      if (name === "@/lib/linkedinPagesApi" || name === "@/lib/automatedOutreachApi") return api;
+      if (name === "@/lib/automatedOutreach") return outreachTypes;
+      if (name === "@/hooks/useOutreachResource") return { useOutreachResource: api.resource };
+      if (name === "@/lib/auth") return { listActiveEventRegistry: api.listActiveEventRegistry ?? (async () => []) };
       if (name === "@/lib/linkedinPages") return pageTypes;
       if (name === "next/link") return "a";
       return new Proxy({}, { get: (_, key) => key });
@@ -54,7 +58,7 @@ function harness(file, exportName, api, props = {}) {
   });
   function render() { cursor = 0; tree = mod.exports[exportName](props); }
   function all(predicate, node = tree, found = []) {
-    if (Array.isArray(node)) { node.forEach((child) => all(predicate, child, found)); return found; }
+    if (Array.isArray(node)) { node.forEach((child) => all(predicate, child ?? null, found)); return found; }
     if (!node || typeof node !== "object") return found;
     if (predicate(node)) found.push(node);
     all(predicate, node.props?.children ?? null, found);
@@ -146,27 +150,43 @@ const savedCampaign = {
   createdAt: "2026-11-19T00:00:00Z", createdBy: "Admin",
 };
 
-test("a page shows Upload Campaign, its stored campaigns, and page-scoped View Leads links", async () => {
+test("a LinkedIn page uses the Outreach event list and reloads it after upload", () => {
+  const view = harness("components/linkedin/LinkedInCampaignList.tsx", "LinkedInCampaignList", {}, { page: savedPage });
+  const list = view.find(node => node.type === "OutreachEvents");
+  assert.equal(list.props.department, "linkedin");
+  assert.equal(list.props.linkedinPageId, savedPage.id);
+  assert.equal(list.props.title, "LinkedIn campaigns");
+  assert.equal(list.props.description, savedPage.name);
+  assert.equal(list.props.backHref, "/admin/lead-intelligence/linkedin");
+  list.props.actions.props.onClick(); view.render();
+  const dialog = view.find(node => node.type === "UploadLinkedInCampaignDialog");
+  assert.equal(dialog.props.page.id, savedPage.id);
+  dialog.props.onSaved(savedCampaign); view.render();
+  assert.notEqual(view.find(node => node.type === "OutreachEvents").key, list.key);
+});
+
+test("LinkedIn campaigns use page-scoped Outreach rows and the shared mode and delivery endpoints", async () => {
+  let requested;
   const calls = [];
-  const view = harness("components/linkedin/LinkedInCampaignList.tsx", "LinkedInCampaignList", {
-    listLinkedInCampaigns: async (pageId, params) => {
-      calls.push({ pageId, params });
-      return { campaigns: [savedCampaign], total: 1, hasMore: false };
-    },
-  }, { page: savedPage });
-  await view.flush();
-  assert.equal(calls[0].pageId, savedPage.id);
-  assert.equal(calls[0].params.limit, 6);
-  assert.equal(calls[0].params.offset, 0);
-  assert.equal(view.find((node) => node.props?.href === savedPage.url).props.rel, "noopener noreferrer");
-  assert.ok(view.all((node) => node.props?.href === `/admin/lead-intelligence/linkedin/${savedPage.id}/campaigns/${savedCampaign.id}`).length);
-  const pager = view.find((node) => node.props?.pageSize === 6);
-  pager.props.onChange(1);
-  view.render();
-  assert.ok(view.all((node) => node.props?.href?.endsWith?.(`/campaigns/${savedCampaign.id}`)).length, "clicking the current page keeps results visible");
-  view.find((node) => node.props?.children?.includes?.("Upload Campaign")).props.onClick();
-  view.render();
-  assert.equal(view.find((node) => typeof node.props?.onSaved === "function").props.page.id, savedPage.id);
+  const event = {key: savedCampaign.id, name: savedCampaign.name, leads: 2, active: 2, statuses: {new: 2}, outreachEnabled: false, contentMode: "template", templatesReady: false};
+  const view = harness("components/automated-outreach/OutreachEvents.tsx", "OutreachEvents", {
+    resource: path => { requested = path; return {data: {items: [event], revision: 4, enabled: true}, reload(){}, refreshing: false}; },
+    setEventContentMode: async (...args) => {calls.push(args); return {revision: 5};},
+    setEventOutreach: async (...args) => {calls.push(args); return {revision: 6};},
+  }, {department: "linkedin", linkedinPageId: savedPage.id, title: savedPage.name});
+  const params = new URLSearchParams(requested.split("?")[1]);
+  assert.equal(params.get("department"), "linkedin");
+  assert.equal(params.get("linkedinPageId"), savedPage.id);
+  assert.ok(view.find(node => node.props?.href === `/admin/lead-intelligence/linkedin/${savedPage.id}/campaigns/${savedCampaign.id}`));
+  const mode = view.find(node => node.type === "OutreachModeToggle");
+  assert.equal(mode.props.value, "template");
+  assert.match(mode.props.generatedDisabledReason, /custom configuration/);
+  await mode.props.onChange("template"); await settle(); view.render();
+  assert.deepEqual(Array.from(calls[0]), ["linkedin", savedCampaign.id, "template", 4]);
+  const toggle = view.find(node => typeof node.type === "function" && node.props?.label === `Automatic email delivery for ${event.name}`);
+  assert.equal(toggle.props.checked, false);
+  await toggle.props.onChange(true); await settle(); view.render();
+  assert.deepEqual(Array.from(calls[1]), ["linkedin", savedCampaign.id, true, 5]);
 });
 
 test("upload submits a CSV to the selected page once and publishes the saved campaign", async () => {
@@ -218,22 +238,99 @@ test("invalid sheets do not upload, and server failures keep the campaign form o
   assert.equal(view.find((node) => node.props?.id === "linkedin-campaign-name").props.value, "Campaign");
 });
 
-test("a campaign opens only its page-scoped lead sheet with pagination", async () => {
+test("a page-validated campaign opens the shared Outreach lead sheet and sequence settings", async () => {
   const calls = [];
   const view = harness("components/linkedin/LinkedInCampaignWorkspace.tsx", "LinkedInCampaignWorkspace", {
-    getLinkedInCampaign: async (pageId, campaignId, params) => {
-      calls.push({ pageId, campaignId, params });
-      return { page: savedPage, campaign: savedCampaign, items: [{ id: "lead-1", name: "Jane Doe", jobTitle: "CEO", company: "Example", email: "jane@example.test", phone: "" }], total: 2, hasMore: false };
+    getLinkedInCampaign: async (pageId, campaignId) => {
+      calls.push({pageId, campaignId});
+      return {page: savedPage, campaign: savedCampaign, items: [], total: 2, hasMore: false};
     },
-  }, { pageId: savedPage.id, campaignId: savedCampaign.id });
+  }, {pageId: savedPage.id, campaignId: savedCampaign.id});
   await view.flush();
   assert.equal(calls[0].pageId, savedPage.id);
   assert.equal(calls[0].campaignId, savedCampaign.id);
-  assert.equal(calls[0].params.limit, 25);
-  assert.equal(view.find((node) => node.props?.title === savedCampaign.name).props.description, savedPage.name);
-  assert.ok(view.find((node) => node.props?.href === `/admin/lead-intelligence/linkedin/${savedPage.id}`));
-  assert.ok(view.find((node) => node.props?.children === "Jane Doe"));
-  view.find((node) => node.props?.pageSize === 25).props.onChange(1);
+  const sheet = view.find(node => node.type === "OutreachLeadTable");
+  assert.equal(sheet.props.department, "linkedin");
+  assert.equal(sheet.props.eventKey, savedCampaign.id);
+  assert.equal(sheet.props.title, savedCampaign.name);
+  assert.equal(sheet.props.backHref, `/admin/lead-intelligence/linkedin/${savedPage.id}`);
+});
+
+test("a campaign from another page cannot open Outreach controls", async () => {
+  const view = harness("components/linkedin/LinkedInCampaignWorkspace.tsx", "LinkedInCampaignWorkspace", {
+    getLinkedInCampaign: async () => { throw {data: {detail: "Campaign not found for this LinkedIn page."}}; },
+  }, {pageId: savedPage.id, campaignId: "other-campaign"});
+  await view.flush();
+  assert.equal(view.all(node => node.type === "OutreachLeadTable").length, 0);
+  assert.ok(view.find(node => node.props?.role === "alert"));
+});
+
+
+test("an uploaded LinkedIn campaign can save missing event context once without enabling delivery", async () => {
+  const calls = [];
+  let finish, saved = 0;
+  const campaign = {...savedCampaign, eventKey: null};
+  const view = harness("components/linkedin/LinkedInCampaignEventSettings.tsx", "LinkedInCampaignEventSettings", {
+    listActiveEventRegistry: async () => [{eventKey: "asset-integrity", eventName: "Asset Integrity Conference"}],
+    updateLinkedInCampaignEvent: (...args) => {calls.push(args); return new Promise(resolve => {finish=resolve;});},
+  }, {campaign, onSaved: () => saved++});
+  await view.flush();
+  assert.ok(view.find(node => node.props?.role === "status"));
+  view.find(node => node.props?.id === "linkedin-linked-event").props.onChange({target:{value:"asset-integrity"}});
   view.render();
-  assert.ok(view.find((node) => node.props?.children === "Jane Doe"));
+  const save = view.find(node => node.props?.children === "Save event").props.onClick;
+  save(); save(); view.render();
+  assert.equal(calls.length, 1);
+  assert.deepEqual(Array.from(calls[0]), [campaign.pageId,campaign.id,"asset-integrity"]);
+  assert.equal(view.find(node => node.type === "Button").props.disabled, true);
+  finish({...campaign,eventKey:"asset-integrity"}); await settle(); view.render();
+  assert.equal(saved, 1);
+});
+
+test("a rejected event change keeps its selection and displays the server reason", async () => {
+  const view = harness("components/linkedin/LinkedInCampaignEventSettings.tsx", "LinkedInCampaignEventSettings", {
+    updateLinkedInCampaignEvent: async () => {throw {data:{detail:"Wait for delivery to finish"}};},
+  }, {campaign:savedCampaign,onSaved:()=>assert.fail("No successful event save")});
+  await view.flush();
+  view.find(node => node.props?.id === "linkedin-linked-event").props.onChange({target:{value:"asset-integrity"}});
+  view.render();view.find(node => node.props?.children === "Save event").props.onClick();await settle();view.render();
+  assert.equal(view.find(node=>node.props?.role === "alert").props.children,"Wait for delivery to finish");
+  assert.equal(view.find(node=>node.props?.id === "linkedin-linked-event").props.value,"asset-integrity");
+});
+
+
+test("LinkedIn campaign rows surface missing mail routing instead of implying delivery is ready", () => {
+  const issue = "Configure an active Sales mail webhook in Settings.";
+  const view = harness("components/automated-outreach/OutreachEvents.tsx", "OutreachEvents", {
+    resource: () => ({data:{items:[{key:savedCampaign.id,name:savedCampaign.name,leads:2,active:2,statuses:{new:2},outreachEnabled:true,contentMode:"template",templatesReady:true,deliveryIssues:[issue]}],revision:1,enabled:true},reload(){}}),
+  }, {department:"linkedin",linkedinPageId:savedPage.id});
+  assert.equal(view.find(node=>node.type === "li" && node.props?.children === issue).props.children,issue);
+  assert.ok(view.find(node=>node.props?.href === "/settings?section=outreach&department=sales"));
+});
+
+
+test("LinkedIn disables Agentic while template mode remains selectable", () => {
+  const changes = [];
+  const view = harness("components/automated-outreach/OutreachModeToggle.tsx", "OutreachModeToggle", {}, {
+    value:"template", label:"LinkedIn mode", generatedDisabledReason:outreachTypes.LINKEDIN_AGENTIC_DISABLED_REASON, onChange:mode=>changes.push(mode),
+  });
+  const buttons = view.all(node=>node.type === "button");
+  assert.equal(buttons[0].props.disabled,false);
+  assert.equal(buttons[1].props.disabled,true);
+  buttons[1].props.onClick();
+  assert.deepEqual(changes,[]);
+  buttons[0].props.onClick();
+  assert.deepEqual(changes,["template"]);
+  assert.equal(outreachTypes.eventContentMode({contentMode:"generated",eventContentModes:{linkedin:{campaign:"generated"}}},"linkedin","campaign"),"template");
+});
+
+
+test("LinkedIn sequence setup reads Sales-scoped delivery readiness and links to Sales mail settings", () => {
+  let requested;
+  const view = harness("components/automated-outreach/OutreachEventSettings.tsx", "OutreachEventSettings", {
+    resource: path => {requested=path; return {data:{revision:1,contentMode:"template",mailWebhookGroup:"sales",missingConfiguration:[],eventOutreach:{linkedin:{campaign:false}}},reload(){}};},
+  }, {department:"linkedin",eventKey:"campaign",eventName:"Asset Integrity",onSaved(){}});
+  assert.equal(requested,"/configuration?department=linkedin");
+  assert.ok(view.find(node=>node.props?.href === "/settings?section=outreach&department=sales"));
+  assert.equal(view.all(node=>node.props?.children === "Outreach setup needs attention").length,0);
 });

@@ -28,9 +28,7 @@ export function LinkedInPageWorkspace({ pageId }: { pageId: string }) {
 
   return (
     <div className="space-y-6 p-1 font-sans">
-      <Link href="/admin/lead-intelligence/linkedin" className="inline-flex min-h-10 items-center gap-2 text-sm text-zinc-500 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600 dark:hover:text-zinc-100">
-        <ArrowLeft className="size-4" aria-hidden="true" />All LinkedIn pages
-      </Link>
+      {!result.page && <Link href="/admin/lead-intelligence/linkedin" className="inline-flex min-h-10 items-center gap-2 text-sm text-zinc-500 hover:text-zinc-900"><ArrowLeft className="size-4" aria-hidden="true" />All LinkedIn pages</Link>}
       {result.loading && <p role="status" className="inline-flex items-center gap-2 text-sm text-zinc-500"><Loader2 className="size-4 animate-spin" aria-hidden="true" />Loading LinkedIn page…</p>}
       {result.error && <div role="alert" className="space-y-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"><p>{result.error}</p><Button type="button" variant="outline" onClick={retry}>Retry</Button></div>}
       {result.page && <LinkedInCampaignList key={result.page.id} page={result.page} />}

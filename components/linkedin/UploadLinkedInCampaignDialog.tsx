@@ -5,6 +5,7 @@ import { Loader2, UploadCloud, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { linkedInPageError, type LinkedInCampaign, type LinkedInPage } from "@/lib/linkedinPages";
+import { listActiveEventRegistry, type AdminEventItem } from "@/lib/auth";
 import { uploadLinkedInCampaign } from "@/lib/linkedinPagesApi";
 
 export function UploadLinkedInCampaignDialog({ page, onClose, onSaved }: {
@@ -17,15 +18,23 @@ export function UploadLinkedInCampaignDialog({ page, onClose, onSaved }: {
   const inFlight = useRef(false);
   const [name, setName] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [events, setEvents] = useState<AdminEventItem[]>([]);
+  const [eventKey, setEventKey] = useState("");
+  const [eventsError, setEventsError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const dialog = dialogRef.current;
     const previous = document.activeElement as HTMLElement | null;
+    let active = true;
+    listActiveEventRegistry().then(
+      items => { if (active) setEvents(items); },
+      () => { if (active) setEventsError("Events could not be loaded. You can still upload and use email templates."); },
+    );
     dialog?.showModal();
     nameRef.current?.focus();
-    return () => { dialog?.close(); previous?.focus(); };
+    return () => { active = false; dialog?.close(); previous?.focus(); };
   }, []);
 
   function selectFile(candidate: File | null) {
@@ -46,7 +55,7 @@ export function UploadLinkedInCampaignDialog({ page, onClose, onSaved }: {
     setSaving(true);
     setError(null);
     try {
-      const campaign = await uploadLinkedInCampaign(page.id, name.trim(), file);
+      const campaign = await uploadLinkedInCampaign(page.id, name.trim(), file, eventKey || undefined);
       onSaved(campaign);
       onClose();
     } catch (error) {
@@ -64,10 +73,11 @@ export function UploadLinkedInCampaignDialog({ page, onClose, onSaved }: {
     </div>
     <form onSubmit={submit} aria-busy={saving} className="mt-6 space-y-5">
       <div className="space-y-2"><label htmlFor="linkedin-campaign-name" className="text-sm font-medium">Campaign name</label><Input ref={nameRef} id="linkedin-campaign-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. November LinkedIn leads" maxLength={255} required disabled={saving} /></div>
+      <div className="space-y-2"><label htmlFor="linkedin-campaign-event" className="text-sm font-medium">Event (optional)</label><select id="linkedin-campaign-event" value={eventKey} onChange={event => setEventKey(event.target.value)} disabled={saving} className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"><option value="">No linked event</option>{events.map(event => <option key={event.eventKey} value={event.eventKey}>{event.eventName}</option>)}</select><p className="text-sm text-zinc-500">Select the event to use its website, date and location in templates and Agentic content.</p>{eventsError && <p role="status" className="text-sm text-amber-700">{eventsError}</p>}</div>
       <div className="space-y-3 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/60 p-5 dark:border-zinc-700 dark:bg-zinc-950/30">
         <label htmlFor="linkedin-campaign-file" className="flex items-center gap-2 text-sm font-medium"><UploadCloud className="size-5 text-blue-600" aria-hidden="true" />Lead sheet</label>
         <Input id="linkedin-campaign-file" type="file" accept=".csv,.xlsx" onChange={(event) => selectFile(event.target.files?.[0] ?? null)} required disabled={saving} aria-describedby="linkedin-campaign-file-hint" className="h-auto py-2" />
-        <p id="linkedin-campaign-file-hint" className="text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">CSV or XLSX, up to 20 MB. Include a full name or first and last names, plus an email or phone number. Company and job title are optional.</p>
+        <p id="linkedin-campaign-file-hint" className="text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">CSV or XLSX, up to 20 MB. Include a full name or first and last names, plus an email or phone number. Company and job title are optional. Leads without a valid email stay read-only.</p>
         {file && <p className="break-all text-sm text-zinc-600 dark:text-zinc-300">{file.name}</p>}
       </div>
       {error && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{error}</p>}

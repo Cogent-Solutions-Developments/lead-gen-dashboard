@@ -27,10 +27,11 @@ export async function listLinkedInCampaigns(pageId: string, params: { limit: num
   return data;
 }
 
-export async function uploadLinkedInCampaign(pageId: string, name: string, file: File) {
+export async function uploadLinkedInCampaign(pageId: string, name: string, file: File, eventKey?: string) {
   const form = new FormData();
   form.append("name", name.trim());
   form.append("leadSheet", file);
+  if (eventKey) form.append("eventKey", eventKey);
   const { data } = await apiClient.post<{ campaign: LinkedInCampaign }>(campaignsUrl(pageId), form);
   return data.campaign;
 }
@@ -38,4 +39,9 @@ export async function uploadLinkedInCampaign(pageId: string, name: string, file:
 export async function getLinkedInCampaign(pageId: string, campaignId: string, params: { limit: number; offset: number }, signal?: AbortSignal) {
   const { data } = await apiClient.get<LinkedInCampaignDetail>(`${campaignsUrl(pageId)}/${encodeURIComponent(campaignId)}`, { params, signal });
   return data;
+}
+
+export async function updateLinkedInCampaignEvent(pageId: string, campaignId: string, eventKey: string | null) {
+  const { data } = await apiClient.put<{ campaign: LinkedInCampaign }>(`${campaignsUrl(pageId)}/${encodeURIComponent(campaignId)}/event`, { eventKey });
+  return data.campaign;
 }

@@ -12,6 +12,7 @@ export type LinkedInCampaign = {
   pageId: string;
   name: string;
   fileName: string;
+  eventKey?: string | null;
   totalLeads: number;
   importSummary: { raw_rows: number; invalid_rows: number; duplicates_collapsed: number };
   status: "uploaded";
