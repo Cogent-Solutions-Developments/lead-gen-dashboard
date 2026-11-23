@@ -5,6 +5,7 @@ import test from "node:test";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { isSalesPerformancePipeline } from "../lib/managerPerformance.ts";
+import * as campaignPageCache from "../lib/campaignPageCache.ts";
 
 const nativeRequire = createRequire(import.meta.url);
 const response = {
@@ -31,6 +32,7 @@ for (const modulePath of ["lib/auth.ts", "app/admin/admin-api.ts"]) {
     const calls = [];
     const fetch = async url => { calls.push(new URL(url)); return Response.json(response); };
     const auth = load("lib/auth.ts", {
+      "./campaignPageCache": campaignPageCache,
       "@/lib/devNgrok": { getLocalDevNgrokHeaders: () => ({}) },
       "@/lib/teamLeads": { attachTeamLeadRequestHeaders: config => config, clearTeamLeadRequestScope() {} },
     }, fetch);

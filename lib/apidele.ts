@@ -1,5 +1,6 @@
 ﻿import axios from "axios";
 import { attachAuthToken } from "@/lib/auth";
+import { invalidateCampaignPagesAfterMutation } from "./campaignPageCache";
 import { getLocalDevNgrokHeaders } from "@/lib/devNgrok";
 import type {
   CampaignImportSummary,
@@ -174,7 +175,7 @@ type ApiError = Error & {
 
 // Clean error messages
 apiClientDelegate.interceptors.response.use(
-  (res) => res,
+  invalidateCampaignPagesAfterMutation,
   (err) => {
     const msg =
       err?.response?.data
@@ -238,7 +239,7 @@ export async function getRecentCampaigns(limit?: number) {
 export async function listCampaigns(params: CampaignListParams) {
   const { data } = await apiClientDelegate.get<CampaignListResponse>(
     "/api/delegates/campaigns",
-    { params }
+    { params, paramsSerializer: { indexes: null } }
   );
   return data;
 }
@@ -1007,6 +1008,8 @@ export const api = axios.create({
     ...getLocalDevNgrokHeaders(),
   },
 });
+
+api.interceptors.response.use(invalidateCampaignPagesAfterMutation);
 
 api.interceptors.request.use((config) => {
   attachAuthToken(config);

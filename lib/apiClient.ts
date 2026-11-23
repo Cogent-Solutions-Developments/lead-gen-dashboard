@@ -1,6 +1,7 @@
 import axios from "axios";
 import { attachAuthToken } from "@/lib/auth";
 import { getLocalDevNgrokHeaders } from "@/lib/devNgrok";
+import { invalidateCampaignPagesAfterMutation } from "./campaignPageCache";
 
 export const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
@@ -15,7 +16,7 @@ apiClient.interceptors.request.use(attachAuthToken);
 
 // Clean error messages
 apiClient.interceptors.response.use(
-  (res) => res,
+  invalidateCampaignPagesAfterMutation,
   (err) => {
     const msg =
       err?.response?.data

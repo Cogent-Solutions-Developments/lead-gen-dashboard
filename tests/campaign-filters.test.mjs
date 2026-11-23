@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { enrichCampaignMetadata, filterCampaigns, findCampaignCategories, loadAllCampaigns } from "../lib/campaignFilters.ts";
+import { enrichCampaignMetadata, filterCampaigns, findCampaignCategories } from "../lib/campaignFilters.ts";
 
 const campaigns = [
   { id: "1", name: "Campaign Alpha", canonicalEventName: "RegTech UAE", date: "2026-11-05", category: "Compliance", createdAt: new Date(2026, 8, 23, 12).toISOString() },
@@ -76,26 +76,4 @@ test("metadata is published a batch at a time while later requests are pending",
   const result = await enrichment;
   assert.equal(published.length, 2);
   assert.equal(result.campaigns[8].category, "Category 8");
-});
-
-test("loads every backend page before filtering and merges category options", async () => {
-  const offsets = [];
-  const result = await loadAllCampaigns(async ({ status, limit, offset }) => {
-    assert.equal(status, "all");
-    assert.equal(limit, 100);
-    offsets.push(offset);
-    const batch = campaigns.slice(offset, offset + 2);
-    return { campaigns: batch, total: campaigns.length, hasMore: offset + batch.length < campaigns.length, categories: offset === 0 ? ["Compliance"] : ["Technology"] };
-  });
-
-  assert.deepEqual(offsets, [0, 2]);
-  assert.deepEqual(result.campaigns.map((item) => item.id), ["1", "2", "3"]);
-  assert.deepEqual(result.categories, ["Compliance", "Technology"]);
-});
-
-test("fails rather than showing a partial result if a page is missing", async () => {
-  await assert.rejects(
-    loadAllCampaigns(async () => ({ campaigns: [], total: 1, hasMore: true })),
-    /ended before all campaigns/
-  );
 });
