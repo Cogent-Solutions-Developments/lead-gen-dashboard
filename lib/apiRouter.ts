@@ -194,8 +194,9 @@ export const getDashboardDistribution: typeof sales.getDashboardDistribution = (
 export const getRecentCampaigns: typeof sales.getRecentCampaigns = (...args) =>
   pickModule().getRecentCampaigns(...args);
 
-export const listCampaigns: typeof sales.listCampaigns = (...args) =>
-  pickModule().listCampaigns(...args);
+export function listCampaigns(params: sales.CampaignListParams, persona?: Persona) {
+  return pickModule(persona).listCampaigns(params);
+}
 
 export const createCampaign: typeof sales.createCampaign = (...args) =>
   pickModule().createCampaign(...args);
@@ -263,8 +264,9 @@ export async function updateMyLead(
 export const getCampaign: typeof sales.getCampaign = (...args) =>
   pickModule().getCampaign(...args);
 
-export const getCampaignInfo: typeof sales.getCampaignInfo = (...args) =>
-  pickModule().getCampaignInfo(...args);
+export function getCampaignInfo(id: string, persona?: Persona) {
+  return pickModule(persona).getCampaignInfo(id);
+}
 
 export const getCampaignEmailTemplate: typeof sales.getCampaignEmailTemplate = (...args) =>
   pickModule().getCampaignEmailTemplate(...args);

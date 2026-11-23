@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance } from "axios";
 import { apiClient } from "./apiClient";
+import { invalidateCampaignPagesAfterMutation } from "./campaignPageCache";
 import { attachAuthToken, downloadProtectedFile, getAuthHeader } from "@/lib/auth";
 import { getLocalDevNgrokHeaders } from "@/lib/devNgrok";
 
@@ -195,6 +196,10 @@ export type CampaignListParams = {
   offset?: number;
   search?: string;
   category?: string;
+  categories?: string[];
+  date?: string;
+  timezone?: string;
+  includeCategories?: boolean;
 };
 
 export type CampaignListResponse = {
@@ -1617,7 +1622,7 @@ export async function getRecentCampaigns(limit?: number) {
 export async function listCampaigns(params: CampaignListParams) {
   const { data } = await apiClient.get<CampaignListResponse>(
     "/api/campaigns",
-    { params }
+    { params, paramsSerializer: { indexes: null } }
   );
   return data;
 }
@@ -2821,3 +2826,4 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use(attachAuthToken);
+api.interceptors.response.use(invalidateCampaignPagesAfterMutation);
