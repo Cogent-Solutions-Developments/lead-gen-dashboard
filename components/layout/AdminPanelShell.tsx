@@ -12,6 +12,7 @@ import {
   FileText,
   HardDrive,
   LayoutDashboard,
+  Linkedin,
   LogOut,
   Phone,
   Settings,
@@ -107,6 +108,7 @@ const intelligenceTabs = [
   { name: "Sales", href: "/admin/lead-intelligence/sales", icon: BarChart3, match: (path: string) => path.startsWith("/admin/lead-intelligence/sales") },
   { name: "Delegate", href: "/admin/lead-intelligence/delegate", icon: Handshake, match: (path: string) => path.startsWith("/admin/lead-intelligence/delegate") },
   { name: "Production", href: "/admin/lead-intelligence/production", icon: Factory, match: (path: string) => path.startsWith("/admin/lead-intelligence/production") },
+  { name: "LinkedIn", href: "/admin/lead-intelligence/linkedin", icon: Linkedin, match: (path: string) => path === "/admin/lead-intelligence/linkedin" || path.startsWith("/admin/lead-intelligence/linkedin/") },
   { name: "Admin Panel", href: "/admin", icon: ShieldCheck, match: () => false },
 ];
 

@@ -17,7 +17,7 @@ import { OutreachPagination } from "./OutreachPagination";
 
 const selectClass = "mt-1 h-9 w-full rounded-md border border-zinc-300/80 bg-white/80 px-2 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300";
 
-export function OutreachLeadTable({ department, eventKey }: { department?: OutreachDepartment; eventKey?: string }) {
+export function OutreachLeadTable({ department, eventKey, backHref, backLabel, title }: { department?: OutreachDepartment; eventKey?: string; backHref?: string; backLabel?: string; title?: string }) {
   const [selectedDepartment, setDepartment] = useState("");
   const [selectedEvent, setEvent] = useState("");
   const [cluster, setCluster] = useState("");
@@ -38,10 +38,10 @@ export function OutreachLeadTable({ department, eventKey }: { department?: Outre
   const columns = ["No.", "Profile", ...(!eventKey ? ["Event / campaign"] : []), "Contact Info", "Content", "Lead status", "Delivery state", "Emails sent", "Quick Actions"];
   return <div className="space-y-5 font-sans text-zinc-900 dark:text-zinc-100">
     {department && <>
-      <Link href={`/admin/lead-intelligence/${department}`} className="inline-flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-900"><ArrowLeft className="h-3.5 w-3.5" />{statusLabel(department)} events</Link>
-      <CampaignPageHeader title={data?.events?.find(event => event.key === eventKey)?.name || data?.items[0]?.eventName || statusLabel(eventKey || "Event leads")} description="One 3-email sequence per lead · 4 days apart" />
+      <Link href={backHref ?? `/admin/lead-intelligence/${department}`} className="inline-flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-900"><ArrowLeft className="h-3.5 w-3.5" />{backLabel ?? `${statusLabel(department)} events`}</Link>
+      <CampaignPageHeader title={title || data?.events?.find(event => event.key === eventKey)?.name || data?.items[0]?.eventName || statusLabel(eventKey || "Event leads")} description="One 3-email sequence per lead · 4 days apart" />
     </>}
-    {department && eventKey && <OutreachEventSettings department={department} eventKey={eventKey} eventName={data?.events?.find(event => event.key === eventKey)?.name || data?.items[0]?.eventName || "Event"} onSaved={reload} />}
+    {department && eventKey && <OutreachEventSettings backHref={backHref} department={department} eventKey={eventKey} eventName={data?.events?.find(event => event.key === eventKey)?.name || data?.items[0]?.eventName || "Event"} onSaved={reload} />}
     <LeadSheetPanel>
       <div className="space-y-4 px-6 pt-0.5">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

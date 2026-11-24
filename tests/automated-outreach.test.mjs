@@ -3,7 +3,7 @@ import test from "node:test";
 import { outreachActions, OUTREACH_DEPARTMENTS, statusLabel } from "../lib/automatedOutreach.ts";
 
 test("only the requested departments are available", () => {
-  assert.deepEqual(OUTREACH_DEPARTMENTS.map((department) => department.key), ["sales", "delegate", "production"]);
+  assert.deepEqual(OUTREACH_DEPARTMENTS.map((department) => department.key), ["sales", "delegate", "production", "linkedin"]);
 });
 
 test("terminal lead states never offer restart or resend actions", () => {
