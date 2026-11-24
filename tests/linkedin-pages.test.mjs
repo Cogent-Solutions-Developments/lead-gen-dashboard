@@ -6,6 +6,8 @@ import * as jsxRuntime from "react/jsx-runtime";
 import ts from "typescript";
 import * as outreachTypes from "../lib/automatedOutreach.ts";
 import * as pageTypes from "../lib/linkedinPages.ts";
+import * as contentStatus from "../lib/outreachContentStatus.ts";
+import * as outreachActivity from "../lib/outreachActivity.ts";
 
 const savedPage = { id: "saved-page", name: "Saved page", url: "https://www.linkedin.com/company/saved-page/", createdAt: "2026-11-19T00:00:00Z" };
 const settle = () => new Promise((resolve) => setImmediate(resolve));
@@ -49,6 +51,8 @@ function harness(file, exportName, api, props = {}) {
       };
       if (name === "@/lib/linkedinPagesApi" || name === "@/lib/automatedOutreachApi") return api;
       if (name === "@/lib/automatedOutreach") return outreachTypes;
+      if (name === "@/lib/outreachContentStatus") return contentStatus;
+      if (name === "@/lib/outreachActivity") return outreachActivity;
       if (name === "@/hooks/useOutreachResource") return { useOutreachResource: api.resource };
       if (name === "@/lib/auth") return { listActiveEventRegistry: api.listActiveEventRegistry ?? (async () => []) };
       if (name === "@/lib/linkedinPages") return pageTypes;
@@ -69,6 +73,40 @@ function harness(file, exportName, api, props = {}) {
   render();
   return { render, flush, find, all };
 }
+
+test("LinkedIn lead dots and scheduling appear only after templates are saved", () => {
+  const lead = { id: "lead-1", department: "linkedin", eventKey: "campaign-1", eventName: "Campaign",
+    email: "jane@example.test", lead: { name: "Jane Doe" }, state: "active", workflowStatus: "new",
+    sentCount: 0, templatesReady: false, messages: [], nextDueAt: "2026-11-19T14:18:00Z" };
+  const view = harness("components/automated-outreach/OutreachLeadRow.tsx", "OutreachLeadRow", {}, { lead, number: 1, reload() {} });
+  const indicators = () => view.all(node => node.props?.["aria-label"] === "Content generation status"
+    || node.props?.["aria-label"]?.startsWith("Delivery tracking for"));
+  const nextDates = () => view.all(node => node.type === "p" && node.props?.children?.[0] === "Next: ");
+  assert.equal(indicators().length, 0);
+  assert.equal(nextDates().length, 0); // Legacy timestamps must also stay hidden.
+  assert.equal(view.find(node => node.props?.["aria-label"] === "View messages for Jane Doe").props.disabled, true);
+  assert.ok(view.find(node => node.props?.children === "Save templates first"));
+  lead.templatesReady = true;
+  view.render();
+  assert.equal(indicators().length, 2);
+  assert.equal(nextDates().length, 1);
+  assert.equal(view.find(node => node.props?.["aria-label"] === "View messages for Jane Doe").props.disabled, false);
+  lead.state = "paused";
+  view.render();
+  assert.equal(indicators().length, 2);
+  assert.equal(nextDates().length, 0);
+});
+
+test("existing sent history and other departments retain their delivery indicators", () => {
+  for (const [department, sentCount] of [["linkedin", 1], ["sales", 0]]) {
+    const lead = { id: "lead-1", department, eventKey: "campaign-1", eventName: "Campaign",
+      email: "jane@example.test", lead: { name: "Jane Doe" }, state: "active", workflowStatus: "follow-up",
+      sentCount, templatesReady: false, messages: [], nextDueAt: "2026-11-25T14:18:00Z" };
+    const view = harness("components/automated-outreach/OutreachLeadRow.tsx", "OutreachLeadRow", {}, { lead, number: 1, reload() {} });
+    assert.equal(view.all(node => node.props?.["aria-label"]?.startsWith("Delivery tracking for")).length, 1);
+    assert.equal(view.all(node => node.type === "p" && node.props?.children?.[0] === "Next: ").length, 1);
+  }
+});
 
 test("Add Page saves once, preserves its values while saving, and returns the stored page", async () => {
   const calls = [], saved = [];

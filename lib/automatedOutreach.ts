@@ -22,7 +22,7 @@ export type OutreachLead = {
   id: string; department: OutreachDepartment; eventKey: string; eventName: string;
   email: string | null; lead: { name: string; title: string | null; company: string | null; phone: string | null; linkedinUrl: string | null; linkedinPageId?: string };
   workflowStatus: string; state: OutreachState; reason: string | null; sentCount: number;
-  nextDueAt: string | null; enrolledAt: string; messages: OutreachMessage[];
+  nextDueAt: string | null; enrolledAt: string; messages: OutreachMessage[]; templatesReady?: boolean;
 };
 
 export type OutreachConfiguration = {

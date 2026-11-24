@@ -9,7 +9,6 @@ import type { OutreachConfiguration, OutreachDepartment, OutreachEmailTemplate }
 import { saveOutreachTemplates } from "@/lib/automatedOutreachApi";
 
 const topics = ["Relevant speakers", "Relevant companies represented", "Programme highlights"];
-const hints = ["Two speaker bullets with name, role, organisation and relevance.", "Represented companies, recipient relevance and potential commercial value. No bullets.", "Three programme bullets connected to the lead's role or company."];
 
 export function TemplateEditor({config, department, eventKey, eventName, reload}: {config: OutreachConfiguration; department: OutreachDepartment; eventKey: string; eventName: string; reload: () => void}) {
   const initial = () => config.eventTemplates?.[department]?.[eventKey] ?? config.templateStarters ?? topics.map(() => ({subject: "", body: ""}));
@@ -33,7 +32,7 @@ export function TemplateEditor({config, department, eventKey, eventName, reload}
       steps={topics.map((topic, index) => ({label: `${index + 1}. ${topic}`, configured: Boolean(config.eventTemplates?.[department]?.[eventKey]?.[index]?.body)}))}
       bodyRows={10} selected={step} onSelect={setStep} subject={templates[step].subject} body={templates[step].body}
       onSubjectChange={value => update("subject", value)} onBodyChange={value => update("body", value)} disabled={busy}
-      hint={<>{hints[step]} Keep the sample’s greeting, paragraph order, one question and “Best regards,” closing. Replace every [Add …] instruction with verified information.</>}
+      hint={<>Use your own greeting, paragraphs, bullet points and signature. Replace every [Add …] instruction with your event information.</>}
       subjectExtra={<p className="mt-3 text-xs leading-5 text-slate-500">{step === 0 ? "Starts automatically when eligible and ready." : "Sent four days after the previous email."}</p>}
       actions={<><Button type="submit" disabled={busy || stale || templates.some(item => !item.subject.trim() || !item.body.trim())} className="h-10 bg-violet-600 px-3 text-white hover:bg-violet-700">{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}{busy ? "Saving…" : "Save all 3 templates"}</Button><Button type="button" variant="outline" disabled={busy} className="h-10 border-violet-200 text-violet-700" onClick={() => setTemplates(current => current.map((item, index) => index === step ? {subject: "", body: ""} : item))}><Trash2 className="mr-2 h-4 w-4" />Clear draft</Button></>}
     />
