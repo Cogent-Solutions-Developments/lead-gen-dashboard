@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { enrichCampaignMetadata, filterCampaigns, findCampaignCategories } from "../lib/campaignFilters.ts";
+import { buildCampaignFilterParams, enrichCampaignMetadata, filterCampaigns, findCampaignCategories } from "../lib/campaignFilters.ts";
 
 const campaigns = [
   { id: "1", name: "Campaign Alpha", canonicalEventName: "RegTech UAE", date: "2026-11-05", category: "Compliance", createdAt: new Date(2026, 8, 23, 12).toISOString() },
@@ -76,4 +76,27 @@ test("metadata is published a batch at a time while later requests are pending",
   const result = await enrichment;
   assert.equal(published.length, 2);
   assert.equal(result.campaigns[8].category, "Category 8");
+});
+
+
+test("compact filters recognize a year without requiring it in the event name", () => {
+  const filters = { eventName: "  Expo   2027  ", date: "", categories: [] };
+  assert.deepEqual(buildCampaignFilterParams(filters), {
+    search: "Expo", eventYear: 2027, eventDateFrom: undefined, eventDateTo: undefined,
+  });
+  assert.equal(buildCampaignFilterParams({ ...filters, eventName: "2027" }).search, undefined);
+  assert.equal(buildCampaignFilterParams({ ...filters, eventName: "2027" }).eventYear, 2027);
+  assert.equal(buildCampaignFilterParams({ ...filters, eventName: "ISO 27001 Expo" }).eventYear, undefined);
+  assert.equal(buildCampaignFilterParams({ ...filters, eventName: "Expo 2027 2028" }).eventYear, undefined);
+  assert.equal(buildCampaignFilterParams({ ...filters, eventName: "Expo 2027 2028" }).search, "Expo 2027 2028");
+  assert.equal(buildCampaignFilterParams({ ...filters, eventYear: "2028" }).eventYear, 2028);
+});
+
+test("the compact date control uses an exact event date and combines with year and name", () => {
+  assert.deepEqual(buildCampaignFilterParams({ eventName: "Expo", eventYear: "2027", date: "2027-05-10", categories: [] }), {
+    search: "Expo", eventYear: 2027, eventDateFrom: "2027-05-10", eventDateTo: "2027-05-10",
+  });
+  assert.deepEqual(buildCampaignFilterParams({ eventName: "", date: "", categories: [] }), {
+    search: undefined, eventYear: undefined, eventDateFrom: undefined, eventDateTo: undefined,
+  });
 });

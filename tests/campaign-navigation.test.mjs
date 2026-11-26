@@ -59,13 +59,22 @@ test("selected campaign highlight is immediate and dark-mode safe", () => {
 });
 
 test("campaign filter panel offers event name, event date, and category without status choices", () => {
-  assert.match(campaignListSource, /Search event name/);
+  assert.match(campaignListSource, /Search event name or year/);
   assert.match(campaignListSource, /id="campaign-date-filter"/);
   assert.match(campaignListSource, /id="campaign-category-search"/);
   assert.match(campaignListSource, /role="combobox"/);
   assert.match(campaignListSource, /role="listbox"/);
   assert.match(campaignListSource, /max-h-44 overflow-y-auto/);
   assert.match(campaignListSource, /aria-multiselectable="true"/);
-  assert.match(campaignListSource, /aria-pressed=\{selectedCategories\.length === 0\}/);
+  assert.match(campaignListSource, /selectedCategories\.join\(", "\)/);
   assert.doesNotMatch(campaignListSource, /setStatusFilter|All statuses/);
+});
+
+
+test("event edition, year, date range and creation date reset pagination independently", () => {
+  const original = { eventName: "Expo", date: "2027-01-01", categories: ["Sponsors"] };
+  for (const extra of [{ eventRegistryId: "edition-2" }, { eventYear: "2027" }, { dateTo: "2027-12-31" }, { createdDate: "2026-11-26" }]) {
+    assert.equal(didCampaignFiltersChange(original, { ...original, ...extra }), true);
+    assert.equal(didCampaignFiltersChange({ ...original, ...extra }, original), true);
+  }
 });

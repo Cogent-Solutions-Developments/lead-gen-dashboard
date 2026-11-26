@@ -191,6 +191,11 @@ export type ContentGenerationJob = {
 };
 
 export type CampaignListParams = {
+  eventRegistryId?: string;
+  eventYear?: number;
+  eventDateFrom?: string;
+  eventDateTo?: string;
+  createdDate?: string;
   status?: string;
   limit?: number;
   offset?: number;
