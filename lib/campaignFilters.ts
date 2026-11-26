@@ -6,6 +6,24 @@ export type CampaignFilters = {
   categories: string[];
 };
 
+// Infer a single standalone year so "Expo 2027" also finds events whose name omits the year.
+// Explicit controls take precedence; ambiguous year queries remain literal searches.
+export function buildCampaignFilterParams(filters: CampaignFilters & { eventYear?: string }) {
+  let search = filters.eventName.trim();
+  let year = filters.eventYear ? Number(filters.eventYear) : undefined;
+  const years = [...search.matchAll(/\b(?:19|20)\d{2}\b/g)];
+  if (!year && years.length === 1) {
+    year = Number(years[0][0]);
+    search = search.replace(/\b(?:19|20)\d{2}\b/, "").replace(/\s+/g, " ").trim();
+  }
+  return {
+    search: search || undefined,
+    eventYear: year,
+    eventDateFrom: filters.date || undefined,
+    eventDateTo: filters.date || undefined,
+  };
+}
+
 export function findCampaignCategories(categories: string[], query: string) {
   const search = query.trim().toLocaleLowerCase();
   return categories.filter((category) => category.toLocaleLowerCase().includes(search));

@@ -3,6 +3,10 @@ export const CAMPAIGN_RETURN_PAGE_QUERY_PARAM = "fromPage";
 export const CAMPAIGN_SELECTED_QUERY_PARAM = "selected";
 
 export type CampaignFilterSnapshot = {
+  eventRegistryId?: string;
+  eventYear?: string;
+  dateTo?: string;
+  createdDate?: string;
   eventName: string;
   date: string;
   categories: string[];
@@ -18,6 +22,10 @@ export function didCampaignFiltersChange(
   return (
     previous.eventName !== current.eventName ||
     previous.date !== current.date ||
+    (previous.dateTo || "") !== (current.dateTo || "") ||
+    (previous.eventRegistryId || "") !== (current.eventRegistryId || "") ||
+    (previous.eventYear || "") !== (current.eventYear || "") ||
+    (previous.createdDate || "") !== (current.createdDate || "") ||
     previousCategories.size !== currentCategories.size ||
     [...previousCategories].some((value) => !currentCategories.has(value))
   );

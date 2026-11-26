@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Plus,
+  Copy,
   Loader2,
   Filter,
   Play,
@@ -45,6 +46,8 @@ import {
 } from "@/lib/apiRouter";
 import { usePersona } from "@/hooks/usePersona";
 import { useAuth } from "@/hooks/useAuth";
+import { ReuseCampaignDialog } from "@/components/campaigns/ReuseCampaignDialog";
+import { CampaignEventFilters, type CampaignEventFilterValues } from "@/components/campaigns/CampaignEventFilters";
 import { CampaignActionDialog } from "@/components/campaigns/CampaignActionDialog";
 import { NormalUserEventsPage } from "@/components/events/NormalUserEventsPage";
 import {
@@ -56,6 +59,7 @@ import {
   type CampaignFilterSnapshot,
 } from "@/lib/campaignNavigation";
 import {
+  buildCampaignFilterParams,
   enrichCampaignMetadata,
   findCampaignCategories,
   parseDbTimestamp,
@@ -338,6 +342,8 @@ function SuperAdminCampaignsPage() {
   const [activeCategoryIndex, setActiveCategoryIndex] = useState(0);
   const [eventNameFilter, setEventNameFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+  const [eventFilters, setEventFilters] = useState<CampaignEventFilterValues>({ eventYear: "" });
+  const [reuseTarget, setReuseTarget] = useState<CampaignListItem | null>(null);
   const [appliedFilters, setAppliedFilters] = useState<CampaignFilterSnapshot>({ eventName: "", date: "", categories: [] });
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(() => initialPage);
@@ -376,9 +382,8 @@ function SuperAdminCampaignsPage() {
   const cacheScope = JSON.stringify([persona, session?.user.id, session?.user.role, session?.accessToken]);
   const pageParams = useMemo(() => ({
     status: "all", limit: itemsPerPage, offset: (currentPage - 1) * itemsPerPage,
-    search: appliedFilters.eventName.trim() || undefined,
+    ...buildCampaignFilterParams(appliedFilters),
     categories: appliedFilters.categories,
-    date: appliedFilters.date || undefined,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     includeCategories: true,
   }), [currentPage, itemsPerPage, appliedFilters]);
@@ -667,14 +672,16 @@ function SuperAdminCampaignsPage() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i);
   }, [currentPage, totalPages]);
 
-  const activeFilters = Boolean(selectedCategories.length || dateFilter || eventNameFilter.trim());
+  const activeFilters = Boolean(selectedCategories.length || dateFilter || eventNameFilter.trim() || Object.values(eventFilters).some(Boolean));
 
   useEffect(() => {
     const nextFilters: CampaignFilterSnapshot = {
+      ...eventFilters,
       eventName: eventNameFilter,
       date: dateFilter,
       categories: selectedCategories,
     };
+    if (eventFilters.eventYear && (!/^[1-9]\d{3}$/.test(eventFilters.eventYear) || Number(eventFilters.eventYear) > 9998)) return;
     const previousFilters = previousCampaignFiltersRef.current;
     if (!didCampaignFiltersChange(previousFilters, nextFilters)) return;
     const timer = window.setTimeout(() => {
@@ -685,7 +692,7 @@ function SuperAdminCampaignsPage() {
       setAppliedFilters(nextFilters);
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [selectedCategories, dateFilter, eventNameFilter, replaceCampaignPage]);
+  }, [selectedCategories, dateFilter, eventNameFilter, eventFilters, replaceCampaignPage]);
 
   useEffect(() => {
     if (loading || filterResultsPending) return;
@@ -1307,6 +1314,7 @@ function SuperAdminCampaignsPage() {
                         setIsCategoryPickerOpen(false);
                         setEventNameFilter("");
                         setDateFilter("");
+                        setEventFilters({ eventYear: "" });
                       }}
                       className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-800"
                     >
@@ -1319,7 +1327,7 @@ function SuperAdminCampaignsPage() {
                 <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
                 <div className="space-y-2">
                   <label htmlFor="campaign-event-name-filter" className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                    Event name
+                    Event
                   </label>
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
@@ -1327,24 +1335,20 @@ function SuperAdminCampaignsPage() {
                       id="campaign-event-name-filter"
                       value={eventNameFilter}
                       onChange={(e) => setEventNameFilter(e.target.value)}
-                      placeholder="Search event name"
+                      placeholder="Search event name or year"
                       className="h-9 border-zinc-300/80 bg-white/80 pl-9 text-sm"
                     />
                   </div>
                 </div>
 
-                <div className="mt-4 space-y-2">
-                  <label htmlFor="campaign-date-filter" className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                    Date
-                  </label>
-                  <Input
-                    id="campaign-date-filter"
-                    type="date"
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value)}
-                    className="h-9 border-zinc-300/80 bg-white/80 text-sm"
-                  />
-                  <p className="text-[11px] text-zinc-500">Matches the event date or created date.</p>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <CampaignEventFilters values={eventFilters} onChange={setEventFilters} />
+                  <div className="min-w-0 space-y-2">
+                    <label htmlFor="campaign-date-filter" className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Date</label>
+                    <Input id="campaign-date-filter" type="date" value={dateFilter}
+                      onChange={event => setDateFilter(event.target.value)}
+                      className="h-9 min-w-0 border-zinc-300/80 bg-white/80 text-sm" />
+                  </div>
                 </div>
 
                 <div
@@ -1355,45 +1359,22 @@ function SuperAdminCampaignsPage() {
                     }
                   }}
                 >
-                  <label htmlFor="campaign-category-search" className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                  <label htmlFor="campaign-category-trigger" className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                     Category
                   </label>
-                  <div className="flex items-center justify-between gap-2">
-                    <button
-                      type="button"
-                      onClick={clearCategories}
-                      aria-pressed={selectedCategories.length === 0}
-                      className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                        selectedCategories.length === 0 ? "border-zinc-300 bg-zinc-900 text-white" : "border-zinc-300 bg-white text-zinc-600 hover:text-zinc-900"
-                      }`}
-                    >
-                      All categories
-                    </button>
-                    {selectedCategories.length > 0 && (
-                      <span className="text-[11px] text-zinc-500">{selectedCategories.length} selected</span>
-                    )}
-                  </div>
-                  {selectedCategories.length > 0 && (
-                    <div className="flex max-h-20 flex-wrap gap-1.5 overflow-y-auto" aria-label="Selected categories">
-                      {selectedCategories.map((category) => (
-                        <button
-                          key={category}
-                          type="button"
-                          onClick={() => toggleCategory(category)}
-                          className="inline-flex max-w-full items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700"
-                          aria-label={`Remove category ${category}`}
-                          title={category}
-                        >
-                          <span className="truncate">{category}</span>
-                          <X className="h-3 w-3 shrink-0" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <button id="campaign-category-trigger" type="button" onClick={() => setIsCategoryPickerOpen(open => !open)}
+                    aria-expanded={isCategoryPickerOpen} aria-controls="campaign-category-options" aria-haspopup="listbox"
+                    className="flex h-9 w-full items-center justify-between gap-2 rounded-md border border-zinc-300/80 bg-white/80 px-3 text-left text-sm text-zinc-700">
+                    <span className="truncate">{selectedCategories.length ? selectedCategories.join(", ") : "All categories"}</span>
+                    <ChevronRight className={`h-3.5 w-3.5 shrink-0 transition-transform ${isCategoryPickerOpen ? "-rotate-90" : "rotate-90"}`} />
+                  </button>
+                  {isCategoryPickerOpen && <>
+                  {selectedCategories.length > 0 && <button type="button" onClick={clearCategories} className="text-xs text-zinc-500 underline">Clear categories</button>}
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
                     <Input
                       id="campaign-category-search"
+                      aria-label="Search categories"
                       value={categorySearch}
                       onFocus={() => setIsCategoryPickerOpen(true)}
                       onChange={(event) => {
@@ -1461,13 +1442,7 @@ function SuperAdminCampaignsPage() {
                       )}
                     </div>
                   )}
-                  <p className="text-[11px] text-zinc-500">
-                    {metadataLoading
-                      ? "Loading remaining categories…"
-                      : categorySearch.trim()
-                        ? `${visibleCategoryOptions.length} of ${categories.length} categories`
-                        : `${categories.length} categories available`}
-                  </p>
+                  </>}
                 </div>
                 </div>
 
@@ -1691,7 +1666,7 @@ function SuperAdminCampaignsPage() {
                       </div>
 
                       <div className="flex min-h-[4.5rem] flex-col gap-3 md:items-end md:pt-8">
-                        <div className="flex flex-nowrap items-center gap-2 whitespace-nowrap md:justify-end">
+                        <div className="flex flex-wrap items-center gap-2 md:justify-end">
                           {isSuperAdmin && isStopAllowed(campaign) ? (
                             <Button
                               onClick={(e) => openDialog("stop", campaign.id, campaign.name, e)}
@@ -1805,6 +1780,11 @@ function SuperAdminCampaignsPage() {
                               <ChevronRight className="ml-1 h-3 w-3" />
                             </Button>
                           </Link>
+                          {isSuperAdmin && <Button type="button" variant="outline" className="h-9 px-3.5 text-xs font-semibold"
+                            aria-label={`Clone ${campaign.name}`} title="Create a fresh campaign from these leads"
+                            onClick={event => { event.stopPropagation(); setReuseTarget(campaign); }}>
+                            <Copy className="mr-1.5 h-3.5 w-3.5" />Clone
+                          </Button>}
                         </div>
                       </div>
                     </div>
@@ -1884,6 +1864,14 @@ function SuperAdminCampaignsPage() {
           )}
         </div>
       </div>
+
+      {isSuperAdmin && reuseTarget && <ReuseCampaignDialog key={`${persona}:${reuseTarget.id}`} campaign={reuseTarget} persona={persona}
+        onClose={() => setReuseTarget(null)} onCreated={(id, count) => {
+          invalidateCampaignPages();
+          setReuseTarget(null);
+          toast.success(`Created a new campaign with ${count} leads.`);
+          router.push(buildCampaignDetailHref(id, 1));
+        }} />}
 
       <CampaignActionDialog
         open={Boolean(dialogTarget)}
