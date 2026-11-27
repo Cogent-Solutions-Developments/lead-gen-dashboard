@@ -23,6 +23,9 @@ export type AuthRole =
   | "production_manager_user"
   | "client_user"
   | "marketing_user"
+  | "marketing_manager_user"
+  | "marketing_designer_user"
+  | "marketing_developer_user"
   | "operational_user"
   | "finance_user";
 
@@ -294,6 +297,9 @@ export const AUTH_ROLES: AuthRole[] = [
   "production_user",
   "production_manager_user",
   "marketing_user",
+  "marketing_manager_user",
+  "marketing_designer_user",
+  "marketing_developer_user",
   "operational_user",
   "finance_user",
   "client_user",
@@ -325,6 +331,9 @@ const ROLE_ALIASES: Record<string, AuthRole> = {
   event_client_user: "client_user",
   marketing: "marketing_user",
   marketing_user: "marketing_user",
+  marketing_manager_user: "marketing_manager_user",
+  marketing_designer_user: "marketing_designer_user",
+  marketing_developer_user: "marketing_developer_user",
   operational: "operational_user",
   operations: "operational_user",
   operational_user: "operational_user",
@@ -500,7 +509,10 @@ export function getRoleLabel(role: AuthRole | null | undefined) {
   if (role === "delegate_manager_user") return "Delegate Manager";
   if (role === "production_manager_user") return "Production Manager";
   if (role === "delegate_sales_manager_user") return "Delegate Sales Manager";
-  if (role === "marketing_user") return "Marketing";
+  if (role === "marketing_manager_user") return "Marketing Manager";
+  if (role === "marketing_designer_user") return "Designer";
+  if (role === "marketing_developer_user") return "Developer";
+  if (role === "marketing_user") return "Marketing (legacy)";
   if (role === "operational_user") return "Operations";
   if (role === "finance_user") return "Finance";
   if (role === "client_user") return "Client";
